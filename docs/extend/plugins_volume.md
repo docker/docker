@@ -52,13 +52,15 @@ containers.
 **Request**:
 ```
 {
-    "Name": "volume_name"
+    "Name": "volume_name",
+    "Opts": {}
 }
 ```
 
 Instruct the plugin that the user wants to create a volume, given a user
 specified volume name.  The plugin does not need to actually manifest the
 volume on the filesystem yet (until Mount is called).
+Opts is a map of driver specific options passed through from the user request.
 
 **Response**:
 ```
