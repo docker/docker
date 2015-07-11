@@ -78,7 +78,7 @@ Respond with a string error if an error occurred.
 }
 ```
 
-Create a volume, given a user specified volume name.
+Delete the specified volume from disk. This request is issued when a user invokes `docker rm -v` to remove volumes associated with a container.
 
 **Response**:
 ```
