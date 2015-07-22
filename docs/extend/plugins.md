@@ -44,6 +44,10 @@ The following plugins exist:
   a plugin that provides credentials and secret management using Keywhiz as
   a central repository.
 
+* The [REX-Ray plugin](https://github.com/emccode/rexraycli) is a volume plugin
+  which is written in Go and provides advanced storage functionality for many
+  platforms including EC2, OpenStack, XtremIO, and ScaleIO.
+
 ## Troubleshooting a plugin
 
 If you are having problems with Docker after loading a plugin, ask the authors
