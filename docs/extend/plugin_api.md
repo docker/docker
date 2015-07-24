@@ -16,7 +16,7 @@ Docker Engine.
 
 This page is intended for people who want to develop their own Docker plugin.
 If you just want to learn about or use Docker plugins, look
-[here](plugins.md).
+[here](/extend/plugins).
 
 ## What plugins are
 

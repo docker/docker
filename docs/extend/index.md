@@ -15,8 +15,6 @@ weight = 6
 
 Currently, you can extend Docker by adding a plugin. This section contains the following topics:
 
-* [Understand Docker plugins](plugins.md)
-* [Write a volume plugin](plugins_volumes.md)
-* [Docker plugin API](plugin_api.md)
-
- 
+* [Understand Docker plugins](/extend/plugins)
+* [Write a volume plugin](/extend/plugins_volume)
+* [Docker plugin API](/extend/plugin_api)
