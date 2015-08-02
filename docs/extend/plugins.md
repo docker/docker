@@ -31,6 +31,12 @@ Follow the instructions in the plugin's documentation.
 
 The following plugins exist:
 
+* The [Blockbridge plugin](https://github.com/blockbridge/blockbridge-docker-volume)
+  is a volume plugin that provides access to an extensible set of
+  container-based persistent storage options. It supports single and multi-host Docker
+  environments with features that include tenant isolation, automated
+  provisioning, encryption, secure deletion, snapshots and QoS.
+
 * The [Flocker plugin](https://clusterhq.com/docker-plugin/) is a volume plugin
   which provides multi-host portable volumes for Docker, enabling you to run
   databases and other stateful containers and move them around across a cluster
