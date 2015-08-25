@@ -37,6 +37,11 @@ The following plugins exist:
   environments with features that include tenant isolation, automated
   provisioning, encryption, secure deletion, snapshots and QoS.
 
+* The [Convoy plugin](https://github.com/rancher/convoy) is a volume plugin for a
+  variety of storage back-ends including device mapper and NFS. It's a simple standalone
+  executable written in Go and provides the framework to support vendor-specific extensions
+  such as snapshots, backups and restore.
+
 * The [Flocker plugin](https://clusterhq.com/docker-plugin/) is a volume plugin
   which provides multi-host portable volumes for Docker, enabling you to run
   databases and other stateful containers and move them around across a cluster
