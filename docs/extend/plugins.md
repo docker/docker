@@ -59,6 +59,10 @@ The following plugins exist:
   which is written in Go and provides advanced storage functionality for many
   platforms including EC2, OpenStack, XtremIO, and ScaleIO.
 
+* The [Pachyderm PFS plugin](https://github.com/pachyderm/pachyderm/tree/master/src/cmd/pfs-volume-driver)
+  is a volume plugin written in Go that provides functionality to mount Pachyderm File System (PFS)
+  repositories at specific commits as volumes within Docker containers.
+
 ## Troubleshooting a plugin
 
 If you are having problems with Docker after loading a plugin, ask the authors
