@@ -17,9 +17,9 @@ plugins.
 ## Types of plugins
 
 Plugins extend Docker's functionality.  They come in specific types.  For
-example, a [volume plugin](/extend/plugins_volume.md) might enable Docker
+example, a [volume plugin](plugins_volume.md) might enable Docker
 volumes to persist across multiple Docker hosts and a 
-[network plugin](/extend/plugins_network.md) might provide network plumbing
+[network plugin](plugins_network.md) might provide network plumbing
 using a favorite networking technology, such as vxlan overlay, ipvlan, EVPN, etc.
 
 Currently Docker supports volume and network driver plugins. In the future it
@@ -73,4 +73,4 @@ of the plugin for help. The Docker team may not be able to assist you.
 ## Writing a plugin
 
 If you are interested in writing a plugin for Docker, or seeing how they work
-under the hood, see the [docker plugins reference](/extend/plugin_api).
+under the hood, see the [docker plugins reference](plugin_api.md).

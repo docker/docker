@@ -12,7 +12,7 @@ parent = "mn_extend"
 
 Docker volume plugins enable Docker deployments to be integrated with external
 storage systems, such as Amazon EBS, and enable data volumes to persist beyond
-the lifetime of a single Docker host. See the [plugin documentation](/extend/plugins)
+the lifetime of a single Docker host. See the [plugin documentation](plugins.md)
 for more information.
 
 # Command-line changes
