@@ -65,6 +65,9 @@ The following plugins exist:
   which is written in Go and provides advanced storage functionality for many
   platforms including EC2, OpenStack, XtremIO, and ScaleIO.
 
+* The [Netshare plugin](https://github.com/gondor/docker-volume-netshare) is a volume plugin
+  which provides volume management for NFS 3/4, AWS EFS and CIFS file systems.
+
 ## Troubleshooting a plugin
 
 If you are having problems with Docker after loading a plugin, ask the authors
