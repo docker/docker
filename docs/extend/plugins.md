@@ -56,9 +56,9 @@ The following plugins exist:
 * The [Keywhiz plugin](https://github.com/calavera/docker-volume-keywhiz) is
   a plugin that provides credentials and secret management using Keywhiz as
   a central repository.
-  
+
 * The [Netshare plugin](https://github.com/gondor/docker-volume-netshare) is a volume plugin
-  which provides volume management for NFS 3/4, AWS EFS and CIFS file systems.
+  that provides volume management for NFS 3/4, AWS EFS and CIFS file systems.
 
 * The [Pachyderm PFS plugin](https://github.com/pachyderm/pachyderm/tree/master/src/cmd/pfs-volume-driver)
   is a volume plugin written in Go that provides functionality to mount Pachyderm File System (PFS)
