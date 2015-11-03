@@ -59,6 +59,8 @@ The following plugins exist:
 * The [Netshare plugin](https://github.com/gondor/docker-volume-netshare) is a volume plugin
   that provides volume management for NFS 3/4, AWS EFS and CIFS file systems.
 
+* The [OpenStorage Plugin] (https://github.com/libopenstorage/openstorage) is a cluster aware volume plugin that provides volume management for file and block storage solutions.  It implements a vendor neutral specification for implementing extensions such as CoS, encryption, and snapshots.   It has example drivers based on FUSE, NFS, NBD and EBS to name a few.
+
 * The [Pachyderm PFS plugin](https://github.com/pachyderm/pachyderm/tree/master/src/cmd/pfs-volume-driver)
   is a volume plugin written in Go that provides functionality to mount Pachyderm File System (PFS)
   repositories at specific commits as volumes within Docker containers.
