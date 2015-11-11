@@ -12,7 +12,8 @@ weight=-1
 # Understand Docker plugins
 
 You can extend the capabilities of the Docker Engine by loading third-party
-plugins.
+plugins. This page explains the types of plugins and provides links to several
+volume and network plugins for Docker.
 
 ## Types of plugins
 
@@ -68,6 +69,16 @@ The following plugins exist:
 * The [REX-Ray plugin](https://github.com/emccode/rexraycli) is a volume plugin
   which is written in Go and provides advanced storage functionality for many
   platforms including EC2, OpenStack, XtremIO, and ScaleIO.
+
+* The [Contiv Volume Plugin](https://github.com/contiv/volplugin) is an open
+source volume plugin that provides multi-tenant, persistent, distributed storage
+with intent based consumption using ceph underneath.
+
+* The [Contiv Networking](https://github.com/contiv/netplugin) is an open source
+libnetwork plugin to provide infrastructure and security policies for a
+multi-tenant micro services deployment, while providing an integration to
+physical network for non-container workload. Contiv Networking implements the
+remote driver and IPAM APIs available in Docker 1.9 onwards.
 
 ## Troubleshooting a plugin
 
