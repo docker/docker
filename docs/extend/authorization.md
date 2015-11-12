@@ -91,9 +91,10 @@ Message | string | Authorization message (will be returned to the client in case
 
 ### Setting up docker daemon 
 
-Authorization plugins are enabled with a dedicated command line argument. The argument contains a comma separated list of the plugin names, which should be the same as the plugin’s socket or spec file. 
+Authorization plugins are enabled with a dedicated command line argument. The argument contains the plugin name, which should be the same as the plugin’s socket or spec file.
+Multiple authz-plugin parameters are supported.
 ```
-$ docker -d authz-plugins=plugin1,plugin2,...
+$ docker daemon --authz-plugins=plugin1 --auth-plugins=plugin2,...
 ```
 
 ### Calling authorized command (allow)
