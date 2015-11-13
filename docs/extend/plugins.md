@@ -80,6 +80,8 @@ multi-tenant micro services deployment, while providing an integration to
 physical network for non-container workload. Contiv Networking implements the
 remote driver and IPAM APIs available in Docker 1.9 onwards.
 
+* The [Weave Network Plugin](https://github.com/weaveworks/docker-plugin) creates a virtual network that connects your Docker containers - across multiple hosts or clouds and enables automatic discovery of applications. Weave networks are resilient, partition tolerant, secure and work in partially connected networks, and other adverse environments - all configured with delightful simplicity.
+
 ## Troubleshooting a plugin
 
 If you are having problems with Docker after loading a plugin, ask the authors
