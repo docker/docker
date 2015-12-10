@@ -13,7 +13,7 @@ weight = -1
 # Create an authorization plugin
 
 Docker’s out-of-the-box authorization model is all or nothing. Any user with
-permission to access to the Docker daemon can run any Docker client command. The
+permission to access the Docker daemon can run any Docker client command. The
 same is true for callers using Docker's remote API to contact the daemon. If you
 require greater access control, you can create authorization plugins and add
 them to your Docker daemon configuration. Using an authorization plugin, a
@@ -27,13 +27,13 @@ and methods information available to an authorization plugin developer.
 
 ## Basic principles
 
-Docker's [plugin infrastructure](http://docs.docker.com/engine/extend/plugin_api) enables
-extending Docker by dynamically loading, removing and communicating with
+Docker's [plugin infrastructure](plugin_api.md) enables
+extending Docker by loading, removing and communicating with
 third-party components using a generic API. The access authorization subsystem
 was built using this mechanism.
 
 Using this subsystem, you don't need to rebuild the Docker daemon to add an
-authorization plugin.  You can add a plugin to a installed Docker daemon. You do
+authorization plugin.  You can add a plugin to an installed Docker daemon. You do
 need to restart the Docker daemon to add a new plugin.
 
 An authorization plugin approves or denies requests to the Docker daemon based
@@ -41,9 +41,9 @@ on both the current authentication context and the command context. The
 authentication context contains all user details and the authentication method.
 The command context contains all the relevant request data.
 
-Authorization plugins must follow the rules described in [Docker Plugin API](http://docs.docker.com/engine/extend/plugin_api/). 
-Each plugin must reside within directories described under the [plugin discovery](http://docs.docker.com/engine/extend/plugin_api/#plugin-discovery)
-section.
+Authorization plugins must follow the rules described in [Docker Plugin API](plugin_api.md). 
+Each plugin must reside within directories described under the 
+[Plugin discovery](plugin_api.md#plugin-discovery) section.
 
 ## Basic architecture
 
@@ -58,12 +58,11 @@ authentication plugin(s). The request contains the user (caller) and command
 context. The plugin is responsible for deciding whether to allow or deny the
 request.
 
-Below please find tow sequence diagrams describing the *allow* and *deny* 
-authorization flows:
+The sequence diagrams below depict an allow and deny authorization flow:
 
-![Bad Address](images/authz_allow.png)
+![Authorization Allow flow](images/authz_allow.png)
 
-![Bad Address](images/authz_deny.png)
+![Authorization Deny flow](images/authz_deny.png)
 
 Each request sent to the plugin includes the authenticated user, the HTTP
 headers, and the request/response body. Only the user name and the
@@ -72,15 +71,15 @@ credentials or tokens are passed. Finally, not all request/response bodies
 are sent to the authorization plugin. Only those request/response bodies where
 the `Content-Type` is either `text/*` or `application/json` are sent.
 
-For commands that can potentially the hijack the HTTP connection (`HTTP
-Upgrade`), such as `exec`, the authorization plugin are only called for the
+For commands that can potentially hijack the HTTP connection (`HTTP
+Upgrade`), such as `exec`, the authorization plugin is only called for the
 initial HTTP requests. Once the plugin approves the command, authorization is
 not applied to the rest of the flow. Specifically, the streaming data is not
 passed to the authorization plugins. For commands that return chunked HTTP
-response, such as `logs` and `events`, only the HTTP request are sent to the
-authorization plugins as well.
+response, such as `logs` and `events`, only the HTTP request is sent to the
+authorization plugins.
 
-During request/response processing, some authorization plugins flows might
+During request/response processing, some authorization flows might
 need to do additional queries to the Docker daemon. To complete such flows,
 plugins can call the daemon API similar to a regular user. To enable these
 additional queries, the plugin must provide the means for an administrator to
@@ -88,7 +87,8 @@ configure proper authentication and security policies.
 
 ## Docker client flows
 
-To enable and configure the authorization plugin, the plugin developer must support the Docker client interactions detailed in this section.
+To enable and configure the authorization plugin, the plugin developer must 
+support the Docker client interactions detailed in this section.
 
 ### Setting up Docker daemon
 
@@ -96,17 +96,18 @@ Enable the authorization plugin with a dedicated command line flag in the
 `--authz-plugins=PLUGIN_ID` format. The flag supplies a `PLUGIN_ID` value.
 This value can be the plugin’s socket or a path to a specification file.
 
-```
-$ docker daemon --authz-plugins=plugin1 --auth-plugins=plugin2,...
+```bash
+$ docker daemon --authz-plugins=plugin1 --authz-plugins=plugin2,...
 ```
 
-Docker's authorization subsystem supports multiple `--authz-plugin` parameters.
+Docker's authorization subsystem supports multiple `--authz-plugins` parameters.
 
 ### Calling authorized command (allow)
 
-Your plugin must support calling the `allow` command to authorize a command. This call does not impact Docker's command line.
+Your plugin must support calling the `allow` command to authorize a command. 
+This call does not impact Docker's command line.
 
-```
+```bash
 $ docker pull centos
 ...
 f1b10cd84249: Pull complete
@@ -115,12 +116,17 @@ f1b10cd84249: Pull complete
 
 ### Calling unauthorized command (deny)
 
-Your plugin must support calling the `deny` command to report on the outcome of a plugin interaction. This call returns messages to Docker's command line informing the user of the outcome of each call.  
+Your plugin must support calling the `deny` command to report on the outcome of 
+a plugin interaction. This call returns messages to Docker's command line informing 
+the user of the outcome of each call.  
 
-```
+```bash
 $ docker pull centos
 …
-Authorization failed. Pull command for user 'john_doe' is denied by authorization plugin 'ACME' with message ‘[ACME] User 'john_doe' is not allowed to perform the pull command’
+Authorization failed. Pull command for user 'john_doe' is 
+denied by authorization plugin 'ACME' with message 
+‘[ACME] User 'john_doe' is not allowed to perform the pull 
+command’
 ```
 
 Where multiple authorization plugins are installed, multiple messages are expected.
@@ -128,7 +134,8 @@ Where multiple authorization plugins are installed, multiple messages are expect
 
 ## API schema and implementation
 
-Sample code for a typical plugin can be found here [ADD LINK]. In addition to Docker's standard plugin registration method, each plugin should implement the following two methods:
+In addition to Docker's standard plugin registration method, each plugin 
+should implement the following two methods:
 
 * `/AuthzPlugin.AuthZReq` This authorize request method is called before the Docker daemon processes the client request.
 
@@ -138,7 +145,7 @@ Sample code for a typical plugin can be found here [ADD LINK]. In addition to Do
 
 **Request**:
 
-```
+```json
 {    
     "User":              "The user identification"
     "UserAuthNMethod":   "The authentication method used"
@@ -152,7 +159,7 @@ Sample code for a typical plugin can be found here [ADD LINK]. In addition to Do
 
 **Response**:
 
-```
+```json
 {    
     "Allow" : "Determined whether the user is allowed or not"
     "Msg":    "The authorization message"
@@ -162,7 +169,8 @@ Sample code for a typical plugin can be found here [ADD LINK]. In addition to Do
 #### /AuthzPlugin.AuthZRes
 
 **Request**:
-```
+
+```json
 {
     "User":              "The user identification"
     "UserAuthNMethod":   "The authentication method used"
@@ -178,7 +186,8 @@ Sample code for a typical plugin can be found here [ADD LINK]. In addition to Do
 ```
 
 **Response**:
-```
+
+```json
 {
    "Allow" :               "Determined whether the user is allowed or not"
    "Msg":                  "The authorization message"
