@@ -93,14 +93,14 @@ support the Docker client interactions detailed in this section.
 ### Setting up Docker daemon
 
 Enable the authorization plugin with a dedicated command line flag in the
-`--authz-plugins=PLUGIN_ID` format. The flag supplies a `PLUGIN_ID` value.
+`--authz-plugin=PLUGIN_ID` format. The flag supplies a `PLUGIN_ID` value.
 This value can be the plugin’s socket or a path to a specification file.
 
 ```bash
-$ docker daemon --authz-plugins=plugin1 --authz-plugins=plugin2,...
+$ docker daemon --authz-plugin=plugin1 --authz-plugin=plugin2,...
 ```
 
-Docker's authorization subsystem supports multiple `--authz-plugins` parameters.
+Docker's authorization subsystem supports multiple `--authz-plugin` parameters.
 
 ### Calling authorized command (allow)
 
