@@ -146,13 +146,13 @@ should implement the following two methods:
 **Request**:
 
 ```json
-{    
-    "User":              "The user identification"
-    "UserAuthNMethod":   "The authentication method used"
-    "RequestMethod":     "The HTTP method"
-    "RequestUri":        "The HTTP request URI"
-    "RequestBody":       "Byte array containing the raw HTTP request body"
-    "RequestHeader":     "Byte array containing the raw HTTP request header as a map[string][]string "
+{
+    "User":              "The user identification",
+    "UserAuthNMethod":   "The authentication method used",
+    "RequestMethod":     "The HTTP method",
+    "RequestUri":        "The HTTP request URI",
+    "RequestBody":       "Byte array containing the raw HTTP request body",
+    "RequestHeader":     "Byte array containing the raw HTTP request header as a map[string][]string ",
     "RequestStatusCode": "Request status code"
 }
 ```
@@ -160,27 +160,27 @@ should implement the following two methods:
 **Response**:
 
 ```json
-{    
-    "Allow" : "Determined whether the user is allowed or not"
-    "Msg":    "The authorization message"
+{
+    "Allow": "Determined whether the user is allowed or not",
+    "Msg":   "The authorization message",
+    "Err":   "The error message if things go wrong"
 }
 ```
-
 #### /AuthzPlugin.AuthZRes
 
 **Request**:
 
 ```json
 {
-    "User":              "The user identification"
-    "UserAuthNMethod":   "The authentication method used"
-    "RequestMethod":     "The HTTP method"
-    "RequestUri":        "The HTTP request URI"
-    "RequestBody":       "Byte array containing the raw HTTP request body"
-    "RequestHeader":     "Byte array containing the raw HTTP request header as a map[string][]string"
-    "RequestStatusCode": "Request status code"
-    "ResponseBody":      "Byte array containing the raw HTTP response body"
-    "ResponseHeader":    "Byte array containing the raw HTTP response header as a map[string][]string"
+    "User":              "The user identification",
+    "UserAuthNMethod":   "The authentication method used",
+    "RequestMethod":     "The HTTP method",
+    "RequestUri":        "The HTTP request URI",
+    "RequestBody":       "Byte array containing the raw HTTP request body",
+    "RequestHeader":     "Byte array containing the raw HTTP request header as a map[string][]string",
+    "RequestStatusCode": "Request status code",
+    "ResponseBody":      "Byte array containing the raw HTTP response body",
+    "ResponseHeader":    "Byte array containing the raw HTTP response header as a map[string][]string",
     "ResponseStatusCode":"Response status code"
 }
 ```
@@ -189,11 +189,12 @@ should implement the following two methods:
 
 ```json
 {
-   "Allow" :               "Determined whether the user is allowed or not"
-   "Msg":                  "The authorization message"
-   "ModifiedBody":         "Byte array containing a modified body of the raw HTTP body (or nil if no changes required)"
-   "ModifiedHeader":       "Byte array containing a modified header of the HTTP response (or nil if no changes required)"
-   "ModifiedStatusCode":   "int containing the modified version of the status code (or 0 if not change is required)"
+   "Allow":              "Determined whether the user is allowed or not",
+   "Msg":                "The authorization message",
+   "Err":                "The error message if things go wrong",
+   "ModifiedBody":       "Byte array containing a modified body of the raw HTTP body (or nil if no changes required)",
+   "ModifiedHeader":     "Byte array containing a modified header of the HTTP response (or nil if no changes required)",
+   "ModifiedStatusCode": "int containing the modified version of the status code (or 0 if not change is required)"
 }
 ```
 
@@ -222,7 +223,8 @@ Request body           | []byte            | Raw request body
 Name    | Type   | Description
 --------|--------|----------------------------------------------------------------------------------
 Allow   | bool   | Boolean value indicating whether the request is allowed or denied
-Message | string | Authorization message (will be returned to the client in case the access is denied)
+Msg     | string | Authorization message (will be returned to the client in case the access is denied)
+Err     | string | Error message (will be returned to the client in case the plugin encounter an error)
 
 ### Response authorization
 
@@ -249,4 +251,5 @@ Response body           | []byte            | Raw docker daemon response body
 Name    | Type   | Description
 --------|--------|----------------------------------------------------------------------------------
 Allow   | bool   | Boolean value indicating whether the response is allowed or denied
-Message | string | Authorization message (will be returned to the client in case the access is denied)
+Msg     | string | Authorization message (will be returned to the client in case the access is denied)
+Err     | string | Error message (will be returned to the client in case the plugin encounter an error)
