@@ -68,7 +68,7 @@ The following plugins exist:
 
 * The [REX-Ray plugin](https://github.com/emccode/rexraycli) is a volume plugin
   which is written in Go and provides advanced storage functionality for many
-  platforms including EC2, OpenStack, XtremIO, and ScaleIO.
+  platforms including EC2, Google Compute Engine, OpenStack, XtremIO, and ScaleIO.
 
 * The [Contiv Volume Plugin](https://github.com/contiv/volplugin) is an open
 source volume plugin that provides multi-tenant, persistent, distributed storage
