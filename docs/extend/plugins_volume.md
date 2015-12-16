@@ -65,7 +65,7 @@ Opts is a map of driver specific options passed through from the user request.
 **Response**:
 ```
 {
-    "Err": null
+    "Err": ""
 }
 ```
 
@@ -85,7 +85,7 @@ Delete the specified volume from disk. This request is issued when a user invoke
 **Response**:
 ```
 {
-    "Err": null
+    "Err": ""
 }
 ```
 
@@ -109,7 +109,7 @@ at the first mount request and deprovision at the last corresponding unmount req
 ```
 {
     "Mountpoint": "/path/to/directory/on/host",
-    "Err": null
+    "Err": ""
 }
 ```
 
@@ -131,7 +131,7 @@ Docker needs reminding of the path to the volume on the host.
 ```
 {
     "Mountpoint": "/path/to/directory/on/host",
-    "Err": null
+    "Err": ""
 }
 ```
 
@@ -154,7 +154,7 @@ this point.
 **Response**:
 ```
 {
-    "Err": null
+    "Err": ""
 }
 ```
 
