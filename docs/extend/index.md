@@ -18,4 +18,5 @@ Currently, you can extend Docker by adding a plugin. This section contains the f
 * [Understand Docker plugins](plugins.md)
 * [Write a volume plugin](plugins_volume.md)
 * [Write a network plugin](plugins_network.md)
+* [Write an authorization plugin](authorization.md)
 * [Docker plugin API](plugin_api.md)
