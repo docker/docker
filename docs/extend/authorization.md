@@ -104,9 +104,6 @@ Docker's authorization subsystem supports multiple `--authz-plugin` parameters.
 
 ### Calling authorized command (allow)
 
-Your plugin must support calling the `allow` command to authorize a command. 
-This call does not impact Docker's command line.
-
 ```bash
 $ docker pull centos
 ...
@@ -116,21 +113,19 @@ f1b10cd84249: Pull complete
 
 ### Calling unauthorized command (deny)
 
-Your plugin must support calling the `deny` command to report on the outcome of 
-a plugin interaction. This call returns messages to Docker's command line informing 
-the user of the outcome of each call.  
+```bash
+$ docker pull centos
+...
+docker: Error response from daemon: authorization denied by plugin PLUGIN_NAME: volumes are not allowed.
+```
+
+### Error from plugins
 
 ```bash
 $ docker pull centos
-…
-Authorization failed. Pull command for user 'john_doe' is 
-denied by authorization plugin 'ACME' with message 
-‘[ACME] User 'john_doe' is not allowed to perform the pull 
-command’
+...
+docker: Error response from daemon: plugin PLUGIN_NAME failed with error: AuthZPlugin.AuthZReq: Cannot connect to the Docker daemon. Is the docker daemon running on this host?.
 ```
-
-Where multiple authorization plugins are installed, multiple messages are expected.
-
 
 ## API schema and implementation
 
