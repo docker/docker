@@ -219,7 +219,7 @@ Name    | Type   | Description
 --------|--------|----------------------------------------------------------------------------------
 Allow   | bool   | Boolean value indicating whether the request is allowed or denied
 Msg     | string | Authorization message (will be returned to the client in case the access is denied)
-Err     | string | Error message (will be returned to the client in case the plugin encounter an error)
+Err     | string | Error message (will be returned to the client in case the plugin encounter an error. The string value supplied may appear in logs, so should not include confidential information)
 
 ### Response authorization
 
@@ -247,4 +247,4 @@ Name    | Type   | Description
 --------|--------|----------------------------------------------------------------------------------
 Allow   | bool   | Boolean value indicating whether the response is allowed or denied
 Msg     | string | Authorization message (will be returned to the client in case the access is denied)
-Err     | string | Error message (will be returned to the client in case the plugin encounter an error)
+Err     | string | Error message (will be returned to the client in case the plugin encounter an error. The string value supplied may appear in logs, so should not include confidential information)
