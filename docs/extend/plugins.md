@@ -66,10 +66,10 @@ The following plugins exist:
   is a volume plugin written in Go that provides functionality to mount Pachyderm File System (PFS)
   repositories at specific commits as volumes within Docker containers.
 
-* The [REX-Ray plugin](https://github.com/emccode/rexraycli) is a volume plugin
+* The [REX-Ray plugin](https://github.com/emccode/rexray) is a volume plugin
   which is written in Go and provides advanced storage functionality for many
-  platforms including EC2, Google Compute Engine, OpenStack, XtremIO, and ScaleIO.
-
+  platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
+    
 * The [Contiv Volume Plugin](https://github.com/contiv/volplugin) is an open
 source volume plugin that provides multi-tenant, persistent, distributed storage
 with intent based consumption using ceph underneath.
