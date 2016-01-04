@@ -15,7 +15,7 @@ storage systems, such as Amazon EBS, and enable data volumes to persist beyond
 the lifetime of a single Docker host. See the [plugin documentation](plugins.md)
 for more information.
 
-# Command-line changes
+## Command-line changes
 
 A volume plugin makes use of the `-v`and `--volume-driver` flag on the `docker run` command.  The `-v` flag accepts a volume name and the `--volume-driver` flag a driver type, for example: 
 
@@ -32,13 +32,13 @@ server to another.
 By specifying a `volumedriver` in conjunction with a `volumename`, users can use plugins such as [Flocker](https://clusterhq.com/docker-plugin/) to manage volumes external to a single host, such as those on EBS. 
 
 
-# Create a VolumeDriver
+## Create a VolumeDriver
 
 The container creation endpoint (`/containers/create`) accepts a `VolumeDriver`
 field of type `string` allowing to specify the name of the driver. It's default
 value of `"local"` (the default driver for local volumes).
 
-# Volume plugin protocol
+## Volume plugin protocol
 
 If a plugin registers itself as a `VolumeDriver` when activated, then it is
 expected to provide writeable paths on the host filesystem for the Docker
@@ -46,6 +46,10 @@ daemon to provide to containers to consume.
 
 The Docker daemon handles bind-mounting the provided paths into user
 containers.
+
+> **Note**: Volume plugins should *not* write data to the `/var/lib/docker/`
+> directory, including `/var/lib/docker/volumes`. The `/var/lib/docker/`
+> directory is reserved for Docker.
 
 ### /VolumeDriver.Create
 
