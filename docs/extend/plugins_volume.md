@@ -54,7 +54,7 @@ containers.
 ### /VolumeDriver.Create
 
 **Request**:
-```
+```json
 {
     "Name": "volume_name",
     "Opts": {}
@@ -67,7 +67,7 @@ volume on the filesystem yet (until Mount is called).
 Opts is a map of driver specific options passed through from the user request.
 
 **Response**:
-```
+```json
 {
     "Err": ""
 }
@@ -78,7 +78,7 @@ Respond with a string error if an error occurred.
 ### /VolumeDriver.Remove
 
 **Request**:
-```
+```json
 {
     "Name": "volume_name"
 }
@@ -87,7 +87,7 @@ Respond with a string error if an error occurred.
 Delete the specified volume from disk. This request is issued when a user invokes `docker rm -v` to remove volumes associated with a container.
 
 **Response**:
-```
+```json
 {
     "Err": ""
 }
@@ -98,7 +98,7 @@ Respond with a string error if an error occurred.
 ### /VolumeDriver.Mount
 
 **Request**:
-```
+```json
 {
     "Name": "volume_name"
 }
@@ -110,7 +110,7 @@ more than once, the plugin may need to keep track of each new mount request and 
 at the first mount request and deprovision at the last corresponding unmount request.
 
 **Response**:
-```
+```json
 {
     "Mountpoint": "/path/to/directory/on/host",
     "Err": ""
@@ -123,7 +123,7 @@ available, and/or a string error if an error occurred.
 ### /VolumeDriver.Path
 
 **Request**:
-```
+```json
 {
     "Name": "volume_name"
 }
@@ -132,7 +132,7 @@ available, and/or a string error if an error occurred.
 Docker needs reminding of the path to the volume on the host.
 
 **Response**:
-```
+```json
 {
     "Mountpoint": "/path/to/directory/on/host",
     "Err": ""
@@ -145,7 +145,7 @@ available, and/or a string error if an error occurred.
 ### /VolumeDriver.Unmount
 
 **Request**:
-```
+```json
 {
     "Name": "volume_name"
 }
@@ -156,9 +156,60 @@ per container stop.  Plugin may deduce that it is safe to deprovision it at
 this point.
 
 **Response**:
-```
+```json
 {
     "Err": ""
+}
+```
+
+Respond with a string error if an error occurred.
+
+
+### /VolumeDriver.Get
+
+**Request**:
+```json
+{
+    "Name": "volume_name"
+}
+```
+
+Get the volume info.
+
+
+**Response**:
+```json
+{
+  "Volume": {
+    "Name": "volume_name",
+    "Mountpoint": "/path/to/directory/on/host",
+  },
+  "Err": ""
+}
+```
+
+Respond with a string error if an error occurred.
+
+
+### /VolumeDriver.List
+
+**Request**:
+```json
+{}
+```
+
+Get the list of volumes registered with the plugin.
+
+**Response**:
+```json
+{
+  "Volumes": [
+    {
+      "Name": "volume_name",
+      "Mountpoint": "/path/to/directory/on/host"
+    }
+  ],
+  "Err": ""
 }
 ```
 
