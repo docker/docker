@@ -62,10 +62,6 @@ The following plugins exist:
 
 * The [OpenStorage Plugin](https://github.com/libopenstorage/openstorage) is a cluster aware volume plugin that provides volume management for file and block storage solutions.  It implements a vendor neutral specification for implementing extensions such as CoS, encryption, and snapshots.   It has example drivers based on FUSE, NFS, NBD and EBS to name a few.
 
-* The [Pachyderm PFS plugin](https://github.com/pachyderm/pachyderm/tree/master/src/cmd/pfs-volume-driver)
-  is a volume plugin written in Go that provides functionality to mount Pachyderm File System (PFS)
-  repositories at specific commits as volumes within Docker containers.
-
 * The [REX-Ray plugin](https://github.com/emccode/rexray) is a volume plugin
   which is written in Go and provides advanced storage functionality for many
   platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
