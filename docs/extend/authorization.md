@@ -12,7 +12,7 @@ weight = -1
 
 # Create an authorization plugin
 
-Docker’s out-of-the-box authorization model is all or nothing. Any user with
+Docker's out-of-the-box authorization model is all or nothing. Any user with
 permission to access the Docker daemon can run any Docker client command. The
 same is true for callers using Docker's remote API to contact the daemon. If you
 require greater access control, you can create authorization plugins and add
@@ -44,6 +44,9 @@ The command context contains all the relevant request data.
 Authorization plugins must follow the rules described in [Docker Plugin API](plugin_api.md). 
 Each plugin must reside within directories described under the 
 [Plugin discovery](plugin_api.md#plugin-discovery) section.
+
+**Note**: the abbreviations `AuthZ` and `AuthN` mean authorization and authentication
+respectively.
 
 ## Basic architecture
 
@@ -93,14 +96,14 @@ support the Docker client interactions detailed in this section.
 ### Setting up Docker daemon
 
 Enable the authorization plugin with a dedicated command line flag in the
-`--authz-plugin=PLUGIN_ID` format. The flag supplies a `PLUGIN_ID` value.
-This value can be the plugin’s socket or a path to a specification file.
+`--authorization-plugin=PLUGIN_ID` format. The flag supplies a `PLUGIN_ID`
+value. This value can be the plugin’s socket or a path to a specification file.
 
 ```bash
-$ docker daemon --authz-plugin=plugin1 --authz-plugin=plugin2,...
+$ docker daemon --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
 ```
 
-Docker's authorization subsystem supports multiple `--authz-plugin` parameters.
+Docker's authorization subsystem supports multiple `--authorization-plugin` parameters.
 
 ### Calling authorized command (allow)
 
