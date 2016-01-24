@@ -4,7 +4,7 @@ title = "Plugins API"
 description = "How to write Docker plugins extensions "
 keywords = ["API, Usage, plugins, documentation, developer"]
 [menu.main]
-parent = "mn_extend"
+parent = "engine_extend"
 weight=1
 +++
 <![end-metadata]-->

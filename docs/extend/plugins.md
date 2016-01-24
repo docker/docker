@@ -1,15 +1,15 @@
 <!--[metadata]>
 +++
-title = "Extending Docker with plugins"
+title = "Extending Engine with plugins"
 description = "How to add additional functionality to Docker with plugins extensions"
 keywords = ["Examples, Usage, plugins, docker, documentation, user guide"]
 [menu.main]
-parent = "mn_extend"
+parent = "engine_extend"
 weight=-1
 +++
 <![end-metadata]-->
 
-# Understand Docker plugins
+# Understand Engine plugins
 
 You can extend the capabilities of the Docker Engine by loading third-party
 plugins. This page explains the types of plugins and provides links to several
@@ -65,7 +65,7 @@ The following plugins exist:
 * The [REX-Ray plugin](https://github.com/emccode/rexray) is a volume plugin
   which is written in Go and provides advanced storage functionality for many
   platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
-    
+
 * The [Contiv Volume Plugin](https://github.com/contiv/volplugin) is an open
 source volume plugin that provides multi-tenant, persistent, distributed storage
 with intent based consumption using ceph underneath.

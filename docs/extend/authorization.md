@@ -4,7 +4,7 @@ title = "Access authorization plugin"
 description = "How to create authorization plugins to manage access control to your Docker daemon."
 keywords = ["security, authorization, authentication, docker, documentation, plugin, extend"]
 [menu.main]
-parent = "mn_extend"
+parent = "engine_extend"
 weight = -1
 +++
 <![end-metadata]-->
@@ -41,8 +41,8 @@ on both the current authentication context and the command context. The
 authentication context contains all user details and the authentication method.
 The command context contains all the relevant request data.
 
-Authorization plugins must follow the rules described in [Docker Plugin API](plugin_api.md). 
-Each plugin must reside within directories described under the 
+Authorization plugins must follow the rules described in [Docker Plugin API](plugin_api.md).
+Each plugin must reside within directories described under the
 [Plugin discovery](plugin_api.md#plugin-discovery) section.
 
 **Note**: the abbreviations `AuthZ` and `AuthN` mean authorization and authentication
@@ -90,7 +90,7 @@ configure proper authentication and security policies.
 
 ## Docker client flows
 
-To enable and configure the authorization plugin, the plugin developer must 
+To enable and configure the authorization plugin, the plugin developer must
 support the Docker client interactions detailed in this section.
 
 ### Setting up Docker daemon
@@ -132,7 +132,7 @@ docker: Error response from daemon: plugin PLUGIN_NAME failed with error: AuthZP
 
 ## API schema and implementation
 
-In addition to Docker's standard plugin registration method, each plugin 
+In addition to Docker's standard plugin registration method, each plugin
 should implement the following two methods:
 
 * `/AuthzPlugin.AuthZReq` This authorize request method is called before the Docker daemon processes the client request.
@@ -198,7 +198,7 @@ should implement the following two methods:
 
 The modified response enables the authorization plugin to manipulate the content
 of the HTTP response. In case of more than one plugin, each subsequent plugin
-receives a response (optionally) modified by a previous plugin. 
+receives a response (optionally) modified by a previous plugin.
 
 ### Request authorization
 

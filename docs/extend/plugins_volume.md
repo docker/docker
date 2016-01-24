@@ -4,32 +4,32 @@ title = "Volume plugins"
 description = "How to manage data with external volume plugins"
 keywords = ["Examples, Usage, volume, docker, data, volumes, plugin, api"]
 [menu.main]
-parent = "mn_extend"
+parent = "engine_extend"
 +++
 <![end-metadata]-->
 
 # Write a volume plugin
 
-Docker volume plugins enable Docker deployments to be integrated with external
-storage systems, such as Amazon EBS, and enable data volumes to persist beyond
-the lifetime of a single Docker host. See the [plugin documentation](plugins.md)
-for more information.
+Docker Engine volume plugins enable Engine deployments to be integrated with
+external storage systems, such as Amazon EBS, and enable data volumes to persist
+beyond the lifetime of a single Engine host. See the [plugin
+documentation](plugins.md) for more information.
 
 ## Command-line changes
 
-A volume plugin makes use of the `-v`and `--volume-driver` flag on the `docker run` command.  The `-v` flag accepts a volume name and the `--volume-driver` flag a driver type, for example: 
+A volume plugin makes use of the `-v`and `--volume-driver` flag on the `docker run` command.  The `-v` flag accepts a volume name and the `--volume-driver` flag a driver type, for example:
 
     $ docker run -ti -v volumename:/data --volume-driver=flocker   busybox sh
 
 This command passes the `volumename` through to the volume plugin as a
-user-given name for the volume. The `volumename` must not begin with a `/`. 
+user-given name for the volume. The `volumename` must not begin with a `/`.
 
 By having the user specify a  `volumename`, a plugin can associate the volume
 with an external volume beyond the lifetime of a single container or container
 host. This can be used, for example, to move a stateful container from one
 server to another.
 
-By specifying a `volumedriver` in conjunction with a `volumename`, users can use plugins such as [Flocker](https://clusterhq.com/docker-plugin/) to manage volumes external to a single host, such as those on EBS. 
+By specifying a `volumedriver` in conjunction with a `volumename`, users can use plugins such as [Flocker](https://clusterhq.com/docker-plugin/) to manage volumes external to a single host, such as those on EBS.
 
 
 ## Create a VolumeDriver
@@ -214,4 +214,3 @@ Get the list of volumes registered with the plugin.
 ```
 
 Respond with a string error if an error occurred.
-
