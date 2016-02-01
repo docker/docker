@@ -62,6 +62,8 @@ The following plugins exist:
 
 * The [OpenStorage Plugin](https://github.com/libopenstorage/openstorage) is a cluster aware volume plugin that provides volume management for file and block storage solutions.  It implements a vendor neutral specification for implementing extensions such as CoS, encryption, and snapshots.   It has example drivers based on FUSE, NFS, NBD and EBS to name a few.
 
+* The [Quobyte Volume Plugin](https://github.com/quobyte/docker-volume) connects Docker to [Quobyte](http://www.quobyte.com/containers)'s data center file system, a general-purpose scalable and fault-tolerant storage platform.
+
 * The [REX-Ray plugin](https://github.com/emccode/rexray) is a volume plugin
   which is written in Go and provides advanced storage functionality for many
   platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
