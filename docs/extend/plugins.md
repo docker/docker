@@ -53,6 +53,10 @@ The following plugins exist:
   another volume plugin that provides multi-host volumes management for Docker
   using GlusterFS.
 
+* The [IPFS Volume Plugin](http://github.com/vdemeester/docker-volume-ipfs)
+  is an open source volume plugin that allows using an
+  [ipfs](https://ipfs.io/) filesystem as a volume.
+
 * The [Keywhiz plugin](https://github.com/calavera/docker-volume-keywhiz) is
   a plugin that provides credentials and secret management using Keywhiz as
   a central repository.
@@ -69,16 +73,21 @@ The following plugins exist:
   platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
 
 * The [Contiv Volume Plugin](https://github.com/contiv/volplugin) is an open
-source volume plugin that provides multi-tenant, persistent, distributed storage
-with intent based consumption using ceph underneath.
+  source volume plugin that provides multi-tenant, persistent, distributed storage
+  with intent based consumption using ceph underneath.
 
 * The [Contiv Networking](https://github.com/contiv/netplugin) is an open source
-libnetwork plugin to provide infrastructure and security policies for a
-multi-tenant micro services deployment, while providing an integration to
-physical network for non-container workload. Contiv Networking implements the
-remote driver and IPAM APIs available in Docker 1.9 onwards.
+  libnetwork plugin to provide infrastructure and security policies for a
+  multi-tenant micro services deployment, while providing an integration to
+  physical network for non-container workload. Contiv Networking implements the
+  remote driver and IPAM APIs available in Docker 1.9 onwards.
 
-* The [Weave Network Plugin](http://docs.weave.works/weave/latest_release/plugin.html) creates a virtual network that connects your Docker containers - across multiple hosts or clouds and enables automatic discovery of applications. Weave networks are resilient, partition tolerant, secure and work in partially connected networks, and other adverse environments - all configured with delightful simplicity.
+* The [Weave Network Plugin](http://docs.weave.works/weave/latest_release/plugin.html)
+  creates a virtual network that connects your Docker containers -
+  across multiple hosts or clouds and enables automatic discovery of
+  applications. Weave networks are resilient, partition tolerant,
+  secure and work in partially connected networks, and other adverse
+  environments - all configured with delightful simplicity.
 
 ## Troubleshooting a plugin
 
