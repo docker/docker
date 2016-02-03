@@ -89,6 +89,12 @@ The following plugins exist:
   secure and work in partially connected networks, and other adverse
   environments - all configured with delightful simplicity.
 
+* The [Kuryr Network Plugin](https://github.com/openstack/kuryr) is
+  developed as part of the OpenStack Kuryr project and implements the
+  Docker networking (libnetwork) remote driver API by utilizing
+  Neutron, the OpenStack networking service. It includes an IPAM
+  driver as well.
+
 ## Troubleshooting a plugin
 
 If you are having problems with Docker after loading a plugin, ask the authors
