@@ -99,6 +99,11 @@ The following plugins exist:
   Neutron, the OpenStack networking service. It includes an IPAM
   driver as well.
 
+* The [Local Persist Plugin](https://github.com/CWSpear/local-persist) 
+  extends the default `local` driver's functionality by allowing you specify 
+  a mountpoint anywhere on the host, which enables the files to *always persist*, 
+  even if the volume is removed via `docker volume rm`.
+
 ## Troubleshooting a plugin
 
 If you are having problems with Docker after loading a plugin, ask the authors
