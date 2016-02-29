@@ -129,7 +129,6 @@ After activation, the plugin will then be sent events from this subsystem.
 
 Possible values are:
  - [`authz`](authorization.md)
- - `GraphDriver`
  - [`NetworkDriver`](plugins_network.md)
  - [`VolumeDriver`](plugins_volume.md)
 
