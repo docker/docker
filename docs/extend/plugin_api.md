@@ -127,6 +127,13 @@ Plugins are activated via the following "handshake" API call.
 Responds with a list of Docker subsystems which this plugin implements.
 After activation, the plugin will then be sent events from this subsystem.
 
+Possible values are:
+ - [`authz`](authorization.md)
+ - `GraphDriver`
+ - [`NetworkDriver`](plugins_network.md)
+ - [`VolumeDriver`](plugins_volume.md)
+
+
 ## Plugin retries
 
 Attempts to call a method on a plugin are retried with an exponential backoff
