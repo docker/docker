@@ -15,6 +15,21 @@ external storage systems, such as Amazon EBS, and enable data volumes to persist
 beyond the lifetime of a single Engine host. See the [plugin
 documentation](plugins.md) for more information.
 
+## Changelog
+
+### 1.12.0
+
+- Add `Status` field to `VolumeDriver.Get` response ([#21006](https://github.com/docker/docker/pull/21006#))
+
+### 1.10.0
+
+- Add `VolumeDriver.Get` which gets the details about the volume ([#16534](https://github.com/docker/docker/pull/16534))
+- Add `VolumeDriver.List` which lists all volumes owned by the driver ([#16534](https://github.com/docker/docker/pull/16534))
+
+### 1.8.0
+
+- Initial support for volume driver plugins ([#14659](https://github.com/docker/docker/pull/14659))
+
 ## Command-line changes
 
 A volume plugin makes use of the `-v`and `--volume-driver` flag on the `docker run` command.  The `-v` flag accepts a volume name and the `--volume-driver` flag a driver type, for example:
@@ -183,6 +198,7 @@ Get the volume info.
   "Volume": {
     "Name": "volume_name",
     "Mountpoint": "/path/to/directory/on/host",
+    "Status": {}
   },
   "Err": ""
 }
