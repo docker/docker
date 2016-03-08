@@ -115,7 +115,8 @@ Respond with a string error if an error occurred.
 **Request**:
 ```json
 {
-    "Name": "volume_name"
+    "Name": "volume_name",
+    "ID": "b87d7442095999a92b65b3d9691e697b61713829cc0ffd1bb72e4ccd51aa4d6c"
 }
 ```
 
@@ -123,6 +124,8 @@ Docker requires the plugin to provide a volume, given a user specified volume
 name. This is called once per container start. If the same volume_name is requested
 more than once, the plugin may need to keep track of each new mount request and provision
 at the first mount request and deprovision at the last corresponding unmount request.
+
+`ID` is a unqiue ID for the caller that is requesting the mount.
 
 **Response**:
 ```json
@@ -162,13 +165,16 @@ available, and/or a string error if an error occurred.
 **Request**:
 ```json
 {
-    "Name": "volume_name"
+    "Name": "volume_name",
+    "ID": "b87d7442095999a92b65b3d9691e697b61713829cc0ffd1bb72e4ccd51aa4d6c"
 }
 ```
 
 Indication that Docker no longer is using the named volume. This is called once
 per container stop.  Plugin may deduce that it is safe to deprovision it at
 this point.
+
+`ID` is a unqiue ID for the caller that is requesting the mount.
 
 **Response**:
 ```json
