@@ -96,6 +96,43 @@ directory and activates it with a handshake. See Handshake API below.
 Plugins are *not* activated automatically at Docker daemon startup. Rather,
 they are activated only lazily, or on-demand, when they are needed.
 
+## Systemd socket activation
+
+Plugins may also be socket activated by `systemd`. The official [Plugins helpers](https://github.com/docker/go-plugins-helpers)
+natively supports socket activation. In order for a plugin to be socket activated it needs
+a `service` file and a `socket` file.
+
+The `service` file (for example `/lib/systemd/system/your-plugin.service`):
+
+```
+[Unit]
+Description=Your plugin
+Before=docker.service
+After=network.target your-plugin.socket
+Requires=your-plugin.socket docker.service
+
+[Service]
+ExecStart=/usr/lib/docker/your-plugin
+
+[Install]
+WantedBy=multi-user.target
+```
+The `socket` file (for example `/lib/systemd/system/your-plugin.socket`):
+```
+[Unit]
+Description=Your plugin
+
+[Socket]
+ListenStream=/run/docker/plugins/your-plugin.sock
+
+[Install]
+WantedBy=sockets.target
+```
+
+This will allow plugins to be actually started when the Docker daemon connects to
+the sockets they're listening on (for instance the first time the daemon uses them
+or if one of the plugin goes down accidentally).
+
 ## API design
 
 The Plugin API is RPC-style JSON over HTTP, much like webhooks.
@@ -128,7 +165,7 @@ Responds with a list of Docker subsystems which this plugin implements.
 After activation, the plugin will then be sent events from this subsystem.
 
 Possible values are:
- - [`authz`](authorization.md)
+ - [`authz`](plugins_authorization.md)
  - [`NetworkDriver`](plugins_network.md)
  - [`VolumeDriver`](plugins_volume.md)
 
@@ -139,3 +176,8 @@ Attempts to call a method on a plugin are retried with an exponential backoff
 for up to 30 seconds. This may help when packaging plugins as containers, since
 it gives plugin containers a chance to start up before failing any user
 containers which depend on them.
+
+## Plugins helpers
+
+To ease plugins development, we're providing an `sdk` for each kind of plugins
+currently supported by Docker at [docker/go-plugins-helpers](https://github.com/docker/go-plugins-helpers).
