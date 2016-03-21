@@ -20,8 +20,9 @@ If you just want to learn about or use Docker plugins, look
 
 ## What plugins are
 
-A plugin is a process running on the same docker host as the docker daemon,
-which registers itself by placing a file in one of the plugin directories described in [Plugin discovery](#plugin-discovery).
+A plugin is a process running on the same or a different host as the docker daemon,
+which registers itself by placing a file on the same docker host in one of the plugin
+directories described in [Plugin discovery](#plugin-discovery).
 
 Plugins have human-readable names, which are short, lowercase strings. For
 example, `flocker` or `weave`.
@@ -37,8 +38,11 @@ user or container tries to use one by name.
 There are three types of files which can be put in the plugin directory.
 
 * `.sock` files are UNIX domain sockets.
-* `.spec` files are text files containing a URL, such as `unix:///other.sock`.
+* `.spec` files are text files containing a URL, such as `unix:///other.sock` or `tcp://localhost:8080`.
 * `.json` files are text files containing a full json specification for the plugin.
+
+Plugins with UNIX domain socket files must run on the same docker host, whereas
+plugins with spec or json files can run on a different host if a remote URL is specified.
 
 UNIX domain socket files must be located under `/run/docker/plugins`, whereas
 spec files can be located either under `/etc/docker/plugins` or `/usr/lib/docker/plugins`.
