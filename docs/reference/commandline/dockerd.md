@@ -185,8 +185,10 @@ Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). Call
 ### Storage driver options
 
 Particular storage-driver can be configured with options specified with
-`--storage-opt` flags. Options for `devicemapper` are prefixed with `dm` and
-options for `zfs` start with `zfs`.
+`--storage-opt` flags. Options for `devicemapper` are prefixed with `dm`,
+options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
+
+#### Devicemapper options
 
 *  `dm.thinpooldev`
 
@@ -470,7 +472,7 @@ options for `zfs` start with `zfs`.
     $ dockerd --storage-opt dm.min_free_space=10%
     ```
 
-Currently supported options of `zfs`:
+#### ZFS options
 
 * `zfs.fsname`
 
@@ -481,6 +483,18 @@ Currently supported options of `zfs`:
     Example use:
 
         $ dockerd -s zfs --storage-opt zfs.fsname=zroot/docker
+
+#### Btrfs options
+
+* `btrfs.min_space`
+
+    Specifies the mininum size to use when creating the subvolume which is used
+    for containers. If user uses disk quota for btrfs when creating or running
+    a container with **--storage-opt size** option, docker should ensure the
+    **size** cannot be smaller than **btrfs.min_space**.
+
+    Example use:
+        $ docker daemon -s btrfs --storage-opt btrfs.min_space=10G
 
 ## Docker runtime execution options
 
