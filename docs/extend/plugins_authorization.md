@@ -49,6 +49,11 @@ Each plugin must reside within directories described under the
 **Note**: the abbreviations `AuthZ` and `AuthN` mean authorization and authentication
 respectively.
 
+## Default user authorization mechanism
+
+If TLS is enabled in the [Docker daemon](https://docs.docker.com/engine/security/https/), the default user authorization flow extracts the user details from the certificate subject name.
+That is, the `User` field is set to the client certificate subject common name, and the `AuthenticationMethod` field is set to `TLS`.
+
 ## Basic architecture
 
 You are responsible for registering your plugin as part of the Docker daemon
