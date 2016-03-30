@@ -133,17 +133,6 @@ The following double-dash options are deprecated and have no replacement:
     docker ps --before-id
     docker search --trusted
 
-### Auto-creating missing host paths for bind mounts
-**Deprecated in Release: v1.9**
-
-**Target for Removal in Release: 1.11**
-
-When creating a container with a bind-mounted volume-- `docker run -v /host/path:/container/path` --
-docker was automatically creating the `/host/path` if it didn't already exist.
-
-This auto-creation of the host path is deprecated and docker will error out if
-the path does not exist.
-
 ### Interacting with V1 registries
 
 Version 1.9 adds a flag (`--disable-legacy-registry=false`) which prevents the docker daemon from `pull`, `push`, and `login` operations against v1 registries.  Though disabled by default, this signals the intent to deprecate the v1 protocol.
