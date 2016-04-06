@@ -169,9 +169,10 @@ Responds with a list of Docker subsystems which this plugin implements.
 After activation, the plugin will then be sent events from this subsystem.
 
 Possible values are:
- - [`authz`](plugins_authorization.md)
- - [`NetworkDriver`](plugins_network.md)
- - [`VolumeDriver`](plugins_volume.md)
+
+* [`authz`](plugins_authorization.md)
+* [`NetworkDriver`](plugins_network.md)
+* [`VolumeDriver`](plugins_volume.md)
 
 
 ## Plugin retries
