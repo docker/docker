@@ -196,8 +196,8 @@ should implement the following two methods:
    "Allow":              "Determined whether the user is allowed or not",
    "Msg":                "The authorization message",
    "Err":                "The error message if things go wrong",
-   "ModifiedBody":       "Byte array containing a modified body of the raw HTTP body (or nil if no changes required)",
-   "ModifiedHeader":     "Byte array containing a modified header of the HTTP response (or nil if no changes required)",
+   "ModifiedBody":       "Byte array containing a modified body of the raw HTTP body (or null if no changes required)",
+   "ModifiedHeader":     "Byte array containing a modified header of the HTTP response (or null if no changes required)",
    "ModifiedStatusCode": "int containing the modified version of the status code (or 0 if not change is required)"
 }
 ```
