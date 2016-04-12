@@ -849,6 +849,19 @@ set like this:
     export DOCKER_TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/dockerd -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
 
+Docker clients <= 1.9.2 used an invalid Host header when making request to the
+daemon. Docker 1.12 is built using golang 1.6 which is now checking the validity
+of the Host header and as such clients <= 1.9.2 can't talk anymore to the daemon.
+Docker supports overcoming this issue via a Docker daemon
+environment variable. In case you are seeing this error when contacting the
+daemon:
+
+    Error response from daemon: 400 Bad Request: malformed Host header
+
+The `DOCKER_HTTP_HOST_COMPAT` can be set like this:
+
+    DOCKER_HTTP_HOST_COMPAT=1 /usr/local/bin/dockerd ...
+
 
 ## Default cgroup parent
 
