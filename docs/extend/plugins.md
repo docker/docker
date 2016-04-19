@@ -106,6 +106,12 @@ The following plugins exist:
   a mountpoint anywhere on the host, which enables the files to *always persist*, 
   even if the volume is removed via `docker volume rm`.
 
+* The [NetApp Plugin](https://github.com/NetApp/netappdvp) (nDVP) provides
+  direct integration with the Docker ecosystem for the NetApp storage portfolio.
+  The nDVP package supports the provisioning and management of
+  storage resources from the storage platform to Docker hosts, with a robust
+  framework for adding additional platforms in the future.
+
 ## Troubleshooting a plugin
 
 If you are having problems with Docker after loading a plugin, ask the authors
