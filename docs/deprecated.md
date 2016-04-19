@@ -48,7 +48,7 @@ defining it at container creation (`POST /containers/create`).
 
 **Deprecated In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
-**Target For Removal In Release: v1.12**
+**Removed In Release: v1.12**
 
 The `docker ps --before` and `docker ps --since` options are deprecated.
 Use `docker ps --filter=before=...` and `docker ps --filter=since=...` instead.
