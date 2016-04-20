@@ -13,7 +13,7 @@ parent = "engine_extend"
 Docker Engine network plugins enable Engine deployments to be extended to
 support a wide range of networking technologies, such as VXLAN, IPVLAN, MACVLAN
 or something completely different. Network driver plugins are supported via the
-LibNetwork project. Each plugin is implemented asa  "remote driver" for
+LibNetwork project. Each plugin is implemented as a  "remote driver" for
 LibNetwork, which shares plugin infrastructure with Engine. Effectively, network
 driver plugins are activated in the same way as other plugins, and use the same
 kind of protocol.
