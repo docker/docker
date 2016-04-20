@@ -31,86 +31,40 @@ Follow the instructions in the plugin's documentation.
 
 ## Finding a plugin
 
-The following plugins exist:
+The sections below provide an inexhaustive overview of available plugins.
 
-* The [Blockbridge plugin](https://github.com/blockbridge/blockbridge-docker-volume)
-  is a volume plugin that provides access to an extensible set of
-  container-based persistent storage options. It supports single and multi-host Docker
-  environments with features that include tenant isolation, automated
-  provisioning, encryption, secure deletion, snapshots and QoS.
+<style>
+#content tr td:first-child { white-space: nowrap;}
+</style>
 
-* The [Convoy plugin](https://github.com/rancher/convoy) is a volume plugin for a
-  variety of storage back-ends including device mapper and NFS. It's a simple standalone
-  executable written in Go and provides the framework to support vendor-specific extensions
-  such as snapshots, backups and restore.
+### Network plugins
 
-* The [Flocker plugin](https://clusterhq.com/docker-plugin/) is a volume plugin
-  which provides multi-host portable volumes for Docker, enabling you to run
-  databases and other stateful containers and move them around across a cluster
-  of machines.
+Plugin                                                                              | Description
+----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[Contiv Networking](https://github.com/contiv/netplugin)                            | An open source network plugin to provide infrastructure and security policies for a multi-tenant micro services deployment, while providing an integration to physical network for non-container workload. Contiv Networking implements the remote driver and IPAM APIs available in Docker 1.9 onwards.
+[Kuryr Network Plugin](https://github.com/openstack/kuryr)                          | A network plugin is developed as part of the OpenStack Kuryr project and implements the Docker networking (libnetwork) remote driver API by utilizing Neutron, the OpenStack networking service. It includes an IPAM driver as well.
+[Weave Network Plugin](http://docs.weave.works/weave/latest_release/plugin.html)    | A network plugin that creates a virtual network that connects your Docker containers - across multiple hosts or clouds and enables automatic discovery of applications. Weave networks are resilient, partition tolerant, secure and work in partially connected networks, and other adverse environments - all configured with delightful simplicity.
 
-* The [GlusterFS plugin](https://github.com/calavera/docker-volume-glusterfs) is
-  another volume plugin that provides multi-host volumes management for Docker
-  using GlusterFS.
+### Volume plugins
 
-* The [Horcrux Volume Plugin](https://github.com/muthu-r/horcrux) allows on-demand,
-  version controlled access to your data. Horcrux is an open-source plugin,
-  written in Go, and supports SCP, [Minio](https://www.minio.io) and Amazon S3.
+Plugin                                                                              | Description
+----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[Blockbridge plugin](https://github.com/blockbridge/blockbridge-docker-volume)      | A volume plugin that provides access to an extensible set of container-based persistent storage options. It supports single and multi-host Docker environments with features that include tenant isolation, automated provisioning, encryption, secure deletion, snapshots and QoS.
+[Contiv Volume Plugin](https://github.com/contiv/volplugin)                         | An open source volume plugin that provides multi-tenant, persistent, distributed storage with intent based consumption using ceph underneath.
+[Convoy plugin](https://github.com/rancher/convoy)                                  | A volume plugin for a variety of storage back-ends including device mapper and NFS. It's a simple standalone executable written in Go and provides the framework to support vendor-specific extensions such as snapshots, backups and restore.
+[Flocker plugin](https://clusterhq.com/docker-plugin/)                              | A volume plugin that provides multi-host portable volumes for Docker, enabling you to run databases and other stateful containers and move them around across a cluster of machines.
+[gce-docker plugin](https://github.com/mcuadros/gce-docker)                         | A volume plugin able to attach, format and mount Google Compute [persistent-disks](https://cloud.google.com/compute/docs/disks/persistent-disks).
+[GlusterFS plugin](https://github.com/calavera/docker-volume-glusterfs)             | A volume plugin that provides multi-host volumes management for Docker using GlusterFS.
+[Horcrux Volume Plugin](https://github.com/muthu-r/horcrux)                         | A volume plugin that allows on-demand, version controlled access to your data. Horcrux is an open-source plugin, written in Go, and supports SCP, [Minio](https://www.minio.io) and Amazon S3.
+[IPFS Volume Plugin](http://github.com/vdemeester/docker-volume-ipfs)               | An open source volume plugin that allows using an [ipfs](https://ipfs.io/) filesystem as a volume.
+[Keywhiz plugin](https://github.com/calavera/docker-volume-keywhiz)                 | A plugin that provides credentials and secret management using Keywhiz as a central repository.
+[Local Persist Plugin](https://github.com/CWSpear/local-persist)                    | A volume plugin that extends the default `local` driver's functionality by allowing you specify a mountpoint anywhere on the host, which enables the files to *always persist*, even if the volume is removed via `docker volume rm`.
+[NetApp Plugin](https://github.com/NetApp/netappdvp) (nDVP)                         | A volume plugin that provides direct integration with the Docker ecosystem for the NetApp storage portfolio. The nDVP package supports the provisioning and management of storage resources from the storage platform to Docker hosts, with a robust framework for adding additional platforms in the future.
+[Netshare plugin](https://github.com/gondor/docker-volume-netshare)                 | A volume plugin that provides volume management for NFS 3/4, AWS EFS and CIFS file systems.
+[OpenStorage Plugin](https://github.com/libopenstorage/openstorage)                 | A cluster-aware volume plugin that provides volume management for file and block storage solutions.  It implements a vendor neutral specification for implementing extensions such as CoS, encryption, and snapshots. It has example drivers based on FUSE, NFS, NBD and EBS to name a few.
+[Quobyte Volume Plugin](https://github.com/quobyte/docker-volume)                   | A volume plugin that connects Docker to [Quobyte](http://www.quobyte.com/containers)'s data center file system, a general-purpose scalable and fault-tolerant storage platform.
+[REX-Ray plugin](https://github.com/emccode/rexray)                                 | A volume plugin which is written in Go and provides advanced storage functionality for many platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
 
-* The [IPFS Volume Plugin](http://github.com/vdemeester/docker-volume-ipfs)
-  is an open source volume plugin that allows using an
-  [ipfs](https://ipfs.io/) filesystem as a volume.
-
-* The [Keywhiz plugin](https://github.com/calavera/docker-volume-keywhiz) is
-  a plugin that provides credentials and secret management using Keywhiz as
-  a central repository.
-
-* The [Netshare plugin](https://github.com/gondor/docker-volume-netshare) is a volume plugin
-  that provides volume management for NFS 3/4, AWS EFS and CIFS file systems.
-
-* The [gce-docker plugin](https://github.com/mcuadros/gce-docker) is a volume plugin able to attach, format and mount Google Compute [persistent-disks](https://cloud.google.com/compute/docs/disks/persistent-disks).
-
-* The [OpenStorage Plugin](https://github.com/libopenstorage/openstorage) is a cluster aware volume plugin that provides volume management for file and block storage solutions.  It implements a vendor neutral specification for implementing extensions such as CoS, encryption, and snapshots.   It has example drivers based on FUSE, NFS, NBD and EBS to name a few.
-
-* The [Quobyte Volume Plugin](https://github.com/quobyte/docker-volume) connects Docker to [Quobyte](http://www.quobyte.com/containers)'s data center file system, a general-purpose scalable and fault-tolerant storage platform.
-
-* The [REX-Ray plugin](https://github.com/emccode/rexray) is a volume plugin
-  which is written in Go and provides advanced storage functionality for many
-  platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
-
-* The [Contiv Volume Plugin](https://github.com/contiv/volplugin) is an open
-  source volume plugin that provides multi-tenant, persistent, distributed storage
-  with intent based consumption using ceph underneath.
-
-* The [Contiv Networking](https://github.com/contiv/netplugin) is an open source
-  libnetwork plugin to provide infrastructure and security policies for a
-  multi-tenant micro services deployment, while providing an integration to
-  physical network for non-container workload. Contiv Networking implements the
-  remote driver and IPAM APIs available in Docker 1.9 onwards.
-
-* The [Weave Network Plugin](http://docs.weave.works/weave/latest_release/plugin.html)
-  creates a virtual network that connects your Docker containers -
-  across multiple hosts or clouds and enables automatic discovery of
-  applications. Weave networks are resilient, partition tolerant,
-  secure and work in partially connected networks, and other adverse
-  environments - all configured with delightful simplicity.
-
-* The [Kuryr Network Plugin](https://github.com/openstack/kuryr) is
-  developed as part of the OpenStack Kuryr project and implements the
-  Docker networking (libnetwork) remote driver API by utilizing
-  Neutron, the OpenStack networking service. It includes an IPAM
-  driver as well.
-
-* The [Local Persist Plugin](https://github.com/CWSpear/local-persist) 
-  extends the default `local` driver's functionality by allowing you specify 
-  a mountpoint anywhere on the host, which enables the files to *always persist*, 
-  even if the volume is removed via `docker volume rm`.
-
-* The [NetApp Plugin](https://github.com/NetApp/netappdvp) (nDVP) provides
-  direct integration with the Docker ecosystem for the NetApp storage portfolio.
-  The nDVP package supports the provisioning and management of
-  storage resources from the storage platform to Docker hosts, with a robust
-  framework for adding additional platforms in the future.
 
 ## Troubleshooting a plugin
 
