@@ -22,7 +22,7 @@ example, a [volume plugin](plugins_volume.md) might enable Docker
 volumes to persist across multiple Docker hosts and a
 [network plugin](plugins_network.md) might provide network plumbing.
 
-Currently Docker supports volume and network driver plugins. In the future it
+Currently Docker supports authorization, volume and network driver plugins. In the future it
 will support additional plugin types.
 
 ## Installing a plugin
@@ -65,6 +65,11 @@ Plugin                                                                          
 [Quobyte Volume Plugin](https://github.com/quobyte/docker-volume)                   | A volume plugin that connects Docker to [Quobyte](http://www.quobyte.com/containers)'s data center file system, a general-purpose scalable and fault-tolerant storage platform.
 [REX-Ray plugin](https://github.com/emccode/rexray)                                 | A volume plugin which is written in Go and provides advanced storage functionality for many platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
 
+### Authorization plugins
+
+ Plugin                                                       | Description                                                                                                                                                               
+------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ [Twistlock AuthZ Broker](https://github.com/twistlock/authz) | A basic extendable authorization plugin that runs directly on the host or inside a container. This plugin allows you to define user policies that it evaluates during authorization. Basic authorization is provided if Docker daemon is started with the --tlsverify flag (username is extracted from the certificate common name).
 
 ## Troubleshooting a plugin
 
