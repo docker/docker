@@ -1241,12 +1241,13 @@ The list of currently supported options that can be reconfigured is this:
 - `runtimes`: it updates the list of available OCI runtimes that can
   be used to run containers
 - `authorization-plugin`: specifies the authorization plugins to use.
+- `insecure-registries`: it replaces the daemon insecure registries with a new set of insecure registries. If some existing insecure registries in daemon's configuration are not in newly reloaded insecure resgitries, these existing ones will be removed from daemon's config.
 
 Updating and reloading the cluster configurations such as `--cluster-store`,
 `--cluster-advertise` and `--cluster-store-opts` will take effect only if
 these configurations were not previously configured. If `--cluster-store`
 has been provided in flags and `cluster-advertise` not, `cluster-advertise`
-can be added in the configuration file without accompanied by `--cluster-store`
+can be added in the configuration file without accompanied by `--cluster-store`.
 Configuration reload will log a warning message if it detects a change in
 previously configured cluster configurations.
 
