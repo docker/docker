@@ -54,6 +54,8 @@ weight = -1
       --log-driver="json-file"               Default driver for container logs
       --log-opt=[]                           Log driver specific options
       --mtu=0                                Set the containers network MTU
+      --max-concurrent-downloads=3           Set the max concurrent downloads for each pull
+      --max-concurrent-uploads=5             Set the max concurrent uploads for each push
       --disable-legacy-registry              Do not contact legacy registries
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --raw-logs                             Full timestamps without ANSI coloring
@@ -913,6 +915,8 @@ This is a full example of the allowed configuration options in the file:
 	"cluster-store": "",
 	"cluster-store-opts": [],
 	"cluster-advertise": "",
+	"max-concurrent-downloads": 3,
+	"max-concurrent-uploads": 5,
 	"debug": true,
 	"hosts": [],
 	"log-level": "",
@@ -963,6 +967,8 @@ The list of currently supported options that can be reconfigured is this:
 - `cluster-store-opts`: it uses the new options to reload the discovery store.
 - `cluster-advertise`: it modifies the address advertised after reloading.
 - `labels`: it replaces the daemon labels with a new set of labels.
+- `max-concurrent-downloads`: it updates the max concurrent downloads for each pull.
+- `max-concurrent-uploads`: it updates the max concurrent uploads for each push.
 
 Updating and reloading the cluster configurations such as `--cluster-store`,
 `--cluster-advertise` and `--cluster-store-opts` will take effect only if
