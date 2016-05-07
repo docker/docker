@@ -145,9 +145,9 @@ Version 1.9 adds a flag (`--disable-legacy-registry=false`) which prevents the d
 ### Docker Content Trust ENV passphrase variables name change
 **Deprecated In Release: v1.9**
 
-**Target For Removal In Release: v1.10**
+**Removed In Release: v1.12**
 
-As of 1.9, Docker Content Trust Offline key will be renamed to Root key and the Tagging key will be renamed to Repository key. Due to this renaming, we're also changing the corresponding environment variables
+Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the Tagging key has been renamed to Repository key. Due to this renaming, we're also changing the corresponding environment variables
 
-- DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE will now be named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
-- DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE will now be named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE
+- DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE is named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
+- DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE is named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE
