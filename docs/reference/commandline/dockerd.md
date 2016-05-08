@@ -587,9 +587,9 @@ system's list of trusted CAs instead of enabling `--insecure-registry`.
 
 Enabling `--disable-legacy-registry` forces a docker daemon to only interact with registries which support the V2 protocol.  Specifically, the daemon will not attempt `push`, `pull` and `login` to v1 registries.  The exception to this is `search` which can still be performed on v1 registries.
 
-## Running a Docker daemon behind a HTTPS_PROXY
+## Running a Docker daemon behind an HTTPS_PROXY
 
-When running inside a LAN that uses a `HTTPS` proxy, the Docker Hub
+When running inside a LAN that uses an `HTTPS` proxy, the Docker Hub
 certificates will be replaced by the proxy's certificates. These certificates
 need to be added to your Docker host's configuration:
 
