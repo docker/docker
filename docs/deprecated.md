@@ -149,5 +149,5 @@ Version 1.9 adds a flag (`--disable-legacy-registry=false`) which prevents the d
 
 Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the Tagging key has been renamed to Repository key. Due to this renaming, we're also changing the corresponding environment variables
 
-- DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE is named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
-- DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE is named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE
+- DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE is now named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
+- DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE is now named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE
