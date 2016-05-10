@@ -67,18 +67,6 @@ Use `docker ps --filter=before=...` and `docker ps --filter=since=...` instead.
 The `docker search --automated` and `docker search --stars` options are deprecated.
 Use `docker search --filter=is-automated=...` and `docker search --filter=stars=...` instead.
 
-### Command line short variant options
-**Deprecated In Release: v1.9**
-
-**Target For Removal In Release: v1.11**
-
-The following short variant options are deprecated in favor of their long
-variants:
-
-    docker run -c (--cpu-shares)
-    docker build -c (--cpu-shares)
-    docker create -c (--cpu-shares)
-
 ### Driver Specific Log Tags
 **Deprecated In Release: v1.9**
 
