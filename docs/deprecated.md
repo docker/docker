@@ -73,7 +73,7 @@ variants:
 ### Driver Specific Log Tags
 **Deprecated In Release: v1.9**
 
-**Target For Removal In Release: v1.11**
+**Removed In Release: v1.12**
 
 Log tags are now generated in a standard way across different logging drivers.
 Because of which, the driver specific log tag options `syslog-tag`, `gelf-tag` and
