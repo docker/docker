@@ -92,7 +92,7 @@ The lxc-conf flag and API fields will also be removed.
 ### Old Command Line Options
 **Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
 
-**Target For Removal In Release: v1.10**
+**Removed In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
 The flags `-d` and `--daemon` are deprecated in favor of the `daemon` subcommand:
 
