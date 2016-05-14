@@ -84,10 +84,9 @@ Because of which, the driver specific log tag options `syslog-tag`, `gelf-tag` a
 ### LXC built-in exec driver
 **Deprecated In Release: v1.8**
 
-**Target For Removal In Release: v1.10**
+**Removed In Release: v1.10**
 
-The built-in LXC execution driver is deprecated for an external implementation.
-The lxc-conf flag and API fields will also be removed.
+The built-in LXC execution driver, the lxc-conf flag, and API fields have been removed.
 
 ### Old Command Line Options
 **Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
