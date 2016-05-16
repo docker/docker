@@ -977,3 +977,59 @@ has been provided in flags and `cluster-advertise` not, `cluster-advertise`
 can be added in the configuration file without accompanied by `--cluster-store`
 Configuration reload will log a warning message if it detects a change in
 previously configured cluster configurations.
+
+
+## Running multiple daemons
+
+> **Note:** Running multiple daemons on a single host is considered as "experimental". The user should be aware of
+> unsolved problems. This solution may not work properly in some cases. Solutions are currently under development
+> and will be delivered in the near future.
+
+This section describes how to run multiple Docker daemons on a single host. To
+run multiple daemons, you must configure each daemon so that it does not
+conflict with other daemons on the same host. You can set these options either
+by providing them as flags, or by using a [daemon configuration file](#daemon-configuration-file).
+
+The following daemon options must be configured for each daemon:
+
+```bash
+-b, --bridge=                          Attach containers to a network bridge
+--exec-root=/var/run/docker            Root of the Docker execdriver
+-g, --graph=/var/lib/docker            Root of the Docker runtime
+-p, --pidfile=/var/run/docker.pid      Path to use for daemon PID file
+-H, --host=[]                          Daemon socket(s) to connect to
+--config-file=/etc/docker/daemon.json  Daemon configuration file
+--tlscacert="~/.docker/ca.pem"         Trust certs signed only by this CA
+--tlscert="~/.docker/cert.pem"         Path to TLS certificate file
+--tlskey="~/.docker/key.pem"           Path to TLS key file
+```
+
+When your daemons use different values for these flags, you can run them on the same host without any problems.
+It is very important to properly understand the meaning of those options and to use them correctly.
+
+- The `-b, --bridge=` flag is set to `docker0` as default bridge network. It is created automatically when you install Docker.
+If you are not using the default, you must create and configure the bridge manually or just set it to 'none': `--bridge=none`
+- `--exec-root` is the path where the container state is stored. The default value is `/var/run/docker`. Specify the path for
+your running daemon here.
+- `--graph` is the path where images are stored. The default value is `/var/lib/docker`. To avoid any conflict with other daemons
+set this parameter separately for each daemon.
+- `-p, --pidfile=/var/run/docker.pid` is the path where the process ID of the daemon is stored. Specify the path for your
+pid file here.
+- `--host=[]` specifies where the Docker daemon will listen for client connections. If unspecified, it defaults to `/var/run/docker.sock`.
+- `--config-file=/etc/docker/daemon.json` is the path where configuration file is stored. You can use it instead of
+daemon flags. Specify the path for each daemon.
+- `--tls*` Docker daemon supports `--tlsverify` mode that enforces encrypted and authenticated remote connections.
+The `--tls*` options enable use of specific certificates for individual daemons.
+
+Example script for a separate “bootstrap” instance of the Docker daemon without network:
+
+```bash
+$ docker daemon \
+        -H unix:///var/run/docker-bootstrap.sock \
+        -p /var/run/docker-bootstrap.pid \
+        --iptables=false \
+        --ip-masq=false \
+        --bridge=none \
+        --graph=/var/lib/docker-bootstrap \
+        --exec-root=/var/run/docker-bootstrap
+```
