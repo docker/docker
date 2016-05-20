@@ -58,6 +58,15 @@ defining it at container creation (`POST /containers/create`).
 The `docker ps --before` and `docker ps --since` options are deprecated.
 Use `docker ps --filter=before=...` and `docker ps --filter=since=...` instead.
 
+### Docker search 'automated' and 'stars' options
+
+**Deprecated in Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+
+**Removed In Release: v1.14**
+
+The `docker search --automated` and `docker search --stars` options are deprecated.
+Use `docker search --filter=is-automated=...` and `docker search --filter=stars=...` instead.
+
 ### Command line short variant options
 **Deprecated In Release: v1.9**
 
