@@ -60,6 +60,7 @@ weight = -1
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --raw-logs                             Full timestamps without ANSI coloring
       --registry-mirror=[]                   Preferred Docker registry mirror
+      --add-runtime=[]                       Register an additional OCI compatible runtime
       -s, --storage-driver=""                Storage driver to use
       --selinux-enabled                      Enable selinux support
       --storage-opt=[]                       Set storage driver options
@@ -572,6 +573,31 @@ The Docker daemon relies on a
 (invoked via the `containerd` daemon) as its interface to the Linux
 kernel `namespaces`, `cgroups`, and `SELinux`.
 
+Runtimes can be registered with the daemon either via the
+configuration file or using the `--add-runtime` command line argument.
+
+The following is an example adding 2 runtimes via the configuration:
+```json
+	"default-runtime": "runc",
+	"runtimes": {
+		"runc": {
+			"path": "runc"
+		},
+		"custom": {
+			"path": "/usr/local/bin/my-runc-replacement",
+			"runtimeArgs": [
+				"--debug"
+			]
+		}
+	}
+```
+
+This is the same example via the command line:
+
+    $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-runc-replacement
+
+**Note**: defining runtime arguments via the command line is not supported.
+
 ## Options for the runtime
 
 You can configure the runtime using options specified
@@ -1014,7 +1040,19 @@ This is a full example of the allowed configuration options in the file:
 	"raw-logs": false,
 	"registry-mirrors": [],
 	"insecure-registries": [],
-	"disable-legacy-registry": false
+	"disable-legacy-registry": false,
+	"default-runtime": "runc",
+	"runtimes": {
+		"runc": {
+			"path": "runc"
+		},
+		"custom": {
+			"path": "/usr/local/bin/my-runc-replacement",
+			"runtimeArgs": [
+				"--debug"
+			]
+		}
+	}
 }
 ```
 
@@ -1036,6 +1074,11 @@ The list of currently supported options that can be reconfigured is this:
 - `labels`: it replaces the daemon labels with a new set of labels.
 - `max-concurrent-downloads`: it updates the max concurrent downloads for each pull.
 - `max-concurrent-uploads`: it updates the max concurrent uploads for each push.
+- `default-runtime`: it updates the runtime to be used if not is
+  specified at container creation. It defaults to "default" which is
+  the runtime shipped with the official docker packages.
+- `runtimes`: it updates the list of available OCI runtimes that can
+  be used to run containers
 
 Updating and reloading the cluster configurations such as `--cluster-store`,
 `--cluster-advertise` and `--cluster-store-opts` will take effect only if
