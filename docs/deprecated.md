@@ -21,6 +21,17 @@ The following list of features are deprecated in Engine.
 
 The `docker import` command format 'file|URL|- [REPOSITORY [TAG]]' is deprecated since November 2013. It's no more supported.
 
+### `-h` shorthand for `--help`
+
+**Deprecated In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+
+**Target For Removal In Release: [v1.14.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+
+The shorthand (`-h`) is less common than `--help` on Linux and cannot be used
+on all subcommands (due to it conflicting with, e.g. `-h` / `--hostname` on
+`docker create`). For this reason, the `-h` shorthand was not printed in the
+"usage" output of subcommands, nor docummented, and is now marked "deprecated".
+
 ### `-e` and `--email` flags on `docker login`
 **Deprecated In Release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
 
@@ -148,6 +159,16 @@ The following double-dash options are deprecated and have no replacement:
     docker ps --since-id
     docker ps --before-id
     docker search --trusted
+
+**Deprecated In Release: [v1.5.0](https://github.com/docker/docker/releases/tag/v1.5.0)**
+
+**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+
+The single-dash (`-help`) was removed, in favor of the double-dash `--help`
+
+    docker -help
+    docker [COMMAND] -help
+
 
 ### Interacting with V1 registries
 
