@@ -64,6 +64,7 @@ Options:
       --raw-logs                              Full timestamps without ANSI coloring
       --registry-mirror value                 Preferred Docker registry mirror (default [])
       --selinux-enabled                       Enable selinux support
+      --shutdown-timeout=15                   Set the shutdown timeout value in seconds
   -s, --storage-driver string                 Storage driver to use
       --storage-opt value                     Storage driver options (default [])
       --swarm-default-advertise-addr string   Set default address or interface for swarm advertised address
@@ -1118,6 +1119,7 @@ This is a full example of the allowed configuration options on Linux:
 	"cluster-advertise": "",
 	"max-concurrent-downloads": 3,
 	"max-concurrent-uploads": 5,
+	"shutdown-timeout": 15,
 	"debug": true,
 	"hosts": [],
 	"log-level": "",
@@ -1194,6 +1196,7 @@ This is a full example of the allowed configuration options on Windows:
     "graph": "",
     "cluster-store": "",
     "cluster-advertise": "",
+    "shutdown-timeout": 15,
     "debug": true,
     "hosts": [],
     "log-level": "",
