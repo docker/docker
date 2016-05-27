@@ -913,7 +913,7 @@ This is a full example of the allowed configuration options in the file:
 	"pidfile": "",
 	"graph": "",
 	"cluster-store": "",
-	"cluster-store-opts": [],
+	"cluster-store-opts": {},
 	"cluster-advertise": "",
 	"max-concurrent-downloads": 3,
 	"max-concurrent-uploads": 5,
