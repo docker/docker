@@ -91,7 +91,7 @@ membership.
 If you need to access the Docker daemon remotely, you need to enable the `tcp`
 Socket. Beware that the default setup provides un-encrypted and
 un-authenticated direct access to the Docker daemon - and should be secured
-either using the [built in HTTPS encrypted socket](../../security/https/), or by
+either using the [built in HTTPS encrypted socket](../../security/https.md), or by
 putting a secure web proxy in front of it. You can listen on port `2375` on all
 network interfaces with `-H tcp://0.0.0.0:2375`, or on a particular network
 interface using its IP address: `-H tcp://192.168.59.103:2375`. It is
