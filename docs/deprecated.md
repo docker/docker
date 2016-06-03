@@ -35,6 +35,14 @@ The docker login command is removing the ability to automatically register for a
 
 The flag `--security-opt` doesn't use the colon separator(`:`) anymore to divide keys and values, it uses the equal symbol(`=`) for consinstency with other similar flags, like `--storage-opt`.
 
+### `/containers/(id or name)/copy` endpoint
+
+**Deprecated In Release: v1.8**
+
+**Removed In Release: v1.12.0**
+
+The endpoint `/containers/(id or name)/copy` is deprecated in favor of `/containers/(id or name)/archive`.
+
 ### Ambiguous event fields in API
 **Deprecated In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
