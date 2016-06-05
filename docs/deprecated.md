@@ -14,6 +14,13 @@ weight=80
 
 The following list of features are deprecated in Engine.
 
+### Three argument form in `docker import`
+**Deprecated In Release: [v0.6.7](https://github.com/docker/docker/releases/tag/v0.6.7)**
+
+**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+
+The `docker import` command format 'file|URL|- [REPOSITORY [TAG]]' is deprecated since November 2013. It's no more supported.
+
 ### `-e` and `--email` flags on `docker login`
 **Deprecated In Release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
 
