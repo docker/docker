@@ -139,6 +139,68 @@ The Docker client will honor the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
 environment variables (or the lowercase versions thereof). `HTTPS_PROXY` takes
 precedence over `HTTP_PROXY`.
 
+### Bind Docker to another host/port or a Unix socket
+
+> **Warning**:
+> Changing the default `docker` daemon binding to a
+> TCP port or Unix *docker* user group will increase your security risks
+> by allowing non-root users to gain *root* access on the host. Make sure
+> you control access to `docker`. If you are binding
+> to a TCP port, anyone with access to that port has full Docker access;
+> so it is not advisable on an open network.
+
+With `-H` it is possible to make the Docker daemon to listen on a
+specific IP and port. By default, it will listen on
+`unix:///var/run/docker.sock` to allow only local connections by the
+*root* user. You *could* set it to `0.0.0.0:2375` or a specific host IP
+to give access to everybody, but that is **not recommended** because
+then it is trivial for someone to gain root access to the host where the
+daemon is running.
+
+Similarly, the Docker client can use `-H` to connect to a custom port.
+The Docker client will default to connecting to `unix:///var/run/docker.sock`
+on Linux, and `tcp://127.0.0.1:2376` on Windows.
+
+`-H` accepts host and port assignment in the following format:
+
+    tcp://[host]:[port][path] or unix://path
+
+For example:
+
+-   `tcp://` -> TCP connection to `127.0.0.1` on either port `2376` when TLS encryption
+    is on, or port `2375` when communication is in plain text.
+-   `tcp://host:2375` -> TCP connection on
+    host:2375
+-   `tcp://host:2375/path` -> TCP connection on
+    host:2375 and prepend path to all requests
+-   `unix://path/to/socket` -> Unix socket located
+    at `path/to/socket`
+
+`-H`, when empty, will default to the same value as
+when no `-H` was passed in.
+
+`-H` also accepts short form for TCP bindings:
+
+    `host:` or `host:port` or `:port`
+
+Run Docker in daemon mode:
+
+    $ sudo <path to>/dockerd -H 0.0.0.0:5555 &
+
+Download an `ubuntu` image:
+
+    $ docker -H :5555 pull ubuntu
+
+You can use multiple `-H`, for example, if you want to listen on both
+TCP and a Unix socket
+
+    # Run docker in daemon mode
+    $ sudo <path to>/dockerd -H tcp://127.0.0.1:2375 -H unix:///var/run/docker.sock &
+    # Download an ubuntu image, use default Unix socket
+    $ docker pull ubuntu
+    # OR use the TCP port
+    $ docker -H tcp://127.0.0.1:2375 pull ubuntu
+
 ### Daemon storage-driver option
 
 The Docker daemon has support for several different image layer storage
@@ -529,7 +591,7 @@ can specify default container isolation technology with this, for example:
 
 Will make `hyperv` the default isolation technology on Windows. If no isolation
 value is specified on daemon start, on Windows client, the default is
-`hyperv`, and on Windows server, the default is `process`. 
+`hyperv`, and on Windows server, the default is `process`.
 
 ## Daemon DNS options
 
