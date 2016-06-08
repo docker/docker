@@ -65,6 +65,7 @@ Plugin                                                                          
 [OpenStorage Plugin](https://github.com/libopenstorage/openstorage)                 | A cluster-aware volume plugin that provides volume management for file and block storage solutions.  It implements a vendor neutral specification for implementing extensions such as CoS, encryption, and snapshots. It has example drivers based on FUSE, NFS, NBD and EBS to name a few.
 [Quobyte Volume Plugin](https://github.com/quobyte/docker-volume)                   | A volume plugin that connects Docker to [Quobyte](http://www.quobyte.com/containers)'s data center file system, a general-purpose scalable and fault-tolerant storage platform.
 [REX-Ray plugin](https://github.com/emccode/rexray)                                 | A volume plugin which is written in Go and provides advanced storage functionality for many platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
+[Virtuozzo Storage and Ploop plugin](https://github.com/virtuozzo/docker-volume-ploop) | A volume plugin with support for Virtuozzo Storage distributed cloud file system as well as ploop devices.
 [VMware vSphere Storage Plugin](https://github.com/vmware/docker-volume-vsphere)    | Docker Volume Driver for vSphere enables customers to address persistent storage requirements for Docker containers in vSphere environments. 
 
 ### Authorization plugins
