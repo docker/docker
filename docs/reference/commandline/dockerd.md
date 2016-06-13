@@ -204,7 +204,7 @@ TCP and a Unix socket
 ### Daemon storage-driver option
 
 The Docker daemon has support for several different image layer storage
-drivers: `aufs`, `devicemapper`, `btrfs`, `zfs` and `overlay`.
+drivers: `aufs`, `devicemapper`, `btrfs`, `zfs`, `overlay` and `overlay2`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause
@@ -242,9 +242,14 @@ Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). Call
 > inode consumption (especially as the number of images grows), as well as
 > being incompatible with the use of RPMs.
 
+The `overlay2` uses the same fast union filesystem but takes advantage of
+[additional features](https://lkml.org/lkml/2015/2/11/106) added in Linux
+kernel 4.0 to avoid excessive inode consumption. Call `dockerd -s overlay2`
+to use it.
+
 > **Note:**
-> It is currently unsupported on `btrfs` or any Copy on Write filesystem
-> and should only be used over `ext4` partitions.
+> Both `overlay` and `overlay2` are currently unsupported on `btrfs` or any
+> Copy on Write filesystem and should only be used over `ext4` partitions.
 
 ### Storage driver options
 
