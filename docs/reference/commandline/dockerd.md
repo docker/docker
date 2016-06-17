@@ -975,19 +975,23 @@ the `--cgroup-parent` option on the daemon.
 The `--config-file` option allows you to set any configuration option
 for the daemon in a JSON format. This file uses the same flag names as keys,
 except for flags that allow several entries, where it uses the plural
-of the flag name, e.g., `labels` for the `label` flag. By default,
-docker tries to load a configuration file from `/etc/docker/daemon.json`
-on Linux and `%programdata%\docker\config\daemon.json` on Windows.
+of the flag name, e.g., `labels` for the `label` flag.
 
 The options set in the configuration file must not conflict with options set
 via flags. The docker daemon fails to start if an option is duplicated between
 the file and the flags, regardless their value. We do this to avoid
 silently ignore changes introduced in configuration reloads.
 For example, the daemon fails to start if you set daemon labels
-in the configuration file and also set daemon labels via the `--label` flag.
-
+in the configuration file and also set daemon labels via the `--label` flag. 
 Options that are not present in the file are ignored when the daemon starts.
-This is a full example of the allowed configuration options in the file:
+
+### Linux configuration file
+
+The default location of the configuration file on Linux is 
+`/etc/docker/daemon.json`. The `--config-file` flag can be used to specify a
+ non-default location. 
+
+This is a full example of the allowed configuration options on Linux:
 
 ```json
 {
@@ -1053,6 +1057,48 @@ This is a full example of the allowed configuration options in the file:
 			]
 		}
 	}
+}
+```
+
+### Windows configuration file
+
+The default location of the configuration file on Windows is
+ `%programdata%\docker\config\daemon.json`. The `--config-file` flag can be
+ used to specify a non-default location. 
+
+This is a full example of the allowed configuration options on Windows:
+
+```json
+{
+    "authorization-plugins": [],
+    "dns": [],
+    "dns-opts": [],
+    "dns-search": [],
+    "exec-opts": [],
+    "storage-driver": "",
+    "storage-opts": [],
+    "labels": [],
+    "log-driver": "", 
+    "mtu": 0,
+    "pidfile": "",
+    "graph": "",
+    "cluster-store": "",
+    "cluster-advertise": "",
+    "debug": true,
+    "hosts": [],
+    "log-level": "",
+    "tlsverify": true,
+    "tlscacert": "",
+    "tlscert": "",
+    "tlskey": "",
+    "group": "",
+    "default-ulimits": {},
+    "bridge": "",
+    "fixed-cidr": "",
+    "raw-logs": false,
+    "registry-mirrors": [],
+    "insecure-registries": [],
+    "disable-legacy-registry": false
 }
 ```
 
