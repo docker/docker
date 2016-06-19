@@ -37,9 +37,9 @@ The flag `--security-opt` doesn't use the colon separator(`:`) anymore to divide
 
 ### `/containers/(id or name)/copy` endpoint
 
-**Deprecated In Release: v1.8**
+**Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
 
-**Removed In Release: v1.12.0**
+**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 The endpoint `/containers/(id or name)/copy` is deprecated in favor of `/containers/(id or name)/archive`.
 
