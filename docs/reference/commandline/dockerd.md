@@ -48,6 +48,7 @@ Options:
       -H, --host=[]                          Daemon socket(s) to connect to
       --help                                 Print usage
       --icc=true                             Enable inter-container communication
+      --init                                 Run an init inside containers to forward signals and reap processes
       --insecure-registry=[]                 Enable insecure registry communication
       --ip=0.0.0.0                           Default IP when binding container ports
       --ip-forward=true                      Enable net.ipv4.ip_forward
@@ -1140,6 +1141,7 @@ This is a full example of the allowed configuration options on Linux:
 	"group": "",
 	"cgroup-parent": "",
 	"default-ulimits": {},
+	"init": false,
 	"ipv6": false,
 	"iptables": false,
 	"ip-forward": false,
