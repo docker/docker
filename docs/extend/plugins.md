@@ -58,6 +58,7 @@ Plugin                                                                          
 [gce-docker plugin](https://github.com/mcuadros/gce-docker)                         | A volume plugin able to attach, format and mount Google Compute [persistent-disks](https://cloud.google.com/compute/docs/disks/persistent-disks).
 [GlusterFS plugin](https://github.com/calavera/docker-volume-glusterfs)             | A volume plugin that provides multi-host volumes management for Docker using GlusterFS.
 [Horcrux Volume Plugin](https://github.com/muthu-r/horcrux)                         | A volume plugin that allows on-demand, version controlled access to your data. Horcrux is an open-source plugin, written in Go, and supports SCP, [Minio](https://www.minio.io) and Amazon S3.
+[HPE 3Par Volume Plugin](https://github.com/hpe-storage/python-hpedockerplugin/)    | A volume plugin that supports HPE 3Par and StoreVirtual iSCSI storage arrays.
 [IPFS Volume Plugin](http://github.com/vdemeester/docker-volume-ipfs)               | An open source volume plugin that allows using an [ipfs](https://ipfs.io/) filesystem as a volume.
 [Keywhiz plugin](https://github.com/calavera/docker-volume-keywhiz)                 | A plugin that provides credentials and secret management using Keywhiz as a central repository.
 [Local Persist Plugin](https://github.com/CWSpear/local-persist)                    | A volume plugin that extends the default `local` driver's functionality by allowing you specify a mountpoint anywhere on the host, which enables the files to *always persist*, even if the volume is removed via `docker volume rm`.
@@ -67,7 +68,7 @@ Plugin                                                                          
 [Quobyte Volume Plugin](https://github.com/quobyte/docker-volume)                   | A volume plugin that connects Docker to [Quobyte](http://www.quobyte.com/containers)'s data center file system, a general-purpose scalable and fault-tolerant storage platform.
 [REX-Ray plugin](https://github.com/emccode/rexray)                                 | A volume plugin which is written in Go and provides advanced storage functionality for many platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
 [Virtuozzo Storage and Ploop plugin](https://github.com/virtuozzo/docker-volume-ploop) | A volume plugin with support for Virtuozzo Storage distributed cloud file system as well as ploop devices.
-[VMware vSphere Storage Plugin](https://github.com/vmware/docker-volume-vsphere)    | Docker Volume Driver for vSphere enables customers to address persistent storage requirements for Docker containers in vSphere environments. 
+[VMware vSphere Storage Plugin](https://github.com/vmware/docker-volume-vsphere)    | Docker Volume Driver for vSphere enables customers to address persistent storage requirements for Docker containers in vSphere environments.
 
 ### Authorization plugins
 
