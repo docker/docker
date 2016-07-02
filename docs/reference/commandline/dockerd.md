@@ -17,6 +17,7 @@ weight = -1
     A self-sufficient runtime for linux containers.
 
     Options:
+      --add-runtime=[]                       Register an additional OCI compatible runtime
       --api-cors-header=""                   Set CORS headers in the remote API
       --authorization-plugin=[]              Set authorization plugins to load
       -b, --bridge=""                        Attach containers to a network bridge
@@ -60,7 +61,6 @@ weight = -1
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --raw-logs                             Full timestamps without ANSI coloring
       --registry-mirror=[]                   Preferred Docker registry mirror
-      --add-runtime=[]                       Register an additional OCI compatible runtime
       -s, --storage-driver=""                Storage driver to use
       --selinux-enabled                      Enable selinux support
       --storage-opt=[]                       Set storage driver options
