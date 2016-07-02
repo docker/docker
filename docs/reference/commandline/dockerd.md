@@ -911,7 +911,7 @@ The following standard Docker features are currently incompatible when
 running a Docker daemon with user namespaces enabled:
 
  - sharing PID or NET namespaces with the host (`--pid=host` or `--net=host`)
- - A `--readonly` container filesystem (this is a Linux kernel restriction against remounting with modified flags of a currently mounted filesystem when inside a user namespace)
+ - A `--read-only` container filesystem (this is a Linux kernel restriction against remounting with modified flags of a currently mounted filesystem when inside a user namespace)
  - external (volume or graph) drivers which are unaware/incapable of using daemon user mappings
  - Using `--privileged` mode flag on `docker run` (unless also specifying `--userns=host`)
 
