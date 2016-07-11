@@ -566,6 +566,17 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
     Example use:
         $ docker daemon -s btrfs --storage-opt btrfs.min_space=10G
 
+#### Overlay2 options
+
+* `overlay2.override_kernel_check`
+
+    Overrides the Linux kernel version check allowing overlay2. Support for
+    specifying multiple lower directories needed by overlay2 was added to the
+    Linux kernel in 4.0.0. However some older kernel versions may be patched
+    to add multiple lower directory support for OverlayFS. This option should
+    only be used after verifying this support exists in the kernel. Applying
+    this option on a kernel without this support will cause failures on mount.
+
 ## Docker runtime execution options
 
 The Docker daemon relies on a
