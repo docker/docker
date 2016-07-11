@@ -54,9 +54,10 @@ weight = -1
       --label=[]                             Set key=value labels to the daemon
       --log-driver="json-file"               Default driver for container logs
       --log-opt=[]                           Log driver specific options
-      --mtu=0                                Set the containers network MTU
       --max-concurrent-downloads=3           Set the max concurrent downloads for each pull
       --max-concurrent-uploads=5             Set the max concurrent uploads for each push
+      --mtu=0                                Set the containers network MTU
+      --oom-score-adjust=-500                Set the oom_score_adj for the daemon
       --disable-legacy-registry              Do not contact legacy registries
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --raw-logs                             Full timestamps without ANSI coloring
@@ -1057,6 +1058,7 @@ This is a full example of the allowed configuration options on Linux:
 	"insecure-registries": [],
 	"disable-legacy-registry": false,
 	"default-runtime": "runc",
+	"oom-score-adjust": -500,
 	"runtimes": {
 		"runc": {
 			"path": "runc"
