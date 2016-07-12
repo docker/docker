@@ -35,6 +35,14 @@ see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-depreca
 
 The daemon is moved to a separate binary (`dockerd`), and should be used instead.
 
+### Duplicate keys with conflicting values in engine labels
+**Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/)**
+
+**Target For Removal In Release: v1.16**
+
+Duplicate keys with conflicting values have been deprecated. A warning is displayed
+in the output, and an error will be returned in the future.
+
 ### Three argument form in `docker import`
 **Deprecated In Release: [v0.6.7](https://github.com/docker/docker/releases/tag/v0.6.7)**
 
