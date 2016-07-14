@@ -34,7 +34,7 @@ Follow the instructions in the plugin's documentation.
 The sections below provide an inexhaustive overview of available plugins.
 
 <style>
-#content tr td:first-child { white-space: nowrap;}
+#DocumentationText  tr td:first-child { white-space: nowrap;}
 </style>
 
 ### Network plugins
