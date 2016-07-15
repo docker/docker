@@ -210,10 +210,9 @@ drivers: `aufs`, `devicemapper`, `btrfs`, `zfs`, `overlay` and `overlay2`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause
-some serious kernel crashes. However, `aufs` is also the only storage driver
-that allows containers to share executable and shared library memory, so is a
-useful choice when running thousands of containers with the same program or
-libraries.
+some serious kernel crashes. However, `aufs` allows containers to share
+executable and shared library memory, so is a useful choice when running
+thousands of containers with the same program or libraries.
 
 The `devicemapper` driver uses thin provisioning and Copy on Write (CoW)
 snapshots. For each devicemapper graph location – typically
@@ -235,7 +234,10 @@ cached only once. Use `dockerd -s zfs`. To select a different zfs filesystem
 set `zfs.fsname` option as described in [Storage driver options](#storage-driver-options).
 
 The `overlay` is a very fast union filesystem. It is now merged in the main
-Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). Call
+Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). `overlay`
+also supports page cache sharing, this means multiple containers accessing
+the same file can share a single page cache entry (or entries), it makes
+`overlay` as efficient with memory as `aufs` driver. Call
 `dockerd -s overlay` to use it.
 
 > **Note:**
