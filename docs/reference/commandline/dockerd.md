@@ -12,35 +12,45 @@ weight = -1
 
 # daemon
 
+```markdown
     Usage: dockerd [OPTIONS]
 
-    A self-sufficient runtime for linux containers.
+    A self-sufficient runtime for containers.
 
     Options:
+
+Usage: dockerd [OPTIONS]
+
+A self-sufficient runtime for containers.
+
+Options:
+
       --add-runtime=[]                       Register an additional OCI compatible runtime
-      --api-cors-header=""                   Set CORS headers in the remote API
-      --authorization-plugin=[]              Set authorization plugins to load
-      -b, --bridge=""                        Attach containers to a network bridge
-      --bip=""                               Specify network bridge IP
-      --cgroup-parent=                       Set parent cgroup for all containers
-      --cluster-store=""                     URL of the distributed storage backend
-      --cluster-advertise=""                 Address of the daemon instance on the cluster
-      --cluster-store-opt=map[]              Set cluster options
+      --api-cors-header                      Set CORS headers in the remote API
+      --authorization-plugin=[]              Authorization plugins to load
+      -b, --bridge                           Attach containers to a network bridge
+      --bip                                  Specify network bridge IP
+      --cgroup-parent                        Set parent cgroup for all containers
+      --cluster-advertise                    Address or interface name to advertise
+      --cluster-store                        URL of the distributed storage backend
+      --cluster-store-opt=map[]              Set cluster store options
       --config-file=/etc/docker/daemon.json  Daemon configuration file
       --containerd                           Path to containerd socket
       -D, --debug                            Enable debug mode
-      --default-gateway=""                   Container default gateway IPv4 address
-      --default-gateway-v6=""                Container default gateway IPv6 address
+      --default-gateway                      Container default gateway IPv4 address
+      --default-gateway-v6                   Container default gateway IPv6 address
+      --default-runtime=runc                 Default OCI runtime for containers
+      --default-ulimit=[]                    Default ulimits for containers
+      --disable-legacy-registry              Disable contacting legacy registries
       --dns=[]                               DNS server to use
       --dns-opt=[]                           DNS options to use
       --dns-search=[]                        DNS search domains to use
-      --default-ulimit=[]                    Set default ulimit settings for containers
-      --exec-opt=[]                          Set runtime execution options
-      --exec-root="/var/run/docker"          Root directory for execution state files
-      --fixed-cidr=""                        IPv4 subnet for fixed IPs
-      --fixed-cidr-v6=""                     IPv6 subnet for fixed IPs
-      -G, --group="docker"                   Group for the unix socket
-      -g, --graph="/var/lib/docker"          Root of the Docker runtime
+      --exec-opt=[]                          Runtime execution options
+      --exec-root=/var/run/docker            Root directory for execution state files
+      --fixed-cidr                           IPv4 subnet for fixed IPs
+      --fixed-cidr-v6                        IPv6 subnet for fixed IPs
+      -G, --group=docker                     Group for the unix socket
+      -g, --graph=/var/lib/docker            Root of the Docker runtime
       -H, --host=[]                          Daemon socket(s) to connect to
       --help                                 Print usage
       --icc=true                             Enable inter-container communication
@@ -50,28 +60,30 @@ weight = -1
       --ip-masq=true                         Enable IP masquerading
       --iptables=true                        Enable addition of iptables rules
       --ipv6                                 Enable IPv6 networking
-      -l, --log-level="info"                 Set the logging level
+      -l, --log-level=info                   Set the logging level
       --label=[]                             Set key=value labels to the daemon
-      --log-driver="json-file"               Default driver for container logs
-      --log-opt=[]                           Log driver specific options
+      --live-restore                         Enable live restore of docker when containers are still running
+      --log-driver=json-file                 Default driver for container logs
+      --log-opt=map[]                        Default log driver options for containers
       --max-concurrent-downloads=3           Set the max concurrent downloads for each pull
       --max-concurrent-uploads=5             Set the max concurrent uploads for each push
-      --mtu=0                                Set the containers network MTU
+      --mtu                                  Set the containers network MTU
       --oom-score-adjust=-500                Set the oom_score_adj for the daemon
-      --disable-legacy-registry              Do not contact legacy registries
-      -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
+      -p, --pidfile=/var/run/docker.pid      Path to use for daemon PID file
       --raw-logs                             Full timestamps without ANSI coloring
       --registry-mirror=[]                   Preferred Docker registry mirror
-      -s, --storage-driver=""                Storage driver to use
+      -s, --storage-driver                   Storage driver to use
       --selinux-enabled                      Enable selinux support
-      --storage-opt=[]                       Set storage driver options
+      --storage-opt=[]                       Storage driver options
       --tls                                  Use TLS; implied by --tlsverify
-      --tlscacert="~/.docker/ca.pem"         Trust certs signed only by this CA
-      --tlscert="~/.docker/cert.pem"         Path to TLS certificate file
-      --tlskey="~/.docker/key.pem"           Path to TLS key file
+      --tlscacert=~/.docker/ca.pem           Trust certs signed only by this CA
+      --tlscert=~/.docker/cert.pem           Path to TLS certificate file
+      --tlskey=~/.docker/key.pem             Path to TLS key file
       --tlsverify                            Use TLS and verify the remote
-      --userns-remap="default"               Enable user namespace remapping
       --userland-proxy=true                  Use userland proxy for loopback traffic
+      --userns-remap                         User/Group setting for user namespaces
+      -v, --version                          Print version information and quit
+```
 
 Options with [] may be specified multiple times.
 
