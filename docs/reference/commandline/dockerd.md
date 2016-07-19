@@ -56,7 +56,7 @@ Options:
       --ipv6                                 Enable IPv6 networking
       -l, --log-level=info                   Set the logging level
       --label=[]                             Set key=value labels to the daemon
-      --live-restore                         Enable live restore of docker when containers are still running
+      --live-restore                         Enables keeping containers alive during daemon downtime
       --log-driver=json-file                 Default driver for container logs
       --log-opt=map[]                        Default log driver options for containers
       --max-concurrent-downloads=3           Set the max concurrent downloads for each pull
@@ -1003,14 +1003,14 @@ via flags. The docker daemon fails to start if an option is duplicated between
 the file and the flags, regardless their value. We do this to avoid
 silently ignore changes introduced in configuration reloads.
 For example, the daemon fails to start if you set daemon labels
-in the configuration file and also set daemon labels via the `--label` flag. 
+in the configuration file and also set daemon labels via the `--label` flag.
 Options that are not present in the file are ignored when the daemon starts.
 
 ### Linux configuration file
 
-The default location of the configuration file on Linux is 
+The default location of the configuration file on Linux is
 `/etc/docker/daemon.json`. The `--config-file` flag can be used to specify a
- non-default location. 
+ non-default location.
 
 This is a full example of the allowed configuration options on Linux:
 
@@ -1025,6 +1025,7 @@ This is a full example of the allowed configuration options on Linux:
 	"storage-driver": "",
 	"storage-opts": [],
 	"labels": [],
+	"live-restore": true,
 	"log-driver": "",
 	"log-opts": [],
 	"mtu": 0,
@@ -1087,7 +1088,7 @@ This is a full example of the allowed configuration options on Linux:
 
 The default location of the configuration file on Windows is
  `%programdata%\docker\config\daemon.json`. The `--config-file` flag can be
- used to specify a non-default location. 
+ used to specify a non-default location.
 
 This is a full example of the allowed configuration options on Windows:
 
@@ -1101,7 +1102,8 @@ This is a full example of the allowed configuration options on Windows:
     "storage-driver": "",
     "storage-opts": [],
     "labels": [],
-    "log-driver": "", 
+    "live-restore": true,
+    "log-driver": "",
     "mtu": 0,
     "pidfile": "",
     "graph": "",
@@ -1142,6 +1144,7 @@ The list of currently supported options that can be reconfigured is this:
 - `cluster-store-opts`: it uses the new options to reload the discovery store.
 - `cluster-advertise`: it modifies the address advertised after reloading.
 - `labels`: it replaces the daemon labels with a new set of labels.
+- `live-restore`: Enables [keeping containers alive during daemon downtime](../../admin/live-restore.md).
 - `max-concurrent-downloads`: it updates the max concurrent downloads for each pull.
 - `max-concurrent-uploads`: it updates the max concurrent uploads for each push.
 - `default-runtime`: it updates the runtime to be used if not is
