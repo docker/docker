@@ -13,12 +13,6 @@ weight = -1
 # daemon
 
 ```markdown
-    Usage: dockerd [OPTIONS]
-
-    A self-sufficient runtime for containers.
-
-    Options:
-
 Usage: dockerd [OPTIONS]
 
 A self-sufficient runtime for containers.
