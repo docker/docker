@@ -141,11 +141,11 @@ docker: Error response from daemon: plugin PLUGIN_NAME failed with error: AuthZP
 In addition to Docker's standard plugin registration method, each plugin
 should implement the following two methods:
 
-* `/AuthzPlugin.AuthZReq` This authorize request method is called before the Docker daemon processes the client request.
+* `/AuthZPlugin.AuthZReq` This authorize request method is called before the Docker daemon processes the client request.
 
-* `/AuthzPlugin.AuthZRes` This authorize response method is called before the response is returned from Docker daemon to the client.
+* `/AuthZPlugin.AuthZRes` This authorize response method is called before the response is returned from Docker daemon to the client.
 
-#### /AuthzPlugin.AuthZReq
+#### /AuthZPlugin.AuthZReq
 
 **Request**:
 
@@ -169,7 +169,7 @@ should implement the following two methods:
     "Err":   "The error message if things go wrong"
 }
 ```
-#### /AuthzPlugin.AuthZRes
+#### /AuthZPlugin.AuthZRes
 
 **Request**:
 
