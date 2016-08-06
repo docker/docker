@@ -196,3 +196,7 @@ Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the
 - DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE is now named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
 - DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE is now named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE
 
+### `MAINTAINER` in Dockerfile
+**Deprecated In Release: v1.13.0**
+
+`MAINTAINER` was an early very limited form of `LABEL` which should be used instead.
