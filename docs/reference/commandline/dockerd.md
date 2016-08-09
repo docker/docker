@@ -955,16 +955,16 @@ This option will completely disable user namespace mapping for the container's u
 The following standard Docker features are currently incompatible when
 running a Docker daemon with user namespaces enabled:
 
- - sharing PID or NET namespaces with the host (`--pid=host` or `--network=host`)
- - A `--read-only` container filesystem (this is a Linux kernel restriction against remounting with modified flags of a currently mounted filesystem when inside a user namespace)
- - external (volume or graph) drivers which are unaware/incapable of using daemon user mappings
+ - sharing PID or NET namespaces with the host (`--pid=host` or `--net=host`)
  - Using `--privileged` mode flag on `docker run` (unless also specifying `--userns=host`)
 
 In general, user namespaces are an advanced feature and will require
 coordination with other capabilities. For example, if volumes are mounted from
 the host, file ownership will have to be pre-arranged if the user or
 administrator wishes the containers to have expected access to the volume
-contents.
+contents. Note that when using external volume or graph driver plugins, those
+external software programs must be made aware of user and group mapping ranges
+if they are to work seamlessly with user namespace support.
 
 Finally, while the `root` user inside a user namespaced container process has
 many of the expected admin privileges that go along with being the superuser, the
