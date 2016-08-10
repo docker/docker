@@ -1027,7 +1027,7 @@ This is a full example of the allowed configuration options on Linux:
 	"labels": [],
 	"live-restore": true,
 	"log-driver": "",
-	"log-opts": [],
+	"log-opts": {},
 	"mtu": 0,
 	"pidfile": "",
 	"graph": "",
