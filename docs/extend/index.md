@@ -15,8 +15,6 @@ weight = 6
 
 Currently, you can extend Docker Engine by adding a plugin. This section contains the following topics:
 
-* [Understand Docker plugins](plugins.md)
-* [Write a volume plugin](plugins_volume.md)
-* [Write a network plugin](plugins_network.md)
-* [Write an authorization plugin](plugins_authorization.md)
-* [Docker plugin API](plugin_api.md)
+* [New Docker Plugin System](new/index.md)
+* [Legacy Docker Plugins](legacy/index.md)
+
