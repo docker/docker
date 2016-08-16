@@ -5,10 +5,15 @@ description = "Network driver plugins."
 keywords = ["Examples, Usage, plugins, docker, documentation, user guide"]
 [menu.main]
 parent = "engine_extend"
+weight=5
 +++
 <![end-metadata]-->
 
 # Engine network driver plugins
+
+This document describes Docker Engine network driver plugins generally
+available in Docker Engine 1.12 and earlier. To view information on plugins
+managed by Docker Engine, refer to [Docker Engine plugin system](plugins.md).
 
 Docker Engine network plugins enable Engine deployments to be extended to
 support a wide range of networking technologies, such as VXLAN, IPVLAN, MACVLAN

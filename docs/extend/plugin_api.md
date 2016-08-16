@@ -5,7 +5,7 @@ description = "How to write Docker plugins extensions "
 keywords = ["API, Usage, plugins, documentation, developer"]
 [menu.main]
 parent = "engine_extend"
-weight=1
+weight=7
 +++
 <![end-metadata]-->
 
@@ -14,9 +14,13 @@ weight=1
 Docker plugins are out-of-process extensions which add capabilities to the
 Docker Engine.
 
+This document describes the Docker Engine plugin API generally available in
+Docker Engine 1.12 and earlier. To view information on plugins managed by Docker
+Engine, refer to [Docker Engine plugin system](plugins.md).
+
 This page is intended for people who want to develop their own Docker plugin.
 If you just want to learn about or use Docker plugins, look
-[here](plugins.md).
+[here](legacy_plugins.md).
 
 ## What plugins are
 

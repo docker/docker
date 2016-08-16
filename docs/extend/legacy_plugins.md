@@ -5,11 +5,15 @@ description = "How to add additional functionality to Docker with plugins extens
 keywords = ["Examples, Usage, plugins, docker, documentation, user guide"]
 [menu.main]
 parent = "engine_extend"
-weight=-1
+weight=3
 +++
 <![end-metadata]-->
 
-# Understand Engine plugins
+# Understand legacy Docker Engine plugins
+
+This document describes the Docker Engine plugins generally available in Docker
+Engine 1.12 and earlier. To view information on plugins managed by Docker
+Engine, refer to [Docker Engine plugin system](plugins.md).
 
 You can extend the capabilities of the Docker Engine by loading third-party
 plugins. This page explains the types of plugins and provides links to several
@@ -72,7 +76,7 @@ Plugin                                                                          
 
 ### Authorization plugins
 
- Plugin                                                       | Description                                                                                                                                                               
+ Plugin                                                       | Description
 ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  [Twistlock AuthZ Broker](https://github.com/twistlock/authz) | A basic extendable authorization plugin that runs directly on the host or inside a container. This plugin allows you to define user policies that it evaluates during authorization. Basic authorization is provided if Docker daemon is started with the --tlsverify flag (username is extracted from the certificate common name).
 

@@ -6,12 +6,16 @@ keywords = ["security, authorization, authentication, docker, documentation, plu
 aliases = ["/engine/extend/authorization/"]
 [menu.main]
 parent = "engine_extend"
-weight = -1
+weight = 4
 +++
 <![end-metadata]-->
 
 
 # Create an authorization plugin
+
+This document describes Docker Engine authorization plugins generally
+available in Docker Engine 1.12 and earlier. To view information on plugins
+managed by Docker Engine, refer to [Docker Engine plugin system](plugins.md).
 
 Docker's out-of-the-box authorization model is all or nothing. Any user with
 permission to access the Docker daemon can run any Docker client command. The
