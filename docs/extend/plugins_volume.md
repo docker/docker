@@ -11,10 +11,6 @@ weight=6
 
 # Write a volume plugin
 
-This document describes Docker Engine volume plugins generally available in
-Docker Engine 1.12 and earlier. To view information on plugins managed by Docker
-Engine, refer to [Docker Engine plugin system](plugins.md).
-
 Docker Engine volume plugins enable Engine deployments to be integrated with
 external storage systems, such as Amazon EBS, and enable data volumes to persist
 beyond the lifetime of a single Engine host. See the [plugin

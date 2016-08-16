@@ -97,7 +97,7 @@ started without error.
     <content of /remote on machine 1.2.3.4>
     ```
 
-5. Verify the plugin successfully crated the volume.
+5. Verify the plugin successfully created the volume.
 
     ```bash
     $ docker volume ls
@@ -109,7 +109,7 @@ started without error.
     You can stop a plugin with the `docker plugin disable`
     command or remove a plugin with `docker plugin remove`.
 
-See the [command line reference](../engine/reference/commandline/) for more
+See the [command line reference](../reference/commandline/index.md) for more
 information.
 
 ## How to develop a plugin

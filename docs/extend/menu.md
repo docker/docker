@@ -17,3 +17,4 @@ weight = 0
 Currently, you can extend Docker Engine by adding a plugin. This section contains the following topics:
 
 * [Understand Docker plugins](plugins.md)
+* [Write a volume plugin](plugins_volume.md)
