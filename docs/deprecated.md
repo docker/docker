@@ -172,6 +172,15 @@ The single-dash (`-help`) was removed, in favor of the double-dash `--help`
     docker -help
     docker [COMMAND] -help
 
+### `--run` flag on docker commit
+
+**Deprecated In Release: [v0.10.0](https://github.com/docker/docker/releases/tag/v0.10.0)**
+
+**Removed In Release: [v1.13.0](https://github.com/docker/docker/releases/)**
+
+The flag `--run` of the docker commit (and its short version `-run`) were deprecated in favor 
+of the `--changes` flag that allows to pass `Dockerfile` commands.
+
 
 ### Interacting with V1 registries
 
@@ -186,3 +195,4 @@ Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the
 
 - DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE is now named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
 - DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE is now named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE
+
