@@ -201,7 +201,7 @@ created from a Dockerfile as follows:
 the plugin._
 
 ```bash
-$ git clone github.com/vieux/docker-volume-sshfs
+$ git clone https://github.com/vieux/docker-volume-sshfs
 $ cd docker-volume-sshfs
 $ docker build -t rootfs .
 $ id=$(docker create rootfs true) # id was cd851ce43a403 when the image was created
