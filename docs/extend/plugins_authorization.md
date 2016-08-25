@@ -112,7 +112,7 @@ Authorization plugins can be loaded without restarting the daemon. Refer
 to the [`dockerd` documentation](../reference/commandline/dockerd.md#configuration-reloading) for more information.
 
 ```bash
-$ docker daemon --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
+$ dockerd --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
 ```
 
 Docker's authorization subsystem supports multiple `--authorization-plugin` parameters.
