@@ -594,6 +594,14 @@ The Docker daemon relies on a
 (invoked via the `containerd` daemon) as its interface to the Linux
 kernel `namespaces`, `cgroups`, and `SELinux`.
 
+By default, the Docker daemon automatically starts `containerd`. If you want to
+control `containerd` startup, manually start `containerd` and pass the path to
+the `containerd` socket using the `--containerd` flag. For example:
+
+```bash
+$ dockerd --containerd /var/run/dev/docker-containerd.sock
+```
+
 Runtimes can be registered with the daemon either via the
 configuration file or using the `--add-runtime` command line argument.
 
