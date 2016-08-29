@@ -1,6 +1,7 @@
 <!--[metadata]>
 +++
-title = "Extending Engine with plugins"
+aliases = "/engine/extend/plugins/"
+title = "Use Docker Engine plugins"
 description = "How to add additional functionality to Docker with plugins extensions"
 keywords = ["Examples, Usage, plugins, docker, documentation, user guide"]
 [menu.main]
@@ -9,11 +10,11 @@ weight=3
 +++
 <![end-metadata]-->
 
-# Understand legacy Docker Engine plugins
+# Use Docker Engine plugins
 
 This document describes the Docker Engine plugins generally available in Docker
-Engine 1.12 and earlier. To view information on plugins managed by Docker
-Engine, refer to [Docker Engine plugin system](plugins.md).
+Engine. To view information on plugins managed by Docker Engine currently in
+experimental status, refer to [Docker Engine plugin system](index.md).
 
 You can extend the capabilities of the Docker Engine by loading third-party
 plugins. This page explains the types of plugins and provides links to several
@@ -21,7 +22,7 @@ volume and network plugins for Docker.
 
 ## Types of plugins
 
-Plugins extend Docker's functionality.  They come in specific types.  For
+Plugins extend Docker's functionality. They come in specific types.  For
 example, a [volume plugin](plugins_volume.md) might enable Docker
 volumes to persist across multiple Docker hosts and a
 [network plugin](plugins_network.md) might provide network plumbing.

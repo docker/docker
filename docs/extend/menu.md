@@ -1,7 +1,7 @@
 <!--[metadata]>
 +++
-title = "Extend Docker"
-description = "How to extend Docker Engine with plugins"
+title = "Implement plugins"
+description = "Develop plugins and use existing plugins for Docker Engine"
 keywords = ["extend, plugins, docker, documentation, developer"]
 type="menu"
 [menu.main]
@@ -12,9 +12,4 @@ weight = 0
 <![end-metadata]-->
 
 
-## New Docker Plugin System
-
-Currently, you can extend Docker Engine by adding a plugin. This section contains the following topics:
-
-* [Understand Docker plugins](plugins.md)
-* [Write a volume plugin](plugins_volume.md)
+<!--menu page not rendered-->

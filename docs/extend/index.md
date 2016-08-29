@@ -3,8 +3,8 @@
 aliases = [
 "/engine/extend/"
 ]
-title = "New Plugin System"
-description = "How to operate and create a plugin with the new system"
+title = "Managed plugin system"
+description = "How develop and use a plugin with the managed plugin system"
 keywords = ["API, Usage, plugins, documentation, developer"]
 advisory = "experimental"
 [menu.main]
@@ -13,7 +13,7 @@ weight=1
 +++
 <![end-metadata]-->
 
-# Docker Engine plugin system
+# Docker Engine managed plugin system
 
 This document describes the plugin system available today in the **experimental
 build** of Docker 1.12:

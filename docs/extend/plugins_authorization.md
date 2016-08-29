@@ -13,9 +13,9 @@ weight = 4
 
 # Create an authorization plugin
 
-This document describes Docker Engine authorization plugins generally
-available in Docker Engine 1.12 and earlier. To view information on plugins
-managed by Docker Engine, refer to [Docker Engine plugin system](plugins.md).
+This document describes the Docker Engine plugins generally available in Docker
+Engine. To view information on plugins managed by Docker Engine currently in
+experimental status, refer to [Docker Engine plugin system](index.md).
 
 Docker's out-of-the-box authorization model is all or nothing. Any user with
 permission to access the Docker daemon can run any Docker client command. The
