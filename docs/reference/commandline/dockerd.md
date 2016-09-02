@@ -74,6 +74,7 @@ Options:
   -p, --pidfile string                        Path to use for daemon PID file (default "/var/run/docker.pid")
       --raw-logs                              Full timestamps without ANSI coloring
       --registry-mirror value                 Preferred Docker registry mirror (default [])
+      --seccomp-profile value                 Path to seccomp profile
       --selinux-enabled                       Enable selinux support
       --shutdown-timeout=15                   Set the shutdown timeout value in seconds
   -s, --storage-driver string                 Storage driver to use
@@ -1195,6 +1196,7 @@ This is a full example of the allowed configuration options on Linux:
 	"icc": false,
 	"raw-logs": false,
 	"registry-mirrors": [],
+	"seccomp-profile": "",
 	"insecure-registries": [],
 	"disable-legacy-registry": false,
 	"default-runtime": "runc",
