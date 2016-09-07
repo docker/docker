@@ -151,7 +151,7 @@ drwxr-xr-x  3 root root 4096 Aug  8 17:56 cd851ce43a403
         "Capabilities": [
           "CAP_SYS_ADMIN"
         ],
-        "ManifestVersion": "v0.1",
+        "ManifestVersion": "v0",
         "Description": "sshFS plugin for Docker",
         "Documentation": "https://docs.docker.com/engine/extend/plugins/",
         "Interface": {
@@ -212,23 +212,23 @@ $ docker rmi rootfs
 ```
 
 `manifest.json` describes the plugin and `plugin-config.json` contains some
-runtime parameters. For example:
+runtime parameters. [See the Plugins Manifest reference](manifest.md). For example:
 
 ```bash
 # cat manifest.json
 {
-	"manifestVersion": "v0.1",
+	"manifestVersion": "v0",
 	"description": "sshFS plugin for Docker",
 	"documentation": "https://docs.docker.com/engine/extend/plugins/",
 	"entrypoint": ["/go/bin/docker-volume-sshfs"],
 	"network": {
 		   "type": "host"
 		   },
-		   "interface" : {
-		   	       "types": ["docker.volumedriver/1.0"],
-			       		"socket": "sshfs.sock"
-					},
-					"capabilities": ["CAP_SYS_ADMIN"]
+	"interface" : {
+		   "types": ["docker.volumedriver/1.0"],
+		   "socket": "sshfs.sock"
+	},
+	"capabilities": ["CAP_SYS_ADMIN"]
 }
 ```
 
