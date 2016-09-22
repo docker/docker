@@ -17,6 +17,13 @@ To learn more about Docker Engine's deprecation policy,
 see [Feature Deprecation Policy](index.md#feature-deprecation-policy).
 
 
+### `docker daemon` subcommand
+**Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/)**
+
+**Target For Removal In Release: v1.16**
+
+The daemon is moved to a separate binary (`dockerd`), and should be used instead.
+
 ### Three argument form in `docker import`
 **Deprecated In Release: [v0.6.7](https://github.com/docker/docker/releases/tag/v0.6.7)**
 
