@@ -78,6 +78,7 @@ Options:
       --tlskey=~/.docker/key.pem             Path to TLS key file
       --tlsverify                            Use TLS and verify the remote
       --userland-proxy=true                  Use userland proxy for loopback traffic
+      --userland-proxy-path=""               Path to the userland proxy binary
       --userns-remap                         User/Group setting for user namespaces
       -v, --version                          Print version information and quit
 ```
@@ -1149,6 +1150,7 @@ This is a full example of the allowed configuration options on Linux:
 	"ip-forward": false,
 	"ip-masq": false,
 	"userland-proxy": false,
+	"userland-proxy-path": "/usr/libexec/docker-proxy",
 	"ip": "0.0.0.0",
 	"bridge": "",
 	"bip": "",
