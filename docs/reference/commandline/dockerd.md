@@ -49,6 +49,7 @@ Options:
       --help                                 Print usage
       --icc=true                             Enable inter-container communication
       --init                                 Run an init inside containers to forward signals and reap processes
+      --init-path                            Path to the docker-init binary
       --insecure-registry=[]                 Enable insecure registry communication
       --ip=0.0.0.0                           Default IP when binding container ports
       --ip-forward=true                      Enable net.ipv4.ip_forward
@@ -1142,6 +1143,7 @@ This is a full example of the allowed configuration options on Linux:
 	"cgroup-parent": "",
 	"default-ulimits": {},
 	"init": false,
+	"init-path": "/usr/libexec/docker-init",
 	"ipv6": false,
 	"iptables": false,
 	"ip-forward": false,
