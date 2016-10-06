@@ -45,6 +45,7 @@ Options:
       --dns-search value                      DNS search domains to use (default [])
       --exec-opt value                        Runtime execution options (default [])
       --exec-root string                      Root directory for execution state files (default "/var/run/docker")
+      --experimental                          Enable experimental features
       --fixed-cidr string                     IPv4 subnet for fixed IPs
       --fixed-cidr-v6 string                  IPv6 subnet for fixed IPs
   -g, --graph string                          Root of the Docker runtime (default "/var/lib/docker")
@@ -1114,6 +1115,7 @@ This is a full example of the allowed configuration options on Linux:
 	"dns-search": [],
 	"exec-opts": [],
 	"exec-root": "",
+	"experimental": false,
 	"storage-driver": "",
 	"storage-opts": [],
 	"labels": [],
@@ -1195,6 +1197,7 @@ This is a full example of the allowed configuration options on Windows:
     "dns-opts": [],
     "dns-search": [],
     "exec-opts": [],
+    "experimental": false,
     "storage-driver": "",
     "storage-opts": [],
     "labels": [],
