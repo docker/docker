@@ -17,6 +17,13 @@ To learn more about Docker Engine's deprecation policy,
 see [Feature Deprecation Policy](index.md#feature-deprecation-policy).
 
 
+### `repository:shortid` image references
+**Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/)**
+
+**Target For Removal In Release: v1.16**
+
+`repository:shortid` syntax for referencing images is very little used, collides with with tag references can be confused with digest references.
+
 ### `docker daemon` subcommand
 **Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/)**
 
