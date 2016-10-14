@@ -1,17 +1,12 @@
-<!--[metadata]>
-+++
-aliases = [
+---
+aliases: [
 "/engine/extend/"
 ]
-title = "Managed plugin system"
-description = "How develop and use a plugin with the managed plugin system"
-keywords = ["API, Usage, plugins, documentation, developer"]
-advisory = "experimental"
-[menu.main]
-parent = "engine_extend"
-weight=1
-+++
-<![end-metadata]-->
+title: "Managed plugin system"
+description: "How develop and use a plugin with the managed plugin system"
+keywords: ["API, Usage, plugins, documentation, developer"]
+advisory: "experimental"
+---
 
 # Docker Engine managed plugin system
 

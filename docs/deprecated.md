@@ -1,14 +1,9 @@
-<!--[metadata]>
-+++
-aliases = ["/engine/misc/deprecated/"]
-title = "Deprecated Engine Features"
-description = "Deprecated Features."
-keywords = ["docker, documentation, about, technology, deprecate"]
-[menu.main]
-parent = "engine_use"
-weight=80
-+++
-<![end-metadata]-->
+---
+aliases: ["/engine/misc/deprecated/"]
+title: "Deprecated Engine Features"
+description: "Deprecated Features."
+keywords: ["docker, documentation, about, technology, deprecate"]
+---
 
 # Deprecated Engine Features
 
@@ -192,7 +187,7 @@ The single-dash (`-help`) was removed, in favor of the double-dash `--help`
 
 **Removed In Release: [v1.13.0](https://github.com/docker/docker/releases/)**
 
-The flag `--run` of the docker commit (and its short version `-run`) were deprecated in favor 
+The flag `--run` of the docker commit (and its short version `-run`) were deprecated in favor
 of the `--changes` flag that allows to pass `Dockerfile` commands.
 
 

@@ -1,14 +1,9 @@
-<!--[metadata]>
-+++
-aliases = "/engine/extend/plugins/"
-title = "Use Docker Engine plugins"
-description = "How to add additional functionality to Docker with plugins extensions"
-keywords = ["Examples, Usage, plugins, docker, documentation, user guide"]
-[menu.main]
-parent = "engine_extend"
-weight=3
-+++
-<![end-metadata]-->
+---
+aliases: "/engine/extend/plugins/"
+title: "Use Docker Engine plugins"
+description: "How to add additional functionality to Docker with plugins extensions"
+keywords: ["Examples, Usage, plugins, docker, documentation, user guide"]
+---
 
 # Use Docker Engine plugins
 

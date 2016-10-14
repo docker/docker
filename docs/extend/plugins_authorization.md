@@ -1,14 +1,9 @@
-<!--[metadata]>
-+++
-title = "Access authorization plugin"
-description = "How to create authorization plugins to manage access control to your Docker daemon."
-keywords = ["security, authorization, authentication, docker, documentation, plugin, extend"]
-aliases = ["/engine/extend/authorization/"]
-[menu.main]
-parent = "engine_extend"
-weight = 4
-+++
-<![end-metadata]-->
+---
+title: "Access authorization plugin"
+description: "How to create authorization plugins to manage access control to your Docker daemon."
+keywords: ["security, authorization, authentication, docker, documentation, plugin, extend"]
+aliases: ["/engine/extend/authorization/"]
+---
 
 
 # Create an authorization plugin
