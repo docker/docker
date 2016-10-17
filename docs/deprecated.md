@@ -9,7 +9,7 @@ keywords: ["docker, documentation, about, technology, deprecate"]
 
 The following list of features are deprecated in Engine.
 To learn more about Docker Engine's deprecation policy,
-see [Feature Deprecation Policy](index.md#feature-deprecation-policy).
+see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-deprecation-policy).
 
 
 ### `repository:shortid` image references
