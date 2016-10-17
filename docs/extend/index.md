@@ -97,7 +97,7 @@ started without error.
     ```bash
     $ docker volume ls
 
-    DRIVER              NAME
+    DRIVER              VOLUME NAME
     vieux/sshfs         sshvolume
     ```
 
