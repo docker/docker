@@ -949,11 +949,6 @@ these resources are name-based, not id-based.  If the numeric ID information
 provided does not exist as entries in `/etc/passwd` or `/etc/group`, daemon
 startup will fail with an error message.
 
-> **Note:** On Fedora 22, you have to `touch` the `/etc/subuid` and `/etc/subgid`
-> files to have ranges assigned when users are created.  This must be done
-> *before* the `--userns-remap` option is enabled. Once these files exist, the
-> daemon can be (re)started and range assignment on user creation works properly.
-
 **Example: starting with default Docker user management:**
 
 ```bash
