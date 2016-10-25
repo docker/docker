@@ -55,6 +55,8 @@ Config provides the base accessible fields for working with V0 plugin format
 
       	- **docker.volumedriver/1.0**
 
+      	- **docker.authz/1.0**
+
     - **`socket`** *string*
 
       socket is the name of the socket the engine should use to communicate with the plugins.
