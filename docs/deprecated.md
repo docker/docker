@@ -226,3 +226,12 @@ Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the
 **Deprecated In Release: v1.13.0**
 
 `MAINTAINER` was an early very limited form of `LABEL` which should be used instead.
+
+### API calls without a version
+**Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/)**
+
+**Target For Removal In Release: v1.16**
+
+API versions should be supplied to all API calls to ensure compatibility with
+future Engine versions. Instead of just requesting, for example, the URL
+`/containers/json`, you must now request `/v1.25/containers/json`.
