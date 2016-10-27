@@ -73,5 +73,5 @@ documented as part of libnetwork:
 
 To interact with the Docker maintainers and other interested users, see the IRC channel `#docker-network`.
 
--  [Docker networks feature overview](../userguide/networking/index.md)
+-  [Docker networks feature overview](https://docs.docker.com/engine/userguide/networking/)
 -  The [LibNetwork](https://github.com/docker/libnetwork) project
