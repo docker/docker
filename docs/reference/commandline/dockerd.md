@@ -986,6 +986,11 @@ If you have a group that doesn't match the username, you may provide the `gid`
 or group name as well; otherwise the username will be used as the group name
 when querying the system for the subordinate group ID range.
 
+The output of `docker info` can be used to determine if the daemon is running
+with user namespaces enabled or not. If the daemon is configured with user
+namespaces, the Security Options entry in the response will list "userns" as
+one of the enabled security features.
+
 ### Detailed information on `subuid`/`subgid` ranges
 
 Given potential advanced use of the subordinate ID ranges by power users, the
