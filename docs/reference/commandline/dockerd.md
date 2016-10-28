@@ -1208,6 +1208,8 @@ This is a full example of the allowed configuration options on Windows:
     "graph": "",
     "cluster-store": "",
     "cluster-advertise": "",
+    "max-concurrent-downloads": 3,
+    "max-concurrent-uploads": 5,
     "shutdown-timeout": 15,
     "debug": true,
     "hosts": [],
