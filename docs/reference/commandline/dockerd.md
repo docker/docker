@@ -68,6 +68,7 @@ Options:
       --log-opt value                         Default log driver options for containers (default map[])
       --max-concurrent-downloads int          Set the max concurrent downloads for each pull (default 3)
       --max-concurrent-uploads int            Set the max concurrent uploads for each push (default 5)
+      --metrics-addr string                   Set address and port to serve the metrics api (default "")
       --mtu int                               Set the containers network MTU
       --oom-score-adjust int                  Set the oom_score_adj for the daemon (default -500)
   -p, --pidfile string                        Path to use for daemon PID file (default "/var/run/docker.pid")
@@ -1088,6 +1089,31 @@ means the memory cgroup for the container is created in
 This setting can also be set per container, using the `--cgroup-parent`
 option on `docker create` and `docker run`, and takes precedence over
 the `--cgroup-parent` option on the daemon.
+
+## Daemon Metrics
+
+The `--metrics-addr` option takes a tcp address to serve the metrics API.
+This feature is still experimental, therefore, the daemon must be running in experimental 
+mode for this feature to work.
+
+To serve the metrics API on localhost:1337 you would specify `--metrics-addr 127.0.0.1:1337`
+allowing you to make requests on the API at `127.0.0.1:1337/metrics` to receive metrics in the 
+[prometheus](https://prometheus.io/docs/instrumenting/exposition_formats/) format.
+
+If you are running a prometheus server you can add this address to your scrape configs
+to have prometheus collect metrics on Docker.  For more information
+on prometheus you can view the website [here](https://prometheus.io/).
+
+```yml
+scrape_configs:
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['127.0.0.1:1337']
+```
+
+Please note that this feature is still marked as experimental as metrics and metric
+names could change while this feature is still in experimental.  Please provide 
+feedback on what you would like to see collected in the API.
 
 ## Daemon configuration file
 
