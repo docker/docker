@@ -2,7 +2,7 @@
 title: "dockerd"
 aliases: ["/engine/reference/commandline/daemon/"]
 description: "The daemon command description and usage"
-keywords: ["container, daemon, runtime"]
+keywords: "container, daemon, runtime"
 ---
 
 <!-- This file is maintained within the docker/docker Github
