@@ -1,7 +1,7 @@
 ---
 title: "Docker network driver plugins"
 description: "Network driver plugins."
-keywords: ["Examples, Usage, plugins, docker, documentation, user guide"]
+keywords: "Examples, Usage, plugins, docker, documentation, user guide"
 ---
 
 <!-- This file is maintained within the docker/docker Github

@@ -2,7 +2,7 @@
 aliases: ["/engine/misc/deprecated/"]
 title: "Deprecated Engine Features"
 description: "Deprecated Features."
-keywords: ["docker, documentation, about, technology, deprecate"]
+keywords: "docker, documentation, about, technology, deprecate"
 ---
 
 <!-- This file is maintained within the docker/docker Github

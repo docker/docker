@@ -2,7 +2,7 @@
 aliases: "/engine/extend/plugins/"
 title: "Use Docker Engine plugins"
 description: "How to add additional functionality to Docker with plugins extensions"
-keywords: ["Examples, Usage, plugins, docker, documentation, user guide"]
+keywords: "Examples, Usage, plugins, docker, documentation, user guide"
 ---
 
 <!-- This file is maintained within the docker/docker Github

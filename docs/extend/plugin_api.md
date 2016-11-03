@@ -1,7 +1,7 @@
 ---
 title: "Plugins API"
 description: "How to write Docker plugins extensions "
-keywords: ["API, Usage, plugins, documentation, developer"]
+keywords: "API, Usage, plugins, documentation, developer"
 ---
 
 <!-- This file is maintained within the docker/docker Github

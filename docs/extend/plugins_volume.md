@@ -1,7 +1,7 @@
 ---
 title: "Volume plugins"
 description: "How to manage data with external volume plugins"
-keywords: ["Examples, Usage, volume, docker, data, volumes, plugin, api"]
+keywords: "Examples, Usage, volume, docker, data, volumes, plugin, api"
 ---
 
 <!-- This file is maintained within the docker/docker Github

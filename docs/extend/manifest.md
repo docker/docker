@@ -4,7 +4,7 @@ aliases: [
 ]
 title: "Plugin manifest"
 description: "How develop and use a plugin with the managed plugin system"
-keywords: ["API, Usage, plugins, documentation, developer"]
+keywords: "API, Usage, plugins, documentation, developer"
 advisory: "experimental"
 ---
 

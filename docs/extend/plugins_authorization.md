@@ -1,7 +1,7 @@
 ---
 title: "Access authorization plugin"
 description: "How to create authorization plugins to manage access control to your Docker daemon."
-keywords: ["security, authorization, authentication, docker, documentation, plugin, extend"]
+keywords: "security, authorization, authentication, docker, documentation, plugin, extend"
 aliases: ["/engine/extend/authorization/"]
 ---
 
