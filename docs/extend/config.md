@@ -2,7 +2,7 @@
 aliases: [
 "/engine/extend/"
 ]
-title: "Plugin manifest"
+title: "Plugin config"
 description: "How develop and use a plugin with the managed plugin system"
 keywords: "API, Usage, plugins, documentation, developer"
 advisory: "experimental"
@@ -17,28 +17,24 @@ advisory: "experimental"
      will be rejected.
 -->
 
-# Plugin Manifest Version 0 of Plugin V2
+# Plugin Config Version 0 of Plugin V2
 
-This document outlines the format of the V0 plugin manifest. The plugin
-manifest described herein was introduced in the Docker daemon (experimental version) in the [v1.12.0
+This document outlines the format of the V0 plugin config. The plugin
+config described herein was introduced in the Docker daemon (experimental version) in the [v1.12.0
 release](https://github.com/docker/docker/commit/f37117045c5398fd3dca8016ea8ca0cb47e7312b).
 
-Plugin manifests describe the various constituents of a docker plugin. Plugin
-manifests can be serialized to JSON format with the following media types:
+Plugin configs describe the various constituents of a docker plugin. Plugin
+configs can be serialized to JSON format with the following media types:
 
-Manifest Type  | Media Type
+Config Type  | Media Type
 ------------- | -------------
-manifest  | "application/vnd.docker.plugin.v0+json"
+config  | "application/vnd.docker.plugin.v0+json"
 
 
-## *Manifest* Field Descriptions
+## *Config* Field Descriptions
 
-Manifest provides the base accessible fields for working with V0 plugin format
+Config provides the base accessible fields for working with V0 plugin format
  in the registry.
-
-- **`manifestVersion`** *string*
-
-	version of the plugin manifest (This version uses V0)
 
 - **`description`** *string*
 
@@ -169,13 +165,13 @@ Manifest provides the base accessible fields for working with V0 plugin format
 	  values of the args.
 
 
-## Example Manifest
+## Example Config
 
-*Example showing the 'tiborvass/no-remove' plugin manifest.*
+*Example showing the 'tiborvass/no-remove' plugin config.*
 
 ```
 {
-       	"manifestVersion": "v0",
+       	"configVersion": "v0",
        	"description": "A test plugin for Docker",
        	"documentation": "https://docs.docker.com/engine/extend/plugins/",
        	"entrypoint": ["plugin-no-remove", "/data"],

@@ -141,7 +141,7 @@ a `plugins.json` with a single plugin installed.
 {
   "cd851ce43a403": {
     "plugin": {
-      "Manifest": {
+      "Config": {
         "Args": {
           "Value": null,
           "Settable": null,
@@ -154,7 +154,6 @@ a `plugins.json` with a single plugin installed.
         "Capabilities": [
           "CAP_SYS_ADMIN"
         ],
-        "ManifestVersion": "v0",
         "Description": "sshFS plugin for Docker",
         "Documentation": "https://docs.docker.com/engine/extend/plugins/",
         "Interface": {
@@ -196,8 +195,8 @@ and two JSON files.
 # ls -la /var/lib/docker/plugins/cd851ce43a403
 total 12
 drwx------ 19 root root 4096 Aug  8 17:56 rootfs
--rw-r--r--  1 root root   50 Aug  8 17:56 plugin-config.json
--rw-------  1 root root  347 Aug  8 17:56 manifest.json
+-rw-r--r--  1 root root   50 Aug  8 17:56 plugin-settings.json
+-rw-------  1 root root  347 Aug  8 17:56 config.json
 ```
 
 #### The rootfs directory
@@ -219,17 +218,16 @@ $ docker rm -vf "$id"
 $ docker rmi rootfs
 ```
 
-#### The manifest.json and plugin-config.json files
+#### The config.json and plugin-settings.json files
 
-The `manifest.json` file describes the plugin. The `plugin-config.json` file
+The `config.json` file describes the plugin. The `plugin-settings.json` file
 contains runtime parameters and is only required if your plugin has runtime
-parameters. [See the Plugins Manifest reference](manifest.md).
+parameters. [See the Plugins Config reference](config.md).
 
-Consider the following `manifest.json` file.
+Consider the following `config.json` file.
 
 ```json
 {
-	"manifestVersion": "v0",
 	"description": "sshFS plugin for Docker",
 	"documentation": "https://docs.docker.com/engine/extend/plugins/",
 	"entrypoint": ["/go/bin/docker-volume-sshfs"],
@@ -250,7 +248,7 @@ entrypoint and uses the `/run/docker/plugins/sshfs.sock` socket to communicate
 with Docker Engine.
 
 
-Consider the following `plugin-config.json` file.
+Consider the following `plugin-settings.json` file.
 
 ```json
 {
@@ -264,8 +262,8 @@ Consider the following `plugin-config.json` file.
 This plugin has no runtime parameters.
 
 Each of these JSON files is included as part of `plugins.json`, as you can see
-by looking back at the example above. After a plugin is installed, `manifest.json`
-is read-only, but `plugin-config.json` is read-write, and includes all runtime
+by looking back at the example above. After a plugin is installed, `config.json`
+is read-only, but `plugin-settings.json` is read-write, and includes all runtime
 configuration options for the plugin.
 
 ### Creating the plugin
@@ -279,9 +277,9 @@ Follow these steps to create a plugin:
    using `docker export`. See [The rootfs directory](#the-rootfs-directory) for
    an example of creating a `rootfs`.
 
-3. Create a `manifest.json` file in `/var/lib/docker/plugins/$id/`.
+3. Create a `config.json` file in `/var/lib/docker/plugins/$id/`.
 
-4. Create a `plugin-config.json` file if needed.
+4. Create a `plugin-settings.json` file if needed.
 
 5. Create or add a section to `/var/lib/docker/plugins/plugins.json`. Use
    `<user>/<name>` as “Name” and `$id` as “Id”.
