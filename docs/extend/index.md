@@ -1,5 +1,4 @@
 ---
-advisory: experimental
 aliases:
 - /engine/extend/
 description: Develop and use a plugin with the managed plugin system
@@ -17,9 +16,6 @@ title: Managed plugin system
 -->
 
 # Docker Engine managed plugin system
-
-This document describes the plugin system available today in the **experimental
-build** of Docker 1.12:
 
 * [Installing and using a plugin](index.md#installing-and-using-a-plugin)
 * [Developing a plugin](index.md#developing-a-plugin)

@@ -17,8 +17,8 @@ aliases: ["/engine/extend/authorization/"]
 # Create an authorization plugin
 
 This document describes the Docker Engine plugins generally available in Docker
-Engine. To view information on plugins managed by Docker Engine currently in
-experimental status, refer to [Docker Engine plugin system](index.md).
+Engine. To view information on plugins managed by Docker Engine,
+refer to [Docker Engine plugin system](index.md).
 
 Docker's out-of-the-box authorization model is all or nothing. Any user with
 permission to access the Docker daemon can run any Docker client command. The
