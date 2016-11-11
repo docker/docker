@@ -20,23 +20,29 @@ The following list of features are deprecated in Engine.
 To learn more about Docker Engine's deprecation policy,
 see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-deprecation-policy).
 
+## `filter` param for `/images/json` endpoint
+**Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/tag/v1.13.0)**
+
+**Target For Removal In Release: v1.16**
+
+The `filter` param to filter the list of image by reference (name or name:tag) is now implemented as a regular filter, named `reference`.
 
 ### `repository:shortid` image references
-**Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/)**
+**Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
 **Target For Removal In Release: v1.16**
 
 `repository:shortid` syntax for referencing images is very little used, collides with with tag references can be confused with digest references.
 
 ### `docker daemon` subcommand
-**Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/)**
+**Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
 **Target For Removal In Release: v1.16**
 
 The daemon is moved to a separate binary (`dockerd`), and should be used instead.
 
 ### Duplicate keys with conflicting values in engine labels
-**Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/)**
+**Deprecated In Release: [v1.13](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
 **Target For Removal In Release: v1.16**
 
