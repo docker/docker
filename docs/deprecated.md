@@ -73,7 +73,7 @@ filesystem does not support `d_type`. For example, XFS does not support `d_type`
 if it is formatted with the `ftype=0` option.
 
 Please also refer to [#27358](https://github.com/docker/docker/issues/27358) for
-futher information.
+further information.
 
 ### Three argument form in `docker import`
 **Deprecated In Release: [v0.6.7](https://github.com/docker/docker/releases/tag/v0.6.7)**
