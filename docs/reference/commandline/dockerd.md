@@ -62,7 +62,7 @@ Options:
       --iptables                              Enable addition of iptables rules (default true)
       --ipv6                                  Enable IPv6 networking
       --label value                           Set key=value labels to the daemon (default [])
-      --live-restore                          Enable live restore of docker when containers are still running
+      --live-restore                          Enable live restore of docker when containers are still running (Linux only)
       --log-driver string                     Default driver for container logs (default "json-file")
   -l, --log-level string                      Set the logging level ("debug", "info", "warn", "error", "fatal") (default "info")
       --log-opt value                         Default log driver options for containers (default map[])
@@ -1234,7 +1234,6 @@ This is a full example of the allowed configuration options on Windows:
     "storage-driver": "",
     "storage-opts": [],
     "labels": [],
-    "live-restore": true,
     "log-driver": "",
     "mtu": 0,
     "pidfile": "",
