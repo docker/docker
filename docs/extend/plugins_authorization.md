@@ -22,7 +22,7 @@ refer to [Docker Engine plugin system](index.md).
 
 Docker's out-of-the-box authorization model is all or nothing. Any user with
 permission to access the Docker daemon can run any Docker client command. The
-same is true for callers using Docker's remote API to contact the daemon. If you
+same is true for callers using Docker's Engine API to contact the daemon. If you
 require greater access control, you can create authorization plugins and add
 them to your Docker daemon configuration. Using an authorization plugin, a
 Docker administrator can configure granular access policies for managing access
@@ -69,7 +69,7 @@ can be ordered. Each request to the daemon passes in order through the chain.
 Only when all the plugins grant access to the resource, is the access granted.
 
 When an HTTP request is made to the Docker daemon through the CLI or via the
-remote API, the authentication subsystem passes the request to the installed
+Engine API, the authentication subsystem passes the request to the installed
 authentication plugin(s). The request contains the user (caller) and command
 context. The plugin is responsible for deciding whether to allow or deny the
 request.
