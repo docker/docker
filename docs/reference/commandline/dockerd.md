@@ -1336,10 +1336,14 @@ set this parameter separately for each daemon.
 - `-p, --pidfile=/var/run/docker.pid` is the path where the process ID of the daemon is stored. Specify the path for your
 pid file here.
 - `--host=[]` specifies where the Docker daemon will listen for client connections. If unspecified, it defaults to `/var/run/docker.sock`.
-- `--iptables=false` prevents the Docker daemon from adding iptables rules. If
-  multiple daemons manage iptables rules, they may overwrite rules set by
-  another daemon. Be aware that disabling this option requires you to manually
-  add iptables rules to expose container ports.
+-  `--iptables=false` prevents the Docker daemon from adding iptables rules. If
+multiple daemons manage iptables rules, they may overwrite rules set by another
+daemon. Be aware that disabling this option requires you to manually add
+iptables rules to expose container ports. If you prevent Docker from adding
+iptables rules, Docker will also not add IP masquerading rules, even if you set
+`--ip-masq` to `true`. Without IP masquerading rules, Docker containers will not be
+able to connect to external hosts or the internet when using network other than
+default bridge.
 - `--config-file=/etc/docker/daemon.json` is the path where configuration file is stored. You can use it instead of
 daemon flags. Specify the path for each daemon.
 - `--tls*` Docker daemon supports `--tlsverify` mode that enforces encrypted and authenticated remote connections.
