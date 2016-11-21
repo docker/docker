@@ -242,7 +242,18 @@ of the `--changes` flag that allows to pass `Dockerfile` commands.
 
 ### Interacting with V1 registries
 
-Version 1.9 adds a flag (`--disable-legacy-registry=false`) which prevents the docker daemon from `pull`, `push`, and `login` operations against v1 registries.  Though disabled by default, this signals the intent to deprecate the v1 protocol.
+**Disabled By Default In Release: v1.14**
+
+**Target For Removal In Release: v1.17**
+
+Version 1.9 adds a flag (`--disable-legacy-registry=false`) which prevents the
+docker daemon from `pull`, `push`, and `login` operations against v1
+registries.  Though enabled by default, this signals the intent to deprecate
+the v1 protocol.
+
+Support for the v1 protocol to the public registry was removed in 1.13. Any
+mirror configurations using v1 should be updated to use a
+[v2 registry mirror](https://docs.docker.com/registry/recipes/mirror/).
 
 ### Docker Content Trust ENV passphrase variables name change
 **Deprecated In Release: [v1.9.0](https://github.com/docker/docker/releases/tag/v1.9.0)**
