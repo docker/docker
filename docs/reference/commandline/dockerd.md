@@ -35,6 +35,7 @@ Options:
       --containerd string                     Path to containerd socket
       --cpu-rt-period int                     Limit the CPU real-time period in microseconds
       --cpu-rt-runtime int                    Limit the CPU real-time runtime in microseconds
+      --data-root string                      Root directory of persistent Docker state (default "/var/lib/docker")
   -D, --debug                                 Enable debug mode
       --default-gateway ip                    Container default gateway IPv4 address
       --default-gateway-v6 ip                 Container default gateway IPv6 address
@@ -49,7 +50,6 @@ Options:
       --experimental                          Enable experimental features
       --fixed-cidr string                     IPv4 subnet for fixed IPs
       --fixed-cidr-v6 string                  IPv6 subnet for fixed IPs
-  -g, --graph string                          Root of the Docker runtime (default "/var/lib/docker")
   -G, --group string                          Group for the unix socket (default "docker")
       --help                                  Print usage
   -H, --host list                             Daemon socket(s) to connect to (default [])
@@ -1139,6 +1139,7 @@ This is a full example of the allowed configuration options on Linux:
 ```json
 {
 	"authorization-plugins": [],
+	"data-root": "",
 	"dns": [],
 	"dns-opts": [],
 	"dns-search": [],
@@ -1153,7 +1154,6 @@ This is a full example of the allowed configuration options on Linux:
 	"log-opts": {},
 	"mtu": 0,
 	"pidfile": "",
-	"graph": "",
 	"cluster-store": "",
 	"cluster-store-opts": {},
 	"cluster-advertise": "",
@@ -1232,6 +1232,7 @@ This is a full example of the allowed configuration options on Windows:
 ```json
 {
     "authorization-plugins": [],
+    "data-root": "",
     "dns": [],
     "dns-opts": [],
     "dns-search": [],
@@ -1243,7 +1244,6 @@ This is a full example of the allowed configuration options on Windows:
     "log-driver": "",
     "mtu": 0,
     "pidfile": "",
-    "graph": "",
     "cluster-store": "",
     "cluster-advertise": "",
     "max-concurrent-downloads": 3,
@@ -1321,7 +1321,7 @@ The following daemon options must be configured for each daemon:
 ```none
 -b, --bridge=                          Attach containers to a network bridge
 --exec-root=/var/run/docker            Root of the Docker execdriver
--g, --graph=/var/lib/docker            Root of the Docker runtime
+--data-root=/var/lib/docker            Root of persisted Docker data
 -p, --pidfile=/var/run/docker.pid      Path to use for daemon PID file
 -H, --host=[]                          Daemon socket(s) to connect to
 --iptables=true                        Enable addition of iptables rules
@@ -1338,8 +1338,9 @@ It is very important to properly understand the meaning of those options and to 
 If you are not using the default, you must create and configure the bridge manually or just set it to 'none': `--bridge=none`
 - `--exec-root` is the path where the container state is stored. The default value is `/var/run/docker`. Specify the path for
 your running daemon here.
-- `--graph` is the path where images are stored. The default value is `/var/lib/docker`. To avoid any conflict with other daemons
-set this parameter separately for each daemon.
+- `--data-root` is the path where persisted data such as images, volumes, and
+cluster state are stored. The default value is `/var/lib/docker`. To avoid any
+conflict with other daemons, set this parameter separately for each daemon.
 - `-p, --pidfile=/var/run/docker.pid` is the path where the process ID of the daemon is stored. Specify the path for your
 pid file here.
 - `--host=[]` specifies where the Docker daemon will listen for client connections. If unspecified, it defaults to `/var/run/docker.sock`.
@@ -1365,6 +1366,6 @@ $ sudo dockerd \
         --iptables=false \
         --ip-masq=false \
         --bridge=none \
-        --graph=/var/lib/docker-bootstrap \
+        --data-root=/var/lib/docker-bootstrap \
         --exec-root=/var/run/docker-bootstrap
 ```

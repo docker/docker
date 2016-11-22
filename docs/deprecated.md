@@ -20,6 +20,16 @@ The following list of features are deprecated in Engine.
 To learn more about Docker Engine's deprecation policy,
 see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-deprecation-policy).
 
+### `-g` and `--graph` flags on `dockerd`
+
+**Deprecated In Release: v1.14.0**
+
+**Target For Removal In Release: v1.17**
+
+The `-g` or `--graph` flag for the `dockerd` or `docker daemon` command was
+used to indicate the directory in which to store persistent data and resource
+configuration and has been replaced with the more descriptive `--data-root`
+flag.
 
 ### Top-level network properties in NetworkSettings
 
