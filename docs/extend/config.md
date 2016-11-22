@@ -16,6 +16,7 @@ keywords: "API, Usage, plugins, documentation, developer"
      will be rejected.
 -->
 
+
 # Plugin Config Version 0 of Plugin V2
 
 This document outlines the format of the V0 plugin configuration. The plugin
@@ -85,10 +86,6 @@ Config provides the base accessible fields for working with V0 plugin format
       	- **host**
       	- **none**
 
-- **`capabilities`** *array*
-
-   capabilities of the plugin (*Linux only*), see list [`here`](https://github.com/opencontainers/runc/blob/master/libcontainer/SPEC.md#security)
-
 - **`mounts`** *PluginMount array*
 
    mount of the plugin, struct consisting of the following fields, see [`MOUNTS`](https://github.com/opencontainers/runtime-spec/blob/master/config.md#mounts)
@@ -116,22 +113,6 @@ Config provides the base accessible fields for working with V0 plugin format
     - **`options`** *string array*
 
 	  options of the mount.
-
-- **`devices`** *PluginDevice array*
-
-    device of the plugin, (*Linux only*), struct consisting of the following fields, see [`DEVICES`](https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#devices)
-
-    - **`name`** *string*
-
-	  name of the device.
-
-    - **`description`** *string*
-
-      description of the device.
-
-    - **`path`** *string*
-
-	  path of the device.
 
 - **`env`** *PluginEnv array*
 
@@ -165,6 +146,27 @@ Config provides the base accessible fields for working with V0 plugin format
 
 	  values of the args.
 
+- **`linux`** *PluginLinux*
+
+    - **`capabilities`** *string array*
+
+          capabilities of the plugin (*Linux only*), see list [`here`](https://github.com/opencontainers/runc/blob/master/libcontainer/SPEC.md#security)
+
+    - **`devices`** *PluginDevice array*
+
+          device of the plugin, (*Linux only*), struct consisting of the following fields, see [`DEVICES`](https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#devices)
+
+          - **`name`** *string*
+
+	      name of the device.
+
+          - **`description`** *string*
+
+              description of the device.
+
+          - **`path`** *string*
+
+              path of the device.
 
 ## Example Config
 
