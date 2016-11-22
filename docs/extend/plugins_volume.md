@@ -22,6 +22,10 @@ beyond the lifetime of a single Engine host. See the
 
 ## Changelog
 
+### 1.13.0
+
+- If used as part of the v2 plugin architecture, mountpoints that are part of paths returned by plugin have to be mounted under the directory specified by PropagatedMount in the plugin configuration [#26398](https://github.com/docker/docker/pull/26398)
+
 ### 1.12.0
 
 - Add `Status` field to `VolumeDriver.Get` response ([#21006](https://github.com/docker/docker/pull/21006#))
