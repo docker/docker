@@ -27,6 +27,9 @@ volume drivers, but more plugin driver types will be available in future release
 For information about the legacy plugin system available in Docker Engine 1.12
 and earlier, see [Understand legacy Docker Engine plugins](legacy_plugins.md).
 
+> **Note**: Docker Engine managed plugins are currently not supported
+on Windows daemons.
+
 ## Installing and using a plugin
 
 Plugins are distributed as Docker images and can be hosted on Docker Hub or on
