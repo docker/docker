@@ -51,9 +51,13 @@ Config provides the base accessible fields for working with V0 plugin format
 
       currently supported:
 
-      	- **docker.volumedriver/1.0**
+        - **docker.volumedriver/1.0**
 
-      	- **docker.authz/1.0**
+        - **docker.networkdriver/1.0**
+
+        - **docker.ipamdriver/1.0**
+
+        - **docker.authz/1.0**
 
     - **`socket`** *string*
 
