@@ -22,7 +22,6 @@ Usage: dockerd [OPTIONS]
 A self-sufficient runtime for containers.
 
 Options:
-
       --add-runtime value                     Register an additional OCI compatible runtime (default [])
       --api-cors-header string                Set CORS headers in the Engine API
       --authorization-plugin value            Authorization plugins to load (default [])
