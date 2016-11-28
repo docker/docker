@@ -1,7 +1,4 @@
 ---
-aliases: [
-"/engine/extend/"
-]
 title: "Plugin config"
 description: "How develop and use a plugin with the managed plugin system"
 keywords: "API, Usage, plugins, documentation, developer"

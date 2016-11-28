@@ -1,6 +1,4 @@
 ---
-aliases:
-- /engine/extend/
 description: Develop and use a plugin with the managed plugin system
 keywords: "API, Usage, plugins, documentation, developer"
 title: Managed plugin system
