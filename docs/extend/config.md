@@ -14,7 +14,7 @@ keywords: "API, Usage, plugins, documentation, developer"
 -->
 
 
-# Plugin Config Version 0 of Plugin V2
+# Plugin Config Version 1 of Plugin V2
 
 This document outlines the format of the V0 plugin configuration. The plugin
 config described herein was introduced in the Docker daemon in the [v1.12.0
@@ -25,7 +25,7 @@ configs can be serialized to JSON format with the following media types:
 
 Config Type  | Media Type
 ------------- | -------------
-config  | "application/vnd.docker.plugin.v0+json"
+config  | "application/vnd.docker.plugin.v1+json"
 
 
 ## *Config* Field Descriptions
