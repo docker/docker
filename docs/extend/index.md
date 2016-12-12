@@ -109,93 +109,6 @@ commands and options, see the
 
 ## Developing a plugin
 
-Currently, there are no CLI commands available to help you develop a plugin.
-This is expected to change in a future release. The manual process for creating
-plugins is described in this section.
-
-### Plugin location and files
-
-Plugins are stored in `/var/lib/docker/plugins`. The `plugins.json` file lists
-each plugin's configuration, and each plugin is stored in a directory with a
-unique identifier.
-
-```bash
-# ls -la /var/lib/docker/plugins
-total 20
-drwx------  4 root root 4096 Aug  8 18:03 .
-drwx--x--x 12 root root 4096 Aug  8 17:53 ..
-drwxr-xr-x  3 root root 4096 Aug  8 17:56 cd851ce43a403
--rw-------  1 root root 2107 Aug  8 18:03 plugins.json
-```
-
-### Format of plugins.json
-
-The `plugins.json` is an inventory of all installed plugins. This example shows
-a `plugins.json` with a single plugin installed.
-
-```json
-# cat plugins.json
-{
-  "cd851ce43a403": {
-    "plugin": {
-      "Config": {
-        "Args": {
-          "Value": null,
-          "Settable": null,
-          "Description": "",
-          "Name": ""
-        },
-        "Env": null,
-        "Devices": null,
-        "Mounts": null,
-        "Capabilities": [
-          "CAP_SYS_ADMIN"
-        ],
-        "Description": "sshFS plugin for Docker",
-        "Documentation": "https://docs.docker.com/engine/extend/plugins/",
-        "Interface": {
-          "Socket": "sshfs.sock",
-          "Types": [
-            "docker.volumedriver/1.0"
-          ]
-        },
-        "Entrypoint": [
-          "/go/bin/docker-volume-sshfs"
-        ],
-        "Workdir": "",
-        "User": {},
-        "Network": {
-          "Type": "host"
-        }
-      },
-      "Config": {
-        "Devices": null,
-        "Args": null,
-        "Env": [],
-        "Mounts": []
-      },
-      "Active": true,
-      "Tag": "latest",
-      "Name": "vieux/sshfs",
-      "Id": "cd851ce43a403"
-    }
-  }
-}
-```
-
-### Contents of a plugin directory
-
-Each directory within `/var/lib/docker/plugins/` contains a `rootfs` directory
-and two JSON files.
-
-```bash
-# ls -la /var/lib/docker/plugins/cd851ce43a403
-total 12
-drwx------ 19 root root 4096 Aug  8 17:56 rootfs
--rw-r--r--  1 root root   50 Aug  8 17:56 plugin-settings.json
--rw-------  1 root root  347 Aug  8 17:56 config.json
-```
-
 #### The rootfs directory
 The `rootfs` directory represents the root filesystem of the plugin. In this
 example, it was created from a Dockerfile:
@@ -206,20 +119,17 @@ plugin's filesystem for docker to communicate with the plugin.
 ```bash
 $ git clone https://github.com/vieux/docker-volume-sshfs
 $ cd docker-volume-sshfs
-$ docker build -t rootfs .
-$ id=$(docker create rootfs true) # id was cd851ce43a403 when the image was created
-$ sudo mkdir -p /var/lib/docker/plugins/$id/rootfs
-$ sudo docker export "$id" | sudo tar -x -C /var/lib/docker/plugins/$id/rootfs
-$ sudo chgrp -R docker /var/lib/docker/plugins/
+$ docker build -t rootfsimage .
+$ id=$(docker create rootfsimage true) # id was cd851ce43a403 when the image was created
+$ sudo mkdir -p myplugin/rootfs
+$ sudo docker export "$id" | sudo tar -x -C myplugin/rootfs
 $ docker rm -vf "$id"
-$ docker rmi rootfs
+$ docker rmi rootfsimage
 ```
 
-#### The config.json and plugin-settings.json files
+#### The config.json file
 
-The `config.json` file describes the plugin. The `plugin-settings.json` file
-contains runtime parameters and is only required if your plugin has runtime
-parameters. [See the Plugins Config reference](config.md).
+The `config.json` file describes the plugin. See the [plugins config reference](config.md).
 
 Consider the following `config.json` file.
 
@@ -242,56 +152,15 @@ Consider the following `config.json` file.
 This plugin is a volume driver. It requires a `host` network and the
 `CAP_SYS_ADMIN` capability. It depends upon the `/go/bin/docker-volume-sshfs`
 entrypoint and uses the `/run/docker/plugins/sshfs.sock` socket to communicate
-with Docker Engine.
-
-
-Consider the following `plugin-settings.json` file.
-
-```json
-{
-  "Devices": null,
-  "Args": null,
-  "Env": [],
-  "Mounts": []
-}
-```
-
-This plugin has no runtime parameters.
-
-Each of these JSON files is included as part of `plugins.json`, as you can see
-by looking back at the example above. After a plugin is installed, `config.json`
-is read-only, but `plugin-settings.json` is read-write, and includes all runtime
-configuration options for the plugin.
+with Docker Engine. This plugin has no runtime parameters.
 
 ### Creating the plugin
 
-Follow these steps to create a plugin:
+A new plugin can be created by running
+`docker plugin create <plugin-name> ./path/to/plugin/data` where the plugin
+data contains a plugin configuration file `config.json` and a root filesystem
+in subdirectory `rootfs`. 
 
-1. Choose a name for the plugin. Plugin name uses the same format as images,
-   for example: `<repo_name>/<name>`.
-
-2. Create a `rootfs` and export it to `/var/lib/docker/plugins/$id/rootfs`
-   using `docker export`. See [The rootfs directory](#the-rootfs-directory) for
-   an example of creating a `rootfs`.
-
-3. Create a `config.json` file in `/var/lib/docker/plugins/$id/`.
-
-4. Create a `plugin-settings.json` file if needed.
-
-5. Create or add a section to `/var/lib/docker/plugins/plugins.json`. Use
-   `<user>/<name>` as “Name” and `$id` as “Id”.
-
-6. Restart the Docker Engine service.
-
-7. Run `docker plugin ls`.
-    * If your plugin is enabled, you can push it to the
-      registry.
-    * If the plugin is not listed or is disabled, something went wrong.
-      Check the daemon logs for errors.
-
-8. If you are not already logged in, use `docker login` to authenticate against
-   the registry so that you can push to it.
-
-9. Run `docker plugin push <repo_name>/<name>` to push the plugin.
-
-The plugin can now be used by any user with access to your registry.
+After that the plugin `<plugin-name>` will show up in `docker plugin ls`.
+Plugins can be pushed to remote registries with
+`docker plugin push <plugin-name>`.
