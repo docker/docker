@@ -137,11 +137,11 @@ Config provides the base accessible fields for working with V0 plugin format
 
     - **`name`** *string*
 
-	  name of the env.
+	  name of the args.
 
     - **`description`** *string*
 
-      description of the env.
+      description of the args.
 
     - **`value`** *string array*
 
