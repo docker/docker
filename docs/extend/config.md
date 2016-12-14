@@ -171,52 +171,49 @@ Config provides the base accessible fields for working with V0 plugin format
 
 ## Example Config
 
-*Example showing the 'tiborvass/no-remove' plugin config.*
+*Example showing the 'tiborvass/sample-volume-plugin' plugin config.*
 
 ```json
 {
-  "description": "A test plugin for Docker",
-  "documentation": "https://docs.docker.com/engine/extend/plugins/",
-  "entrypoint": ["plugin-no-remove", "/data"],
-  "interface": {
-    "types": ["docker.volumedriver/1.0"],
-    "socket": "plugins.sock"
-  },
-  "network": {
-    "type": "host"
-  },
-  "mounts": [
-    {
-      "source": "/data",
-      "destination": "/data",
-      "type": "bind",
-      "options": ["shared", "rbind"]
-    },
-    {
-      "destination": "/foobar",
-      "type": "tmpfs"
-    }
-  ],
-  "args": {
-    "name": "args",
-    "description": "command line arguments",
-    "value": []
-  },
-  "env": [
-    {
-      "name": "DEBUG",
-      "description": "If set, prints debug messages",
-      "value": "1"
-    }
-  ],
-  "linux": {
-    "devices": [
-      {
-        "name": "device",
-        "description": "a host device to mount",
-        "path": "/dev/cpu_dma_latency"
-      }
-    ]
-  }
+            "Args": {
+                "Description": "",
+                "Name": "",
+                "Settable": null,
+                "Value": null
+            },
+            "Description": "A sample volume plugin for Docker",
+            "Documentation": "https://docs.docker.com/engine/extend/plugins/",
+            "Entrypoint": [
+                "/usr/bin/sample-volume-plugin",
+                "/data"
+            ],
+            "Env": [
+                {
+                    "Description": "",
+                    "Name": "DEBUG",
+                    "Settable": [
+                        "value"
+                    ],
+                    "Value": "0"
+                }
+            ],
+            "Interface": {
+                "Socket": "plugin.sock",
+                "Types": [
+                    "docker.volumedriver/1.0"
+                ]
+            },
+            "Linux": {
+                "Capabilities": null,
+                "DeviceCreation": false,
+                "Devices": null
+            },
+            "Mounts": null,
+            "Network": {
+                "Type": ""
+            },
+            "PropagatedMount": "/data",
+            "User": {},
+            "Workdir": ""
 }
 ```
