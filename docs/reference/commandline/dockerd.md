@@ -684,16 +684,18 @@ configuration file or using the `--add-runtime` command line argument.
 The following is an example adding 2 runtimes via the configuration:
 
 ```json
-"default-runtime": "runc",
-"runtimes": {
-	"runc": {
-		"path": "runc"
-	},
-	"custom": {
-		"path": "/usr/local/bin/my-runc-replacement",
-		"runtimeArgs": [
-			"--debug"
-		]
+{
+	"default-runtime": "runc",
+	"runtimes": {
+		"runc": {
+			"path": "runc"
+		},
+		"custom": {
+			"path": "/usr/local/bin/my-runc-replacement",
+			"runtimeArgs": [
+				"--debug"
+			]
+		}
 	}
 }
 ```
