@@ -37,6 +37,7 @@ Options:
       --default-gateway value                 Container default gateway IPv4 address
       --default-gateway-v6 value              Container default gateway IPv6 address
       --default-runtime string                Default OCI runtime for containers (default "runc")
+      --default-shm-size bytes                Set the default shm size for containers (default 64 MiB)
       --default-ulimit value                  Default ulimits for containers (default [])
       --disable-legacy-registry               Disable contacting legacy registries
       --dns value                             DNS server to use (default [])
@@ -1161,6 +1162,7 @@ This is a full example of the allowed configuration options on Linux:
 	"cluster-advertise": "",
 	"max-concurrent-downloads": 3,
 	"max-concurrent-uploads": 5,
+	"default-shm-size": "64M",
 	"shutdown-timeout": 15,
 	"debug": true,
 	"hosts": [],
