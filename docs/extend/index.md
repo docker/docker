@@ -69,8 +69,8 @@ enabled, and use it to create a volume.
     ```bash
     $ docker plugin ls
 
-    NAME                TAG                 ENABLED
-    vieux/sshfs         latest              true
+    ID                    NAME                  TAG                 DESCRIPTION                   ENABLED
+    69553ca1d789          vieux/sshfs           latest              the `sshfs` plugin            true
     ```
 
 3.  Create a volume using the plugin.
