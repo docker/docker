@@ -169,7 +169,7 @@ Docker needs reminding of the path to the volume on the host.
 
 Respond with the path on the host filesystem where the volume has been made
 available, and/or a string error if an error occurred. `Mountpoint` is optional,
-however the plugin may be queried again later if one is not provided.
+however, the plugin may be queried again later if one is not provided.
 
 ### /VolumeDriver.Unmount
 
@@ -257,7 +257,7 @@ Respond with a string error if an error occurred. `Mountpoint` is optional.
 ```
 
 Get the list of capabilities the driver supports.
-The driver is not required to implement this endpoint, however in such cases
+The driver is not required to implement this endpoint, however, in such cases
 the default values will be taken.
 
 **Response**:

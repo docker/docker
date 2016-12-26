@@ -237,7 +237,7 @@ drivers: `aufs`, `devicemapper`, `btrfs`, `zfs`, `overlay` and `overlay2`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause
-some serious kernel crashes. However, `aufs` allows containers to share
+some serious kernel crashes. However `aufs` allows containers to share
 executable and shared library memory, so is a useful choice when running
 thousands of containers with the same program or libraries.
 
@@ -658,7 +658,7 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
     Overrides the Linux kernel version check allowing overlay2. Support for
     specifying multiple lower directories needed by overlay2 was added to the
-    Linux kernel in 4.0.0. However some older kernel versions may be patched
+    Linux kernel in 4.0.0. However, some older kernel versions may be patched
     to add multiple lower directory support for OverlayFS. This option should
     only be used after verifying this support exists in the kernel. Applying
     this option on a kernel without this support will cause failures on mount.
