@@ -70,6 +70,7 @@ Options:
       --max-concurrent-uploads int            Set the max concurrent uploads for each push (default 5)
       --metrics-addr string                   Set address and port to serve the metrics api (default "")
       --mtu int                               Set the containers network MTU
+      --no-new-privileges                     Disable container processes from gaining new privileges
       --oom-score-adjust int                  Set the oom_score_adj for the daemon (default -500)
   -p, --pidfile string                        Path to use for daemon PID file (default "/var/run/docker.pid")
       --raw-logs                              Full timestamps without ANSI coloring
@@ -1190,6 +1191,7 @@ This is a full example of the allowed configuration options on Linux:
 	"seccomp-profile": "",
 	"insecure-registries": [],
 	"disable-legacy-registry": false,
+	"no-new-privileges": false,
 	"default-runtime": "runc",
 	"oom-score-adjust": -500,
 	"runtimes": {
