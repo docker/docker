@@ -153,6 +153,10 @@ Config provides the base accessible fields for working with V0 plugin format
 
           capabilities of the plugin (*Linux only*), see list [`here`](https://github.com/opencontainers/runc/blob/master/libcontainer/SPEC.md#security)
 
+    - **`allowAllDevices`** *boolean*
+
+	If `/dev` is bind mounted from the host, and allowAllDevices is set to true, the plugin will have `rwm` access to all devices on the host.
+
     - **`devices`** *PluginDevice array*
 
           device of the plugin, (*Linux only*), struct consisting of the following fields, see [`DEVICES`](https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#devices)
@@ -205,7 +209,7 @@ Config provides the base accessible fields for working with V0 plugin format
             },
             "Linux": {
                 "Capabilities": null,
-                "DeviceCreation": false,
+                "AllowAllDevices": false,
                 "Devices": null
             },
             "Mounts": null,
