@@ -33,7 +33,7 @@ of steps.
 
 ```
 $ docker plugin install cpuguy83/docker-overlay2-graphdriver-plugin # this command also enables the driver
-<output supressed>
+<output suppressed>
 $ pkill dockerd
 $ dockerd --experimental -s cpuguy83/docker-overlay2-graphdriver-plugin
 ```
