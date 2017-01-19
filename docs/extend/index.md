@@ -154,7 +154,7 @@ This plugin is a volume driver. It requires a `host` network and the
 entrypoint and uses the `/run/docker/plugins/sshfs.sock` socket to communicate
 with Docker Engine. This plugin has no runtime parameters.
 
-### Creating the plugin
+#### Creating the plugin
 
 A new plugin can be created by running
 `docker plugin create <plugin-name> ./path/to/plugin/data` where the plugin
