@@ -79,7 +79,7 @@ This is the JSON format for a plugin:
     "InsecureSkipVerify": false,
     "CAFile": "/usr/shared/docker/certs/example-ca.pem",
     "CertFile": "/usr/shared/docker/certs/example-cert.pem",
-    "KeyFile": "/usr/shared/docker/certs/example-key.pem",
+    "KeyFile": "/usr/shared/docker/certs/example-key.pem"
   }
 }
 ```
