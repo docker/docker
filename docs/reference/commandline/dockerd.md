@@ -993,6 +993,19 @@ with user namespaces enabled or not. If the daemon is configured with user
 namespaces, the Security Options entry in the response will list "userns" as
 one of the enabled security features.
 
+#### Behavior differences when user namespaces are enabled
+
+When you start the Docker daemon with `--userns-remap`, Docker segregates the graph directory
+where the images are stored by adding an extra directory with a name corresponding to the
+remapped UID and GID. For example, if the remapped UID and GID begin with `165536`, all
+images and containers running with that remap setting are located in `/var/lib/docker/165536.165536`
+instead of `/var/lib/docker/`.
+
+In addition, the files and directories within the new directory, which correspond to
+images and container layers, are also owned by the new UID and GID. To set the ownership
+correctly, you need to re-pull the images and restart the containers after starting the
+daemon with `--userns-remap`.
+
 ### Detailed information on `subuid`/`subgid` ranges
 
 Given potential advanced use of the subordinate ID ranges by power users, the
