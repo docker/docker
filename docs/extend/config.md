@@ -118,6 +118,8 @@ Config provides the base accessible fields for working with V0 plugin format
 - **`propagatedMount`** *string*
 
    path to be mounted as rshared, so that mounts under that path are visible to docker. This is useful for volume plugins.
+   This path will be bind-mounted outisde of the plugin rootfs so it's contents
+   are preserved on upgrade.
 
 - **`env`** *PluginEnv array*
 
