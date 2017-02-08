@@ -64,7 +64,7 @@ Options:
       --label value                           Set key=value labels to the daemon (default [])
       --live-restore                          Enable live restore of docker when containers are still running (Linux only)
       --log-driver string                     Default driver for container logs (default "json-file")
-  -l, --log-level string                      Set the logging level ("debug", "info", "warn", "error", "fatal") (default "info")
+  -l, --log-level string                      Set the logging level ("debug"|"info"|"warn"|"error"|"fatal") (default "info")
       --log-opt value                         Default log driver options for containers (default map[])
       --max-concurrent-downloads int          Set the max concurrent downloads for each pull (default 3)
       --max-concurrent-uploads int            Set the max concurrent uploads for each push (default 5)
