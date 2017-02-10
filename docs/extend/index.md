@@ -289,3 +289,28 @@ follows:
 $ docker-runc exec -t f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62 sh
 ```
 
+#### Using curl to debug plugin socket issues.
+
+To verify if the plugin API socket that the docker daemon communicates with
+is responsive, use curl. In this example, we will make API calls from the 
+docker host to volume and network plugins using curl 7.47.0 to ensure that
+the plugin is listening on the said socket. For a well functioning plugin,
+these basic requests should work. Note that plugin sockets are available on the host under `/var/run/docker/plugins/<pluginID>`
+
+
+```bash
+curl -H "Content-Type: application/json" -XPOST -d '{}' --unix-socket /var/run/docker/plugins/e8a37ba56fc879c991f7d7921901723c64df6b42b87e6a0b055771ecf8477a6d/plugin.sock http:/VolumeDriver.List
+
+{"Mountpoint":"","Err":"","Volumes":[{"Name":"myvol1","Mountpoint":"/data/myvol1"},{"Name":"myvol2","Mountpoint":"/data/myvol2"}],"Volume":null}
+```
+
+```bash
+curl -H "Content-Type: application/json" -XPOST -d '{}' --unix-socket /var/run/docker/plugins/45e00a7ce6185d6e365904c8bcf62eb724b1fe307e0d4e7ecc9f6c1eb7bcdb70/plugin.sock http:/NetworkDriver.GetCapabilities
+
+{"Scope":"local"}
+```
+When using curl 7.5 and above, the URL should be of the form 
+`http://hostname/APICall`, where `hostname` is the valid hostname where the 
+plugin is installed and `APICall` is the call to the plugin API.
+
+For example, `http://localhost/VolumeDriver.List`
