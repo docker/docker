@@ -23,7 +23,7 @@ see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-depreca
 
 ### Top-level network properties in NetworkSettings
 
-**Deprecated In Release: v1.13.0**
+**Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
 **Target For Removal In Release: v1.16**
 
