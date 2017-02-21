@@ -19,7 +19,7 @@ title: Managed plugin system
 * [Developing a plugin](index.md#developing-a-plugin)
 * [Debugging plugins](index.md#debugging-plugins)
 
-Docker Engine's plugins system allows you to install, start, stop, and remove
+Docker Engine's plugin system allows you to install, start, stop, and remove
 plugins using Docker Engine.
 
 For information about the legacy plugin system available in Docker Engine 1.12
@@ -34,7 +34,7 @@ Plugins are distributed as Docker images and can be hosted on Docker Hub or on
 a private registry.
 
 To install a plugin, use the `docker plugin install` command, which pulls the
-plugin from Docker hub or your private registry, prompts you to grant
+plugin from Docker Hub or your private registry, prompts you to grant
 permissions or capabilities if necessary, and enables the plugin.
 
 To check the status of installed plugins, use the `docker plugin ls` command.
@@ -62,6 +62,7 @@ enabled, and use it to create a volume.
     ```
 
     The plugin requests 2 privileges:
+    
     - It needs access to the `host` network.
     - It needs the `CAP_SYS_ADMIN` capability, which allows the plugin to run
     the `mount` command.
