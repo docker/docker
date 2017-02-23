@@ -1208,6 +1208,13 @@ This is a full example of the allowed configuration options on Linux:
 }
 ```
 
+> **Note:** You cannot set options in `daemon.json` that have already been set on
+> daemon startup as a flag.
+> On systems that use `systemd` to start the Docker daemon, `-H` is already set, so
+> you cannot use the `hosts` key in `daemon.json` to add listening addresses.
+> See https://docs.docker.com/engine/admin/systemd/#custom-docker-daemon-options for how
+> to accomplish this task with a systemd drop-in file.
+
 ##### On Windows
 
 The default location of the configuration file on Windows is
