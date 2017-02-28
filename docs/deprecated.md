@@ -25,7 +25,7 @@ see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-depreca
 
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Target For Removal In Release: v1.16**
+**Target For Removal In Release: v17.12**
 
 When inspecting a container, `NetworkSettings` contains top-level information
 about the default ("bridge") network;
@@ -43,28 +43,28 @@ information.
 ## `filter` param for `/images/json` endpoint
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Target For Removal In Release: v1.16**
+**Target For Removal In Release: v17.12**
 
 The `filter` param to filter the list of image by reference (name or name:tag) is now implemented as a regular filter, named `reference`.
 
 ### `repository:shortid` image references
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Target For Removal In Release: v1.16**
+**Target For Removal In Release: v17.12**
 
 `repository:shortid` syntax for referencing images is very little used, collides with tag references can be confused with digest references.
 
 ### `docker daemon` subcommand
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Target For Removal In Release: v1.16**
+**Target For Removal In Release: v17.12**
 
 The daemon is moved to a separate binary (`dockerd`), and should be used instead.
 
 ### Duplicate keys with conflicting values in engine labels
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Target For Removal In Release: v1.16**
+**Target For Removal In Release: v17.12**
 
 Duplicate keys with conflicting values have been deprecated. A warning is displayed
 in the output, and an error will be returned in the future.
@@ -77,7 +77,7 @@ in the output, and an error will be returned in the future.
 ### API calls without a version
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Target For Removal In Release: v1.16**
+**Target For Removal In Release: v17.12**
 
 API versions should be supplied to all API calls to ensure compatibility with
 future Engine versions. Instead of just requesting, for example, the URL
@@ -86,7 +86,7 @@ future Engine versions. Instead of just requesting, for example, the URL
 ### Backing filesystem without `d_type` support for overlay/overlay2
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Target For Removal In Release: v1.16**
+**Target For Removal In Release: v17.12**
 
 The overlay and overlay2 storage driver does not work as expected if the backing
 filesystem does not support `d_type`. For example, XFS does not support `d_type`
@@ -106,7 +106,7 @@ The `docker import` command format `file|URL|- [REPOSITORY [TAG]]` is deprecated
 
 **Deprecated In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
-**Target For Removal In Release: v1.15**
+**Target For Removal In Release: v17.09**
 
 The shorthand (`-h`) is less common than `--help` on Linux and cannot be used
 on all subcommands (due to it conflicting with, e.g. `-h` / `--hostname` on
@@ -116,14 +116,14 @@ on all subcommands (due to it conflicting with, e.g. `-h` / `--hostname` on
 ### `-e` and `--email` flags on `docker login`
 **Deprecated In Release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
 
-**Target For Removal In Release: v1.14**
+**Target For Removal In Release: v17.06**
 
 The docker login command is removing the ability to automatically register for an account with the target registry if the given username doesn't exist. Due to this change, the email flag is no longer required, and will be deprecated.
 
 ### Separator (`:`) of `--security-opt` flag on `docker run`
 **Deprecated In Release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
 
-**Target For Removal In Release: v1.14**
+**Target For Removal In Release: v17.06**
 
 The flag `--security-opt` doesn't use the colon separator(`:`) anymore to divide keys and values, it uses the equal symbol(`=`) for consistency with other similar flags, like `--storage-opt`.
 
@@ -169,7 +169,7 @@ Use `docker ps --filter=before=...` and `docker ps --filter=since=...` instead.
 
 **Deprecated in Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
-**Target For Removal In Release: v1.15**
+**Target For Removal In Release: v17.09**
 
 The `docker search --automated` and `docker search --stars` options are deprecated.
 Use `docker search --filter=is-automated=...` and `docker search --filter=stars=...` instead.
@@ -266,9 +266,9 @@ of the `--changes` flag that allows to pass `Dockerfile` commands.
 
 ### Interacting with V1 registries
 
-**Disabled By Default In Release: v1.14**
+**Disabled By Default In Release: v17.04**
 
-**Target For Removal In Release: v1.17**
+**Target For Removal In Release: v17.10**
 
 Version 1.9 adds a flag (`--disable-legacy-registry=false`) which prevents the
 docker daemon from `pull`, `push`, and `login` operations against v1
