@@ -150,7 +150,7 @@ Consider the following `config.json` file.
 {
 	"description": "sshFS plugin for Docker",
 	"documentation": "https://docs.docker.com/engine/extend/plugins/",
-	"entrypoint": ["/go/bin/docker-volume-sshfs"],
+	"entrypoint": ["/docker-volume-sshfs"],
 	"network": {
 		   "type": "host"
 		   },
@@ -165,7 +165,7 @@ Consider the following `config.json` file.
 ```
 
 This plugin is a volume driver. It requires a `host` network and the
-`CAP_SYS_ADMIN` capability. It depends upon the `/go/bin/docker-volume-sshfs`
+`CAP_SYS_ADMIN` capability. It depends upon the `/docker-volume-sshfs`
 entrypoint and uses the `/run/docker/plugins/sshfs.sock` socket to communicate
 with Docker Engine. This plugin has no runtime parameters.
 
