@@ -117,6 +117,8 @@ Config provides the base accessible fields for working with V0 plugin format
 
 - **`ipchost`** *boolean*
    Access to host ipc namespace.
+- **`pidhost`** *boolean*
+   Access to host pid namespace.
 
 - **`propagatedMount`** *string*
 
