@@ -277,9 +277,9 @@ of the `--changes` flag that allows to pass `Dockerfile` commands.
 
 ### Interacting with V1 registries
 
-**Disabled By Default In Release: v17.04**
+**Disabled By Default In Release: v17.06**
 
-**Target For Removal In Release: v17.10**
+**Target For Removal In Release: v17.12**
 
 Version 1.9 adds a flag (`--disable-legacy-registry=false`) which prevents the
 docker daemon from `pull`, `push`, and `login` operations against v1
