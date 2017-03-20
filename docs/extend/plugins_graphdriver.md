@@ -84,6 +84,29 @@ The request also includes a list of UID and GID mappings, structed as follows:
 Respond with a non-empty string error if an error occurred.
 
 
+### /GraphDriver.Capabilities
+
+**Request**:
+```json
+{}
+```
+
+Get behavioral characteristics of the graph driver. If a plugin does not handle
+this request, the engine will use default values for all capabilities.
+
+**Response**:
+```json
+{
+  "ReproducesExactDiffs": false,
+}
+```
+
+Respond with values of capabilities:
+
+* **ReproducesExactDiffs** Defaults to false. Flags that this driver is capable
+of reproducing exactly equivalent diffs for read-only filesystem layers.
+
+
 ### /GraphDriver.Create
 
 **Request**:
