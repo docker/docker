@@ -40,7 +40,7 @@ docker 1.9, but kept around for backward compatibility.
 Refer to [#17538](https://github.com/docker/docker/pull/17538) for further
 information.
 
-## `filter` param for `/images/json` endpoint
+### `filter` param for `/images/json` endpoint
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
 **Target For Removal In Release: v17.12**
