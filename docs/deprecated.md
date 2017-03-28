@@ -22,14 +22,15 @@ see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-depreca
 
 ### `-g` and `--graph` flags on `dockerd`
 
-**Deprecated In Release: v1.14.0**
-
-**Target For Removal In Release: v1.17**
+**Deprecated In Release: v17.05.0**
 
 The `-g` or `--graph` flag for the `dockerd` or `docker daemon` command was
 used to indicate the directory in which to store persistent data and resource
 configuration and has been replaced with the more descriptive `--data-root`
 flag.
+
+These flags were added before Docker 1.0, so will not be _removed_, only
+_hidden_, to discourage their use.
 
 ### Top-level network properties in NetworkSettings
 
