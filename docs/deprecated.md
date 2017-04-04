@@ -299,3 +299,12 @@ Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the
 
 - DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE is now named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
 - DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE is now named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE
+
+### `--api-enable-cors` flag on dockerd
+
+**Deprecated In Release: [v1.6.0](https://github.com/docker/docker/releases/tag/v1.6.0)**
+
+**Target For Removal In Release: v17.09**
+
+The flag `--api-enable-cors` is deprecated since v1.6.0. Use the flag
+`--api-cors-header` instead.
