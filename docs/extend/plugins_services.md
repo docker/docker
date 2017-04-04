@@ -17,15 +17,15 @@ title: Plugins and Services
 
 In swarm mode, it is possible to create a service that allows for attaching
 to networks or mounting volumes that are backed by plugins. Swarm schedules
-services based on plugin availability on a node. 
+services based on plugin availability on a node.
 
 
 ### Volume plugins
 
 In this example, a volume plugin is installed on a swarm worker and a volume
-is created using the plugin. In the manager, a service is created with the 
-relevant mount options. It can be observed that the service is scheduled to 
-run on the worker node with the said volume plugin and volume. Note that, 
+is created using the plugin. In the manager, a service is created with the
+relevant mount options. It can be observed that the service is scheduled to
+run on the worker node with the said volume plugin and volume. Note that,
 node1 is the manager and node2 is the worker.
 
 1.  Prepare manager. In node 1:
@@ -51,7 +51,7 @@ node1 is the manager and node2 is the worker.
     Status: Downloaded newer image for tiborvass/sample-volume-plugin:latest
     Installed plugin tiborvass/sample-volume-plugin
     ```
-	
+
     ```bash
     $ docker volume create -d tiborvass/sample-volume-plugin --name pluginVol
     ```
@@ -62,28 +62,30 @@ node1 is the manager and node2 is the worker.
     $ docker service create --name my-service --mount type=volume,volume-driver=tiborvass/sample-volume-plugin,source=pluginVol,destination=/tmp busybox top
 
     $ docker service ls
-    z1sj8bb8jnfn  my-service   replicated  1/1       busybox:latest 
+    z1sj8bb8jnfn  my-service   replicated  1/1       busybox:latest
     ```
     docker service ls shows service 1 instance of service running.
 
 4. Observe the task getting scheduled in node 2:
 
     ```bash
+    {% raw %}
     $ docker ps --format '{{.ID}}\t {{.Status}} {{.Names}} {{.Command}}' 
     83fc1e842599     Up 2 days my-service.1.9jn59qzn7nbc3m0zt1hij12xs "top"
+    {% endraw %}
     ```
 
 ### Network plugins
 
-In this example, a global scope network plugin is installed on both the 
+In this example, a global scope network plugin is installed on both the
 swarm manager and worker. A service is created with replicated instances
-using the installed plugin. We will observe how the availability of the 
+using the installed plugin. We will observe how the availability of the
 plugin determines network creation and container scheduling.
 
 Note that node1 is the manager and node2 is the worker.
 
 
-1. Install a global scoped network plugin on both manager and worker. On node1 
+1. Install a global scoped network plugin on both manager and worker. On node1
    and node2:
 
     ```bash
