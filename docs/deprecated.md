@@ -20,6 +20,17 @@ The following list of features are deprecated in Engine.
 To learn more about Docker Engine's deprecation policy,
 see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-deprecation-policy).
 
+### Asynchronous `service create` and `service update`
+
+**Deprecated In Release: v17.05.0**
+
+**Disabled by default in release: v17.09**
+
+Docker 17.05.0 added an optional `--detach=false` option to make the
+`docker service create` and `docker service update` work synchronously. This
+option will be enable by default in Docker 17.09, at which point the `--detach`
+flag can be used to use the previous (asynchronous) behavior.
+
 ### `-g` and `--graph` flags on `dockerd`
 
 **Deprecated In Release: v17.05.0**
