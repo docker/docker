@@ -302,6 +302,24 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
 
 #### Devicemapper options
 
+This is an example of the configuration file for devicemapper on Linux:
+
+```json
+{
+  "storage-driver": "devicemapper",
+  "storage-opts": [
+    "dm.thinpooldev=/dev/mapper/thin-pool",
+    "dm.use_deferred_deletion=true",
+    "dm.use_deferred_removal=true"
+  ],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "10"
+  }
+}
+```
+
 ##### `dm.thinpooldev`
 
 Specifies a custom block storage device to use for the thin pool.
