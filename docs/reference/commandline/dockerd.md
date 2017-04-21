@@ -311,12 +311,7 @@ This is an example of the configuration file for devicemapper on Linux:
     "dm.thinpooldev=/dev/mapper/thin-pool",
     "dm.use_deferred_deletion=true",
     "dm.use_deferred_removal=true"
-  ],
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "10m",
-    "max-file": "10"
-  }
+  ]
 }
 ```
 
