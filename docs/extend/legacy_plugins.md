@@ -88,6 +88,7 @@ Plugin                                                                          
  Plugin                                                       | Description
 ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  [Twistlock AuthZ Broker](https://github.com/twistlock/authz) | A basic extendable authorization plugin that runs directly on the host or inside a container. This plugin allows you to define user policies that it evaluates during authorization. Basic authorization is provided if Docker daemon is started with the --tlsverify flag (username is extracted from the certificate common name).
+ [HBM plugin](https://github.com/kassisol/hbm)                | An authorization plugin that prevents from executing commands with certains parameters.
 
 ## Troubleshooting a plugin
 
