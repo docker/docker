@@ -164,27 +164,27 @@ Config provides the base accessible fields for working with V0 plugin format
 
     - **`capabilities`** *string array*
 
-          capabilities of the plugin (*Linux only*), see list [`here`](https://github.com/opencontainers/runc/blob/master/libcontainer/SPEC.md#security)
+       capabilities of the plugin (*Linux only*), see list [`here`](https://github.com/opencontainers/runc/blob/master/libcontainer/SPEC.md#security)
 
     - **`allowAllDevices`** *boolean*
 
-	If `/dev` is bind mounted from the host, and allowAllDevices is set to true, the plugin will have `rwm` access to all devices on the host.
+	   If `/dev` is bind mounted from the host, and allowAllDevices is set to true, the plugin will have `rwm` access to all devices on the host.
 
     - **`devices`** *PluginDevice array*
 
-          device of the plugin, (*Linux only*), struct consisting of the following fields, see [`DEVICES`](https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#devices)
+       device of the plugin, (*Linux only*), struct consisting of the following fields, see [`DEVICES`](https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#devices)
 
-          - **`name`** *string*
+         - **`name`** *string*
 
-	      name of the device.
+	       name of the device.
 
-          - **`description`** *string*
+         - **`description`** *string*
 
-              description of the device.
+           description of the device.
 
-          - **`path`** *string*
+         - **`path`** *string*
 
-              path of the device.
+           path of the device.
 
 ## Example Config
 
