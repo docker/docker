@@ -98,7 +98,7 @@ in the response. If no error then you can either send an empty response (`{}`)
 or an empty value for the `Err` field.
 
 The driver should at this point be consuming log messages from the passed in file.
-If messages are unconsumed, it may cause the contaier to block while trying to
+If messages are unconsumed, it may cause the container to block while trying to
 write to its stdio streams.
 
 Log stream messages are encoded as protocol buffers. The protobuf definitions are
