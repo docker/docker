@@ -901,10 +901,10 @@ file. The plugin's implementation determines whether you can specify a name or
 path. Consult with your Docker administrator to get information about the
 plugins available to you.
 
-Once a plugin is installed, requests made to the `daemon` through the command
-line or Docker's Engine API are allowed or denied by the plugin.  If you have
-multiple plugins installed, at least one must allow the request for it to
-complete.
+Once a plugin is installed, requests made to the `daemon` through the
+command line or Docker's Engine API are allowed or denied by the plugin.
+If you have multiple plugins installed, each plugin, in order, must
+allow the request for it to complete.
 
 For information about how to create an authorization plugin, see [authorization
 plugin](../../extend/plugins_authorization.md) section in the Docker extend section of this documentation.
