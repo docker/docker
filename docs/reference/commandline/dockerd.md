@@ -23,6 +23,7 @@ A self-sufficient runtime for containers.
 
 Options:
       --add-runtime runtime                   Register an additional OCI compatible runtime (default [])
+      --allow-nondistributable-artifacts list Push nondistributable artifacts to specified registries (default [])
       --api-cors-header string                Set CORS headers in the Engine API
       --authorization-plugin list             Authorization plugins to load (default [])
       --bip string                            Specify network bridge IP
@@ -828,6 +829,32 @@ To set the DNS search domain for all Docker containers, use:
 $ sudo dockerd --dns-search example.com
 ```
 
+#### Allow push of nondistributable artifacts
+
+Some images (e.g., Windows base images) contain artifacts whose distribution is
+restricted by license. When these images are pushed to a registry, restricted
+artifacts are not included.
+
+To override this behavior for specific registries, use the
+`--allow-nondistributable-artifacts` option in one of the following forms:
+
+* `--allow-nondistributable-artifacts myregistry:5000` tells the Docker daemon
+  to push nondistributable artifacts to myregistry:5000.
+* `--allow-nondistributable-artifacts 10.1.0.0/16` tells the Docker daemon to
+  push nondistributable artifacts to all registries whose resolved IP address
+  is within the subnet described by the CIDR syntax.
+
+This option can be used multiple times.
+
+This option is useful when pushing images containing nondistributable artifacts
+to a registry on an air-gapped network so hosts on that network can pull the
+images without connecting to another server.
+
+> **Warning**: Nondistributable artifacts typically have restrictions on how
+> and where they can be distributed and shared. Only use this feature to push
+> artifacts to private registries and ensure that you are in compliance with
+> any terms that cover redistributing nondistributable artifacts.
+
 #### Insecure registries
 
 Docker considers a private registry either secure or insecure. In the rest of
@@ -1261,6 +1288,7 @@ This is a full example of the allowed configuration options on Linux:
 	"default-gateway-v6": "",
 	"icc": false,
 	"raw-logs": false,
+	"allow-nondistributable-artifacts": [],
 	"registry-mirrors": [],
 	"seccomp-profile": "",
 	"insecure-registries": [],
@@ -1330,6 +1358,7 @@ This is a full example of the allowed configuration options on Windows:
     "bridge": "",
     "fixed-cidr": "",
     "raw-logs": false,
+    "allow-nondistributable-artifacts": [],
     "registry-mirrors": [],
     "insecure-registries": [],
     "disable-legacy-registry": false
@@ -1361,6 +1390,7 @@ The list of currently supported options that can be reconfigured is this:
 - `runtimes`: it updates the list of available OCI runtimes that can
   be used to run containers
 - `authorization-plugin`: specifies the authorization plugins to use.
+- `allow-nondistributable-artifacts`: Replaces the set of registries to which the daemon will push nondistributable artifacts with a new set of registries.
 - `insecure-registries`: it replaces the daemon insecure registries with a new set of insecure registries. If some existing insecure registries in daemon's configuration are not in newly reloaded insecure resgitries, these existing ones will be removed from daemon's config.
 - `registry-mirrors`: it replaces the daemon registry mirrors with a new set of registry mirrors. If some existing registry mirrors in daemon's configuration are not in newly reloaded registry mirrors, these existing ones will be removed from daemon's config.
 
