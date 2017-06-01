@@ -138,7 +138,7 @@ on all subcommands (due to it conflicting with, e.g. `-h` / `--hostname` on
 ### `-e` and `--email` flags on `docker login`
 **Deprecated In Release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
 
-**Target For Removal In Release: v17.06**
+**Removed In Release: [v17.06](https://github.com/docker/docker-ce/releases/tag/v17.06.0-ce)**
 
 The docker login command is removing the ability to automatically register for an account with the target registry if the given username doesn't exist. Due to this change, the email flag is no longer required, and will be deprecated.
 
