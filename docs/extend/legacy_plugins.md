@@ -87,8 +87,9 @@ Plugin                                                                          
 
  Plugin                                                       | Description
 ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- [Twistlock AuthZ Broker](https://github.com/twistlock/authz) | A basic extendable authorization plugin that runs directly on the host or inside a container. This plugin allows you to define user policies that it evaluates during authorization. Basic authorization is provided if Docker daemon is started with the --tlsverify flag (username is extracted from the certificate common name).
- [HBM plugin](https://github.com/kassisol/hbm)                | An authorization plugin that prevents from executing commands with certains parameters.
+[Casbin AuthZ Plugin](https://github.com/casbin/casbin-authz-plugin) | An authorization plugin based on [Casbin](https://github.com/casbin/casbin), which supports access control models like ACL, RBAC, ABAC. The access control model can be customized. The policy can be persisted into file or DB.
+[HBM plugin](https://github.com/kassisol/hbm)                 | An authorization plugin that prevents from executing commands with certains parameters.
+[Twistlock AuthZ Broker](https://github.com/twistlock/authz)  | A basic extendable authorization plugin that runs directly on the host or inside a container. This plugin allows you to define user policies that it evaluates during authorization. Basic authorization is provided if Docker daemon is started with the --tlsverify flag (username is extracted from the certificate common name).
 
 ## Troubleshooting a plugin
 
