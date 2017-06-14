@@ -138,7 +138,7 @@ on all subcommands (due to it conflicting with, e.g. `-h` / `--hostname` on
 ### `-e` and `--email` flags on `docker login`
 **Deprecated In Release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
 
-**Target For Removal In Release: v17.06**
+**Removed In Release: [v17.06](https://github.com/docker/docker-ce/releases/tag/v17.06.0-ce)**
 
 The docker login command is removing the ability to automatically register for an account with the target registry if the given username doesn't exist. Due to this change, the email flag is no longer required, and will be deprecated.
 
@@ -292,7 +292,7 @@ of the `--changes` flag that allows to pass `Dockerfile` commands.
 
 **Target For Removal In Release: v17.12**
 
-Version 1.9 adds a flag (`--disable-legacy-registry=false`) which prevents the
+Version 1.8.3 added a flag (`--disable-legacy-registry=false`) which prevents the
 docker daemon from `pull`, `push`, and `login` operations against v1
 registries.  Though enabled by default, this signals the intent to deprecate
 the v1 protocol.
