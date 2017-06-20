@@ -740,6 +740,18 @@ to add multiple lower directory support for OverlayFS. This option should
 only be used after verifying this support exists in the kernel. Applying
 this option on a kernel without this support will cause failures on mount.
 
+##### `overlay2.size`
+
+Sets the default max size of the container. It is supported only when the
+backing fs is `xfs` and mounted with `pquota` mount option. Under these
+conditions the user can pass any size less then the backing fs size.
+
+###### Example
+
+```bash
+$ sudo dockerd -s overlay2 --storage-opt overlay2.size=1G
+```
+
 ### Docker runtime execution options
 
 The Docker daemon relies on a
