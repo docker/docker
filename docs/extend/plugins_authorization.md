@@ -27,7 +27,7 @@ same is true for callers using Docker's Engine API to contact the daemon. If you
 require greater access control, you can create authorization plugins and add
 them to your Docker daemon configuration. Using an authorization plugin, a
 Docker administrator can configure granular access policies for managing access
-to Docker daemon.
+to the Docker daemon.
 
 Anyone with the appropriate skills can develop an authorization plugin. These
 skills, at their most basic, are knowledge of Docker, understanding of REST, and
