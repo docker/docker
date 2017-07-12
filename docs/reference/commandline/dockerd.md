@@ -700,6 +700,34 @@ ENOSPC and will shutdown filesystem.
 $ sudo dockerd --storage-opt dm.xfs_nospace_max_retries=0
 ```
 
+##### `dm.libdm_log_level`
+
+Specifies the maxmimum `libdm` log level that will be forwarded to the
+`dockerd` log (as specified by `--log-level`). This option is primarily
+intended for debugging problems involving `libdm`. Using values other than the
+defaults may cause false-positive warnings to be logged.
+
+Values specified must fall within the range of valid `libdm` log levels. At the
+time of writing, the following is the list of `libdm` log levels as well as
+their corresponding levels when output by `dockerd`.
+
+| `libdm` Level | Value | `--log-level` |
+| ------------- | -----:| ------------- |
+| `_LOG_FATAL`  |     2 | error         |
+| `_LOG_ERR`    |     3 | error         |
+| `_LOG_WARN`   |     4 | warn          |
+| `_LOG_NOTICE` |     5 | info          |
+| `_LOG_INFO`   |     6 | info          |
+| `_LOG_DEBUG`  |     7 | debug         |
+
+###### Example
+
+```bash
+$ sudo dockerd \
+      --log-level debug \
+      --storage-opt dm.libdm_log_level=7
+```
+
 #### ZFS options
 
 ##### `zfs.fsname`
