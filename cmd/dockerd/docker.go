@@ -85,7 +85,7 @@ func main() {
 	initLogging(stdout, stderr)
 
 	onError := func(err error) {
-		fmt.Fprintf(stderr, "%s\n", err)
+		logrus.Error(err)
 		os.Exit(1)
 	}
 

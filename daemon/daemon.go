@@ -459,7 +459,7 @@ func (daemon *Daemon) restore() error {
 
 	daemon.netController, err = daemon.initNetworkController(daemon.configStore, activeSandboxes)
 	if err != nil {
-		return fmt.Errorf("Error initializing network controller: %v", err)
+		return errors.Wrap(err, "Error initializing network controller")
 	}
 
 	// Now that all the containers are registered, register the links
@@ -1407,7 +1407,12 @@ func (daemon *Daemon) networkOptions(dconfig *config.Config, pg plugingetter.Plu
 		options = append(options, nwconfig.OptionPluginGetter(pg))
 	}
 
-	options = append(options, nwconfig.OptionNetworkControlPlaneMTU(dconfig.NetworkControlPlaneMTU))
+	if dconfig.NetworkControlPlaneMTU != 0 {
+		if dconfig.NetworkControlPlaneMTU < 500 {
+			return nil, errors.Errorf("Network Control plane MTU (%d) out of range. Minimum value is 500", dconfig.NetworkControlPlaneMTU)
+		}
+		options = append(options, nwconfig.OptionNetworkControlPlaneMTU(dconfig.NetworkControlPlaneMTU))
+	}
 
 	return options, nil
 }
