@@ -189,13 +189,13 @@ Stdout of a plugin is redirected to dockerd logs. Such entries have a
 corresponding log entries in the docker daemon logs.
 
 ```bash
-$ docker plugin install tiborvass/sample-volume-plugins
+$ docker plugin install tiborvass/sample-volume-plugin
 
 INFO[0036] Starting...       Found 0 volumes on startup  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
 ```
 
 ```bash
-$ docker volume create -d tiborvass/sample-volume-plugins samplevol
+$ docker volume create -d tiborvass/sample-volume-plugin samplevol
 
 INFO[0193] Create Called...  Ensuring directory /data/samplevol exists on host...  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
 INFO[0193] open /var/lib/docker/plugin-data/local-persist.json: no such file or directory  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
