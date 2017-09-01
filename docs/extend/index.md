@@ -43,37 +43,49 @@ Plugins that start successfully are listed as enabled in the output.
 After a plugin is installed, you can use it as an option for another Docker
 operation, such as creating a volume.
 
-In the following example, you install the `sshfs` plugin, verify that it is
+In the following example, you install the `docker4x/cloudstor` plugin, verify that it is
 enabled, and use it to create a volume.
-
-> **Note**: This example is intended for instructional purposes only. Once the volume is created, your SSH password to the remote host will be exposed as plaintext when inspecting the volume. You should delete the volume as soon as you are done with the example.
 
 1.  Install the `sshfs` plugin.
 
     ```bash
-    $ docker plugin install vieux/sshfs
-
-    Plugin "vieux/sshfs" is requesting the following privileges:
-    - network: [host]
-    - capabilities: [CAP_SYS_ADMIN]
+    $ docker plugin install docker4x/cloudstor:17.05.0-ce-azure2 \
+      --alias cloudstor:azure \
+      CLOUD_PLATFORM=AZURE \
+      AZURE_STORAGE_ACCOUNT_KEY="mmpwuGgnSKHodND...." \
+      AZURE_STORAGE_ACCOUNT="myswarmstorage"
+      
+    Plugin "docker4x/cloudstor:17.06.0-ce-azure2" is requesting the following privileges:
+     - network: [host]
+     - mount: [/dev]
+     - allow-all-devices: [true]
+    services:
+     - capabilities: [CAP_SYS_ADMIN CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH]
     Do you grant the above permissions? [y/N] y
-
-    vieux/sshfs
+    17.06.0-ce-azure2: Pulling from docker4x/cloudstor
+    68b66459b745: Verifying Checksum
+    68b66459b745: Download complete
+    Digest: sha256:aa2ae6026e8f5c84d3992e239ec7eec2c578090f10528a51bd8c311d5da48c7a
+    Status: Downloaded newer image for docker4x/cloudstor:17.05.0-ce-azure2
+    Installed plugin docker4x/cloudstor:17.06.0-ce-azure2
     ```
 
-    The plugin requests 2 privileges:
+    The plugin requests 4 privileges:
     
     - It needs access to the `host` network.
-    - It needs the `CAP_SYS_ADMIN` capability, which allows the plugin to run
+    - It needs access to the `/dev` mount.
+    - It needs access to `allow-all-devices`.
+    - It needs the `CAP_SYS_ADMIN` capability, which allows the plugin to run
     the `mount` command.
+    - It needs the `CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH`capabilities, which allows the plugin to bypass file read, write, and execute permission checks.
 
 2.  Check that the plugin is enabled in the output of `docker plugin ls`.
 
     ```bash
     $ docker plugin ls
 
-    ID                    NAME                  TAG                 DESCRIPTION                   ENABLED
-    69553ca1d789          vieux/sshfs           latest              the `sshfs` plugin            true
+    ID                  NAME                DESCRIPTION                       ENABLED
+    7e08f3d484c9        cloudstor:azure     cloud storage plugin for Docker   true
     ```
 
 3.  Create a volume using the plugin.
@@ -84,35 +96,34 @@ enabled, and use it to create a volume.
 
     ```bash
     $ docker volume create \
-      -d vieux/sshfs \
-      --name sshvolume \
-      -o sshcmd=user@1.2.3.4:/remote \
-      -o password=$(cat file_containing_password_for_remote_host)
+      -d cloudstor:azure \
+      --name cloudstorvolume
 
-    sshvolume
+    cloudstorvolume
     ```
+
 4.  Verify that the volume was created successfully.
 
     ```bash
     $ docker volume ls
 
     DRIVER              NAME
-    vieux/sshfs         sshvolume
+    cloudstor:azure     cloudstorevolume
     ```
 
-5.  Start a container that uses the volume `sshvolume`.
+5.  Start a container that uses the volume `cloudstorevolume`.
 
     ```bash
-    $ docker run --rm -v sshvolume:/data busybox ls /data
-
-    <content of /remote on machine 1.2.3.4>
+    $ docker run --rm -v cloudstorevolume:/data busybox sh -c 'echo test > /data/test'
+    $ docker run --rm -v cloudstorevolume:/data busybox cat /data/test
+    test
     ```
 
-6.  Remove the volume `sshvolume`
+6.  Remove the volume `cloudstorevolume`
     ```bash
-    docker volume rm sshvolume
+    docker volume rm cloudstorevolume
 
-    sshvolume
+    cloudstorevolume
     ```
 To disable a plugin, use the `docker plugin disable` command. To completely
 remove it, use the `docker plugin remove` command. For other available
