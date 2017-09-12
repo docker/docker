@@ -315,7 +315,7 @@ Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the
 
 **Deprecated In Release: [v1.6.0](https://github.com/docker/docker/releases/tag/v1.6.0)**
 
-**Target For Removal In Release: v17.09**
+**Removed In Release: [v17.09](https://github.com/docker/docker-ce/releases/tag/v17.09.0-ce)**
 
 The flag `--api-enable-cors` is deprecated since v1.6.0. Use the flag
 `--api-cors-header` instead.
