@@ -24,7 +24,7 @@ see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-depreca
 
 **Deprecated In Release: v17.05.0**
 
-**Disabled by default in release: v17.09**
+**Disabled by default in release: [v17.09](https://github.com/docker/docker-ce/releases/tag/v17.09.0-ce)**
 
 Docker 17.05.0 added an optional `--detach=false` option to make the
 `docker service create` and `docker service update` work synchronously. This
