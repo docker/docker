@@ -967,7 +967,7 @@ Will make `hyperv` the default isolation technology on Windows. If no isolation
 value is specified on daemon start, on Windows client, the default is
 `hyperv`, and on Windows server, the default is `process`.
 
-#### Daemon DNS options
+### Daemon DNS options
 
 To set the DNS server for all Docker containers, use:
 
@@ -981,7 +981,7 @@ To set the DNS search domain for all Docker containers, use:
 $ sudo dockerd --dns-search example.com
 ```
 
-#### Allow push of nondistributable artifacts
+### Allow push of nondistributable artifacts
 
 Some images (e.g., Windows base images) contain artifacts whose distribution is
 restricted by license. When these images are pushed to a registry, restricted
@@ -1007,7 +1007,7 @@ images without connecting to another server.
 > artifacts to private registries and ensure that you are in compliance with
 > any terms that cover redistributing nondistributable artifacts.
 
-#### Insecure registries
+### Insecure registries
 
 Docker considers a private registry either secure or insecure. In the rest of
 this section, *registry* is used for *private registry*, and `myregistry:5000`
@@ -1051,7 +1051,7 @@ because its use creates security vulnerabilities it should ONLY be enabled for
 testing purposes.  For increased security, users should add their CA to their
 system's list of trusted CAs instead of enabling `--insecure-registry`.
 
-##### Legacy Registries
+#### Legacy Registries
 
 Operations against registries supporting only the legacy v1 protocol are
 disabled by default. Specifically, the daemon will not attempt `push`,
@@ -1066,7 +1066,7 @@ registries that have not yet migrated to the v2 protocol.
 Interaction v1 registries will no longer be supported in Docker v17.12,
 and the `disable-legacy-registry` configuration option will be removed.
 
-#### Running a Docker daemon behind an HTTPS_PROXY
+### Running a Docker daemon behind an HTTPS_PROXY
 
 When running inside a LAN that uses an `HTTPS` proxy, the Docker Hub
 certificates will be replaced by the proxy's certificates. These certificates
@@ -1083,7 +1083,7 @@ This will only add the proxy and authentication to the Docker daemon's requests 
 your `docker build`s and running containers will need extra configuration to
 use the proxy
 
-#### Default `ulimit` settings
+### Default `ulimit` settings
 
 `--default-ulimit` allows you to set the default `ulimit` options to use for
 all containers. It takes the same options as `--ulimit` for `docker run`. If
@@ -1095,7 +1095,7 @@ Be careful setting `nproc` with the `ulimit` flag as `nproc` is designed by Linu
 set the maximum number of processes available to a user, not to a container. For details
 please check the [run](run.md) reference.
 
-#### Node discovery
+### Node discovery
 
 The `--cluster-advertise` option specifies the `host:port` or `interface:port`
 combination that this particular daemon instance should use when advertising
@@ -1130,7 +1130,7 @@ The currently supported cluster store options are:
 | `kv.keyfile`          | Specifies the path to a local file with a PEM encoded private key. This private key is used as the client key for communication with the Key/Value store.                                                                     |
 | `kv.path`             | Specifies the path in the Key/Value store. If not configured, the default value is 'docker/nodes'.                                                                                                                            |
 
-#### Access authorization
+### Access authorization
 
 Docker's access authorization can be extended by authorization plugins that your
 organization can purchase or build themselves. You can install one or more
@@ -1155,7 +1155,7 @@ For information about how to create an authorization plugin, see [authorization
 plugin](../../extend/plugins_authorization.md) section in the Docker extend section of this documentation.
 
 
-#### Daemon user namespace options
+### Daemon user namespace options
 
 The Linux kernel
 [user namespace support](http://man7.org/linux/man-pages/man7/user_namespaces.7.html)
@@ -1237,7 +1237,7 @@ Please note that this feature is still marked as experimental as metrics and met
 names could change while this feature is still in experimental.  Please provide
 feedback on what you would like to see collected in the API.
 
-#### Daemon configuration file
+### Daemon configuration file
 
 The `--config-file` option allows you to set any configuration option
 for the daemon in a JSON format. This file uses the same flag names as keys,
