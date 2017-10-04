@@ -4,7 +4,7 @@ description: "How to manage data with external volume plugins"
 keywords: "Examples, Usage, volume, docker, data, volumes, plugin, api"
 ---
 
-<!-- This file is maintained within the docker/cli Github
+<!-- This file is maintained within the docker/cli GitHub
      repository at https://github.com/docker/cli/. Make all
      pull requests against that repo. If you see this file in
      another repository, consider it read-only there, as it will
