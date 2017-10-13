@@ -1,7 +1,6 @@
 ---
 description: Volume plugin for Amazon EBS
 keywords: "API, Usage, plugins, documentation, developer, amazon, ebs, rexray, volume"
-title: Volume plugin for Amazon EBS
 ---
 
 <!-- This file is maintained within the docker/cli GitHub
@@ -13,7 +12,9 @@ title: Volume plugin for Amazon EBS
      will be rejected.
 -->
 
-# A proof-of-concept Rexray plugin
+# Volume plugin for Amazon EBS
+
+## A proof-of-concept Rexray plugin
 
 In this example, a simple Rexray plugin will be created for the purposes of using
 it on an Amazon EC2 instance with EBS. It is not meant to be a complete Rexray plugin.

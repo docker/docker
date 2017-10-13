@@ -1,5 +1,4 @@
 ---
-title: "Docker metrics collector plugins"
 description: "Metrics plugins."
 keywords: "Examples, Usage, plugins, docker, documentation, user guide, metrics"
 ---
@@ -13,7 +12,7 @@ keywords: "Examples, Usage, plugins, docker, documentation, user guide, metrics"
      will be rejected.
 -->
 
-# Metrics Collector Plugins
+# Docker metrics collector plugins
 
 Docker exposes internal metrics based on the prometheus format. Metrics plugins
 enable accessing these metrics in a consistent way by providing a Unix

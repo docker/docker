@@ -1,7 +1,6 @@
 ---
 redirect_from:
 - "/engine/extend/plugins/"
-title: "Use Docker Engine plugins"
 description: "How to add additional functionality to Docker with plugins extensions"
 keywords: "Examples, Usage, plugins, docker, documentation, user guide"
 ---
@@ -14,6 +13,8 @@ keywords: "Examples, Usage, plugins, docker, documentation, user guide"
      requests which include edits to this file in other repositories
      will be rejected.
 -->
+
+# Use Docker Engine plugins
 
 This document describes the Docker Engine plugins generally available in Docker
 Engine. To view information on plugins managed by Docker,

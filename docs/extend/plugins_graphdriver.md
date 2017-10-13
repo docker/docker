@@ -1,5 +1,4 @@
 ---
-title: "Graphdriver plugins"
 description: "How to manage image and container filesystems with external plugins"
 keywords: "Examples, Usage, storage, image, docker, data, graph, plugin, api"
 advisory: experimental
@@ -14,6 +13,7 @@ advisory: experimental
      will be rejected.
 -->
 
+# Graphdriver plugins
 
 ## Changelog
 

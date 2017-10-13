@@ -1,5 +1,4 @@
 ---
-title: "Docker network driver plugins"
 description: "Network driver plugins."
 keywords: "Examples, Usage, plugins, docker, documentation, user guide"
 ---
@@ -13,7 +12,7 @@ keywords: "Examples, Usage, plugins, docker, documentation, user guide"
      will be rejected.
 -->
 
-# Engine network driver plugins
+# Docker network driver plugins
 
 This document describes Docker Engine network driver plugins generally
 available in Docker Engine. To view information on plugins
