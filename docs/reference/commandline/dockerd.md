@@ -102,11 +102,11 @@ Options with [] may be specified multiple times.
 uses different binaries for the daemon and client. To run the daemon you
 type `dockerd`.
 
-To run the daemon with debug output, use `dockerd -D` or add `debug: true` to
+To run the daemon with debug output, use `dockerd -D` or add `"debug": true` to
 the `daemon.json` file.
 
 > **Note**: In Docker 1.13 and higher, enable experimental features by starting
-> `dockerd` with the `--experimental` flag or adding `experimental: true` to the
+> `dockerd` with the `--experimental` flag or adding `"experimental": true` to the
 > `daemon.json` file. In earlier Docker versions, a different build was required
 > to enable experimental features.
 
