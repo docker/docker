@@ -1326,8 +1326,8 @@ This is a full example of the allowed configuration options on Linux:
 	"default-runtime": "runc",
 	"oom-score-adjust": -500,
 	"runtimes": {
-		"runc": {
-			"path": "runc"
+		"cc-runtime": {
+			"path": "/usr/bin/cc-runtime"
 		},
 		"custom": {
 			"path": "/usr/local/bin/my-runc-replacement",
