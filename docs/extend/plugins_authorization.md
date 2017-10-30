@@ -1,5 +1,4 @@
 ---
-title: "Access authorization plugin"
 description: "How to create authorization plugins to manage access control to your Docker daemon."
 keywords: "security, authorization, authentication, docker, documentation, plugin, extend"
 redirect_from:
@@ -15,7 +14,7 @@ redirect_from:
      will be rejected.
 -->
 
-# Create an authorization plugin
+# Access authorization plugin
 
 This document describes the Docker Engine plugins generally available in Docker
 Engine. To view information on plugins managed by Docker Engine,

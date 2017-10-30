@@ -1,5 +1,4 @@
 ---
-title: "Docker log driver plugins"
 description: "Log driver plugins."
 keywords: "Examples, Usage, plugins, docker, documentation, user guide, logging"
 ---
@@ -13,7 +12,7 @@ keywords: "Examples, Usage, plugins, docker, documentation, user guide, logging"
      will be rejected.
 -->
 
-# Logging driver plugins
+# Docker log driver plugins
 
 This document describes logging driver plugins for Docker.
 

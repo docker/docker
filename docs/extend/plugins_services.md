@@ -1,5 +1,4 @@
 ---
-description: Using services with plugins
 keywords: "API, Usage, plugins, documentation, developer"
 title: Plugins and Services
 ---
@@ -70,7 +69,7 @@ node1 is the manager and node2 is the worker.
 
     ```bash
     {% raw %}
-    $ docker ps --format '{{.ID}}\t {{.Status}} {{.Names}} {{.Command}}' 
+    $ docker ps --format '{{.ID}}\t {{.Status}} {{.Names}} {{.Command}}'
     83fc1e842599     Up 2 days my-service.1.9jn59qzn7nbc3m0zt1hij12xs "top"
     {% endraw %}
     ```

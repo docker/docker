@@ -1,7 +1,6 @@
 ---
 description: Develop and use a plugin with the managed plugin system
 keywords: "API, Usage, plugins, documentation, developer"
-title: Managed plugin system
 ---
 
 <!-- This file is maintained within the docker/cli GitHub
@@ -62,7 +61,7 @@ enabled, and use it to create a volume.
     ```
 
     The plugin requests 2 privileges:
-    
+
     - It needs access to the `host` network.
     - It needs the `CAP_SYS_ADMIN` capability, which allows the plugin to run
     the `mount` command.
@@ -78,7 +77,7 @@ enabled, and use it to create a volume.
 
 3.  Create a volume using the plugin.
     This example mounts the `/remote` directory on host `1.2.3.4` into a
-    volume named `sshvolume`.   
+    volume named `sshvolume`.
 
     This volume can now be mounted into containers.
 

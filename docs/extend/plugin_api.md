@@ -1,5 +1,4 @@
 ---
-title: "Plugins API"
 description: "How to write Docker plugins extensions "
 keywords: "API, Usage, plugins, documentation, developer"
 ---
