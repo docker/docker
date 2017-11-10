@@ -222,6 +222,11 @@ func (c *Cluster) inspect(ctx context.Context, state nodeState) (types.Swarm, er
 
 // Update updates configuration of a managed swarm cluster.
 func (c *Cluster) Update(version uint64, spec types.Spec, flags types.UpdateFlags) error {
+	var err error
+	spec.Annotations.Name, err = validateName(spec.Annotations.Name)
+	if err != nil {
+		return fmt.Errorf("invalid Name %q: %v", spec.Annotations.Name, err)
+	}
 	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		swarm, err := getSwarm(ctx, state.controlClient)
 		if err != nil {
@@ -456,13 +461,10 @@ func validateAndSanitizeInitRequest(req *types.InitRequest) error {
 	if err != nil {
 		return fmt.Errorf("invalid ListenAddr %q: %v", req.ListenAddr, err)
 	}
-
-	if req.Spec.Annotations.Name == "" {
-		req.Spec.Annotations.Name = "default"
-	} else if req.Spec.Annotations.Name != "default" {
-		return errors.New(`swarm spec must be named "default"`)
+	req.Spec.Annotations.Name, err = validateName(req.Spec.Annotations.Name)
+	if err != nil {
+		return fmt.Errorf("invalid Name %q: %v", req.Spec.Annotations.Name, err)
 	}
-
 	return nil
 }
 
@@ -493,6 +495,16 @@ func validateAddr(addr string) (string, error) {
 		return addr, nil
 	}
 	return strings.TrimPrefix(newaddr, "tcp://"), nil
+}
+
+func validateName(name string) (string, error) {
+	if name == "" {
+		return "default", nil
+	}
+	if name != "default" {
+		return name, errors.New(`swarm spec must be named "default"`)
+	}
+	return name, nil
 }
 
 func initClusterSpec(node *swarmnode.Node, spec types.Spec) error {
