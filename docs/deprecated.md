@@ -81,7 +81,7 @@ The `filter` param to filter the list of image by reference (name or name:tag) i
 ### `docker daemon` subcommand
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Target For Removal In Release: v17.12**
+**Removed In Release: v17.12**
 
 The daemon is moved to a separate binary (`dockerd`), and should be used instead.
 
