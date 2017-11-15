@@ -64,6 +64,11 @@ func (daemon *Daemon) SystemInfo() *types.Info {
 		Labels:             daemon.configStore.Labels,
 		ExperimentalBuild:  daemon.configStore.Experimental,
 		ServerVersion:      dockerversion.Version,
+		DNSDefaults: types.DNSInfo{
+			DNS:        daemon.configStore.DNS,
+			DNSOptions: daemon.configStore.DNSOptions,
+			DNSSearch:  daemon.configStore.DNSSearch,
+		},
 		HTTPProxy:          maskCredentials(getEnvAny("HTTP_PROXY", "http_proxy")),
 		HTTPSProxy:         maskCredentials(getEnvAny("HTTPS_PROXY", "https_proxy")),
 		NoProxy:            getEnvAny("NO_PROXY", "no_proxy"),

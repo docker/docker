@@ -188,8 +188,9 @@ type Info struct {
 	MemTotal           int64
 	GenericResources   []swarm.GenericResource
 	DockerRootDir      string
-	HTTPProxy          string `json:"HttpProxy"`
-	HTTPSProxy         string `json:"HttpsProxy"`
+	DNSDefaults        DNSInfo `json:"DNSDefaults"`
+	HTTPProxy          string  `json:"HttpProxy"`
+	HTTPSProxy         string  `json:"HttpsProxy"`
 	NoProxy            string
 	Name               string
 	Labels             []string
@@ -213,6 +214,24 @@ type Info struct {
 	ProductLicense      string               `json:",omitempty"`
 	DefaultAddressPools []NetworkAddressPool `json:",omitempty"`
 	Warnings            []string
+}
+
+// DNSInfo contains the default DNS configuration to use for containers.
+// These values can be overridden per container.
+// TODO use a "ContainerDefaults" wrapper for this instead, and deprecate top-level defaults????
+type DNSInfo struct {
+	// DNS is the list of default DNS server IP-addresses (IPv4 or IPv6) for containers.
+	DNS []string `json:"DNS,omitempty"`
+	// DNSOptions holds the default DNS options for containers. These options
+	// will be included in the container's /etc/resolv.conf.
+	//
+	// See resolv.conf(5) for details.
+	DNSOptions []string `json:"DNSOptions,omitempty"`
+	// DNSSearch holds the default DNS search list for containers. This option
+	// will be set as the 'search' configuration in the container's /etc/resolv.conf.
+	//
+	// See resolv.conf(5) for details.
+	DNSSearch []string `json:"DNSSearch,omitempty"`
 }
 
 // KeyValue holds a key/value pair

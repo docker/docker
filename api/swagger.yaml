@@ -4622,6 +4622,8 @@ definitions:
         $ref: "#/definitions/RegistryServiceConfig"
       GenericResources:
         $ref: "#/definitions/GenericResources"
+      DNSDefaults:
+        $ref: "#/definitions/DNSInfo"
       HttpProxy:
         description: |
           HTTP-proxy configured for the daemon. This value is obtained from the
@@ -4846,6 +4848,53 @@ definitions:
           - "WARNING: bridge-nf-call-iptables is disabled"
           - "WARNING: bridge-nf-call-ip6tables is disabled"
 
+
+  DNSInfo:
+    description: |
+      Default DNS configuration to use when creating containers.
+
+      These values can be overridden per container.
+    type: "object"
+    properties:
+      DNS:
+        description: |
+          Default DNS server IP-addresses (IPv4 or IPv6) for containers.
+
+          This field is omitted in the response if not set.
+        type: "array"
+        x-nullable: true
+        items:
+          type: "string"
+          format: "ip-address"
+        example: ["8.8.8.8", "2001:4860:4860::8888"]
+      DNSOptions:
+        description: |
+          Default DNS options for containers.
+
+          These options will be included in the container's `/etc/resolv.conf`
+          file. Refer to [resolv.conf(5)](https://man7.org/linux/man-pages/man5/resolv.conf.5.html)
+          to learn about available options.
+
+          This field is omitted in the response if not set.
+        type: "array"
+        x-nullable: true
+        items:
+          type: "string"
+        example: ["ndots:5", "timeout:5", "single-request"]
+      DNSSearch:
+        description: |
+          Default DNS search list for containers.
+
+          This option will be set in the `search` configuration in the
+          container's `/etc/resolv.conf` file. Refer to [resolv.conf(5)](https://man7.org/linux/man-pages/man5/resolv.conf.5.html)
+          to learn about the `search` option.
+
+          This field is omitted in the response if not set.
+        type: "array"
+        x-nullable: true
+        items:
+          type: "string"
+        example: ["internal", "dev"]
 
   # PluginsInfo is a temp struct holding Plugins name
   # registered with docker daemon. It is used by Info struct
