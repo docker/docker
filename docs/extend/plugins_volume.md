@@ -199,7 +199,7 @@ Request the path to the volume with the given `volume_name`.
 
   ```json
   {
-      "Mountpoin": "/path/to/directory/on/host",
+      "Mountpoint": "/path/to/directory/on/host",
       "Err": ""
   }
   ```
