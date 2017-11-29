@@ -72,6 +72,7 @@ Options:
       --max-concurrent-uploads int            Set the max concurrent uploads for each push (default 5)
       --metrics-addr string                   Set default address and port to serve the metrics api on
       --mtu int                               Set the containers network MTU
+      --node-generic-resources list           Advertise user-defined resource
       --no-new-privileges                     Set no-new-privileges by default for new containers
       --oom-score-adjust int                  Set the oom_score_adj for the daemon (default -500)
   -p, --pidfile string                        Path to use for daemon PID file (default "/var/run/docker.pid")
@@ -1237,6 +1238,23 @@ Please note that this feature is still marked as experimental as metrics and met
 names could change while this feature is still in experimental.  Please provide
 feedback on what you would like to see collected in the API.
 
+#### Node Generic Resources
+
+The `--node-generic-resources` option takes a list of key-value
+pair (`key=value`) that allows you to advertise user defined resources
+in a swarm cluster.
+
+The current expected use case is to advertise NVIDIA GPUs so that services
+requesting `NVIDIA-GPU=[0-16]` can land on a node that has enough GPUs for
+the task to run.
+
+Example of usage:
+```json
+{
+	"node-generic-resources": ["NVIDIA-GPU=UUID1", "NVIDIA-GPU=UUID2"]
+}
+```
+
 ### Daemon configuration file
 
 The `--config-file` option allows you to set any configuration option
@@ -1325,6 +1343,7 @@ This is a full example of the allowed configuration options on Linux:
 	"no-new-privileges": false,
 	"default-runtime": "runc",
 	"oom-score-adjust": -500,
+	"node-generic-resources": ["NVIDIA-GPU=UUID1", "NVIDIA-GPU=UUID2"],
 	"runtimes": {
 		"cc-runtime": {
 			"path": "/usr/bin/cc-runtime"
