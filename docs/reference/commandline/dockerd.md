@@ -262,7 +262,7 @@ snapshots. For each devicemapper graph location – typically
 `/var/lib/docker/devicemapper` – a thin pool is created based on two block
 devices, one for data and one for metadata. By default, these block devices
 are created automatically by using loopback mounts of automatically created
-sparse files. Refer to [Storage driver options](#storage-driver-options) below
+sparse files. Refer to [Devicemapper options](#devicemapper-options) below
 for a way how to customize this setup.
 [~jpetazzo/Resizing Docker containers with the Device Mapper plugin](http://jpetazzo.github.io/2014/01/29/docker-device-mapper-resize/)
 article explains how to tune your existing setup without the use of options.
@@ -274,7 +274,7 @@ does not share executable memory between devices. Use
 The `zfs` driver is probably not as fast as `btrfs` but has a longer track record
 on stability. Thanks to `Single Copy ARC` shared blocks between clones will be
 cached only once. Use `dockerd -s zfs`. To select a different zfs filesystem
-set `zfs.fsname` option as described in [Storage driver options](#storage-driver-options).
+set `zfs.fsname` option as described in [ZFS options](#zfs-options).
 
 The `overlay` is a very fast union filesystem. It is now merged in the main
 Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). `overlay`
