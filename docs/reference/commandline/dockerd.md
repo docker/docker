@@ -42,7 +42,6 @@ Options:
       --default-gateway-v6 ip                 Container default gateway IPv6 address
       --default-runtime string                Default OCI runtime for containers (default "runc")
       --default-ulimit ulimit                 Default ulimits for containers (default [])
-      --disable-legacy-registry               Disable contacting legacy registries (default true)
       --dns list                              DNS server to use (default [])
       --dns-opt list                          DNS options to use (default [])
       --dns-search list                       DNS search domains to use (default [])
@@ -1054,18 +1053,14 @@ system's list of trusted CAs instead of enabling `--insecure-registry`.
 
 #### Legacy Registries
 
-Operations against registries supporting only the legacy v1 protocol are
-disabled by default. Specifically, the daemon will not attempt `push`,
-`pull` and `login` to v1 registries. The exception to this is `search`
-which can still be performed on v1 registries.
+Starting with Docker 17.12, operations against registries supporting only the 
+legacy v1 protocol are no longer supported. Specifically, the daemon will not
+attempt `push`, `pull` and `login` to v1 registries. The exception to this is
+`search` which can still be performed on v1 registries.
 
-Add `"disable-legacy-registry":false` to the [daemon configuration
-file](#daemon-configuration-file), or set the
-`--disable-legacy-registry=false` flag, if you need to interact with
-registries that have not yet migrated to the v2 protocol.
+The `disable-legacy-registry` configuration option has been removed and, when
+used, will produce an error on daemon startup.
 
-Interaction v1 registries will no longer be supported in Docker v17.12,
-and the `disable-legacy-registry` configuration option will be removed.
 
 ### Running a Docker daemon behind an HTTPS_PROXY
 
@@ -1339,7 +1334,6 @@ This is a full example of the allowed configuration options on Linux:
 	"registry-mirrors": [],
 	"seccomp-profile": "",
 	"insecure-registries": [],
-	"disable-legacy-registry": false,
 	"no-new-privileges": false,
 	"default-runtime": "runc",
 	"oom-score-adjust": -500,
@@ -1408,8 +1402,7 @@ This is a full example of the allowed configuration options on Windows:
     "raw-logs": false,
     "allow-nondistributable-artifacts": [],
     "registry-mirrors": [],
-    "insecure-registries": [],
-    "disable-legacy-registry": false
+    "insecure-registries": []
 }
 ```
 
