@@ -74,9 +74,13 @@ The `filter` param to filter the list of image by reference (name or name:tag) i
 ### `repository:shortid` image references
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Target For Removal In Release: v17.12**
+**Removed In Release: v17.12**
 
-`repository:shortid` syntax for referencing images is very little used, collides with tag references can be confused with digest references.
+The `repository:shortid` syntax for referencing images is very little used,
+collides with tag references, and can be confused with digest references.
+
+Support for the `repository:shortid` notation to reference images was removed
+in Docker 17.12.
 
 ### `docker daemon` subcommand
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
