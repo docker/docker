@@ -40,6 +40,7 @@ Options:
   -D, --debug                                 Enable debug mode
       --default-gateway ip                    Container default gateway IPv4 address
       --default-gateway-v6 ip                 Container default gateway IPv6 address
+      --default-address-pool                  Set the default address pool for local node networks
       --default-runtime string                Default OCI runtime for containers (default "runc")
       --default-ulimit ulimit                 Default ulimits for containers (default [])
       --dns list                              DNS server to use (default [])
@@ -1348,7 +1349,9 @@ This is a full example of the allowed configuration options on Linux:
 				"--debug"
 			]
 		}
-	}
+	},
+	"default-address-pools":[{"base":"172.80.0.0/16","size":24},
+	{"base":"172.90.0.0/16","size":24}]
 }
 ```
 
