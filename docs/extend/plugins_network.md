@@ -26,18 +26,13 @@ LibNetwork, which shares plugin infrastructure with Engine. Effectively, network
 driver plugins are activated in the same way as other plugins, and use the same
 kind of protocol.
 
-## Network driver plugins and swarm mode
+## Network plugins and swarm mode
 
-Docker 1.12 adds support for cluster management and orchestration called
-[swarm mode](https://docs.docker.com/engine/swarm/). Docker Engine running in swarm mode currently
-only supports the built-in overlay driver for networking. Therefore existing
-networking plugins will not work in swarm mode.
+[Legacy plugins](legacy_plugins.md) do not work in swarm mode. However,
+plugins written using the [v2 plugin system](index.md) do work in swarm mode, as
+long as they are installed on each swarm worker node.
 
-When you run Docker Engine outside of swarm mode, all networking plugins that
-worked in Docker 1.11 will continue to function normally. They do not require
-any modification.
-
-## Using network driver plugins
+## Use network driver plugins
 
 The means of installing and running a network driver plugin depend on the
 particular plugin. So, be sure to install your plugin according to the
@@ -57,6 +52,13 @@ referring to that network will be sent to the plugin,
     $ docker run --network=mynet busybox top
 
 
+## Find network plugins
+
+Network plugins are written by third parties, and are published by those
+third parties, either on
+[Docker Store](https://store.docker.com/search?category=network&q=&type=plugin)
+or on the third party's site.
+
 ## Write a network plugin
 
 Network plugins implement the [Docker plugin
@@ -68,7 +70,7 @@ The network driver protocol, in addition to the plugin activation call, is
 documented as part of libnetwork:
 [https://github.com/docker/libnetwork/blob/master/docs/remote.md](https://github.com/docker/libnetwork/blob/master/docs/remote.md).
 
-# Related Information
+## Related Information
 
 To interact with the Docker maintainers and other interested users, see the IRC channel `#docker-network`.
 
