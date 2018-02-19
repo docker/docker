@@ -181,6 +181,19 @@ The Docker client will honor the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
 environment variables (or the lowercase versions thereof). `HTTPS_PROXY` takes
 precedence over `HTTP_PROXY`.
 
+Starting with Docker 18.09, the Docker client supports connecting to a remote
+daemon via SSH:
+
+```
+$ docker -H ssh://me@example.com:22 ps
+$ docker -H ssh://me@example.com ps
+$ docker -H ssh://example.com ps
+```
+
+To use SSH connection, you need to set up `ssh` so that it can reach the
+remote host with public key authentication.
+Also, you need to have `docker` binary 18.09 or later on the daemon host.
+
 #### Bind Docker to another host/port or a Unix socket
 
 > **Warning**:
