@@ -218,20 +218,22 @@ plugins. This is specifically useful to collect plugin logs if they are
 redirected to a file.
 
 ```bash
-$ docker-runc list
-ID                                                                 PID         STATUS      BUNDLE                                                                                       CREATED
-f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62   2679        running     /run/docker/libcontainerd/f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62	2017-02-06T21:53:03.031537592Z
-r
+$ sudo docker-runc --root /var/run/docker/plugins/runtime-root/moby-plugins list
+
+ID                                                                 PID         STATUS      BUNDLE                                                                                                                                       CREATED                          OWNER
+93f1e7dbfe11c938782c2993628c895cf28e2274072c4a346a6002446c949b25   15806       running     /run/docker/containerd/daemon/io.containerd.runtime.v1.linux/moby-plugins/93f1e7dbfe11c938782c2993628c895cf28e2274072c4a346a6002446c949b25   2018-02-08T21:40:08.621358213Z   root
+9b4606d84e06b56df84fadf054a21374b247941c94ce405b0a261499d689d9c9   14992       running     /run/docker/containerd/daemon/io.containerd.runtime.v1.linux/moby-plugins/9b4606d84e06b56df84fadf054a21374b247941c94ce405b0a261499d689d9c9   2018-02-08T21:35:12.321325872Z   root
+c5bb4b90941efcaccca999439ed06d6a6affdde7081bb34dc84126b57b3e793d   14984       running     /run/docker/containerd/daemon/io.containerd.runtime.v1.linux/moby-plugins/c5bb4b90941efcaccca999439ed06d6a6affdde7081bb34dc84126b57b3e793d   2018-02-08T21:35:12.321288966Z   root
 ```
 
 ```bash
-$ docker-runc exec f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62 cat /var/log/plugin.log
+$ sudo docker-runc --root /var/run/docker/plugins/runtime-root/moby-plugins exec 93f1e7dbfe11c938782c2993628c895cf28e2274072c4a346a6002446c949b25 cat /var/log/plugin.log
 ```
 
 If the plugin has a built-in shell, then exec into the plugin can be done as
 follows:
 ```bash
-$ docker-runc exec -t f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62 sh
+$ sudo docker-runc --root /var/run/docker/plugins/runtime-root/moby-plugins exec -t 93f1e7dbfe11c938782c2993628c895cf28e2274072c4a346a6002446c949b25 sh
 ```
 
 #### Using curl to debug plugin socket issues.
