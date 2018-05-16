@@ -19,6 +19,16 @@ The following list of features are deprecated in Engine.
 To learn more about Docker Engine's deprecation policy,
 see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-deprecation-policy).
 
+### Reserved namespaces in engine labels
+
+**Deprecated in Release: v18.06.0**
+
+The namespaces `com.docker.*`, `io.docker.*`, and `org.dockerproject.*` in engine labels
+were always documented to be reserved, but there was never any enforcement.
+
+Usage of these namespaces will now cause a warning in the engine logs to discourage their
+use, and will error instead in 18.12 and above.
+
 ### Asynchronous `service create` and `service update`
 
 **Deprecated In Release: v17.05.0**
