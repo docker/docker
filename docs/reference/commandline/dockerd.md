@@ -1424,6 +1424,16 @@ This is a full example of the allowed configuration options on Windows:
 }
 ```
 
+#### Feature options
+The optional field `features` in `daemon.json` allows users to enable or disable specific 
+daemon features. For example, `{"features":{"buildkit": true}}` enables `buildkit` as the 
+default docker image builder.
+
+The list of currently supported feature options:
+- `buildkit`: It enables `buildkit` as default builder when set to `true` or disables it by
+`false`. Note that if this option is not explicitly set in the daemon config file, then it
+is up to the cli to determine which builder to invoke.
+
 #### Configuration reload behavior
 
 Some options can be reconfigured when the daemon is running without requiring
