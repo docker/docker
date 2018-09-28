@@ -167,7 +167,7 @@ The docker login command is removing the ability to automatically register for a
 
 **Target For Removal In Release: v17.06**
 
-The flag `--security-opt` doesn't use the colon separator(`:`) anymore to divide keys and values, it uses the equal symbol(`=`) for consistency with other similar flags, like `--storage-opt`.
+The flag `--security-opt` doesn't use the colon separator (`:`) anymore to divide keys and values, it uses the equal symbol (`=`) for consistency with other similar flags, like `--storage-opt`.
 
 ### `/containers/(id or name)/copy` endpoint
 
