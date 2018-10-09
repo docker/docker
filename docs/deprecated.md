@@ -19,6 +19,22 @@ The following list of features are deprecated in Engine.
 To learn more about Docker Engine's deprecation policy,
 see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-deprecation-policy).
 
+### Legacy "overlay" storage driver
+
+**Deprecated in Release: v18.09.0**
+
+The `overlay` storage driver is deprecated in favor of the `overlay2` storage
+driver, which has all the benefits of `overlay`, without its limitations (excessive
+inode consumption). The legacy `overlay` storage driver will be removed in a future
+release. Users of the `overlay` storage driver should migrate to the `overlay2`
+storage driver.
+
+The legacy `overlay` storage driver allowed using overlayFS-backed filesystems
+on pre 4.x kernels. Now that all supported distributions are able to run `overlay2`
+(as they are either on kernel 4.x, or have support for multiple lowerdirs
+backported), there is no reason to keep maintaining the `overlay` storage driver.
+
+
 ### Reserved namespaces in engine labels
 
 **Deprecated in Release: v18.06.0**
