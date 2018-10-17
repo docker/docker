@@ -1327,7 +1327,13 @@ This is a full example of the allowed configuration options on Linux:
 	"userns-remap": "",
 	"group": "",
 	"cgroup-parent": "",
-	"default-ulimits": {},
+	"default-ulimits": {
+		"nofile": {
+			"Name": "nofile",
+			"Hard": 64000,
+			"Soft": 64000
+		}
+	},
 	"init": false,
 	"init-path": "/usr/libexec/docker-init",
 	"ipv6": false,
