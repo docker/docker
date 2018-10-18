@@ -1370,8 +1370,10 @@ This is a full example of the allowed configuration options on Linux:
 			]
 		}
 	},
-	"default-address-pools":[{"base":"172.80.0.0/16","size":24},
-	{"base":"172.90.0.0/16","size":24}]
+	"default-address-pools":[
+		{"base":"172.80.0.0/16","size":24},
+		{"base":"172.90.0.0/16","size":24}
+	]
 }
 ```
 
