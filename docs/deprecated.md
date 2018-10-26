@@ -63,6 +63,24 @@ Now that support for `overlay2` is added to all supported distros (as they are
 either on kernel 4.x, or have support for multiple lowerdirs backported), there
 is no reason to continue maintenance of the `devicemapper` storage driver.
 
+### AuFS storage driver
+
+**Deprecated in Release: v19.03.0**
+
+The `aufs` storage driver is deprecated in favor of `overlay2`, and will
+be removed in a future release. Users of the `aufs` storage driver are
+recommended to migrate to a different storage driver, such as `overlay2`, which
+is now the default storage driver.
+
+The `aufs` storage driver facilitates running Docker on distros that have no
+support for OverlayFS, such as Ubuntu 14.04 LTS, which originally shipped with
+a 3.14 kernel.
+
+Now that Ubuntu 14.04 is no longer a supported distro for Docker, and `overlay2`
+is available to all supported distros (as they are either on kernel 4.x, or have
+support for multiple lowerdirs backported), there is no reason to continue
+maintenance of the `aufs` storage driver.
+
 ### Reserved namespaces in engine labels
 
 **Deprecated in Release: v18.06.0**
