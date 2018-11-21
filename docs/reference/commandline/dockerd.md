@@ -1305,8 +1305,13 @@ This is a full example of the allowed configuration options on Linux:
 	"storage-opts": [],
 	"labels": [],
 	"live-restore": true,
-	"log-driver": "",
-	"log-opts": {},
+	"log-driver": "json-file",
+	"log-opts": {
+		"max-size": "10m",
+		"max-files":"5",
+		"labels": "somelabel",
+		"env": "os,customer"
+	},
 	"mtu": 0,
 	"pidfile": "",
 	"cluster-store": "",
