@@ -303,7 +303,7 @@ the same file can share a single page cache entry (or entries), it makes
 > **Note**: As promising as `overlay` is, the feature is still quite young and
 > should not be used in production. Most notably, using `overlay` can cause
 > excessive inode consumption (especially as the number of images grows), as
-> well as > being incompatible with the use of RPMs.
+> well as being incompatible with the use of RPMs.
 
 The `overlay2` uses the same fast union filesystem but takes advantage of
 [additional features](https://lkml.org/lkml/2015/2/11/106) added in Linux
