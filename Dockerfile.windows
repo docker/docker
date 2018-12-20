@@ -150,33 +150,16 @@
 # https://github.com/kevpar/docker-w2wCIScripts/blob/master/runCI/Invoke-DockerCI.ps1.
 #
 # -----------------------------------------------------------------------------------------
-
-
-# The number of build steps below are explicitly minimised to improve performance.
-
-# Extremely important - do not change the following line to reference a "specific" image, 
-# such as `mcr.microsoft.com/windows/servercore:ltsc2019`. If using this Dockerfile in process
-# isolated containers, the kernel of the host must match the container image, and hence
-# would fail between Windows Server 2016 (aka RS1) and Windows Server 2019 (aka RS5).
-# It is expected that the image `microsoft/windowsservercore:latest` is present, and matches
-# the hosts kernel version before doing a build. 
-FROM microsoft/windowsservercore
-
-# Use PowerShell as the default shell
-SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
-
 ARG GO_VERSION=1.13.14
 ARG GOTESTSUM_COMMIT=v0.3.5
 
-# Environment variable notes:
-#  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
-#  - FROM_DOCKERFILE is used for detection of building within a container.
-ENV GO_VERSION=${GO_VERSION} `
-    GIT_VERSION=2.11.1 `
-    GOPATH=C:\gopath `
-    GO111MODULE=off `
-    FROM_DOCKERFILE=1 `
-    GOTESTSUM_COMMIT=${GOTESTSUM_COMMIT}
+FROM golang:${GO_VERSION}-windowsservercore AS base
+ENV GO111MODULE=off
+
+FROM base AS compiler
+ADD https://raw.githubusercontent.com/moby/docker-tdmgcc/master/gcc.zip C:\
+ADD https://raw.githubusercontent.com/moby/docker-tdmgcc/master/runtime.zip C:\
+ADD https://raw.githubusercontent.com/moby/docker-tdmgcc/master/binutils.zip C:\
 
 RUN `
   Function Test-Nano() { `
@@ -216,27 +199,11 @@ RUN `
   $location='https://www.nuget.org/api/v2/package/GitForWindows/'+$Env:GIT_VERSION; `
   Download-File $location C:\gitsetup.zip; `
   `
-  Write-Host INFO: Downloading go...; `
-  $dlGoVersion=$Env:GO_VERSION -replace '\.0$',''; `
-  Download-File "https://golang.org/dl/go${dlGoVersion}.windows-amd64.zip" C:\go.zip; `
-  `
-  Write-Host INFO: Downloading compiler 1 of 3...; `
-  Download-File https://raw.githubusercontent.com/moby/docker-tdmgcc/master/gcc.zip C:\gcc.zip; `
-  `
-  Write-Host INFO: Downloading compiler 2 of 3...; `
-  Download-File https://raw.githubusercontent.com/moby/docker-tdmgcc/master/runtime.zip C:\runtime.zip; `
-  `
-  Write-Host INFO: Downloading compiler 3 of 3...; `
-  Download-File https://raw.githubusercontent.com/moby/docker-tdmgcc/master/binutils.zip C:\binutils.zip; `
-  `
   Write-Host INFO: Extracting git...; `
   Expand-Archive C:\gitsetup.zip C:\git-tmp; `
   New-Item -Type Directory C:\git | Out-Null; `
   Move-Item C:\git-tmp\tools\* C:\git\.; `
   Remove-Item -Recurse -Force C:\git-tmp; `
-  `
-  Write-Host INFO: Expanding go...; `
-  Expand-Archive C:\go.zip -DestinationPath C:\; `
   `
   Write-Host INFO: Expanding compiler 1 of 3...; `
   Expand-Archive C:\gcc.zip -DestinationPath C:\gcc -Force; `
@@ -246,18 +213,31 @@ RUN `
   Expand-Archive C:\binutils.zip -DestinationPath C:\gcc -Force; `
   `
   Write-Host INFO: Removing downloaded files...; `
-  Remove-Item C:\gcc.zip; `
-  Remove-Item C:\runtime.zip; `
-  Remove-Item C:\binutils.zip; `
-  Remove-Item C:\gitsetup.zip; `
-  `
+  Remove-Item C:\*.zip;
+
+# The number of build steps below are explicitly minimised to improve performance.
+FROM base
+
+# FROM_DOCKERFILE is used for detection of building within a container.
+ENV FROM_DOCKERFILE=1
+
+RUN `
   # Ensure all directories exist that we will require below....
   $srcDir = """$Env:GOPATH`\src\github.com\docker\docker\bundles"""; `
   Write-Host INFO: Ensuring existence of directory $srcDir...; `
   New-Item -Force -ItemType Directory -Path $srcDir | Out-Null; `
   `
   Write-Host INFO: Configuring git core.autocrlf...; `
-  C:\git\cmd\git config --global core.autocrlf true;
+  C:\git\cmd\git config --global core.autocrlf true; `
+  `
+  Write-Host 'Updating PATH ...'; `
+  $env:PATH = 'C:\gcc\bin;' + $env:PATH; `
+  [Environment]::SetEnvironmentVariable('PATH', $env:PATH, [EnvironmentVariableTarget]::Machine); `
+  `
+  Write-Host INFO: Completed;
+
+ARG GOTESTSUM_COMMIT
+ENV GOTESTSUM_COMMIT=${GOTESTSUM_COMMIT}
 
 RUN `
   Function Build-GoTestSum() { `
@@ -281,6 +261,9 @@ ENTRYPOINT ["powershell.exe"]
 
 # Set the working directory to the location of the sources
 WORKDIR ${GOPATH}\src\github.com\docker\docker
+
+# Copy compiler
+COPY --from=compiler C:\gcc C:\gcc
 
 # Copy the sources into the container
 COPY . .

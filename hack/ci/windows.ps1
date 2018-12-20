@@ -558,17 +558,12 @@ Try {
     # Grab the golang installer out of the built image. That way, we know we are consistent once extracted and paths set,
     # so there's no need to re-deploy on account of an upgrade to the version of GO being used in docker.
     if ($null -eq $env:SKIP_COPY_GO) {
-        Write-Host -ForegroundColor Green "INFO: Copying the golang package from the container to $env:TEMP\installer\go.zip..."
-        docker cp "$COMMITHASH`:c`:\go.zip" $env:TEMP\installer\
+        Write-Host -ForegroundColor Green "INFO: Copying the golang package from the container to $env:TEMP\go..."
+        docker cp "$COMMITHASH`:c`:\go" $env:TEMP
         if (-not($LastExitCode -eq 0)) {
-            Throw "ERROR: Failed to docker cp the golang installer 'go.zip' from container:c:\go.zip to $env:TEMP\installer"
+            Throw "ERROR: Failed to docker cp golang from container:c:\go to $env:TEMP\go"
         }
         $ErrorActionPreference = "Stop"
-
-        # Extract the golang installer
-        Write-Host -ForegroundColor Green "INFO: Extracting go.zip to $env:TEMP\go"
-        $Duration=$(Measure-Command { Expand-Archive $env:TEMP\installer\go.zip $env:TEMP -Force | Out-Null})
-        Write-Host  -ForegroundColor Green "INFO: Extraction ended at $(Get-Date). Duration`:$Duration"    
     } else {
         Write-Host -ForegroundColor Magenta "WARN: Skipping copying and extracting golang from the image"
     }
