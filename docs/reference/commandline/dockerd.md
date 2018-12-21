@@ -1231,9 +1231,13 @@ The `--metrics-addr` option takes a tcp address to serve the metrics API.
 This feature is still experimental, therefore, the daemon must be running in experimental
 mode for this feature to work.
 
-To serve the metrics API on localhost:1337 you would specify `--metrics-addr 127.0.0.1:1337`
-allowing you to make requests on the API at `127.0.0.1:1337/metrics` to receive metrics in the
+To serve the metrics API on `localhost:9323` you would specify `--metrics-addr 127.0.0.1:9323`,
+allowing you to make requests on the API at `127.0.0.1:9323/metrics` to receive metrics in the
 [prometheus](https://prometheus.io/docs/instrumenting/exposition_formats/) format.
+
+Port `9323` is the [default port associated with Docker
+metrics](https://github.com/prometheus/prometheus/wiki/Default-port-allocations)
+to avoid collisions with other prometheus exporters and services.
 
 If you are running a prometheus server you can add this address to your scrape configs
 to have prometheus collect metrics on Docker.  For more information
@@ -1243,7 +1247,7 @@ on prometheus you can view the website [here](https://prometheus.io/).
 scrape_configs:
   - job_name: 'docker'
     static_configs:
-      - targets: ['127.0.0.1:1337']
+      - targets: ['127.0.0.1:9323']
 ```
 
 Please note that this feature is still marked as experimental as metrics and metric
