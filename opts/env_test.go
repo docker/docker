@@ -11,7 +11,7 @@ func TestValidateEnv(t *testing.T) {
 	testcase := []struct {
 		value    string
 		expected string
-		err      error
+		err      string
 	}{
 		{
 			value:    "a",
@@ -51,7 +51,7 @@ func TestValidateEnv(t *testing.T) {
 		},
 		{
 			value: "=a",
-			err:   fmt.Errorf(fmt.Sprintf("invalid environment variable: %s", "=a")),
+			err:   fmt.Sprintf("invalid environment variable: %q", "=a"),
 		},
 		{
 			value:    "PATH=something",
@@ -83,7 +83,15 @@ func TestValidateEnv(t *testing.T) {
 		},
 		{
 			value: "=",
-			err:   fmt.Errorf(fmt.Sprintf("invalid environment variable: %s", "=")),
+			err:   fmt.Sprintf("invalid environment variable: %q", "="),
+		},
+		{
+			value: "  =",
+			err:   fmt.Sprintf("invalid environment variable: %q", "  ="),
+		},
+		{
+			value: "     ",
+			err:   fmt.Sprintf("invalid environment variable: %q", "     "),
 		},
 	}
 
@@ -92,33 +100,35 @@ func TestValidateEnv(t *testing.T) {
 		tmp := struct {
 			value    string
 			expected string
-			err      error
+			err      string
 		}{
 			value:    "PaTh",
 			expected: fmt.Sprintf("PaTh=%v", os.Getenv("PATH")),
-			err:      nil,
 		}
 		testcase = append(testcase, tmp)
 	}
 
-	for _, r := range testcase {
-		actual, err := ValidateEnv(r.value)
+	for _, tc := range testcase {
+		tc := tc
+		t.Run(tc.value, func(t *testing.T) {
+			actual, err := ValidateEnv(tc.value)
 
-		if err != nil {
-			if r.err == nil {
-				t.Fatalf("Expected err is nil, got err[%v]", err)
+			if err != nil {
+				if tc.err == "" {
+					t.Fatalf("Expected err is nil, got err[%v]", err)
+				}
+				if err.Error() != tc.err {
+					t.Fatalf("Expected err[%v], got err[%v]", tc.err, err)
+				}
 			}
-			if err.Error() != r.err.Error() {
-				t.Fatalf("Expected err[%v], got err[%v]", r.err, err)
+
+			if err == nil && tc.err != "" {
+				t.Fatalf("Expected err[%v], but err is nil", tc.err)
 			}
-		}
 
-		if err == nil && r.err != nil {
-			t.Fatalf("Expected err[%v], but err is nil", r.err)
-		}
-
-		if actual != r.expected {
-			t.Fatalf("Expected [%v], got [%v]", r.expected, actual)
-		}
+			if actual != tc.expected {
+				t.Fatalf("Expected [%v], got [%v]", tc.expected, actual)
+			}
+		})
 	}
 }
