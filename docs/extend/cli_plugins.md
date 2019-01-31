@@ -75,6 +75,18 @@ A plugin is required to support all of the global options of the
 top-level CLI, i.e. those listed by `man docker 1` with the exception
 of `-v`.
 
+## Configuration
+
+Plugins are expected to make use of existing global configuration
+where it makes sense and likewise to consider extending the global
+configuration (by patching `docker/cli` to add new fields) where that
+is sensible.
+
+Where plugins unavoidably require specific configuration the
+`.plugins.«name»` key in the global `config.json` is reserved for
+their use. However the preference should be for shared/global
+configuration whenever that makes sense.
+
 ## Connecting to the docker engine
 
 For consistency plugins should prefer to dial the engine by using the
