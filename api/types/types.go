@@ -56,19 +56,20 @@ type ImageMetadata struct {
 // Container contains response of Engine API:
 // GET "/containers/json"
 type Container struct {
-	ID         string `json:"Id"`
-	Names      []string
-	Image      string
-	ImageID    string
-	Command    string
-	Created    int64
-	Ports      []Port
-	SizeRw     int64 `json:",omitempty"`
-	SizeRootFs int64 `json:",omitempty"`
-	Labels     map[string]string
-	State      string
-	Status     string
-	HostConfig struct {
+	ID                 string `json:"Id"`
+	Names              []string
+	Image              string
+	ImageID            string
+	Command            string
+	Created            int64
+	Ports              []Port
+	SizeRw             int64 `json:",omitempty"`
+	SizeRootFs         int64 `json:",omitempty"`
+	Labels             map[string]string
+	RuntimeAnnotations map[string]string
+	State              string
+	Status             string
+	HostConfig         struct {
 		NetworkMode string `json:",omitempty"`
 	}
 	NetworkSettings *SummaryNetworkSettings

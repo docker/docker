@@ -867,6 +867,8 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		s.Linux.ReadonlyPaths = c.HostConfig.ReadonlyPaths
 	}
 
+	s.Annotations = c.Config.RuntimeAnnotations
+
 	return &s, nil
 }
 
