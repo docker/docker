@@ -3,6 +3,7 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"encoding/json"
+	"net/url"
 
 	"github.com/docker/docker/api/types"
 )
@@ -51,4 +52,14 @@ func (cli *Client) ContainerExecInspect(ctx context.Context, execID string) (typ
 	err = json.NewDecoder(resp.body).Decode(&response)
 	ensureReaderClosed(resp)
 	return response, err
+}
+
+// ContainerExecKill kills an exec process on the docker host.
+func (cli *Client) ContainerExecKill(ctx context.Context, execID, signal string) error {
+	query := url.Values{}
+	query.Set("signal", signal)
+
+	resp, err := cli.post(ctx, "/exec/"+execID+"/kill", query, nil, nil)
+	ensureReaderClosed(resp)
+	return err
 }

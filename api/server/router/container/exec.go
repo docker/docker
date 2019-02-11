@@ -8,11 +8,13 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"syscall"
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/sirupsen/logrus"
 )
@@ -153,4 +155,28 @@ func (s *containerRouter) postContainerExecResize(ctx context.Context, w http.Re
 	}
 
 	return s.backend.ContainerExecResize(vars["name"], height, width)
+}
+
+func (s *containerRouter) postContainerExecKill(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	var sig syscall.Signal
+	name := vars["name"]
+
+	// If we have a signal, look at it. Otherwise, do nothing
+	if sigStr := r.Form.Get("signal"); sigStr != "" {
+		var err error
+		if sig, err = signal.ParseSignal(sigStr); err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+	}
+
+	if err := s.backend.ContainerExecKill(ctx, name, uint64(sig)); err != nil {
+		return err
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	return nil
 }
