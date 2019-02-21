@@ -75,6 +75,19 @@ A plugin is required to support all of the global options of the
 top-level CLI, i.e. those listed by `man docker 1` with the exception
 of `-v`.
 
+## Connecting to the docker engine
+
+For consistency plugins should prefer to dial the engine by using the
+`system dial-stdio` subcommand of the main Docker CLI binary.
+
+To facilitate this plugins will be executed with the
+`$DOCKER_CLI_PLUGIN_ORIGINAL_CLI_COMMAND` environment variable
+pointing back to the main Docker CLI binary.
+
+All global options (everything from after the binary name up to, but
+not including, the primary entry point subcommand name) should be
+passed back to the CLI.
+
 ## Installation
 
 Plugins distributed in packages for system wide installation on
