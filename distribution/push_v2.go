@@ -17,6 +17,7 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
 	apitypes "github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/layer"
@@ -113,6 +114,16 @@ func (p *v2Pusher) pushV2Repository(ctx context.Context) (err error) {
 }
 
 func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id digest.Digest) error {
+	newRef, err := registrytypes.RewriteReference(ref, p.endpoint.Prefix, p.endpoint.URL)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("rewriting %q to %q", ref.String(), newRef.String())
+	ref, err = reference.WithTag(newRef, ref.Tag())
+	if err != nil {
+		return err
+	}
+
 	logrus.Debugf("Pushing repository: %s", reference.FamiliarString(ref))
 
 	imgConfig, err := p.config.ImageStore.Get(id)

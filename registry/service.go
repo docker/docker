@@ -25,14 +25,15 @@ const (
 // Service is the interface defining what a registry service should implement.
 type Service interface {
 	Auth(ctx context.Context, authConfig *types.AuthConfig, userAgent string) (status, token string, err error)
-	LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error)
-	LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error)
+	LookupPullEndpoints(ref reference.Named) (endpoints []APIEndpoint, err error)
+	LookupPushEndpoints(ref reference.Named) (endpoints []APIEndpoint, err error)
 	ResolveRepository(name reference.Named) (*RepositoryInfo, error)
 	Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error)
 	ServiceConfig() *registrytypes.ServiceConfig
 	TLSConfig(hostname string) (*tls.Config, error)
 	LoadAllowNondistributableArtifacts([]string) error
 	LoadMirrors([]string) error
+	LoadRegistries(registrytypes.Registries) error
 	LoadInsecureRegistries([]string) error
 }
 
@@ -61,6 +62,7 @@ func (s *DefaultService) ServiceConfig() *registrytypes.ServiceConfig {
 		AllowNondistributableArtifactsHostnames: make([]string, 0),
 		InsecureRegistryCIDRs:                   make([]*(registrytypes.NetIPNet), 0),
 		IndexConfigs:                            make(map[string]*(registrytypes.IndexInfo)),
+		Registries:                              make([]registrytypes.Registry, 0),
 		Mirrors:                                 make([]string, 0),
 	}
 
@@ -73,6 +75,8 @@ func (s *DefaultService) ServiceConfig() *registrytypes.ServiceConfig {
 	for key, value := range s.config.ServiceConfig.IndexConfigs {
 		servConfig.IndexConfigs[key] = value
 	}
+
+	servConfig.Registries = append(servConfig.Registries, s.config.ServiceConfig.Registries...)
 
 	servConfig.Mirrors = append(servConfig.Mirrors, s.config.ServiceConfig.Mirrors...)
 
@@ -93,6 +97,14 @@ func (s *DefaultService) LoadMirrors(mirrors []string) error {
 	defer s.mu.Unlock()
 
 	return s.config.LoadMirrors(mirrors)
+}
+
+// LoadRegistries loads registries for Service
+func (s *DefaultService) LoadRegistries(registries registrytypes.Registries) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.config.LoadRegistries(registries)
 }
 
 // LoadInsecureRegistries loads insecure registries for Service
@@ -120,9 +132,9 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 		return "", "", errdefs.InvalidParameter(errors.Errorf("unable to parse server address: %v", err))
 	}
 
-	endpoints, err := s.LookupPushEndpoints(u.Host)
+	endpoints, err := s.lookupV2Endpoints(u.Host, u.Host, false)
 	if err != nil {
-		return "", "", errdefs.InvalidParameter(err)
+		return "", "", errors.Errorf("unable to lookup v2 endpoints: %v", err)
 	}
 
 	for _, endpoint := range endpoints {
@@ -256,6 +268,7 @@ type APIEndpoint struct {
 	Official                       bool
 	TrimHostname                   bool
 	TLSConfig                      *tls.Config
+	Prefix                         string
 }
 
 // ToV1Endpoint returns a V1 API endpoint based on the APIEndpoint
@@ -280,24 +293,24 @@ func (s *DefaultService) tlsConfigForMirror(mirrorURL *url.URL) (*tls.Config, er
 	return s.tlsConfig(mirrorURL.Host)
 }
 
-// LookupPullEndpoints creates a list of endpoints to try to pull from, in order of preference.
-// It gives preference to v2 endpoints over v1, mirrors over the actual
-// registry, and HTTPS over plain HTTP.
-func (s *DefaultService) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
+// LookupPullEndpoints creates a list of endpoints to try to pull from, in
+// order of preference.  It gives preference to v2 endpoints over v1, mirrors
+// over the actual registry, and HTTPS over plain HTTP.
+func (s *DefaultService) LookupPullEndpoints(ref reference.Named) (endpoints []APIEndpoint, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.lookupEndpoints(hostname)
+	return s.lookupEndpoints(ref, true)
 }
 
-// LookupPushEndpoints creates a list of endpoints to try to push to, in order of preference.
-// It gives preference to v2 endpoints over v1, and HTTPS over plain HTTP.
-// Mirrors are not included.
-func (s *DefaultService) LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
+// LookupPushEndpoints creates a list of endpoints to try to push to, in order
+// of preference.  It gives preference to v2 endpoints over v1, and HTTPS over
+// plain HTTP.  Mirrors are not included.
+func (s *DefaultService) LookupPushEndpoints(ref reference.Named) (endpoints []APIEndpoint, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	allEndpoints, err := s.lookupEndpoints(hostname)
+	allEndpoints, err := s.lookupEndpoints(ref, false)
 	if err == nil {
 		for _, endpoint := range allEndpoints {
 			if !endpoint.Mirror {
@@ -308,16 +321,25 @@ func (s *DefaultService) LookupPushEndpoints(hostname string) (endpoints []APIEn
 	return endpoints, err
 }
 
-func (s *DefaultService) lookupEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
-	endpoints, err = s.lookupV2Endpoints(hostname)
+func (s *DefaultService) lookupEndpoints(ref reference.Named, pull bool) (endpoints []APIEndpoint, err error) {
+	logrus.Infof("lookupEndpoints(%s)", ref)
+	endpoints, err = s.lookupV2Endpoints(reference.Domain(ref), ref.String(), pull)
 	if err != nil {
 		return nil, err
 	}
+	// XXX: limit push endpoints to at most ONE endpoint.
+	// See https://github.com/moby/moby/pull/34319 for further information.
+	if !pull && len(endpoints) > 1 {
+		endpoints = []APIEndpoint{endpoints[0]}
+	}
+	logrus.Infof("endpoints: %v", endpoints)
 
 	if s.config.V2Only {
 		return endpoints, nil
 	}
 
+	// legacy lookups are hostname-based
+	hostname := reference.Domain(ref)
 	legacyEndpoints, err := s.lookupV1Endpoints(hostname)
 	if err != nil {
 		return nil, err

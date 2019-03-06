@@ -100,7 +100,7 @@ func (i *ImageService) GetRepository(ctx context.Context, ref reference.Named, a
 	}
 
 	// get endpoints
-	endpoints, err := i.registryService.LookupPullEndpoints(reference.Domain(repoInfo.Name))
+	endpoints, err := i.registryService.LookupPullEndpoints(ref)
 	if err != nil {
 		return nil, false, err
 	}
@@ -116,7 +116,6 @@ func (i *ImageService) GetRepository(ctx context.Context, ref reference.Named, a
 		if endpoint.Version == registry.APIVersion1 {
 			continue
 		}
-
 		repository, confirmedV2, lastError = distribution.NewV2Repository(ctx, repoInfo, endpoint, nil, authConfig, "pull")
 		if lastError == nil && confirmedV2 {
 			break

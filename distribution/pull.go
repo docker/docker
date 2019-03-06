@@ -63,7 +63,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		return err
 	}
 
-	endpoints, err := imagePullConfig.RegistryService.LookupPullEndpoints(reference.Domain(repoInfo.Name))
+	endpoints, err := imagePullConfig.RegistryService.LookupPullEndpoints(ref)
 	if err != nil {
 		return err
 	}

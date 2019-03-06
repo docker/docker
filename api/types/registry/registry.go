@@ -2,9 +2,24 @@ package registry // import "github.com/docker/docker/api/types/registry"
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
+	"net/url"
+	"strings"
 
+	"github.com/docker/distribution/reference"
 	"github.com/opencontainers/image-spec/specs-go/v1"
+)
+
+var (
+	// DefaultEndpoint for docker.io
+	DefaultEndpoint = Endpoint{
+		Address: "https://registry-1.docker.io",
+		url: url.URL{
+			Scheme: "https",
+			Host:   "registry-1.docker.io",
+		},
+	}
 )
 
 // ServiceConfig stores daemon registry services configuration.
@@ -14,6 +29,182 @@ type ServiceConfig struct {
 	InsecureRegistryCIDRs                   []*NetIPNet           `json:"InsecureRegistryCIDRs"`
 	IndexConfigs                            map[string]*IndexInfo `json:"IndexConfigs"`
 	Mirrors                                 []string
+	Registries                              Registries
+}
+
+// Registries is a slice of type Registry.
+type Registries []Registry
+
+// Registry includes all data relevant for the lookup of push and pull
+// endpoints.
+type Registry struct {
+	// Prefix will be used for the lookup of push and pull endpoints.
+	Prefix string `json:"prefix"`
+	// Pull is a slice of registries serving as pull endpoints.
+	Pull []Endpoint `json:"pull,omitempty"`
+	// Push is a slice of registries serving as push endpoints.
+	Push []Endpoint `json:"push,omitempty"`
+	// prefixLength is the length of prefix and avoids redundant length
+	// calculations.
+	prefixLength int
+}
+
+// Endpoint includes all data associated with a given registry endpoint.
+type Endpoint struct {
+	// Address is the endpoints base URL when assembling a repository in a
+	// registry (e.g., "registry.com:5000/v2").
+	Address string `json:"address"`
+	// url is used during endpoint lookup and avoids to redundantly parse
+	// Address when the Endpoint is used.
+	url url.URL
+	// InsecureSkipVerify: if true, TLS accepts any certificate presented
+	// by the server and any host name in that certificate. In this mode,
+	// TLS is susceptible to man-in-the-middle attacks. This should be used
+	// only for testing
+	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
+}
+
+// RewriteReference strips the prefix from ref and appends it to registry.
+// If the prefix is empty, ref remains unchanged.  An error is returned if
+// prefix doesn't prefix ref.
+func RewriteReference(ref reference.Named, prefix string, registry *url.URL) (reference.Named, error) {
+	// Sanity check the provided arguments
+	if ref == nil {
+		return nil, fmt.Errorf("provided reference is nil")
+	}
+	if registry == nil {
+		return nil, fmt.Errorf("provided registry is nil")
+	}
+
+	// don't rewrite the default endpoints
+	if *registry == DefaultEndpoint.url {
+		return ref, nil
+	}
+
+	if prefix == "" {
+		return ref, nil
+	}
+
+	baseAddress := strings.TrimPrefix(registry.String(), registry.Scheme+"://")
+
+	refStr := ref.String()
+	if !strings.HasPrefix(refStr, prefix) {
+		return nil, fmt.Errorf("unable to rewrite reference %q with prefix %q", refStr, prefix)
+	}
+	remainder := strings.TrimPrefix(refStr, prefix)
+	remainder = strings.TrimPrefix(remainder, "/")
+	baseAddress = strings.TrimSuffix(baseAddress, "/")
+
+	newRefStr := baseAddress + "/" + remainder
+	newRef, err := reference.ParseNamed(newRefStr)
+	if err != nil {
+		return nil, fmt.Errorf("unable to rewrite reference %q with prefix %q to %q: %v", refStr, prefix, newRefStr, err)
+	}
+	return newRef, nil
+}
+
+// GetURL returns the Endpoint's URL.
+func (r *Endpoint) GetURL() *url.URL {
+	// return the pointer of a copy
+	url := r.url
+	return &url
+}
+
+// CalcPrefix checks if the registry prefixes reference and returns the length
+// of the prefix.  It returns 0 if the registry does not prefix reference.
+func (r *Registry) CalcPrefix(reference string) int {
+	if strings.HasPrefix(reference, r.Prefix) {
+		return r.prefixLength
+	}
+	return 0
+}
+
+// FindRegistry returns the Registry with the longest Prefix for reference or
+// nil if no Registry prefixes reference.
+func (r Registries) FindRegistry(reference string) *Registry {
+	var max int
+	var reg *Registry
+
+	max = 0
+	reg = nil
+	for i := range r {
+		lenPref := r[i].CalcPrefix(reference)
+		if lenPref > max {
+			max = lenPref
+			reg = &r[i]
+		}
+	}
+
+	return reg
+}
+
+// Prepare sets up the Endpoint.
+func (r *Endpoint) Prepare() error {
+	if !strings.HasPrefix(r.Address, "http://") && !strings.HasPrefix(r.Address, "https://") {
+		return fmt.Errorf("%s: address must start with %q or %q", r.Address, "http://", "https://")
+	}
+
+	u, err := url.Parse(r.Address)
+	if err != nil {
+		return err
+	}
+	r.url = *u
+	return nil
+}
+
+// Prepare must be called on each new Registry.  It sets up all specified push
+// and pull endpoints, and fills in defaults for the official "docker.io"
+// registry.
+func (r *Registry) Prepare() error {
+	if len(r.Prefix) == 0 {
+		return fmt.Errorf("Registry requires a prefix")
+	}
+
+	// return an error with the preifx doesn't end with a '/'
+	if !strings.HasSuffix(r.Prefix, "/") {
+		return fmt.Errorf("Prefix must end with a '/': prefixes match only at path boundaries")
+	}
+	r.prefixLength = len(r.Prefix)
+
+	official := false
+	// any prefix pointing to "docker.io/" is considered official
+	if strings.HasPrefix(r.Prefix, "docker.io/") {
+		official = true
+	}
+
+	prepareEndpoints := func(endpoints []Endpoint) ([]Endpoint, error) {
+		addDefaultEndpoint := official
+		for i := range endpoints {
+			if err := endpoints[i].Prepare(); err != nil {
+				return nil, err
+			}
+			if official && addDefaultEndpoint {
+				if endpoints[i].Address == DefaultEndpoint.Address {
+					addDefaultEndpoint = false
+				}
+			}
+		}
+		// if the default endpoint isn't specified, add it
+		if addDefaultEndpoint {
+			r.Pull = append(endpoints, DefaultEndpoint)
+		}
+		return endpoints, nil
+	}
+
+	var err error
+	if r.Pull, err = prepareEndpoints(r.Pull); err != nil {
+		return err
+	}
+
+	if r.Push, err = prepareEndpoints(r.Push); err != nil {
+		return err
+	}
+
+	if len(r.Pull) == 0 && len(r.Push) == 0 {
+		return fmt.Errorf("Registry with prefix %q without push or pull endpoints", r.Prefix)
+	}
+
+	return nil
 }
 
 // NetIPNet is the net.IPNet type, which can be marshalled and

@@ -20,6 +20,7 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -334,6 +335,14 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform 
 		return false, err
 	}
 
+	// Note that pullRef is only used for pulling while ref is used as
+	// the reference for storing the image
+	pullRef, err := registrytypes.RewriteReference(ref, p.endpoint.Prefix, p.endpoint.URL)
+	if err != nil {
+		return false, err
+	}
+	logrus.Infof("rewriting %q to %q", ref.String(), pullRef.String())
+
 	var (
 		manifest    distribution.Manifest
 		tagOrDigest string // Used for logging/progress only
@@ -379,7 +388,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform 
 	// the other side speaks the v2 protocol.
 	p.confirmedV2 = true
 
-	logrus.Debugf("Pulling ref from V2 registry: %s", reference.FamiliarString(ref))
+	logrus.Infof("Pulling ref %q from V2 registry: %s", ref, p.endpoint.URL)
 	progress.Message(p.config.ProgressOutput, tagOrDigest, "Pulling from "+reference.FamiliarName(p.repo.Named()))
 
 	var (
@@ -392,17 +401,17 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform 
 		if p.config.RequireSchema2 {
 			return false, fmt.Errorf("invalid manifest: not schema2")
 		}
-		id, manifestDigest, err = p.pullSchema1(ctx, ref, v, platform)
+		id, manifestDigest, err = p.pullSchema1(ctx, pullRef, v, platform)
 		if err != nil {
 			return false, err
 		}
 	case *schema2.DeserializedManifest:
-		id, manifestDigest, err = p.pullSchema2(ctx, ref, v, platform)
+		id, manifestDigest, err = p.pullSchema2(ctx, pullRef, v, platform)
 		if err != nil {
 			return false, err
 		}
 	case *manifestlist.DeserializedManifestList:
-		id, manifestDigest, err = p.pullManifestList(ctx, ref, v, platform)
+		id, manifestDigest, err = p.pullManifestList(ctx, pullRef, v, platform)
 		if err != nil {
 			return false, err
 		}

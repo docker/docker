@@ -14,11 +14,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// ServiceOptions holds command line options.
+// ServiceOptions holds user-specified configuration and command line options.
 type ServiceOptions struct {
 	AllowNondistributableArtifacts []string `json:"allow-nondistributable-artifacts,omitempty"`
 	Mirrors                        []string `json:"registry-mirrors,omitempty"`
 	InsecureRegistries             []string `json:"insecure-registries,omitempty"`
+
+	// Registries holds information associated with registries and their
+	// push and pull mirrors.
+	Registries registrytypes.Registries `json:"registries,omitempty"`
 
 	// V2Only controls access to legacy registries.  If it is set to true via the
 	// command line flag the daemon will not attempt to contact v1 legacy registries
@@ -67,8 +71,24 @@ var (
 // for mocking in unit tests
 var lookupIP = net.LookupIP
 
+// CompatCheck performs some compatibility checks among the config options and
+// returns an error in case of conflicts.
+func (options *ServiceOptions) CompatCheck() error {
+	if len(options.Registries) > 0 && len(options.InsecureRegistries) > 0 {
+		return fmt.Errorf("usage of 'registries' with deprecated option 'insecure-registries' is not supported")
+	}
+	if len(options.Registries) > 0 && len(options.Mirrors) > 0 {
+		return fmt.Errorf("usage of 'registries' with deprecated option 'registry-mirrors' is not supported")
+	}
+	return nil
+}
+
 // newServiceConfig returns a new instance of ServiceConfig
 func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
+	if err := options.CompatCheck(); err != nil {
+		return nil, fmt.Errorf("error loading config: %v", err)
+	}
+
 	config := &serviceConfig{
 		ServiceConfig: registrytypes.ServiceConfig{
 			InsecureRegistryCIDRs: make([]*registrytypes.NetIPNet, 0),
@@ -85,6 +105,9 @@ func newServiceConfig(options ServiceOptions) (*serviceConfig, error) {
 		return nil, err
 	}
 	if err := config.LoadInsecureRegistries(options.InsecureRegistries); err != nil {
+		return nil, err
+	}
+	if err := config.LoadRegistries(options.Registries); err != nil {
 		return nil, err
 	}
 
@@ -131,6 +154,10 @@ func (config *serviceConfig) LoadAllowNondistributableArtifacts(registries []str
 // LoadMirrors loads mirrors to config, after removing duplicates.
 // Returns an error if mirrors contains an invalid mirror.
 func (config *serviceConfig) LoadMirrors(mirrors []string) error {
+	if len(mirrors) > 0 {
+		logrus.Infof("usage of deprecated 'registry-mirrors' option: please use 'registries' instead")
+	}
+
 	mMap := map[string]struct{}{}
 	unique := []string{}
 
@@ -165,6 +192,10 @@ func (config *serviceConfig) LoadInsecureRegistries(registries []string) error {
 	//
 	// TODO: should we deprecate this once it is easier for people to set up a TLS registry or change
 	// daemon flags on boot2docker?
+	if len(registries) > 0 {
+		logrus.Info("usage of deprecated 'insecure-registries' option: please use 'registries' instead")
+	}
+
 	registries = append(registries, "127.0.0.0/8")
 
 	// Store original InsecureRegistryCIDRs and IndexConfigs
@@ -235,6 +266,30 @@ skip:
 		Official: true,
 	}
 
+	return nil
+}
+
+// LoadRegistries loads the user-specified configuration options for registries
+func (config *serviceConfig) LoadRegistries(registries registrytypes.Registries) error {
+	for _, registry := range registries {
+		if err := registry.Prepare(); err != nil {
+			return err
+		}
+		config.Registries = append(config.Registries, registry)
+	}
+
+	// Make sure there's a default registry for "docker.io"
+	if reg := config.Registries.FindRegistry("docker.io/"); reg == nil {
+		defaultReg := registrytypes.Registry{Prefix: "docker.io/"}
+		if err := defaultReg.Prepare(); err != nil {
+			return err
+		}
+		config.Registries = append(config.Registries, defaultReg)
+	}
+
+	for i, r := range config.Registries {
+		logrus.Infof("REGISTRY %d: %v", i, r)
+	}
 	return nil
 }
 

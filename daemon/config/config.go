@@ -471,6 +471,10 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 	unknownKeys := make(map[string]interface{})
 	for key, value := range config {
 		if flag := flags.Lookup(key); flag == nil && !skipValidateOptions[key] {
+			// skip config-only flags
+			if key == "registries" {
+				continue
+			}
 			unknownKeys[key] = value
 		}
 	}
