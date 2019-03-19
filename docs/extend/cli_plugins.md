@@ -111,7 +111,8 @@ the `/usr/local/lib` or `/usr/local/libexec` equivalents but packages
 should not do so.
 
 Plugins distributed on Windows for system wide installation should be
-installed in `%PROGRAMDATA%\Docker\cli-plugins`.
+installed in either `%ProgramData%\Docker\cli-plugins` or
+`%ProgramFiles%\Docker\cli-plugins`.
 
 User's may on all systems install plugins into `~/.docker/cli-plugins`.
 
