@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -264,11 +266,11 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 	select {
 	case <-ctx.Done():
 		logrus.Debugf("Sending TERM signal to process %v in container %v", name, c.ID)
-		d.containerd.SignalProcess(ctx, c.ID, name, int(signal.SignalMap["TERM"]))
+		d.ContainerExecKill(ctx, name, uint64(signal.SignalMap["TERM"]))
 		select {
 		case <-time.After(termProcessTimeout * time.Second):
 			logrus.Infof("Container %v, process %v failed to exit within %d seconds of signal TERM - using the force", c.ID, name, termProcessTimeout)
-			d.containerd.SignalProcess(ctx, c.ID, name, int(signal.SignalMap["KILL"]))
+			d.ContainerExecKill(ctx, name, uint64(signal.SignalMap["KILL"]))
 		case <-attachErr:
 			// TERM signal worked
 		}
@@ -285,6 +287,25 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 		}
 	}
 	return nil
+}
+
+// ContainerExecKill kills an exec instance.
+func (d *Daemon) ContainerExecKill(ctx context.Context, name string, sig uint64) error {
+	e, err := d.getExecConfig(name)
+	if err != nil {
+		return err
+	}
+
+	if sig != 0 && !signal.ValidSignalForPlatform(syscall.Signal(sig)) {
+		return fmt.Errorf("The %s daemon does not support signal %d", runtime.GOOS, sig)
+	}
+
+	// If no signal is passed, default to SIGKILL
+	if sig == 0 {
+		sig = uint64(signal.SignalMap["KILL"])
+	}
+
+	return d.containerd.SignalProcess(ctx, e.ContainerID, name, int(sig))
 }
 
 // execCommandGC runs a ticker to clean up the daemon references

@@ -275,6 +275,11 @@ type ExecStartCheck struct {
 	Tty bool
 }
 
+// ExecKillOptions is a temp struct used by execKill
+type ExecKillOptions struct {
+	Force bool
+}
+
 // HealthcheckResult stores information about a single run of a healthcheck probe
 type HealthcheckResult struct {
 	Start    time.Time // Start is the time this check started

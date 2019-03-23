@@ -18,6 +18,7 @@ type execBackend interface {
 	ContainerExecInspect(id string) (*backend.ExecInspect, error)
 	ContainerExecResize(name string, height, width int) error
 	ContainerExecStart(ctx context.Context, name string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error
+	ContainerExecKill(ctx context.Context, name string, sig uint64) error
 	ExecExists(name string) (bool, error)
 }
 

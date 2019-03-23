@@ -164,3 +164,33 @@ func TestContainerExecInspect(t *testing.T) {
 		t.Fatalf("expected ContainerID `container_id`, got %s", inspect.ContainerID)
 	}
 }
+
+func TestContainerExecKillError(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	}
+
+	err := client.ContainerExecKill(context.Background(), "nothing", "TERM")
+	if err == nil || err.Error() != "Error response from daemon: Server error" {
+		t.Fatalf("expected a Server Error, got %v", err)
+	}
+}
+
+func TestContainerExecKill(t *testing.T) {
+	expectedURL := "/exec/exec_id/kill"
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			return &http.Response{
+				StatusCode: http.StatusNoContent,
+			}, nil
+		}),
+	}
+
+	err := client.ContainerExecKill(context.Background(), "exec_id", "TERM")
+	if err != nil {
+		t.Fatal(err)
+	}
+}

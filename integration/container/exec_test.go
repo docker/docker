@@ -117,3 +117,53 @@ func TestExec(t *testing.T) {
 	assert.Assert(t, is.Contains(out, "PWD=/tmp"), "exec command not running in expected /tmp working directory")
 	assert.Assert(t, is.Contains(out, "FOO=BAR"), "exec command not running with expected environment variable FOO")
 }
+
+func TestExecKill(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "broken in earlier versions")
+	skip.If(t, testEnv.OSType == "windows", "FIXME. Probably needs to wait for container to be in running state.")
+	defer setupTest(t)()
+	ctx := context.Background()
+	client := testEnv.APIClient()
+
+	cID := container.Run(t, ctx, client, container.WithTty(true), container.WithWorkingDir("/root"))
+
+	// Assume this test ends within 10 seconds
+	id, err := client.ContainerExecCreate(ctx, cID,
+		types.ExecConfig{
+			Detach: true,
+			Cmd:    strslice.StrSlice([]string{"sh", "-c", "for i in {1..10}; do sleep 1; done"}),
+		},
+	)
+	assert.NilError(t, err)
+
+	resp, err := client.ContainerExecAttach(ctx, id.ID, types.ExecStartCheck{})
+	assert.NilError(t, err)
+	defer resp.Close()
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("failed to run the exec instance in time")
+	case <-ticker.C:
+		inspect, err := client.ContainerExecInspect(ctx, id.ID)
+		if err != nil && inspect.Running {
+			break
+		}
+	}
+
+	err = client.ContainerExecKill(ctx, id.ID, "TERM")
+	assert.NilError(t, err)
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("failed to kill the exec instance in time")
+	case <-ticker.C:
+		_, err := client.ContainerExecInspect(ctx, id.ID)
+		if err != nil {
+			assert.Error(t, err, "no such exec")
+			break
+		}
+	}
+}

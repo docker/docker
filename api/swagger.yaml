@@ -7844,6 +7844,34 @@ paths:
           required: true
           type: "string"
       tags: ["Exec"]
+  /exec/{id}/kill:
+    post:
+      summary: "Kill an exec instance"
+      description: "Kill an exec instance."
+      operationId: "ExecKill"
+      responses:
+        204:
+          description: "No error"
+        404:
+          description: "No such exec instance"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "Server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "id"
+          in: "path"
+          description: "Exec instance ID"
+          required: true
+          type: "string"
+        - name: "signal"
+          in: "query"
+          description: "Signal to send to the container as an integer or string (e.g. `SIGINT`)"
+          type: "string"
+          default: "SIGKILL"
+      tags: ["Exec"]
 
   /volumes:
     get:

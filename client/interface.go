@@ -54,6 +54,7 @@ type ContainerAPIClient interface {
 	ContainerExecInspect(ctx context.Context, execID string) (types.ContainerExecInspect, error)
 	ContainerExecResize(ctx context.Context, execID string, options types.ResizeOptions) error
 	ContainerExecStart(ctx context.Context, execID string, config types.ExecStartCheck) error
+	ContainerExecKill(ctx context.Context, execID, signal string) error
 	ContainerExport(ctx context.Context, container string) (io.ReadCloser, error)
 	ContainerInspect(ctx context.Context, container string) (types.ContainerJSON, error)
 	ContainerInspectWithRaw(ctx context.Context, container string, getSize bool) (types.ContainerJSON, []byte, error)
