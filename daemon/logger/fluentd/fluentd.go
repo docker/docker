@@ -48,7 +48,11 @@ const (
 	defaultRetryWait  = 1000
 	defaultMaxRetries = math.MaxInt32
 
+	// Write() will time out after 20s
+	defaultWriteTimeout = time.Duration(20 * time.Second)
+
 	addressKey            = "fluentd-address"
+	writeTimeoutKey       = "fluentd-write-timeout"
 	bufferLimitKey        = "fluentd-buffer-limit"
 	retryWaitKey          = "fluentd-retry-wait"
 	maxRetriesKey         = "fluentd-max-retries"
@@ -82,6 +86,18 @@ func New(info logger.Info) (logger.Logger, error) {
 	extra, err := info.ExtraAttributes(nil)
 	if err != nil {
 		return nil, err
+	}
+
+	writeTimeout := defaultWriteTimeout
+	i, _ := strconv.Atoi(info.Config[writeTimeoutKey])
+	if info.Config[writeTimeoutKey] != "" && i >= 0 {
+		wtd, err := time.ParseDuration(info.Config[writeTimeoutKey])
+		if err != nil {
+			return nil, err
+		}
+		writeTimeout = wtd
+	} else if i < 0 {
+		return nil, fmt.Errorf("Invalid Parameter: write-timeout must be a positive integer")
 	}
 
 	bufferLimit := defaultBufferLimit
@@ -130,6 +146,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		FluentHost:         loc.host,
 		FluentNetwork:      loc.protocol,
 		FluentSocketPath:   loc.path,
+		WriteTimeout:       writeTimeout,
 		BufferLimit:        bufferLimit,
 		RetryWait:          retryWait,
 		MaxRetry:           maxRetries,
@@ -192,6 +209,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "tag":
 		case addressKey:
 		case bufferLimitKey:
+		case writeTimeoutKey:
 		case retryWaitKey:
 		case maxRetriesKey:
 		case asyncConnectKey:

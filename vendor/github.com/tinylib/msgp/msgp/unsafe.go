@@ -24,8 +24,7 @@ const (
 // THIS IS EVIL CODE.
 // YOU HAVE BEEN WARNED.
 func UnsafeString(b []byte) string {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	return *(*string)(unsafe.Pointer(&reflect.StringHeader{Data: sh.Data, Len: sh.Len}))
+	return *(*string)(unsafe.Pointer(&reflect.StringHeader{Data: uintptr(unsafe.Pointer(&b[0])), Len: len(b)}))
 }
 
 // UnsafeBytes returns the string as a byte slice
