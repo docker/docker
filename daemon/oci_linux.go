@@ -637,6 +637,11 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		}
 	}
 
+	// make sure mounts are not shadowing other mounts
+	sort.SliceStable(s.Mounts, func(i, j int) bool {
+		return s.Mounts[i].Destination < s.Mounts[j].Destination
+	})
+
 	return nil
 }
 
@@ -814,7 +819,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	}
 	ms = append(ms, secretMounts...)
 
-	sort.Sort(mounts(ms))
 	if err := setMounts(daemon, &s, c, ms); err != nil {
 		return nil, fmt.Errorf("linux mounts: %v", err)
 	}
