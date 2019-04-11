@@ -860,6 +860,15 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	s.Process.NoNewPrivileges = c.NoNewPrivileges
 	s.Process.OOMScoreAdj = &c.HostConfig.OomScoreAdj
 	s.Linux.MountLabel = c.MountLabel
+	if s.Annotations == nil {
+		s.Annotations = make(map[string]string)
+	}
+	for k, v := range c.Config.Labels {
+		if oldValue, ok := s.Annotations[k]; ok {
+			return nil, errors.Errorf("Key %q already exists in Annotations, the new value will be ignored, old value=%q, new value=%q", k, oldValue, v)
+		}
+		s.Annotations[k] = v
+	}
 
 	// Set the masked and readonly paths with regard to the host config options if they are set.
 	if c.HostConfig.MaskedPaths != nil {
