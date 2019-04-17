@@ -77,10 +77,19 @@ func getPlatformDefaults(info types.Info, osType string) PlatformDefaults {
 			ContainerStoragePath: toSlash(containersPath),
 		}
 	case "windows":
-		baseImage := "microsoft/windowsservercore"
+		var baseImage string
 		if override := os.Getenv("WINDOWS_BASE_IMAGE"); override != "" {
 			baseImage = override
 			fmt.Println("INFO: Windows Base image is ", baseImage)
+		} else {
+			baseImageRepo := "mcr.microsoft.com/windows/servercore"
+			baseImageTag := "1809"
+
+			if windowsVersion := os.Getenv("WINDOWS_VERSION"); windowsVersion != "" {
+				baseImageTag = windowsVersion
+			}
+
+			baseImage = baseImageRepo + ":" + baseImageTag
 		}
 		return PlatformDefaults{
 			BaseImage:            baseImage,
