@@ -812,7 +812,7 @@ Defaults to 20G.
 
 ###### Example
 
-```PowerShell
+```powershell
 C:\> dockerd --storage-opt size=40G
 ```
 
@@ -827,7 +827,7 @@ deployments).
 
 ###### Example
 
-```PowerShell
+```powershell
 C:\> dockerd --storage-opt lcow.globalmode=false
 ```
 
@@ -838,7 +838,7 @@ used for booting a utility VM. Defaults to `%ProgramFiles%\Linux Containers`.
 
 ###### Example
 
-```PowerShell
+```powershell
 C:\> dockerd --storage-opt lcow.kirdpath=c:\path\to\files
 ```
 
@@ -849,7 +849,7 @@ Defaults to `bootx64.efi`.
 
 ###### Example
 
-```PowerShell
+```powershell
 C:\> dockerd --storage-opt lcow.kernel=kernel.efi
 ```
 
@@ -860,7 +860,7 @@ Defaults to `initrd.img`.
 
 ###### Example
 
-```PowerShell
+```powershell
 C:\> dockerd --storage-opt lcow.initrd=myinitrd.img
 ```
 
@@ -872,7 +872,7 @@ are kernel specific.
 
 ###### Example
 
-```PowerShell
+```powershell
 C:\> dockerd --storage-opt "lcow.bootparameters='option=value'"
 ```
 
@@ -883,7 +883,7 @@ and initrd booting. Defaults to `uvm.vhdx` under `lcow.kirdpath`.
 
 ###### Example
 
-```PowerShell
+```powershell
 C:\> dockerd --storage-opt lcow.vhdx=custom.vhdx
 ```
 
@@ -894,7 +894,7 @@ to 300.
 
 ###### Example
 
-```PowerShell
+```powershell
 C:\> dockerd --storage-opt lcow.timeout=240
 ```
 
@@ -905,7 +905,7 @@ containers. Defaults to 20. Cannot be less than 20.
 
 ###### Example
 
-```PowerShell
+```powershell
 C:\> dockerd --storage-opt lcow.sandboxsize=40
 ```
 
