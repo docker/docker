@@ -10,9 +10,9 @@ package opts // import "github.com/docker/docker/opts"
 // (and daemon as this is local) is not physically on a network, and the DNS
 // cache is flushed (ipconfig /flushdns), then the client will pause for
 // exactly one second when connecting to the daemon for calls. For example
-// using docker run windowsservercore cmd, the CLI will send a create followed
-// by an attach. You see the delay between the attach finishing and the attach
-// being seen by the daemon.
+// using docker run mcr.microsoft.com/windows/servercore:1607 cmd, the CLI will
+// send a create followed by an attach. You see the delay between the attach
+// finishing and the attach being seen by the daemon.
 //
 // Here's some daemon debug logs with additional debug spew put in. The
 // AfterWriteJSON log is the very last thing the daemon does as part of the
