@@ -468,6 +468,7 @@ RUN for g in $(seq 0 8); do dd if=/dev/urandom of=rnd bs=1K count=1 seek=$((1024
 }
 
 func TestBuildWithEmptyDockerfile(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "broken in earlier versions")
 	ctx := context.TODO()
 	defer setupTest(t)()
 
@@ -518,6 +519,45 @@ func TestBuildWithEmptyDockerfile(t *testing.T) {
 				})
 
 			assert.Check(t, is.Contains(err.Error(), tc.expectedErr))
+		})
+	}
+}
+
+func TestBuildPreserveOwnership(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "broken in earlier versions")
+
+	ctx := context.Background()
+
+	dockerfile, err := ioutil.ReadFile("testdata/Dockerfile.testBuildPreserveOwnership")
+	assert.NilError(t, err)
+
+	source := fakecontext.New(t, "", fakecontext.WithDockerfile(string(dockerfile)))
+	defer source.Close()
+
+	apiclient := testEnv.APIClient()
+
+	for _, target := range []string{"copy_from", "copy_from_chowned"} {
+		t.Run(target, func(t *testing.T) {
+			resp, err := apiclient.ImageBuild(
+				ctx,
+				source.AsTarReader(t),
+				types.ImageBuildOptions{
+					Remove:      true,
+					ForceRemove: true,
+					Target:      target,
+				},
+			)
+			assert.NilError(t, err)
+
+			out := bytes.NewBuffer(nil)
+			assert.NilError(t, err)
+			_, err = io.Copy(out, resp.Body)
+			_ = resp.Body.Close()
+			if err != nil {
+				t.Log(out)
+			}
+			assert.NilError(t, err)
 		})
 	}
 }

@@ -19,7 +19,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ResolveCacheExporterFunc func(ctx context.Context, typ, target string) (Exporter, error)
+type ResolveCacheExporterFunc func(ctx context.Context, attrs map[string]string) (Exporter, error)
 
 func oneOffProgress(ctx context.Context, id string) func(err error) error {
 	pw, _, _ := progress.FromContext(ctx)
@@ -39,8 +39,16 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 
 type Exporter interface {
 	solver.CacheExporterTarget
-	Finalize(ctx context.Context) error
+	// Finalize finalizes and return metadata that are returned to the client
+	// e.g. ExporterResponseManifestDesc
+	Finalize(ctx context.Context) (map[string]string, error)
 }
+
+const (
+	// ExportResponseManifestDesc is a key for the map returned from Exporter.Finalize.
+	// The map value is a JSON string of an OCI desciptor of a manifest.
+	ExporterResponseManifestDesc = "cache.manifest"
+)
 
 type contentCacheExporter struct {
 	solver.CacheExporterTarget
@@ -53,14 +61,15 @@ func NewExporter(ingester content.Ingester) Exporter {
 	return &contentCacheExporter{CacheExporterTarget: cc, chains: cc, ingester: ingester}
 }
 
-func (ce *contentCacheExporter) Finalize(ctx context.Context) error {
+func (ce *contentCacheExporter) Finalize(ctx context.Context) (map[string]string, error) {
 	return export(ctx, ce.ingester, ce.chains)
 }
 
-func export(ctx context.Context, ingester content.Ingester, cc *v1.CacheChains) error {
+func export(ctx context.Context, ingester content.Ingester, cc *v1.CacheChains) (map[string]string, error) {
+	res := make(map[string]string)
 	config, descs, err := cc.Marshal()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// own type because oci type can't be pushed and docker type doesn't have annotations
@@ -80,11 +89,11 @@ func export(ctx context.Context, ingester content.Ingester, cc *v1.CacheChains) 
 	for _, l := range config.Layers {
 		dgstPair, ok := descs[l.Blob]
 		if !ok {
-			return errors.Errorf("missing blob %s", l.Blob)
+			return nil, errors.Errorf("missing blob %s", l.Blob)
 		}
 		layerDone := oneOffProgress(ctx, fmt.Sprintf("writing layer %s", l.Blob))
 		if err := contentutil.Copy(ctx, ingester, dgstPair.Provider, dgstPair.Descriptor); err != nil {
-			return layerDone(errors.Wrap(err, "error writing layer blob"))
+			return nil, layerDone(errors.Wrap(err, "error writing layer blob"))
 		}
 		layerDone(nil)
 		mfst.Manifests = append(mfst.Manifests, dgstPair.Descriptor)
@@ -92,7 +101,7 @@ func export(ctx context.Context, ingester content.Ingester, cc *v1.CacheChains) 
 
 	dt, err := json.Marshal(config)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	dgst := digest.FromBytes(dt)
 	desc := ocispec.Descriptor{
@@ -102,7 +111,7 @@ func export(ctx context.Context, ingester content.Ingester, cc *v1.CacheChains) 
 	}
 	configDone := oneOffProgress(ctx, fmt.Sprintf("writing config %s", dgst))
 	if err := content.WriteBlob(ctx, ingester, dgst.String(), bytes.NewReader(dt), desc); err != nil {
-		return configDone(errors.Wrap(err, "error writing config blob"))
+		return nil, configDone(errors.Wrap(err, "error writing config blob"))
 	}
 	configDone(nil)
 
@@ -110,7 +119,7 @@ func export(ctx context.Context, ingester content.Ingester, cc *v1.CacheChains) 
 
 	dt, err = json.Marshal(mfst)
 	if err != nil {
-		return errors.Wrap(err, "failed to marshal manifest")
+		return nil, errors.Wrap(err, "failed to marshal manifest")
 	}
 	dgst = digest.FromBytes(dt)
 
@@ -121,8 +130,13 @@ func export(ctx context.Context, ingester content.Ingester, cc *v1.CacheChains) 
 	}
 	mfstDone := oneOffProgress(ctx, fmt.Sprintf("writing manifest %s", dgst))
 	if err := content.WriteBlob(ctx, ingester, dgst.String(), bytes.NewReader(dt), desc); err != nil {
-		return mfstDone(errors.Wrap(err, "error writing manifest blob"))
+		return nil, mfstDone(errors.Wrap(err, "error writing manifest blob"))
 	}
+	descJSON, err := json.Marshal(desc)
+	if err != nil {
+		return nil, err
+	}
+	res[ExporterResponseManifestDesc] = string(descJSON)
 	mfstDone(nil)
-	return nil
+	return res, nil
 }

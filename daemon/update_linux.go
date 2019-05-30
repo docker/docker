@@ -4,12 +4,12 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/libcontainerd"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func toContainerdResources(resources container.Resources) *libcontainerd.Resources {
-	var r libcontainerd.Resources
+func toContainerdResources(resources container.Resources) *libcontainerdtypes.Resources {
+	var r libcontainerdtypes.Resources
 
 	r.BlockIO = &specs.LinuxBlockIO{
 		Weight: &resources.BlkioWeight,

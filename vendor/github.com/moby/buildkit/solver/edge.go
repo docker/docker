@@ -3,6 +3,7 @@ package solver
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/moby/buildkit/solver/internal/pipe"
 	digest "github.com/opencontainers/go-digest"
@@ -28,7 +29,7 @@ func newEdge(ed Edge, op activeOp, index *edgeIndex) *edge {
 		edge:         ed,
 		op:           op,
 		depRequests:  map[pipe.Receiver]*dep{},
-		keyMap:       map[string]*CacheKey{},
+		keyMap:       map[string]struct{}{},
 		cacheRecords: map[string]*CacheRecord{},
 		index:        index,
 	}
@@ -50,7 +51,7 @@ type edge struct {
 	execReq         pipe.Receiver
 	err             error
 	cacheRecords    map[string]*CacheRecord
-	keyMap          map[string]*CacheKey
+	keyMap          map[string]struct{}
 
 	noCacheMatchPossible      bool
 	allDepsCompletedCacheFast bool
@@ -526,6 +527,10 @@ func (e *edge) recalcCurrentState() {
 		}
 	}
 
+	for key := range newKeys {
+		e.keyMap[key] = struct{}{}
+	}
+
 	for _, r := range newKeys {
 		// TODO: add all deps automatically
 		mergedKey := r.clone()
@@ -612,6 +617,36 @@ func (e *edge) recalcCurrentState() {
 		e.allDepsCompletedCacheSlow = e.cacheMapDone && allDepsCompletedCacheSlow
 		e.allDepsStateCacheSlow = e.cacheMapDone && allDepsStateCacheSlow
 		e.allDepsCompleted = e.cacheMapDone && allDepsCompleted
+
+		if e.allDepsStateCacheSlow && len(e.cacheRecords) > 0 && e.state == edgeStatusCacheFast {
+			openKeys := map[string]struct{}{}
+			for _, dep := range e.deps {
+				isSlowIncomplete := e.slowCacheFunc(dep) != nil && (dep.state == edgeStatusCacheSlow || (dep.state == edgeStatusComplete && !dep.slowCacheComplete))
+				if !isSlowIncomplete {
+					openDepKeys := map[string]struct{}{}
+					for key := range dep.keyMap {
+						if _, ok := e.keyMap[key]; !ok {
+							openDepKeys[key] = struct{}{}
+						}
+					}
+					if len(openKeys) != 0 {
+						for k := range openKeys {
+							if _, ok := openDepKeys[k]; !ok {
+								delete(openKeys, k)
+							}
+						}
+					} else {
+						openKeys = openDepKeys
+					}
+					if len(openKeys) == 0 {
+						e.state = edgeStatusCacheSlow
+						if debugScheduler {
+							logrus.Debugf("upgrade to cache-slow because no open keys")
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -845,7 +880,7 @@ func (e *edge) execOp(ctx context.Context) (interface{}, error) {
 	var exporters []CacheExporter
 
 	for _, cacheKey := range cacheKeys {
-		ck, err := e.op.Cache().Save(cacheKey, res)
+		ck, err := e.op.Cache().Save(cacheKey, res, time.Now())
 		if err != nil {
 			return nil, err
 		}

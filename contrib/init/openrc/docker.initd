@@ -11,14 +11,18 @@ DOCKER_OUTFILE="${DOCKER_OUTFILE:-${DOCKER_LOGFILE}}"
 start_stop_daemon_args="--background \
 	--stderr \"${DOCKER_ERRFILE}\" --stdout \"${DOCKER_OUTFILE}\""
 
+extra_started_commands="reload"
+
+rc_ulimit="${DOCKER_ULIMIT:--c unlimited -n 1048576 -u unlimited}"
+
+retry="${DOCKER_RETRY:-TERM/60/KILL/10}"
+
 start_pre() {
 	checkpath -f -m 0644 -o root:docker "$DOCKER_LOGFILE"
+}
 
-	ulimit -n 1048576
-
-	# Having non-zero limits causes performance problems due to accounting overhead
-	# in the kernel. We recommend using cgroups to do container-local accounting.
-	ulimit -u unlimited
-
-	return 0
+reload() {
+        ebegin "Reloading ${RC_SVCNAME}"
+        start-stop-daemon --signal HUP --pidfile "${pidfile}"
+        eend $? "Failed to stop ${RC_SVCNAME}"
 }

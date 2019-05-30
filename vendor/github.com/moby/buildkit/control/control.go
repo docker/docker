@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/distribution/reference"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	apitypes "github.com/moby/buildkit/api/types"
 	"github.com/moby/buildkit/cache/remotecache"
@@ -26,15 +25,14 @@ import (
 	"google.golang.org/grpc"
 )
 
-type ResolveCacheExporterFunc func(ctx context.Context, typ, target string) (remotecache.Exporter, error)
-
 type Opt struct {
-	SessionManager           *session.Manager
-	WorkerController         *worker.Controller
-	Frontends                map[string]frontend.Frontend
-	CacheKeyStorage          solver.CacheKeyStorage
-	ResolveCacheExporterFunc remotecache.ResolveCacheExporterFunc
-	ResolveCacheImporterFunc remotecache.ResolveCacheImporterFunc
+	SessionManager            *session.Manager
+	WorkerController          *worker.Controller
+	Frontends                 map[string]frontend.Frontend
+	CacheKeyStorage           solver.CacheKeyStorage
+	ResolveCacheExporterFuncs map[string]remotecache.ResolveCacheExporterFunc
+	ResolveCacheImporterFuncs map[string]remotecache.ResolveCacheImporterFunc
+	Entitlements              []string
 }
 
 type Controller struct { // TODO: ControlService
@@ -51,7 +49,7 @@ func NewController(opt Opt) (*Controller, error) {
 
 	gatewayForwarder := controlgateway.NewGatewayForwarder()
 
-	solver, err := llbsolver.New(opt.WorkerController, opt.Frontends, cache, opt.ResolveCacheImporterFunc, gatewayForwarder)
+	solver, err := llbsolver.New(opt.WorkerController, opt.Frontends, cache, opt.ResolveCacheImporterFuncs, gatewayForwarder, opt.SessionManager, opt.Entitlements)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create solver")
 	}
@@ -179,7 +177,39 @@ func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Contr
 	return eg2.Wait()
 }
 
+func translateLegacySolveRequest(req *controlapi.SolveRequest) error {
+	// translates ExportRef and ExportAttrs to new Exports (v0.4.0)
+	if legacyExportRef := req.Cache.ExportRefDeprecated; legacyExportRef != "" {
+		ex := &controlapi.CacheOptionsEntry{
+			Type:  "registry",
+			Attrs: req.Cache.ExportAttrsDeprecated,
+		}
+		if ex.Attrs == nil {
+			ex.Attrs = make(map[string]string)
+		}
+		ex.Attrs["ref"] = legacyExportRef
+		// FIXME(AkihiroSuda): skip append if already exists
+		req.Cache.Exports = append(req.Cache.Exports, ex)
+		req.Cache.ExportRefDeprecated = ""
+		req.Cache.ExportAttrsDeprecated = nil
+	}
+	// translates ImportRefs to new Imports (v0.4.0)
+	for _, legacyImportRef := range req.Cache.ImportRefsDeprecated {
+		im := &controlapi.CacheOptionsEntry{
+			Type:  "registry",
+			Attrs: map[string]string{"ref": legacyImportRef},
+		}
+		// FIXME(AkihiroSuda): skip append if already exists
+		req.Cache.Imports = append(req.Cache.Imports, im)
+	}
+	req.Cache.ImportRefsDeprecated = nil
+	return nil
+}
+
 func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*controlapi.SolveResponse, error) {
+	if err := translateLegacySolveRequest(req); err != nil {
+		return nil, err
+	}
 	ctx = session.NewContext(ctx, req.Session)
 
 	defer func() {
@@ -194,7 +224,7 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 		return nil, err
 	}
 	if req.Exporter != "" {
-		exp, err := w.Exporter(req.Exporter)
+		exp, err := w.Exporter(req.Exporter, c.opt.SessionManager)
 		if err != nil {
 			return nil, err
 		}
@@ -204,38 +234,44 @@ func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*
 		}
 	}
 
-	var cacheExporter remotecache.Exporter
-	if ref := req.Cache.ExportRef; ref != "" && c.opt.ResolveCacheExporterFunc != nil {
-		parsed, err := reference.ParseNormalizedNamed(ref)
-		if err != nil {
-			return nil, err
-		}
-		exportCacheRef := reference.TagNameOnly(parsed).String()
-		typ := "" // unimplemented yet (typically registry)
-		cacheExporter, err = c.opt.ResolveCacheExporterFunc(ctx, typ, exportCacheRef)
-		if err != nil {
-			return nil, err
-		}
+	var (
+		cacheExporter   remotecache.Exporter
+		cacheExportMode solver.CacheExportMode
+		cacheImports    []frontend.CacheOptionsEntry
+	)
+	if len(req.Cache.Exports) > 1 {
+		// TODO(AkihiroSuda): this should be fairly easy
+		return nil, errors.New("specifying multiple cache exports is not supported currently")
 	}
 
-	var importCacheRefs []string
-	for _, ref := range req.Cache.ImportRefs {
-		parsed, err := reference.ParseNormalizedNamed(ref)
+	if len(req.Cache.Exports) == 1 {
+		e := req.Cache.Exports[0]
+		cacheExporterFunc, ok := c.opt.ResolveCacheExporterFuncs[e.Type]
+		if !ok {
+			return nil, errors.Errorf("unknown cache exporter: %q", e.Type)
+		}
+		cacheExporter, err = cacheExporterFunc(ctx, e.Attrs)
 		if err != nil {
 			return nil, err
 		}
-		importCacheRefs = append(importCacheRefs, reference.TagNameOnly(parsed).String())
+		cacheExportMode = parseCacheExportMode(e.Attrs["mode"])
+	}
+	for _, im := range req.Cache.Imports {
+		cacheImports = append(cacheImports, frontend.CacheOptionsEntry{
+			Type:  im.Type,
+			Attrs: im.Attrs,
+		})
 	}
 
 	resp, err := c.solver.Solve(ctx, req.Ref, frontend.SolveRequest{
-		Frontend:        req.Frontend,
-		Definition:      req.Definition,
-		FrontendOpt:     req.FrontendAttrs,
-		ImportCacheRefs: importCacheRefs,
+		Frontend:     req.Frontend,
+		Definition:   req.Definition,
+		FrontendOpt:  req.FrontendAttrs,
+		CacheImports: cacheImports,
 	}, llbsolver.ExporterRequest{
 		Exporter:        expi,
 		CacheExporter:   cacheExporter,
-		CacheExportMode: parseCacheExporterOpt(req.Cache.ExportAttrs),
+		CacheExportMode: cacheExportMode,
 	}, req.Entitlements)
 	if err != nil {
 		return nil, err
@@ -376,21 +412,15 @@ func (c *Controller) gc() {
 	}
 }
 
-func parseCacheExporterOpt(opt map[string]string) solver.CacheExportMode {
-	for k, v := range opt {
-		switch k {
-		case "mode":
-			switch v {
-			case "min":
-				return solver.CacheExportModeMin
-			case "max":
-				return solver.CacheExportModeMax
-			default:
-				logrus.Debugf("skipping incalid cache export mode: %s", v)
-			}
-		default:
-			logrus.Warnf("skipping invalid cache export opt: %s", v)
-		}
+func parseCacheExportMode(mode string) solver.CacheExportMode {
+	switch mode {
+	case "min":
+		return solver.CacheExportModeMin
+	case "max":
+		return solver.CacheExportModeMax
+	case "":
+	default:
+		logrus.Debugf("skipping invalid cache export mode: %s", mode)
 	}
 	return solver.CacheExportModeMin
 }

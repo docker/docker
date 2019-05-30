@@ -26,6 +26,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 )
 
 var (
@@ -108,19 +109,30 @@ func Walk(ctx context.Context, handler Handler, descs ...ocispec.Descriptor) err
 // handler may return `ErrSkipDesc` to signal to the dispatcher to not traverse
 // any children.
 //
+// A concurrency limiter can be passed in to limit the number of concurrent
+// handlers running. When limiter is nil, there is no limit.
+//
 // Typically, this function will be used with `FetchHandler`, often composed
 // with other handlers.
 //
 // If any handler returns an error, the dispatch session will be canceled.
-func Dispatch(ctx context.Context, handler Handler, descs ...ocispec.Descriptor) error {
+func Dispatch(ctx context.Context, handler Handler, limiter *semaphore.Weighted, descs ...ocispec.Descriptor) error {
 	eg, ctx := errgroup.WithContext(ctx)
 	for _, desc := range descs {
 		desc := desc
 
+		if limiter != nil {
+			if err := limiter.Acquire(ctx, 1); err != nil {
+				return err
+			}
+		}
 		eg.Go(func() error {
 			desc := desc
 
 			children, err := handler.Handle(ctx, desc)
+			if limiter != nil {
+				limiter.Release(1)
+			}
 			if err != nil {
 				if errors.Cause(err) == ErrSkipDesc {
 					return nil // don't traverse the children.
@@ -129,7 +141,7 @@ func Dispatch(ctx context.Context, handler Handler, descs ...ocispec.Descriptor)
 			}
 
 			if len(children) > 0 {
-				return Dispatch(ctx, handler, children...)
+				return Dispatch(ctx, handler, limiter, children...)
 			}
 
 			return nil

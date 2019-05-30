@@ -16,10 +16,9 @@ This means that `runc` 1.0.0 should implement the 1.0 version of the specificati
 
 You can find official releases of `runc` on the [release](https://github.com/opencontainers/runc/releases) page.
 
-### Security
+## Security
 
-If you wish to report a security issue, please disclose the issue responsibly
-to security@opencontainers.org.
+Reporting process and disclosure communications are outlined in [/org/security](https://github.com/opencontainers/org/blob/master/security/)
 
 ## Building
 

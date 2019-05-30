@@ -57,21 +57,21 @@ func (c *cpusetController) Create(path string, resources *specs.LinuxResources) 
 	if resources.CPU != nil {
 		for _, t := range []struct {
 			name  string
-			value *string
+			value string
 		}{
 			{
 				name:  "cpus",
-				value: &resources.CPU.Cpus,
+				value: resources.CPU.Cpus,
 			},
 			{
 				name:  "mems",
-				value: &resources.CPU.Mems,
+				value: resources.CPU.Mems,
 			},
 		} {
-			if t.value != nil {
+			if t.value != "" {
 				if err := ioutil.WriteFile(
 					filepath.Join(c.Path(path), fmt.Sprintf("cpuset.%s", t.name)),
-					[]byte(*t.value),
+					[]byte(t.value),
 					defaultFilePerm,
 				); err != nil {
 					return err

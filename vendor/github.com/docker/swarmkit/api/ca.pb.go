@@ -51,6 +51,8 @@
 		RemoveServiceResponse
 		ListServicesRequest
 		ListServicesResponse
+		ListServiceStatusesRequest
+		ListServiceStatusesResponse
 		CreateNetworkRequest
 		CreateNetworkResponse
 		GetNetworkRequest

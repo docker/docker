@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
+	"gotest.tools/assert"
 )
 
 // #9860 Make sure attach ends when container ends (with no errors)
@@ -21,17 +21,17 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-dti", "busybox", "/bin/sh", "-c", `trap 'exit 0' SIGTERM; while true; do sleep 1; done`)
 
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	assert.NilError(c, waitRun(id))
 
 	pty, tty, err := pty.Open()
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	attachCmd := exec.Command(dockerBinary, "attach", id)
 	attachCmd.Stdin = tty
 	attachCmd.Stdout = tty
 	attachCmd.Stderr = tty
 	err = attachCmd.Start()
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	errChan := make(chan error)
 	go func() {
@@ -62,7 +62,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 	name := "detachtest"
 
 	cpty, tty, err := pty.Open()
-	c.Assert(err, checker.IsNil, check.Commentf("Could not open pty: %v", err))
+	assert.NilError(c, err, "Could not open pty: %v", err)
 	cmd := exec.Command(dockerBinary, "run", "-ti", "--name", name, "busybox")
 	cmd.Stdin = tty
 	cmd.Stdout = tty
@@ -87,7 +87,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 	}
 
 	cpty, tty, err = pty.Open()
-	c.Assert(err, checker.IsNil, check.Commentf("Could not open pty: %v", err))
+	assert.NilError(c, err, "Could not open pty: %v", err)
 
 	cmd = exec.Command(dockerBinary, "attach", name)
 	cmd.Stdin = tty
@@ -95,7 +95,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 	cmd.Stderr = tty
 
 	err = cmd.Start()
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer cmd.Process.Kill()
 
 	bytes := make([]byte, 10)
@@ -114,45 +114,45 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 
 	select {
 	case err := <-readErr:
-		c.Assert(err, check.IsNil)
+		assert.NilError(c, err)
 	case <-time.After(2 * time.Second):
 		c.Fatal("timeout waiting for attach read")
 	}
 
-	c.Assert(string(bytes[:nBytes]), checker.Contains, "/ #")
+	assert.Assert(c, strings.Contains(string(bytes[:nBytes]), "/ #"))
 }
 
 // TestAttachDetach checks that attach in tty mode can be detached using the long container ID
 func (s *DockerSuite) TestAttachDetach(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-itd", "busybox", "cat")
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	assert.NilError(c, waitRun(id))
 
 	cpty, tty, err := pty.Open()
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer cpty.Close()
 
 	cmd := exec.Command(dockerBinary, "attach", id)
 	cmd.Stdin = tty
 	stdout, err := cmd.StdoutPipe()
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer stdout.Close()
 	err = cmd.Start()
-	c.Assert(err, check.IsNil)
-	c.Assert(waitRun(id), check.IsNil)
+	assert.NilError(c, err)
+	assert.NilError(c, waitRun(id))
 
 	_, err = cpty.Write([]byte("hello\n"))
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	out, err = bufio.NewReader(stdout).ReadString('\n')
-	c.Assert(err, check.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "hello")
+	assert.NilError(c, err)
+	assert.Equal(c, strings.TrimSpace(out), "hello")
 
 	// escape sequence
 	_, err = cpty.Write([]byte{16})
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	time.Sleep(100 * time.Millisecond)
 	_, err = cpty.Write([]byte{17})
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	ch := make(chan struct{})
 	go func() {
@@ -167,5 +167,5 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 	}
 
 	running := inspectField(c, id, "State.Running")
-	c.Assert(running, checker.Equals, "true") // container should be running
+	assert.Equal(c, running, "true") // container should be running
 }

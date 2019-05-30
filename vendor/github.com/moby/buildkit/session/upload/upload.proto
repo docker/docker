@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package moby.upload.v1;
+
+option go_package = "upload";
+
+service Upload {
+	rpc Pull(stream BytesMessage) returns (stream BytesMessage);
+}
+
+// BytesMessage contains a chunk of byte data
+message BytesMessage{
+	bytes data = 1;
+}

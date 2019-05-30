@@ -26,10 +26,10 @@ import (
 var (
 	// DefaultRootDir is the default location used by containerd to store
 	// persistent data
-	DefaultRootDir = filepath.Join(os.Getenv("programfiles"), "containerd", "root")
+	DefaultRootDir = filepath.Join(os.Getenv("ProgramData"), "containerd", "root")
 	// DefaultStateDir is the default location used by containerd to store
 	// transient data
-	DefaultStateDir = filepath.Join(os.Getenv("programfiles"), "containerd", "state")
+	DefaultStateDir = filepath.Join(os.Getenv("ProgramData"), "containerd", "state")
 )
 
 const (

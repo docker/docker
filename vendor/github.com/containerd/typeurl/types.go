@@ -78,7 +78,10 @@ func Is(any *types.Any, v interface{}) bool {
 	return any.TypeUrl == url
 }
 
-// MarshalAny marshals the value v into an any with the correct TypeUrl
+// MarshalAny marshals the value v into an any with the correct TypeUrl.
+// If the provided object is already a proto.Any message, then it will be
+// returned verbatim. If it is of type proto.Message, it will be marshaled as a
+// protocol buffer. Otherwise, the object will be marshaled to json.
 func MarshalAny(v interface{}) (*types.Any, error) {
 	var marshal func(v interface{}) ([]byte, error)
 	switch t := v.(type) {

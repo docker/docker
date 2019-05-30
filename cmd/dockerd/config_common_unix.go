@@ -9,12 +9,11 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/rootless"
 	"github.com/spf13/pflag"
 )
 
 func getDefaultPidFile() (string, error) {
-	if !rootless.RunningWithNonRootUsername() {
+	if !honorXDG {
 		return "/var/run/docker.pid", nil
 	}
 	runtimeDir, err := homedir.GetRuntimeDir()
@@ -25,7 +24,7 @@ func getDefaultPidFile() (string, error) {
 }
 
 func getDefaultDataRoot() (string, error) {
-	if !rootless.RunningWithNonRootUsername() {
+	if !honorXDG {
 		return "/var/lib/docker", nil
 	}
 	dataHome, err := homedir.GetDataHome()
@@ -36,7 +35,7 @@ func getDefaultDataRoot() (string, error) {
 }
 
 func getDefaultExecRoot() (string, error) {
-	if !rootless.RunningWithNonRootUsername() {
+	if !honorXDG {
 		return "/var/run/docker", nil
 	}
 	runtimeDir, err := homedir.GetRuntimeDir()

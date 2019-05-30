@@ -37,6 +37,7 @@ func (w *Writer) getDialer() dialerFunctionWrapper {
 	dialers := map[string]dialerFunctionWrapper{
 		"":        dialerFunctionWrapper{"unixDialer", w.unixDialer},
 		"tcp+tls": dialerFunctionWrapper{"tlsDialer", w.tlsDialer},
+		"custom":  dialerFunctionWrapper{"customDialer", w.customDialer},
 	}
 	dialer, ok := dialers[w.network]
 	if !ok {
@@ -75,6 +76,22 @@ func (w *Writer) tlsDialer() (serverConn, string, error) {
 // UDP connections.
 func (w *Writer) basicDialer() (serverConn, string, error) {
 	c, err := net.Dial(w.network, w.raddr)
+	var sc serverConn
+	hostname := w.hostname
+	if err == nil {
+		sc = &netConn{conn: c}
+		if hostname == "" {
+			hostname = c.LocalAddr().String()
+		}
+	}
+	return sc, hostname, err
+}
+
+// customDialer uses the custom dialer when the Writer was created
+// giving developers total control over how connections are made and returned.
+// Note it does not check if cdialer is nil, as it should only be referenced from getDialer.
+func (w *Writer) customDialer() (serverConn, string, error) {
+	c, err := w.customDial(w.network, w.raddr)
 	var sc serverConn
 	hostname := w.hostname
 	if err == nil {

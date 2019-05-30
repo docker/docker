@@ -1,6 +1,7 @@
 ### fifo
 
 [![Build Status](https://travis-ci.org/containerd/fifo.svg?branch=master)](https://travis-ci.org/containerd/fifo)
+[![codecov](https://codecov.io/gh/containerd/fifo/branch/master/graph/badge.svg)](https://codecov.io/gh/containerd/fifo)
 
 Go package for handling fifos in a sane way.
 
@@ -30,3 +31,14 @@ func (f *fifo) Write(b []byte) (int, error)
 // before open(2) has returned and fifo was never opened.
 func (f *fifo) Close() error 
 ```
+
+## Project details
+
+The fifo is a containerd sub-project, licensed under the [Apache 2.0 license](./LICENSE).
+As a containerd sub-project, you will find the:
+
+ * [Project governance](https://github.com/containerd/project/blob/master/GOVERNANCE.md),
+ * [Maintainers](https://github.com/containerd/project/blob/master/MAINTAINERS),
+ * and [Contributing guidelines](https://github.com/containerd/project/blob/master/CONTRIBUTING.md)
+
+information in our [`containerd/project`](https://github.com/containerd/project) repository.

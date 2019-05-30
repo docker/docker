@@ -8,6 +8,7 @@ import (
 
 	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/identity"
@@ -34,6 +35,7 @@ type Accessor interface {
 	GetFromSnapshotter(ctx context.Context, id string, opts ...RefOption) (ImmutableRef, error)
 	New(ctx context.Context, s ImmutableRef, opts ...RefOption) (MutableRef, error)
 	GetMutable(ctx context.Context, id string) (MutableRef, error) // Rebase?
+	IdentityMapping() *idtools.IdentityMapping
 }
 
 type Controller interface {
@@ -94,6 +96,11 @@ func (cm *cacheManager) init(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// IdentityMapping returns the userns remapping used for refs
+func (cm *cacheManager) IdentityMapping() *idtools.IdentityMapping {
+	return cm.Snapshotter.IdentityMapping()
 }
 
 // Close closes the manager and releases the metadata database lock. No other

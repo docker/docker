@@ -28,10 +28,20 @@ import (
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/oci"
+	"github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/typeurl"
 	prototypes "github.com/gogo/protobuf/types"
+	ver "github.com/opencontainers/image-spec/specs-go"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+)
+
+const (
+	checkpointImageNameLabel       = "org.opencontainers.image.ref.name"
+	checkpointRuntimeNameLabel     = "io.containerd.checkpoint.runtime"
+	checkpointSnapshotterNameLabel = "io.containerd.checkpoint.snapshotter"
 )
 
 // Container is a metadata object for container resources and task creation
@@ -64,6 +74,8 @@ type Container interface {
 	Extensions(context.Context) (map[string]prototypes.Any, error)
 	// Update a container
 	Update(context.Context, ...UpdateContainerOpts) error
+	// Checkpoint creates a checkpoint image of the current container
+	Checkpoint(context.Context, string, ...CheckpointOpts) (Image, error)
 }
 
 func containerFromRecord(client *Client, c containers.Container) *container {
@@ -217,7 +229,9 @@ func (c *container) NewTask(ctx context.Context, ioCreate cio.Creator, opts ...N
 			})
 		}
 	}
-	var info TaskInfo
+	info := TaskInfo{
+		runtime: r.Runtime.Name,
+	}
 	for _, o := range opts {
 		if err := o(ctx, c.client, &info); err != nil {
 			return nil, err
@@ -270,6 +284,70 @@ func (c *container) Update(ctx context.Context, opts ...UpdateContainerOpts) err
 		return errdefs.FromGRPC(err)
 	}
 	return nil
+}
+
+func (c *container) Checkpoint(ctx context.Context, ref string, opts ...CheckpointOpts) (Image, error) {
+	index := &ocispec.Index{
+		Versioned: ver.Versioned{
+			SchemaVersion: 2,
+		},
+		Annotations: make(map[string]string),
+	}
+	copts := &options.CheckpointOptions{
+		Exit:                false,
+		OpenTcp:             false,
+		ExternalUnixSockets: false,
+		Terminal:            false,
+		FileLocks:           true,
+		EmptyNamespaces:     nil,
+	}
+	info, err := c.Info(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	img, err := c.Image(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, done, err := c.client.WithLease(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer done(ctx)
+
+	// add image name to manifest
+	index.Annotations[checkpointImageNameLabel] = img.Name()
+	// add runtime info to index
+	index.Annotations[checkpointRuntimeNameLabel] = info.Runtime.Name
+	// add snapshotter info to index
+	index.Annotations[checkpointSnapshotterNameLabel] = info.Snapshotter
+
+	// process remaining opts
+	for _, o := range opts {
+		if err := o(ctx, c.client, &info, index, copts); err != nil {
+			err = errdefs.FromGRPC(err)
+			if !errdefs.IsAlreadyExists(err) {
+				return nil, err
+			}
+		}
+	}
+
+	desc, err := writeIndex(ctx, index, c.client, c.ID()+"index")
+	if err != nil {
+		return nil, err
+	}
+	i := images.Image{
+		Name:   ref,
+		Target: desc,
+	}
+	checkpoint, err := c.client.ImageService().Create(ctx, i)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewImage(c.client, checkpoint), nil
 }
 
 func (c *container) loadTask(ctx context.Context, ioAttach cio.Attach) (Task, error) {

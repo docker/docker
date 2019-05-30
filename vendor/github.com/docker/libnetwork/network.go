@@ -396,11 +396,9 @@ func (n *network) validateConfiguration() error {
 					driverOptions map[string]string
 					opts          interface{}
 				)
-				switch data.(type) {
-				case map[string]interface{}:
-					opts = data.(map[string]interface{})
-				case map[string]string:
-					opts = data.(map[string]string)
+				switch t := data.(type) {
+				case map[string]interface{}, map[string]string:
+					opts = t
 				}
 				ba, err := json.Marshal(opts)
 				if err != nil {

@@ -232,7 +232,7 @@ func overlayInfo(info, overlay snapshots.Info) snapshots.Info {
 		info.Labels = overlay.Labels
 	} else {
 		for k, v := range overlay.Labels {
-			overlay.Labels[k] = v
+			info.Labels[k] = v
 		}
 	}
 	return info

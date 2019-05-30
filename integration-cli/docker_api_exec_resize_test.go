@@ -10,9 +10,9 @@ import (
 	"sync"
 
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 func (s *DockerSuite) TestExecResizeAPIHeightWidthNoInt(c *check.C) {
@@ -22,11 +22,11 @@ func (s *DockerSuite) TestExecResizeAPIHeightWidthNoInt(c *check.C) {
 
 	endpoint := "/exec/" + cleanedContainerID + "/resize?h=foo&w=bar"
 	res, _, err := request.Post(endpoint)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+		assert.Equal(c, res.StatusCode, http.StatusInternalServerError)
 	} else {
-		c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
+		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	}
 }
 
@@ -50,7 +50,7 @@ func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *check.C) {
 		}
 
 		buf, err := request.ReadBody(body)
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 
 		out := map[string]string{}
 		err = json.Unmarshal(buf, &out)

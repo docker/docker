@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/containerd/ttrpc"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
@@ -75,6 +76,15 @@ const (
 	GCPlugin Type = "io.containerd.gc.v1"
 )
 
+const (
+	// RuntimeLinuxV1 is the legacy linux runtime
+	RuntimeLinuxV1 = "io.containerd.runtime.v1.linux"
+	// RuntimeRuncV1 is the runc runtime that supports a single container
+	RuntimeRuncV1 = "io.containerd.runc.v1"
+	// RuntimeRuncV2 is the runc runtime that supports multiple containers per shim
+	RuntimeRuncV2 = "io.containerd.runc.v2"
+)
+
 // Registration contains information for registering a plugin
 type Registration struct {
 	// Type of the plugin
@@ -112,6 +122,16 @@ func (r *Registration) URI() string {
 // Service allows GRPC services to be registered with the underlying server
 type Service interface {
 	Register(*grpc.Server) error
+}
+
+// TTRPCService allows TTRPC services to be registered with the underlying server
+type TTRPCService interface {
+	RegisterTTRPC(*ttrpc.Server) error
+}
+
+// TCPService allows GRPC services to be registered with the underlying tcp server
+type TCPService interface {
+	RegisterTCP(*grpc.Server) error
 }
 
 var register = struct {

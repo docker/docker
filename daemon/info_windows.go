@@ -14,6 +14,10 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version) {}
 func fillDriverWarnings(v *types.Info) {
 }
 
+func (daemon *Daemon) cgroupNamespacesEnabled(sysInfo *sysinfo.SysInfo) bool {
+	return false
+}
+
 // Rootless returns true if daemon is running in rootless mode
 func (daemon *Daemon) Rootless() bool {
 	return false

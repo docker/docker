@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )
 
@@ -23,7 +24,7 @@ func (s *DockerSuite) TestVolumeCLICreate(c *check.C) {
 	dockerCmd(c, "volume", "create")
 
 	_, _, err := dockerCmdWithError("volume", "create", "-d", "nosuchdriver")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 
 	// test using hidden --name option
 	out, _ := dockerCmd(c, "volume", "create", "--name=test")
@@ -100,30 +101,14 @@ func (s *DockerSuite) TestVolumeLsFormatDefaultFormat(c *check.C) {
 		"volumesFormat": "{{ .Name }} default"
 }`
 	d, err := ioutil.TempDir("", "integration-cli-")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer os.RemoveAll(d)
 
 	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	out, _ := dockerCmd(c, "--config", d, "volume", "ls")
 	assertVolumesInList(c, out, []string{"aaa default", "soo default", "test default"})
-}
-
-// assertVolList checks volume retrieved with ls command
-// equals to expected volume list
-// note: out should be `volume ls [option]` result
-func assertVolList(c *check.C, out string, expectVols []string) {
-	lines := strings.Split(out, "\n")
-	var volList []string
-	for _, line := range lines[1 : len(lines)-1] {
-		volFields := strings.Fields(line)
-		// wrap all volume name in volList
-		volList = append(volList, volFields[1])
-	}
-
-	// volume ls should contains all expected volumes
-	c.Assert(volList, checker.DeepEquals, expectVols)
 }
 
 func assertVolumesInList(c *check.C, out string, expected []string) {
@@ -136,7 +121,7 @@ func assertVolumesInList(c *check.C, out string, expected []string) {
 				break
 			}
 		}
-		c.Assert(found, checker.Equals, true, check.Commentf("Expected volume not found: %v, got: %v", expect, lines))
+		assert.Assert(c, found, "Expected volume not found: %v, got: %v", expect, lines)
 	}
 }
 
@@ -192,13 +177,13 @@ func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *check.C) {
 
 func (s *DockerSuite) TestVolumeCLILsErrorWithInvalidFilterName(c *check.C) {
 	out, _, err := dockerCmdWithError("volume", "ls", "-f", "FOO=123")
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 	c.Assert(out, checker.Contains, "Invalid filter")
 }
 
 func (s *DockerSuite) TestVolumeCLILsWithIncorrectFilterValue(c *check.C) {
 	out, _, err := dockerCmdWithError("volume", "ls", "-f", "dangling=invalid")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	c.Assert(out, checker.Contains, "Invalid filter")
 }
 
@@ -301,7 +286,7 @@ func (s *DockerSuite) TestVolumeCLICreateLabel(c *check.C) {
 	testValue := "bar"
 
 	_, _, err := dockerCmdWithError("volume", "create", "--label", testLabel+"="+testValue, testVol)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	out, _ := dockerCmd(c, "volume", "inspect", "--format={{ .Labels."+testLabel+" }}", testVol)
 	c.Assert(strings.TrimSpace(out), check.Equals, testValue)
@@ -326,7 +311,7 @@ func (s *DockerSuite) TestVolumeCLICreateLabelMultiple(c *check.C) {
 	}
 
 	_, _, err := dockerCmdWithError(args...)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	for k, v := range testLabels {
 		out, _ := dockerCmd(c, "volume", "inspect", "--format={{ .Labels."+k+" }}", testVol)
@@ -337,11 +322,11 @@ func (s *DockerSuite) TestVolumeCLICreateLabelMultiple(c *check.C) {
 func (s *DockerSuite) TestVolumeCLILsFilterLabels(c *check.C) {
 	testVol1 := "testvolcreatelabel-1"
 	_, _, err := dockerCmdWithError("volume", "create", "--label", "foo=bar1", testVol1)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	testVol2 := "testvolcreatelabel-2"
 	_, _, err = dockerCmdWithError("volume", "create", "--label", "foo=bar2", testVol2)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	out, _ := dockerCmd(c, "volume", "ls", "--filter", "label=foo")
 
@@ -368,11 +353,11 @@ func (s *DockerSuite) TestVolumeCLILsFilterDrivers(c *check.C) {
 	// using default volume driver local to create volumes
 	testVol1 := "testvol-1"
 	_, _, err := dockerCmdWithError("volume", "create", testVol1)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	testVol2 := "testvol-2"
 	_, _, err = dockerCmdWithError("volume", "create", testVol2)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	// filter with driver=local
 	out, _ := dockerCmd(c, "volume", "ls", "--filter", "driver=local")
@@ -412,7 +397,7 @@ func (s *DockerSuite) TestVolumeCLIRmForce(c *check.C) {
 	c.Assert(id, checker.Equals, name)
 
 	out, _ = dockerCmd(c, "volume", "inspect", "--format", "{{.Mountpoint}}", name)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	assert.Assert(c, strings.TrimSpace(out) != "")
 	// Mountpoint is in the form of "/var/lib/docker/volumes/.../_data", removing `/_data`
 	path := strings.TrimSuffix(strings.TrimSpace(out), "/_data")
 	icmd.RunCommand("rm", "-rf", path).Assert(c, icmd.Success)
@@ -438,8 +423,8 @@ func (s *DockerSuite) TestVolumeCLIRmForceInUse(c *check.C) {
 	cid := strings.TrimSpace(out)
 
 	_, _, err := dockerCmdWithError("volume", "rm", "-f", name)
-	c.Assert(err, check.NotNil)
-	c.Assert(err.Error(), checker.Contains, "volume is in use")
+	assert.ErrorContains(c, err, "")
+	assert.ErrorContains(c, err, "volume is in use")
 	out, _ = dockerCmd(c, "volume", "ls")
 	c.Assert(out, checker.Contains, name)
 
@@ -448,8 +433,8 @@ func (s *DockerSuite) TestVolumeCLIRmForceInUse(c *check.C) {
 	// Calling `volume rm` a second time to confirm it's not removed
 	// when calling twice.
 	_, _, err = dockerCmdWithError("volume", "rm", "-f", name)
-	c.Assert(err, check.NotNil)
-	c.Assert(err.Error(), checker.Contains, "volume is in use")
+	assert.ErrorContains(c, err, "")
+	assert.ErrorContains(c, err, "volume is in use")
 	out, _ = dockerCmd(c, "volume", "ls")
 	c.Assert(out, checker.Contains, name)
 
@@ -516,7 +501,7 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFrom(c *check.C) {
 
 	// Only the second volume will be referenced, this is backward compatible
 	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "app")
-	c.Assert(strings.TrimSpace(out), checker.Equals, data2)
+	assert.Equal(c, strings.TrimSpace(out), data2)
 
 	dockerCmd(c, "rm", "-f", "-v", "app")
 	dockerCmd(c, "rm", "-f", "-v", "data1")
@@ -598,10 +583,10 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *check.C
 	c.Assert(strings.TrimSpace(out), checker.Contains, data2)
 
 	err := os.MkdirAll("/tmp/data", 0755)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	// Mounts is available in API
 	cli, err := client.NewClientWithOpts(client.FromEnv)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer cli.Close()
 
 	config := container.Config{
@@ -621,7 +606,7 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *check.C
 	}
 	_, err = cli.ContainerCreate(context.Background(), &config, &hostConfig, &network.NetworkingConfig{}, "app")
 
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	// No volume will be referenced (mount is /tmp/data), this is backward compatible
 	out, _ = dockerCmd(c, "inspect", "--format", "{{(index .Mounts 0).Name}}", "app")

@@ -12,7 +12,7 @@ bash <(curl -s https://codecov.io/bash) \
 hack/make.sh \
 	binary-daemon \
 	dynbinary \
-	test-docker-py \
 	test-integration-flaky \
 	test-integration \
-	cross
+	cross \
+	test-docker-py

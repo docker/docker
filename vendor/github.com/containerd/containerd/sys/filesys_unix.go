@@ -24,3 +24,8 @@ import "os"
 func ForceRemoveAll(path string) error {
 	return os.RemoveAll(path)
 }
+
+// MkdirAllWithACL is a wrapper for os.MkdirAll on Unix systems.
+func MkdirAllWithACL(path string, perm os.FileMode) error {
+	return os.MkdirAll(path, perm)
+}

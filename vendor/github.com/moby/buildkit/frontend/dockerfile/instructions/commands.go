@@ -200,6 +200,11 @@ type CopyCommand struct {
 
 // Expand variables
 func (c *CopyCommand) Expand(expander SingleWordExpander) error {
+	expandedChown, err := expander(c.Chown)
+	if err != nil {
+		return err
+	}
+	c.Chown = expandedChown
 	return expandSliceInPlace(c.SourcesAndDest, expander)
 }
 

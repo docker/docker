@@ -3,12 +3,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/containerd/containerd/runtime/v1/linux"
 	"github.com/docker/docker/cmd/dockerd/hack"
@@ -16,13 +18,14 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/rootless"
 	"github.com/docker/libnetwork/portallocator"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
 func getDefaultDaemonConfigDir() (string, error) {
-	if !rootless.RunningWithNonRootUsername() {
+	if !honorXDG {
 		return "/etc/docker", nil
 	}
 	// NOTE: CLI uses ~/.docker while the daemon uses ~/.config/docker, because
@@ -140,4 +143,35 @@ func newCgroupParent(config *config.Config) string {
 		cgroupParent = cgroupParent + ":" + "docker" + ":"
 	}
 	return cgroupParent
+}
+
+func (cli *DaemonCli) initContainerD(ctx context.Context) (func(time.Duration) error, error) {
+	var waitForShutdown func(time.Duration) error
+	if cli.Config.ContainerdAddr == "" {
+		systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not determine whether the system containerd is running")
+		}
+		if !ok {
+			logrus.Debug("Containerd not running, starting daemon managed containerd")
+			opts, err := cli.getContainerdDaemonOpts()
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to generate containerd options")
+			}
+
+			r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to start containerd")
+			}
+			logrus.Debug("Started daemon managed containerd")
+			cli.Config.ContainerdAddr = r.Address()
+
+			// Try to wait for containerd to shutdown
+			waitForShutdown = r.WaitTimeout
+		} else {
+			cli.Config.ContainerdAddr = systemContainerdAddr
+		}
+	}
+
+	return waitForShutdown, nil
 }

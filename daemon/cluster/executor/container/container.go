@@ -6,7 +6,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -31,10 +30,6 @@ import (
 )
 
 const (
-	// Explicitly use the kernel's default setting for CPU quota of 100ms.
-	// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
-	cpuQuotaPeriod = 100 * time.Millisecond
-
 	// systemLabelPrefix represents the reserved namespace for system labels.
 	systemLabelPrefix = "com.docker.swarm"
 )
@@ -465,9 +460,7 @@ func (c *containerConfig) resources() enginecontainer.Resources {
 	}
 
 	if r.Limits.NanoCPUs > 0 {
-		// CPU Period must be set in microseconds.
-		resources.CPUPeriod = int64(cpuQuotaPeriod / time.Microsecond)
-		resources.CPUQuota = r.Limits.NanoCPUs * resources.CPUPeriod / 1e9
+		resources.NanoCPUs = r.Limits.NanoCPUs
 	}
 
 	return resources

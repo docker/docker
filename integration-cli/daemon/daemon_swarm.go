@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
@@ -111,7 +110,7 @@ func (d *Daemon) CheckRunningTaskNetworks(c *check.C) (interface{}, check.Commen
 	}
 
 	tasks, err := cli.TaskList(context.Background(), options)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	result := make(map[string]int)
 	for _, task := range tasks {
@@ -135,7 +134,7 @@ func (d *Daemon) CheckRunningTaskImages(c *check.C) (interface{}, check.CommentI
 	}
 
 	tasks, err := cli.TaskList(context.Background(), options)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	result := make(map[string]int)
 	for _, task := range tasks {
@@ -167,7 +166,7 @@ func (d *Daemon) CheckLocalNodeState(c *check.C) (interface{}, check.CommentInte
 // CheckControlAvailable returns the current swarm control available
 func (d *Daemon) CheckControlAvailable(c *check.C) (interface{}, check.CommentInterface) {
 	info := d.SwarmInfo(c)
-	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
 	return info.ControlAvailable, nil
 }
 

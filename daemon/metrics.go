@@ -143,7 +143,7 @@ type metricsPlugin interface {
 	StopMetrics() error
 }
 
-func makePluginAdapter(p plugingetter.CompatPlugin) (metricsPlugin, error) { // nolint: interfacer
+func makePluginAdapter(p plugingetter.CompatPlugin) (metricsPlugin, error) {
 	if pc, ok := p.(plugingetter.PluginWithV1Client); ok {
 		return &metricsPluginAdapter{pc.Client(), p.Name()}, nil
 	}

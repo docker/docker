@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -66,19 +67,31 @@ func (cm *combinedCacheManager) Query(inp []CacheKeyWithSelector, inputIndex Ind
 	return out, nil
 }
 
-func (cm *combinedCacheManager) Load(ctx context.Context, rec *CacheRecord) (Result, error) {
-	res, err := rec.cacheManager.Load(ctx, rec)
+func (cm *combinedCacheManager) Load(ctx context.Context, rec *CacheRecord) (res Result, err error) {
+	results, err := rec.cacheManager.LoadWithParents(ctx, rec)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := cm.main.Save(rec.key, res); err != nil {
-		return nil, err
+	defer func() {
+		for i, res := range results {
+			if err == nil && i == 0 {
+				continue
+			}
+			res.Result.Release(context.TODO())
+		}
+	}()
+	if rec.cacheManager != cm.main {
+		for _, res := range results {
+			if _, err := cm.main.Save(res.CacheKey, res.Result, res.CacheResult.CreatedAt); err != nil {
+				return nil, err
+			}
+		}
 	}
-	return res, nil
+	return results[0].Result, nil
 }
 
-func (cm *combinedCacheManager) Save(key *CacheKey, s Result) (*ExportableCacheKey, error) {
-	return cm.main.Save(key, s)
+func (cm *combinedCacheManager) Save(key *CacheKey, s Result, createdAt time.Time) (*ExportableCacheKey, error) {
+	return cm.main.Save(key, s, createdAt)
 }
 
 func (cm *combinedCacheManager) Records(ck *CacheKey) ([]*CacheRecord, error) {

@@ -3,11 +3,11 @@
 package main
 
 import (
-	"fmt"
+	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 // #19100 This is a deprecated feature test, it should be removed in Docker 1.12
@@ -23,9 +23,9 @@ func (s *DockerNetworkSuite) TestDeprecatedDockerNetworkStartAPIWithHostconfig(c
 		},
 	}
 	_, _, err := request.Post(formatV123StartAPIURL("/containers/"+conName+"/start"), request.JSONBody(config))
-	c.Assert(err, checker.IsNil)
-	c.Assert(waitRun(conName), checker.IsNil)
+	assert.NilError(c, err)
+	assert.NilError(c, waitRun(conName))
 	networks := inspectField(c, conName, "NetworkSettings.Networks")
-	c.Assert(networks, checker.Contains, netName, check.Commentf(fmt.Sprintf("Should contain '%s' network", netName)))
-	c.Assert(networks, checker.Not(checker.Contains), "bridge", check.Commentf("Should not contain 'bridge' network"))
+	assert.Assert(c, strings.Contains(networks, netName), "Should contain '%s' network", netName)
+	assert.Assert(c, !strings.Contains(networks, "bridge"), "Should not contain 'bridge' network")
 }

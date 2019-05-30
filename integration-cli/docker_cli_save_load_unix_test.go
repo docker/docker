@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
+	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )
 
@@ -28,7 +28,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 	before = strings.TrimRight(before, "\n")
 
 	tmpFile, err := ioutil.TempFile("", "foobar-save-load-test.tar")
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer os.Remove(tmpFile.Name())
 
 	icmd.RunCmd(icmd.Cmd{
@@ -37,7 +37,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 	}).Assert(c, icmd.Success)
 
 	tmpFile, err = os.Open(tmpFile.Name())
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer tmpFile.Close()
 
 	deleteImages(repoName)
@@ -50,24 +50,24 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 	after := inspectField(c, repoName, "Id")
 	after = strings.TrimRight(after, "\n")
 
-	c.Assert(after, check.Equals, before) //inspect is not the same after a save / load
+	assert.Equal(c, after, before, "inspect is not the same after a save / load")
 
 	deleteImages(repoName)
 
 	pty, tty, err := pty.Open()
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	cmd := exec.Command(dockerBinary, "save", repoName)
 	cmd.Stdin = tty
 	cmd.Stdout = tty
 	cmd.Stderr = tty
-	c.Assert(cmd.Start(), check.IsNil)
-	c.Assert(cmd.Wait(), check.NotNil) //did not break writing to a TTY
+	assert.NilError(c, cmd.Start())
+	assert.ErrorContains(c, cmd.Wait(), "", "did not break writing to a TTY")
 
 	buf := make([]byte, 1024)
 
 	n, err := pty.Read(buf)
-	c.Assert(err, check.IsNil) //could not read tty output
-	c.Assert(string(buf[:n]), checker.Contains, "cowardly refusing", check.Commentf("help output is not being yielded"))
+	assert.NilError(c, err) //could not read tty output
+	assert.Assert(c, strings.Contains(string(buf[:n]), "cowardly refusing"), "help output is not being yielded")
 }
 
 func (s *DockerSuite) TestSaveAndLoadWithProgressBar(c *check.C) {
@@ -84,24 +84,24 @@ func (s *DockerSuite) TestSaveAndLoadWithProgressBar(c *check.C) {
 	dockerCmd(c, "tag", "busybox", name)
 	out, _ := dockerCmd(c, "load", "-i", tmptar)
 	expected := fmt.Sprintf("The image %s:latest already exists, renaming the old one with ID", name)
-	c.Assert(out, checker.Contains, expected)
+	assert.Assert(c, strings.Contains(out, expected))
 }
 
 // fail because load didn't receive data from stdin
 func (s *DockerSuite) TestLoadNoStdinFail(c *check.C) {
 	pty, tty, err := pty.Open()
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, dockerBinary, "load")
 	cmd.Stdin = tty
 	cmd.Stdout = tty
 	cmd.Stderr = tty
-	c.Assert(cmd.Run(), check.NotNil) // docker-load should fail
+	assert.ErrorContains(c, cmd.Run(), "", "docker-load should fail")
 
 	buf := make([]byte, 1024)
 
 	n, err := pty.Read(buf)
-	c.Assert(err, check.IsNil) //could not read tty output
-	c.Assert(string(buf[:n]), checker.Contains, "requested load from stdin, but stdin is empty")
+	assert.NilError(c, err) //could not read tty output
+	assert.Assert(c, strings.Contains(string(buf[:n]), "requested load from stdin, but stdin is empty"))
 }

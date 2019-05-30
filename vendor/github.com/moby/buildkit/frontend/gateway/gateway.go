@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -157,7 +158,7 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 		rootFS = workerRef.ImmutableRef
 	}
 
-	lbf, err := newLLBBridgeForwarder(ctx, llbBridge, gf.workers)
+	lbf, ctx, err := newLLBBridgeForwarder(ctx, llbBridge, gf.workers)
 	defer lbf.conn.Close()
 	if err != nil {
 		return nil, err
@@ -193,14 +194,25 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 
 	env = append(env, "BUILDKIT_EXPORTEDPRODUCT="+apicaps.ExportedProduct)
 
-	err = llbBridge.Exec(ctx, executor.Meta{
+	meta := executor.Meta{
 		Env:            env,
 		Args:           args,
 		Cwd:            cwd,
 		ReadonlyRootFS: readonly,
-	}, rootFS, lbf.Stdin, lbf.Stdout, os.Stderr)
+	}
+
+	if v, ok := img.Config.Labels["moby.buildkit.frontend.network.none"]; ok {
+		if ok, _ := strconv.ParseBool(v); ok {
+			meta.NetMode = opspb.NetMode_NONE
+		}
+	}
+
+	err = llbBridge.Exec(ctx, meta, rootFS, lbf.Stdin, lbf.Stdout, os.Stderr)
 
 	if err != nil {
+		if errors.Cause(err) == context.Canceled && lbf.isErrServerClosed {
+			err = errors.Errorf("frontend grpc server closed unexpectedly")
+		}
 		// An existing error (set via Return rpc) takes
 		// precedence over this error, which in turn takes
 		// precedence over a success reported via Return.
@@ -285,15 +297,24 @@ func NewBridgeForwarder(ctx context.Context, llbBridge frontend.FrontendLLBBridg
 	return lbf
 }
 
-func newLLBBridgeForwarder(ctx context.Context, llbBridge frontend.FrontendLLBBridge, workers frontend.WorkerInfos) (*llbBridgeForwarder, error) {
+func newLLBBridgeForwarder(ctx context.Context, llbBridge frontend.FrontendLLBBridge, workers frontend.WorkerInfos) (*llbBridgeForwarder, context.Context, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	lbf := NewBridgeForwarder(ctx, llbBridge, workers)
 	server := grpc.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, health.NewServer())
 	pb.RegisterLLBBridgeServer(server, lbf)
 
-	go serve(ctx, server, lbf.conn)
+	go func() {
+		serve(ctx, server, lbf.conn)
+		select {
+		case <-ctx.Done():
+		default:
+			lbf.isErrServerClosed = true
+		}
+		cancel()
+	}()
 
-	return lbf, nil
+	return lbf, ctx, nil
 }
 
 type pipe struct {
@@ -363,11 +384,12 @@ type llbBridgeForwarder struct {
 	// lastRef      solver.CachedResult
 	// lastRefs     map[string]solver.CachedResult
 	// err          error
-	doneCh       chan struct{} // closed when result or err become valid through a call to a Return
-	result       *frontend.Result
-	err          error
-	exporterAttr map[string][]byte
-	workers      frontend.WorkerInfos
+	doneCh            chan struct{} // closed when result or err become valid through a call to a Return
+	result            *frontend.Result
+	err               error
+	exporterAttr      map[string][]byte
+	workers           frontend.WorkerInfos
+	isErrServerClosed bool
 	*pipe
 }
 
@@ -397,13 +419,37 @@ func (lbf *llbBridgeForwarder) ResolveImageConfig(ctx context.Context, req *pb.R
 	}, nil
 }
 
+func translateLegacySolveRequest(req *pb.SolveRequest) error {
+	// translates ImportCacheRefs to new CacheImports (v0.4.0)
+	for _, legacyImportRef := range req.ImportCacheRefsDeprecated {
+		im := &pb.CacheOptionsEntry{
+			Type:  "registry",
+			Attrs: map[string]string{"ref": legacyImportRef},
+		}
+		// FIXME(AkihiroSuda): skip append if already exists
+		req.CacheImports = append(req.CacheImports, im)
+	}
+	req.ImportCacheRefsDeprecated = nil
+	return nil
+}
+
 func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) (*pb.SolveResponse, error) {
+	if err := translateLegacySolveRequest(req); err != nil {
+		return nil, err
+	}
+	var cacheImports []frontend.CacheOptionsEntry
+	for _, e := range req.CacheImports {
+		cacheImports = append(cacheImports, frontend.CacheOptionsEntry{
+			Type:  e.Type,
+			Attrs: e.Attrs,
+		})
+	}
 	ctx = tracing.ContextWithSpanFromContext(ctx, lbf.callCtx)
 	res, err := lbf.llbBridge.Solve(ctx, frontend.SolveRequest{
-		Definition:      req.Definition,
-		Frontend:        req.Frontend,
-		FrontendOpt:     req.FrontendOpt,
-		ImportCacheRefs: req.ImportCacheRefs,
+		Definition:   req.Definition,
+		Frontend:     req.Frontend,
+		FrontendOpt:  req.FrontendOpt,
+		CacheImports: cacheImports,
 	})
 	if err != nil {
 		return nil, err

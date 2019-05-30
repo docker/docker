@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package containerd.runhcs.v1;
+
+import weak "gogoproto/gogo.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options;options";
+
+// Options are the set of customizations that can be passed at Create time.
+message Options {
+	// enable debug tracing
+	bool debug = 1;
+
+	enum DebugType {
+		NPIPE = 0;
+		FILE = 1;
+		ETW = 2;
+	}
+
+	// debug tracing output type
+	DebugType debug_type = 2;
+
+	// registry key root for storage of the runhcs container state
+	string registry_root = 3;
+
+	// sandbox_image is the image to use for the sandbox that matches the
+	// sandbox_platform.
+	string sandbox_image = 4;
+
+	// sandbox_platform is a CRI setting that specifies the platform
+	// architecture for all sandbox's in this runtime. Values are
+	// 'windows/amd64' and 'linux/amd64'.
+	string sandbox_platform = 5;
+
+	enum SandboxIsolation {
+		PROCESS = 0;
+		HYPERVISOR = 1;
+	}
+
+	// sandbox_isolation is a CRI setting that specifies the isolation level of
+	// the sandbox. For Windows runtime PROCESS and HYPERVISOR are valid. For
+	// LCOW only HYPERVISOR is valid and default if omitted.
+	SandboxIsolation sandbox_isolation = 6;
+
+	// boot_files_root_path is the path to the directory containing the LCOW
+	// kernel and root FS files.
+	string boot_files_root_path = 7;
+}
+
+// ProcessDetails contains additional information about a process. This is the additional
+// info returned in the Pids query.
+message ProcessDetails {
+	string image_name = 1;
+	google.protobuf.Timestamp created_at = 2 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	uint64 kernel_time_100_ns = 3;
+	uint64 memory_commit_bytes = 4;
+	uint64 memory_working_set_private_bytes = 5;
+	uint64 memory_working_set_shared_bytes = 6;
+	uint32 process_id = 7;
+	uint64 user_time_100_ns = 8;
+	string exec_id = 9;
+}

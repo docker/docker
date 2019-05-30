@@ -26,7 +26,7 @@ https://git-scm.com/download/win.
 ### 3. The machine must be configured to run containers
 
 For example, by following the quick start guidance at
-https://msdn.microsoft.com/en-us/virtualization/windowscontainers/quick_start/quick_start or https://github.com/docker/labs/blob/master/windows/windows-containers/Setup.md
+https://msdn.microsoft.com/en-us/virtualization/windowscontainers/quick_start/quick_start or https://github.com/docker/labs/blob/master/windows/windows-containers/README.md
 
 ### 4. If building in a Hyper-V VM
 
@@ -51,7 +51,7 @@ To test and run the Windows Moby engine, you need a system that supports Windows
 - Windows 10 Anniversary Edition
 - Windows Server 2016 running in a VM, on bare metal or in the cloud
 
-Check out the [getting started documentation](https://github.com/docker/labs/blob/master/windows/windows-containers/Setup.md) for details.
+Check out the [getting started documentation](https://github.com/docker/labs/blob/master/windows/windows-containers/README.md) for details.
 
 ### 2. GitHub account
 

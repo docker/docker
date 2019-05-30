@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"gotest.tools/assert"
 	"gotest.tools/x/subtest"
@@ -40,18 +42,23 @@ func NewFile(t assert.TestingT, prefix string, ops ...PathOp) *File {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
 	}
-	tempfile, err := ioutil.TempFile("", prefix+"-")
+	tempfile, err := ioutil.TempFile("", cleanPrefix(prefix)+"-")
 	assert.NilError(t, err)
 	file := &File{path: tempfile.Name()}
 	assert.NilError(t, tempfile.Close())
-
-	for _, op := range ops {
-		assert.NilError(t, op(file))
-	}
+	assert.NilError(t, applyPathOps(file, ops))
 	if tc, ok := t.(subtest.TestContext); ok {
 		tc.AddCleanup(file.Remove)
 	}
 	return file
+}
+
+func cleanPrefix(prefix string) string {
+	// windows requires both / and \ are replaced
+	if runtime.GOOS == "windows" {
+		prefix = strings.Replace(prefix, string(os.PathSeparator), "-", -1)
+	}
+	return strings.Replace(prefix, "/", "-", -1)
 }
 
 // Path returns the full path to the file
@@ -76,13 +83,10 @@ func NewDir(t assert.TestingT, prefix string, ops ...PathOp) *Dir {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
 	}
-	path, err := ioutil.TempDir("", prefix+"-")
+	path, err := ioutil.TempDir("", cleanPrefix(prefix)+"-")
 	assert.NilError(t, err)
 	dir := &Dir{path: path}
-
-	for _, op := range ops {
-		assert.NilError(t, op(dir))
-	}
+	assert.NilError(t, applyPathOps(dir, ops))
 	if tc, ok := t.(subtest.TestContext); ok {
 		tc.AddCleanup(dir.Remove)
 	}

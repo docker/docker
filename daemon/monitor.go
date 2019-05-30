@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/libcontainerd"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/restartmanager"
 	"github.com/sirupsen/logrus"
 )
@@ -27,14 +27,14 @@ func (daemon *Daemon) setStateCounter(c *container.Container) {
 }
 
 // ProcessEvent is called by libcontainerd whenever an event occurs
-func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libcontainerd.EventInfo) error {
+func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) error {
 	c, err := daemon.GetContainer(id)
 	if c == nil || err != nil {
 		return fmt.Errorf("no such container: %s", id)
 	}
 
 	switch e {
-	case libcontainerd.EventOOM:
+	case libcontainerdtypes.EventOOM:
 		// StateOOM is Linux specific and should never be hit on Windows
 		if runtime.GOOS == "windows" {
 			return errors.New("received StateOOM from libcontainerd on Windows. This should never happen")
@@ -48,7 +48,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 		}
 
 		daemon.LogContainerEvent(c, "oom")
-	case libcontainerd.EventExit:
+	case libcontainerdtypes.EventExit:
 		if int(ei.Pid) == c.Pid {
 			c.Lock()
 			_, _, err := daemon.containerd.DeleteTask(context.Background(), c.ID)
@@ -143,7 +143,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 				"exec-pid":  ei.Pid,
 			}).Warn("Ignoring Exit Event, no such exec command found")
 		}
-	case libcontainerd.EventStart:
+	case libcontainerdtypes.EventStart:
 		c.Lock()
 		defer c.Unlock()
 
@@ -162,7 +162,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 			daemon.LogContainerEvent(c, "start")
 		}
 
-	case libcontainerd.EventPaused:
+	case libcontainerdtypes.EventPaused:
 		c.Lock()
 		defer c.Unlock()
 
@@ -175,7 +175,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 			}
 			daemon.LogContainerEvent(c, "pause")
 		}
-	case libcontainerd.EventResumed:
+	case libcontainerdtypes.EventResumed:
 		c.Lock()
 		defer c.Unlock()
 

@@ -23,6 +23,8 @@ type FrontendLLBBridge interface {
 
 type SolveRequest = gw.SolveRequest
 
+type CacheOptionsEntry = gw.CacheOptionsEntry
+
 type WorkerInfos interface {
 	WorkerInfos() []client.WorkerInfo
 }

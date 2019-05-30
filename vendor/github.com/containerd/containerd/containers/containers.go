@@ -86,6 +86,10 @@ type RuntimeInfo struct {
 
 // Store interacts with the underlying container storage
 type Store interface {
+	// Get a container using the id.
+	//
+	// Container object is returned on success. If the id is not known to the
+	// store, an error will be returned.
 	Get(ctx context.Context, id string) (Container, error)
 
 	// List returns containers that match one or more of the provided filters.

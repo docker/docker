@@ -25,14 +25,16 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/images/archive"
+	"github.com/containerd/containerd/platforms"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type importOpts struct {
-	indexName string
-	imageRefT func(string) string
-	dgstRefT  func(digest.Digest) string
+	indexName    string
+	imageRefT    func(string) string
+	dgstRefT     func(digest.Digest) string
+	allPlatforms bool
 }
 
 // ImportOpt allows the caller to specify import specific options
@@ -60,6 +62,14 @@ func WithDigestRef(f func(digest.Digest) string) ImportOpt {
 func WithIndexName(name string) ImportOpt {
 	return func(c *importOpts) error {
 		c.indexName = name
+		return nil
+	}
+}
+
+// WithAllPlatforms is used to import content for all platforms.
+func WithAllPlatforms(allPlatforms bool) ImportOpt {
+	return func(c *importOpts) error {
+		c.allPlatforms = allPlatforms
 		return nil
 	}
 }
@@ -97,6 +107,10 @@ func (c *Client) Import(ctx context.Context, reader io.Reader, opts ...ImportOpt
 			Name:   iopts.indexName,
 			Target: index,
 		})
+	}
+	var platformMatcher = platforms.All
+	if !iopts.allPlatforms {
+		platformMatcher = platforms.Default()
 	}
 
 	var handler images.HandlerFunc = func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
@@ -141,6 +155,7 @@ func (c *Client) Import(ctx context.Context, reader io.Reader, opts ...ImportOpt
 		return idx.Manifests, nil
 	}
 
+	handler = images.FilterPlatforms(handler, platformMatcher)
 	handler = images.SetChildrenLabels(cs, handler)
 	if err := images.Walk(ctx, handler, index); err != nil {
 		return nil, err

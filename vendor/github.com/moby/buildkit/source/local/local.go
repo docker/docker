@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/contenthash"
 	"github.com/moby/buildkit/cache/metadata"
@@ -19,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/tonistiigi/fsutil"
+	fstypes "github.com/tonistiigi/fsutil/types"
 	bolt "go.etcd.io/bbolt"
 	"golang.org/x/time/rate"
 	"google.golang.org/grpc/codes"
@@ -28,14 +30,12 @@ import (
 const keySharedKey = "local.sharedKey"
 
 type Opt struct {
-	SessionManager *session.Manager
-	CacheAccessor  cache.Accessor
-	MetadataStore  *metadata.Store
+	CacheAccessor cache.Accessor
+	MetadataStore *metadata.Store
 }
 
 func NewSource(opt Opt) (source.Source, error) {
 	ls := &localSource{
-		sm: opt.SessionManager,
 		cm: opt.CacheAccessor,
 		md: opt.MetadataStore,
 	}
@@ -43,7 +43,6 @@ func NewSource(opt Opt) (source.Source, error) {
 }
 
 type localSource struct {
-	sm *session.Manager
 	cm cache.Accessor
 	md *metadata.Store
 }
@@ -52,7 +51,7 @@ func (ls *localSource) ID() string {
 	return source.LocalScheme
 }
 
-func (ls *localSource) Resolve(ctx context.Context, id source.Identifier) (source.SourceInstance, error) {
+func (ls *localSource) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager) (source.SourceInstance, error) {
 	localIdentifier, ok := id.(*source.LocalIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid local identifier %v", id)
@@ -60,12 +59,14 @@ func (ls *localSource) Resolve(ctx context.Context, id source.Identifier) (sourc
 
 	return &localSourceHandler{
 		src:         *localIdentifier,
+		sm:          sm,
 		localSource: ls,
 	}, nil
 }
 
 type localSourceHandler struct {
 	src source.LocalIdentifier
+	sm  *session.Manager
 	*localSource
 }
 
@@ -154,7 +155,7 @@ func (ls *localSourceHandler) Snapshot(ctx context.Context) (out cache.Immutable
 		}
 	}()
 
-	cc, err := contenthash.GetCacheContext(ctx, mutable.Metadata())
+	cc, err := contenthash.GetCacheContext(ctx, mutable.Metadata(), mount.IdentityMapping())
 	if err != nil {
 		return nil, err
 	}
@@ -166,8 +167,23 @@ func (ls *localSourceHandler) Snapshot(ctx context.Context) (out cache.Immutable
 		FollowPaths:      ls.src.FollowPaths,
 		OverrideExcludes: false,
 		DestDir:          dest,
-		CacheUpdater:     &cacheUpdater{cc},
+		CacheUpdater:     &cacheUpdater{cc, mount.IdentityMapping()},
 		ProgressCb:       newProgressHandler(ctx, "transferring "+ls.src.Name+":"),
+	}
+
+	if idmap := mount.IdentityMapping(); idmap != nil {
+		opt.Filter = func(p string, stat *fstypes.Stat) bool {
+			identity, err := idmap.ToHost(idtools.Identity{
+				UID: int(stat.Uid),
+				GID: int(stat.Gid),
+			})
+			if err != nil {
+				return false
+			}
+			stat.Uid = uint32(identity.UID)
+			stat.Gid = uint32(identity.GID)
+			return true
+		}
 	}
 
 	if err := filesync.FSSync(ctx, caller, opt); err != nil {
@@ -246,6 +262,7 @@ func newProgressHandler(ctx context.Context, id string) func(int, bool) {
 
 type cacheUpdater struct {
 	contenthash.CacheContext
+	idmap *idtools.IdentityMapping
 }
 
 func (cu *cacheUpdater) MarkSupported(bool) {

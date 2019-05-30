@@ -137,6 +137,7 @@ func TestValidateLogOpt(t *testing.T) {
 		"env":                    "http://127.0.0.1",
 		"env-regex":              "abc",
 		"labels":                 "labelA",
+		"labels-regex":           "def",
 		"syslog-address":         "udp://1.2.3.4:1111",
 		"syslog-facility":        "daemon",
 		"syslog-tls-ca-cert":     "/etc/ca-certificates/custom/ca.pem",

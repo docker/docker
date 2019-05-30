@@ -31,7 +31,8 @@ import (
 type unixPlatform struct {
 }
 
-func (p *unixPlatform) CopyConsole(ctx context.Context, console console.Console, stdin, stdout, stderr string, wg, cwg *sync.WaitGroup) (console.Console, error) {
+func (p *unixPlatform) CopyConsole(ctx context.Context, console console.Console, stdin, stdout, stderr string, wg *sync.WaitGroup) (console.Console, error) {
+	var cwg sync.WaitGroup
 	if stdin != "" {
 		in, err := fifo.OpenFifo(ctx, stdin, syscall.O_RDONLY, 0)
 		if err != nil {
@@ -67,6 +68,7 @@ func (p *unixPlatform) CopyConsole(ctx context.Context, console console.Console,
 		outw.Close()
 		wg.Done()
 	}()
+	cwg.Wait()
 	return console, nil
 }
 

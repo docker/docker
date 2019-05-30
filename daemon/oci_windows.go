@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -9,13 +10,14 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"golang.org/x/sys/windows"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -25,6 +27,7 @@ const (
 )
 
 func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
+
 	img, err := daemon.imageService.GetImage(string(c.ImageID))
 	if err != nil {
 		return nil, err
@@ -40,9 +43,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	// Note, unlike Unix, we do NOT call into SetupWorkingDirectory as
 	// this is done in VMCompute. Further, we couldn't do it for Hyper-V
 	// containers anyway.
-
-	// In base spec
-	s.Hostname = c.FullHostname()
 
 	if err := daemon.setupSecretDir(c); err != nil {
 		return nil, err
@@ -124,15 +124,11 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	}
 
 	// In s.Process
-	s.Process.Args = append([]string{c.Path}, c.Args...)
-	if !c.Config.ArgsEscaped && img.OS == "windows" {
-		s.Process.Args = escapeArgs(s.Process.Args)
-	}
-
 	s.Process.Cwd = c.Config.WorkingDir
 	s.Process.Env = c.CreateDaemonEnvironment(c.Config.Tty, linkedEnv)
+	s.Process.Terminal = c.Config.Tty
+
 	if c.Config.Tty {
-		s.Process.Terminal = c.Config.Tty
 		s.Process.ConsoleSize = &specs.Box{
 			Height: c.HostConfig.ConsoleSize[0],
 			Width:  c.HostConfig.ConsoleSize[1],
@@ -219,11 +215,20 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		return nil, fmt.Errorf("Unsupported platform %q", img.OS)
 	}
 
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		if b, err := json.Marshal(&s); err == nil {
+			logrus.Debugf("Generated spec: %s", string(b))
+		}
+	}
+
 	return (*specs.Spec)(&s), nil
 }
 
 // Sets the Windows-specific fields of the OCI spec
 func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.Spec, isHyperV bool) error {
+
+	s.Hostname = c.FullHostname()
+
 	if len(s.Process.Cwd) == 0 {
 		// We default to C:\ to workaround the oddity of the case that the
 		// default directory for cmd running as LocalSystem (or
@@ -235,6 +240,14 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 		s.Process.Cwd = `C:\`
 	}
 
+	if c.Config.ArgsEscaped {
+		s.Process.CommandLine = c.Path
+		if len(c.Args) > 0 {
+			s.Process.CommandLine += " " + system.EscapeArgs(c.Args)
+		}
+	} else {
+		s.Process.Args = append([]string{c.Path}, c.Args...)
+	}
 	s.Root.Readonly = false // Windows does not support a read-only root filesystem
 	if !isHyperV {
 		if c.BaseFS == nil {
@@ -253,68 +266,8 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 	setResourcesInSpec(c, s, isHyperV)
 
 	// Read and add credentials from the security options if a credential spec has been provided.
-	if c.HostConfig.SecurityOpt != nil {
-		cs := ""
-		for _, sOpt := range c.HostConfig.SecurityOpt {
-			sOpt = strings.ToLower(sOpt)
-			if !strings.Contains(sOpt, "=") {
-				return fmt.Errorf("invalid security option: no equals sign in supplied value %s", sOpt)
-			}
-			var splitsOpt []string
-			splitsOpt = strings.SplitN(sOpt, "=", 2)
-			if len(splitsOpt) != 2 {
-				return fmt.Errorf("invalid security option: %s", sOpt)
-			}
-			if splitsOpt[0] != "credentialspec" {
-				return fmt.Errorf("security option not supported: %s", splitsOpt[0])
-			}
-
-			var (
-				match   bool
-				csValue string
-				err     error
-			)
-			if match, csValue = getCredentialSpec("file://", splitsOpt[1]); match {
-				if csValue == "" {
-					return fmt.Errorf("no value supplied for file:// credential spec security option")
-				}
-				if cs, err = readCredentialSpecFile(c.ID, daemon.root, filepath.Clean(csValue)); err != nil {
-					return err
-				}
-			} else if match, csValue = getCredentialSpec("registry://", splitsOpt[1]); match {
-				if csValue == "" {
-					return fmt.Errorf("no value supplied for registry:// credential spec security option")
-				}
-				if cs, err = readCredentialSpecRegistry(c.ID, csValue); err != nil {
-					return err
-				}
-			} else if match, csValue = getCredentialSpec("config://", splitsOpt[1]); match {
-				// if the container does not have a DependencyStore, then it
-				// isn't swarmkit managed. In order to avoid creating any
-				// impression that `config://` is a valid API, return the same
-				// error as if you'd passed any other random word.
-				if c.DependencyStore == nil {
-					return fmt.Errorf("invalid credential spec security option - value must be prefixed file:// or registry:// followed by a value")
-				}
-
-				// after this point, we can return regular swarmkit-relevant
-				// errors, because we'll know this container is managed.
-				if csValue == "" {
-					return fmt.Errorf("no value supplied for config:// credential spec security option")
-				}
-
-				csConfig, err := c.DependencyStore.Configs().Get(csValue)
-				if err != nil {
-					return errors.Wrap(err, "error getting value from config store")
-				}
-				// stuff the resulting secret data into a string to use as the
-				// CredentialSpec
-				cs = string(csConfig.Spec.Data)
-			} else {
-				return fmt.Errorf("invalid credential spec security option - value must be prefixed file:// or registry:// followed by a value")
-			}
-		}
-		s.Windows.CredentialSpec = cs
+	if err := daemon.setWindowsCredentialSpec(c, s); err != nil {
+		return err
 	}
 
 	// Do we have any assigned devices?
@@ -344,16 +297,96 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 	return nil
 }
 
+var errInvalidCredentialSpecSecOpt = errdefs.InvalidParameter(fmt.Errorf("invalid credential spec security option - value must be prefixed by 'file://', 'registry://', or 'raw://' followed by a non-empty value"))
+
+// setWindowsCredentialSpec sets the spec's `Windows.CredentialSpec`
+// field if relevant
+func (daemon *Daemon) setWindowsCredentialSpec(c *container.Container, s *specs.Spec) error {
+	if c.HostConfig == nil || c.HostConfig.SecurityOpt == nil {
+		return nil
+	}
+
+	// TODO (jrouge/wk8): if provided with several security options, we silently ignore
+	// all but the last one (provided they're all valid, otherwise we do return an error);
+	// this doesn't seem like a great idea?
+	credentialSpec := ""
+
+	for _, secOpt := range c.HostConfig.SecurityOpt {
+		optSplits := strings.SplitN(secOpt, "=", 2)
+		if len(optSplits) != 2 {
+			return errdefs.InvalidParameter(fmt.Errorf("invalid security option: no equals sign in supplied value %s", secOpt))
+		}
+		if !strings.EqualFold(optSplits[0], "credentialspec") {
+			return errdefs.InvalidParameter(fmt.Errorf("security option not supported: %s", optSplits[0]))
+		}
+
+		credSpecSplits := strings.SplitN(optSplits[1], "://", 2)
+		if len(credSpecSplits) != 2 || credSpecSplits[1] == "" {
+			return errInvalidCredentialSpecSecOpt
+		}
+		value := credSpecSplits[1]
+
+		var err error
+		switch strings.ToLower(credSpecSplits[0]) {
+		case "file":
+			if credentialSpec, err = readCredentialSpecFile(c.ID, daemon.root, filepath.Clean(value)); err != nil {
+				return errdefs.InvalidParameter(err)
+			}
+		case "registry":
+			if credentialSpec, err = readCredentialSpecRegistry(c.ID, value); err != nil {
+				return errdefs.InvalidParameter(err)
+			}
+		case "config":
+			// if the container does not have a DependencyStore, then it
+			// isn't swarmkit managed. In order to avoid creating any
+			// impression that `config://` is a valid API, return the same
+			// error as if you'd passed any other random word.
+			if c.DependencyStore == nil {
+				return errInvalidCredentialSpecSecOpt
+			}
+
+			csConfig, err := c.DependencyStore.Configs().Get(value)
+			if err != nil {
+				return errdefs.System(errors.Wrap(err, "error getting value from config store"))
+			}
+			// stuff the resulting secret data into a string to use as the
+			// CredentialSpec
+			credentialSpec = string(csConfig.Spec.Data)
+		case "raw":
+			credentialSpec = value
+		default:
+			return errInvalidCredentialSpecSecOpt
+		}
+	}
+
+	if credentialSpec != "" {
+		if s.Windows == nil {
+			s.Windows = &specs.Windows{}
+		}
+		s.Windows.CredentialSpec = credentialSpec
+	}
+
+	return nil
+}
+
 // Sets the Linux-specific fields of the OCI spec
 // TODO: @jhowardmsft LCOW Support. We need to do a lot more pulling in what can
 // be pulled in from oci_linux.go.
 func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spec) error {
+	s.Root = &specs.Root{
+		Path:     "rootfs",
+		Readonly: c.HostConfig.ReadonlyRootfs,
+	}
+
+	s.Hostname = c.Config.Hostname
+	setLinuxDomainname(c, s)
+
 	if len(s.Process.Cwd) == 0 {
 		s.Process.Cwd = `/`
 	}
-	s.Root.Path = "rootfs"
-	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
+	s.Process.Args = append([]string{c.Path}, c.Args...)
 
+	// Note these are against the UVM.
 	setResourcesInSpec(c, s, true) // LCOW is Hyper-V only
 
 	capabilities, err := caps.TweakCapabilities(oci.DefaultCapabilities(), c.HostConfig.CapAdd, c.HostConfig.CapDrop, c.HostConfig.Capabilities, c.HostConfig.Privileged)
@@ -396,29 +429,37 @@ func setResourcesInSpec(c *container.Container, s *specs.Spec, isHyperV bool) {
 			}
 		}
 	}
-	memoryLimit := uint64(c.HostConfig.Memory)
-	s.Windows.Resources = &specs.WindowsResources{
-		CPU: &specs.WindowsCPUResources{
+
+	if cpuMaximum != 0 || cpuShares != 0 || cpuCount != 0 {
+		if s.Windows.Resources == nil {
+			s.Windows.Resources = &specs.WindowsResources{}
+		}
+		s.Windows.Resources.CPU = &specs.WindowsCPUResources{
 			Maximum: &cpuMaximum,
 			Shares:  &cpuShares,
 			Count:   &cpuCount,
-		},
-		Memory: &specs.WindowsMemoryResources{
+		}
+	}
+
+	memoryLimit := uint64(c.HostConfig.Memory)
+	if memoryLimit != 0 {
+		if s.Windows.Resources == nil {
+			s.Windows.Resources = &specs.WindowsResources{}
+		}
+		s.Windows.Resources.Memory = &specs.WindowsMemoryResources{
 			Limit: &memoryLimit,
-		},
-		Storage: &specs.WindowsStorageResources{
+		}
+	}
+
+	if c.HostConfig.IOMaximumBandwidth != 0 || c.HostConfig.IOMaximumIOps != 0 {
+		if s.Windows.Resources == nil {
+			s.Windows.Resources = &specs.WindowsResources{}
+		}
+		s.Windows.Resources.Storage = &specs.WindowsStorageResources{
 			Bps:  &c.HostConfig.IOMaximumBandwidth,
 			Iops: &c.HostConfig.IOMaximumIOps,
-		},
+		}
 	}
-}
-
-func escapeArgs(args []string) []string {
-	escapedArgs := make([]string, len(args))
-	for i, a := range args {
-		escapedArgs[i] = windows.EscapeArg(a)
-	}
-	return escapedArgs
 }
 
 // mergeUlimits merge the Ulimits from HostConfig with daemon defaults, and update HostConfig
@@ -427,34 +468,37 @@ func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig) {
 	return
 }
 
-// getCredentialSpec is a helper function to get the value of a credential spec supplied
-// on the CLI, stripping the prefix
-func getCredentialSpec(prefix, value string) (bool, string) {
-	if strings.HasPrefix(value, prefix) {
-		return true, strings.TrimPrefix(value, prefix)
-	}
-	return false, ""
+// registryKey is an interface wrapper around `registry.Key`,
+// listing only the methods we care about here.
+// It's mainly useful to easily allow mocking the registry in tests.
+type registryKey interface {
+	GetStringValue(name string) (val string, valtype uint32, err error)
+	Close() error
+}
+
+var registryOpenKeyFunc = func(baseKey registry.Key, path string, access uint32) (registryKey, error) {
+	return registry.OpenKey(baseKey, path, access)
 }
 
 // readCredentialSpecRegistry is a helper function to read a credential spec from
 // the registry. If not found, we return an empty string and warn in the log.
 // This allows for staging on machines which do not have the necessary components.
 func readCredentialSpecRegistry(id, name string) (string, error) {
-	var (
-		k   registry.Key
-		err error
-		val string
-	)
-	if k, err = registry.OpenKey(registry.LOCAL_MACHINE, credentialSpecRegistryLocation, registry.QUERY_VALUE); err != nil {
-		return "", fmt.Errorf("failed handling spec %q for container %s - %s could not be opened", name, id, credentialSpecRegistryLocation)
+	key, err := registryOpenKeyFunc(registry.LOCAL_MACHINE, credentialSpecRegistryLocation, registry.QUERY_VALUE)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed handling spec %q for container %s - registry key %s could not be opened", name, id, credentialSpecRegistryLocation)
 	}
-	if val, _, err = k.GetStringValue(name); err != nil {
+	defer key.Close()
+
+	value, _, err := key.GetStringValue(name)
+	if err != nil {
 		if err == registry.ErrNotExist {
-			return "", fmt.Errorf("credential spec %q for container %s as it was not found", name, id)
+			return "", fmt.Errorf("registry credential spec %q for container %s was not found", name, id)
 		}
-		return "", fmt.Errorf("error %v reading credential spec %q from registry for container %s", err, name, id)
+		return "", errors.Wrapf(err, "error reading credential spec %q from registry for container %s", name, id)
 	}
-	return val, nil
+
+	return value, nil
 }
 
 // readCredentialSpecFile is a helper function to read a credential spec from
@@ -471,7 +515,7 @@ func readCredentialSpecFile(id, root, location string) (string, error) {
 	}
 	bcontents, err := ioutil.ReadFile(full)
 	if err != nil {
-		return "", fmt.Errorf("credential spec '%s' for container %s as the file could not be read: %q", full, id, err)
+		return "", errors.Wrapf(err, "credential spec for container %s could not be read from file %q", id, full)
 	}
 	return string(bcontents[:]), nil
 }

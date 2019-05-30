@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
@@ -114,8 +113,6 @@ func TestUpdatePidsLimit(t *testing.T) {
 	oldAPIclient := request.NewAPIClient(t, client.WithVersion("1.24"))
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, apiClient)
-
 	intPtr := func(i int64) *int64 {
 		return &i
 	}
@@ -123,29 +120,28 @@ func TestUpdatePidsLimit(t *testing.T) {
 	for _, test := range []struct {
 		desc     string
 		oldAPI   bool
+		initial  *int64
 		update   *int64
 		expect   int64
 		expectCg string
 	}{
 		{desc: "update from none", update: intPtr(32), expect: 32, expectCg: "32"},
-		{desc: "no change", update: nil, expectCg: "32"},
-		{desc: "update lower", update: intPtr(16), expect: 16, expectCg: "16"},
-		{desc: "update on old api ignores value", oldAPI: true, update: intPtr(10), expect: 16, expectCg: "16"},
-		{desc: "unset limit", update: intPtr(0), expect: 0, expectCg: "max"},
+		{desc: "no change", initial: intPtr(32), expect: 32, expectCg: "32"},
+		{desc: "update lower", initial: intPtr(32), update: intPtr(16), expect: 16, expectCg: "16"},
+		{desc: "update on old api ignores value", oldAPI: true, initial: intPtr(32), update: intPtr(16), expect: 32, expectCg: "32"},
+		{desc: "unset limit with zero", initial: intPtr(32), update: intPtr(0), expect: 0, expectCg: "max"},
+		{desc: "unset limit with minus one", initial: intPtr(32), update: intPtr(-1), expect: 0, expectCg: "max"},
+		{desc: "unset limit with minus two", initial: intPtr(32), update: intPtr(-2), expect: 0, expectCg: "max"},
 	} {
 		c := apiClient
 		if test.oldAPI {
 			c = oldAPIclient
 		}
 
-		var before types.ContainerJSON
-		if test.update == nil {
-			var err error
-			before, err = c.ContainerInspect(ctx, cID)
-			assert.NilError(t, err)
-		}
-
 		t.Run(test.desc, func(t *testing.T) {
+			// Using "network=host" to speed up creation (13.96s vs 6.54s)
+			cID := container.Run(t, ctx, apiClient, container.WithPidsLimit(test.initial), container.WithNetworkMode("host"))
+
 			_, err := c.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
 				Resources: containertypes.Resources{
 					PidsLimit: test.update,
@@ -156,13 +152,7 @@ func TestUpdatePidsLimit(t *testing.T) {
 			inspect, err := c.ContainerInspect(ctx, cID)
 			assert.NilError(t, err)
 			assert.Assert(t, inspect.HostConfig.Resources.PidsLimit != nil)
-
-			if test.update == nil {
-				assert.Assert(t, before.HostConfig.Resources.PidsLimit != nil)
-				assert.Equal(t, *before.HostConfig.Resources.PidsLimit, *inspect.HostConfig.Resources.PidsLimit)
-			} else {
-				assert.Equal(t, *inspect.HostConfig.Resources.PidsLimit, test.expect)
-			}
+			assert.Equal(t, *inspect.HostConfig.Resources.PidsLimit, test.expect)
 
 			ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 			defer cancel()

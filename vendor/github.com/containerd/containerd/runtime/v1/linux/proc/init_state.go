@@ -20,12 +20,9 @@ package proc
 
 import (
 	"context"
-	"sync"
-	"syscall"
 
 	"github.com/containerd/console"
 	"github.com/containerd/containerd/runtime/proc"
-	"github.com/containerd/fifo"
 	runc "github.com/containerd/go-runc"
 	google_protobuf "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
@@ -172,31 +169,25 @@ func (s *createdCheckpointState) Start(ctx context.Context) error {
 		return p.runtimeError(err, "OCI runtime restore failed")
 	}
 	if sio.Stdin != "" {
-		sc, err := fifo.OpenFifo(context.Background(), sio.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
-		if err != nil {
+		if err := p.openStdin(sio.Stdin); err != nil {
 			return errors.Wrapf(err, "failed to open stdin fifo %s", sio.Stdin)
 		}
-		p.stdin = sc
-		p.closers = append(p.closers, sc)
 	}
-	var copyWaitGroup sync.WaitGroup
 	if socket != nil {
 		console, err := socket.ReceiveMaster()
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve console master")
 		}
-		console, err = p.Platform.CopyConsole(ctx, console, sio.Stdin, sio.Stdout, sio.Stderr, &p.wg, &copyWaitGroup)
+		console, err = p.Platform.CopyConsole(ctx, console, sio.Stdin, sio.Stdout, sio.Stderr, &p.wg)
 		if err != nil {
 			return errors.Wrap(err, "failed to start console copy")
 		}
 		p.console = console
-	} else if !sio.IsNull() {
-		if err := copyPipes(ctx, p.io, sio.Stdin, sio.Stdout, sio.Stderr, &p.wg, &copyWaitGroup); err != nil {
+	} else {
+		if err := p.io.Copy(ctx, &p.wg); err != nil {
 			return errors.Wrap(err, "failed to start io pipe copy")
 		}
 	}
-
-	copyWaitGroup.Wait()
 	pid, err := runc.ReadPidFile(s.opts.PidFile)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve OCI runtime container pid")

@@ -90,6 +90,22 @@ w.Debug("this is debug")
 w.Write([]byte("these are some bytes"))
 ```
 
+If you need further control over connection attempts, you can use the DialWithCustomDialer
+function. To continue with the DialWithTLSConfig example:
+
+```
+netDialer := &net.Dialer{Timeout: time.Second*5} // easy timeouts
+realNetwork := "tcp" // real network, other vars your dail func can close over
+dial := func(network, addr string) (net.Conn, error) {
+    // cannot use "network" here as it'll simply be "custom" which will fail
+    return tls.DialWithDialer(netDialer, realNetwork, addr, &config)
+}
+
+w, err := DialWithCustomDialer("custom", "192.168.0.52:514", syslog.LOG_ERR, "testtag", dial)
+```
+
+Your custom dial func can set timeouts, proxy connections, and do whatever else it needs before returning a net.Conn.
+
 # Generating TLS Certificates
 
 We've provided a script that you can use to generate a self-signed keypair:

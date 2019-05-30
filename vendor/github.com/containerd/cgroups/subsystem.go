@@ -42,7 +42,7 @@ const (
 )
 
 // Subsystems returns a complete list of the default cgroups
-// avaliable on most linux systems
+// available on most linux systems
 func Subsystems() []Name {
 	n := []Name{
 		Hugetlb,

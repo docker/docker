@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/system"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 func (s *DockerSuite) TestCpToContainerWithPermissions(c *check.C) {
@@ -25,16 +25,16 @@ func (s *DockerSuite) TestCpToContainerWithPermissions(c *check.C) {
 	containerName := "permtest"
 
 	_, exc := dockerCmd(c, "create", "--name", containerName, "debian:jessie", "/bin/bash", "-c", "stat -c '%u %g %a' /permdirtest /permdirtest/permtest")
-	c.Assert(exc, checker.Equals, 0)
+	assert.Equal(c, exc, 0)
 	defer dockerCmd(c, "rm", "-f", containerName)
 
 	srcPath := cpPath(tmpDir, "permdirtest")
 	dstPath := containerCpPath(containerName, "/")
-	c.Assert(runDockerCp(c, srcPath, dstPath, []string{"-a"}), checker.IsNil)
+	assert.NilError(c, runDockerCp(c, srcPath, dstPath, []string{"-a"}))
 
 	out, err := startContainerGetOutput(c, containerName)
-	c.Assert(err, checker.IsNil, check.Commentf("output: %v", out))
-	c.Assert(strings.TrimSpace(out), checker.Equals, "2 2 700\n65534 65534 400", check.Commentf("output: %v", out))
+	assert.NilError(c, err, "output: %v", out)
+	assert.Equal(c, strings.TrimSpace(out), "2 2 700\n65534 65534 400", "output: %v", out)
 }
 
 // Check ownership is root, both in non-userns and userns enabled modes
@@ -53,14 +53,14 @@ func (s *DockerSuite) TestCpCheckDestOwnership(c *check.C) {
 	dstPath := containerCpPath(containerID, "/tmpvol", "file1")
 
 	err := runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	stat, err := system.Stat(filepath.Join(tmpVolDir, "file1"))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	uid, gid, err := getRootUIDGID()
-	c.Assert(err, checker.IsNil)
-	c.Assert(stat.UID(), checker.Equals, uint32(uid), check.Commentf("Copied file not owned by container root UID"))
-	c.Assert(stat.GID(), checker.Equals, uint32(gid), check.Commentf("Copied file not owned by container root GID"))
+	assert.NilError(c, err)
+	assert.Equal(c, stat.UID(), uint32(uid), "Copied file not owned by container root UID")
+	assert.Equal(c, stat.GID(), uint32(gid), "Copied file not owned by container root GID")
 }
 
 func getRootUIDGID() (int, int, error) {

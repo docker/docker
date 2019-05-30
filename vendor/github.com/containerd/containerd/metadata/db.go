@@ -46,6 +46,19 @@ const (
 	dbVersion = 3
 )
 
+// DBOpt configures how we set up the DB
+type DBOpt func(*dbOptions)
+
+// WithPolicyIsolated isolates contents between namespaces
+func WithPolicyIsolated(o *dbOptions) {
+	o.shared = false
+}
+
+// dbOptions configure db options.
+type dbOptions struct {
+	shared bool
+}
+
 // DB represents a metadata database backed by a bolt
 // database. The database is fully namespaced and stores
 // image, container, namespace, snapshot, and content data
@@ -72,19 +85,28 @@ type DB struct {
 	// mutationCallbacks are called after each mutation with the flag
 	// set indicating whether any dirty flags are set
 	mutationCallbacks []func(bool)
+
+	dbopts dbOptions
 }
 
 // NewDB creates a new metadata database using the provided
 // bolt database, content store, and snapshotters.
-func NewDB(db *bolt.DB, cs content.Store, ss map[string]snapshots.Snapshotter) *DB {
+func NewDB(db *bolt.DB, cs content.Store, ss map[string]snapshots.Snapshotter, opts ...DBOpt) *DB {
 	m := &DB{
 		db:      db,
 		ss:      make(map[string]*snapshotter, len(ss)),
 		dirtySS: map[string]struct{}{},
+		dbopts: dbOptions{
+			shared: true,
+		},
+	}
+
+	for _, opt := range opts {
+		opt(&m.dbopts)
 	}
 
 	// Initialize data stores
-	m.cs = newContentStore(m, cs)
+	m.cs = newContentStore(m, m.dbopts.shared, cs)
 	for name, sn := range ss {
 		m.ss[name] = newSnapshotter(m, name, sn)
 	}

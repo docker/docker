@@ -284,9 +284,9 @@ type inMemoryResultStore struct {
 	m *sync.Map
 }
 
-func (s *inMemoryResultStore) Save(r Result) (CacheResult, error) {
+func (s *inMemoryResultStore) Save(r Result, createdAt time.Time) (CacheResult, error) {
 	s.m.Store(r.ID(), r)
-	return CacheResult{ID: r.ID(), CreatedAt: time.Now()}, nil
+	return CacheResult{ID: r.ID(), CreatedAt: createdAt}, nil
 }
 
 func (s *inMemoryResultStore) Load(ctx context.Context, res CacheResult) (Result, error) {

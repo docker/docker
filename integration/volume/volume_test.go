@@ -40,12 +40,20 @@ func TestVolumesCreateAndList(t *testing.T) {
 	}
 	assert.Check(t, is.DeepEqual(vol, expected, cmpopts.EquateEmpty()))
 
-	volumes, err := client.VolumeList(ctx, filters.Args{})
+	volList, err := client.VolumeList(ctx, filters.Args{})
 	assert.NilError(t, err)
+	assert.Assert(t, len(volList.Volumes) > 0)
 
-	assert.Check(t, is.Equal(len(volumes.Volumes), 1))
-	assert.Check(t, volumes.Volumes[0] != nil)
-	assert.Check(t, is.DeepEqual(*volumes.Volumes[0], expected, cmpopts.EquateEmpty()))
+	volumes := volList.Volumes[:0]
+	for _, v := range volList.Volumes {
+		if v.Name == vol.Name {
+			volumes = append(volumes, v)
+		}
+	}
+
+	assert.Check(t, is.Equal(len(volumes), 1))
+	assert.Check(t, volumes[0] != nil)
+	assert.Check(t, is.DeepEqual(*volumes[0], expected, cmpopts.EquateEmpty()))
 }
 
 func TestVolumesRemove(t *testing.T) {

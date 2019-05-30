@@ -459,6 +459,20 @@ func (c *Cluster) Info() types.Info {
 				}
 			}
 		}
+
+		switch info.LocalNodeState {
+		case types.LocalNodeStateInactive, types.LocalNodeStateLocked, types.LocalNodeStateError:
+			// nothing to do
+		default:
+			if info.Managers == 2 {
+				const warn string = `WARNING: Running Swarm in a two-manager configuration. This configuration provides
+         no fault tolerance, and poses a high risk to lose control over the cluster.
+         Refer to https://docs.docker.com/engine/swarm/admin_guide/ to configure the
+         Swarm for fault-tolerance.`
+
+				info.Warnings = append(info.Warnings, warn)
+			}
+		}
 	}
 
 	if state.swarmNode != nil {

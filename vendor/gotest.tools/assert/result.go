@@ -70,7 +70,6 @@ func filterPrintableExpr(args []ast.Expr) []ast.Expr {
 			result[i] = starExpr.X
 			continue
 		}
-		result[i] = nil
 	}
 	return result
 }

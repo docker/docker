@@ -277,12 +277,12 @@ func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 	filename := filepath.Join(tmp, "container.log")
-	config := map[string]string{"labels": "rack,dc", "env": "environ,debug,ssl", "env-regex": "^dc"}
+	config := map[string]string{"labels": "rack,dc", "labels-regex": "^loc", "env": "environ,debug,ssl", "env-regex": "^dc"}
 	l, err := New(logger.Info{
 		ContainerID:     cid,
 		LogPath:         filename,
 		Config:          config,
-		ContainerLabels: map[string]string{"rack": "101", "dc": "lhr"},
+		ContainerLabels: map[string]string{"rack": "101", "dc": "lhr", "location": "here"},
 		ContainerEnv:    []string{"environ=production", "debug=false", "port=10001", "ssl=true", "dc_region=west"},
 	})
 	if err != nil {
@@ -308,6 +308,7 @@ func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 	expected := map[string]string{
 		"rack":      "101",
 		"dc":        "lhr",
+		"location":  "here",
 		"environ":   "production",
 		"debug":     "false",
 		"ssl":       "true",

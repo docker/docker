@@ -67,7 +67,7 @@ func CopyChain(ctx context.Context, ingester content.Ingester, provider content.
 		remotes.FetchHandler(ingester, &localFetcher{provider}),
 	}
 
-	if err := images.Dispatch(ctx, images.Handlers(handlers...), desc); err != nil {
+	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, desc); err != nil {
 		return errors.WithStack(err)
 	}
 

@@ -45,13 +45,13 @@ func ValidateHost(val string) (string, error) {
 }
 
 // ParseHost and set defaults for a Daemon host string.
-// defaultToTLS is preferred over defaultToUnixRootless.
-func ParseHost(defaultToTLS, defaultToUnixRootless bool, val string) (string, error) {
+// defaultToTLS is preferred over defaultToUnixXDG.
+func ParseHost(defaultToTLS, defaultToUnixXDG bool, val string) (string, error) {
 	host := strings.TrimSpace(val)
 	if host == "" {
 		if defaultToTLS {
 			host = DefaultTLSHost
-		} else if defaultToUnixRootless {
+		} else if defaultToUnixXDG {
 			runtimeDir, err := homedir.GetRuntimeDir()
 			if err != nil {
 				return "", err

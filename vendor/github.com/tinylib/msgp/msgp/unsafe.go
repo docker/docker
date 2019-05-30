@@ -1,4 +1,4 @@
-// +build !appengine
+// +build !purego,!appengine
 
 package msgp
 

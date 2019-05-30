@@ -14,7 +14,7 @@ copy_binaries() {
 		return
 	fi
 	echo "Copying nested executables into $dir"
-	for file in containerd containerd-shim ctr runc docker-init docker-proxy rootlesskit dockerd-rootless.sh; do
+	for file in containerd containerd-shim ctr runc docker-init docker-proxy rootlesskit rootlesskit-docker-proxy dockerd-rootless.sh; do
 		cp -f `which "$file"` "$dir/"
 		if [ "$hash" == "hash" ]; then
 			hash_files "$dir/$file"

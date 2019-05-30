@@ -56,8 +56,39 @@ time="2015-03-26T01:27:38-04:00" level=warning msg="The group's number increased
 time="2015-03-26T01:27:38-04:00" level=debug msg="Temperature changes" temperature=-4
 time="2015-03-26T01:27:38-04:00" level=panic msg="It's over 9000!" animal=orca size=9009
 time="2015-03-26T01:27:38-04:00" level=fatal msg="The ice breaks!" err=&{0x2082280c0 map[animal:orca size:9009] 2015-03-26 01:27:38.441574009 -0400 EDT panic It's over 9000!} number=100 omg=true
-exit status 1
 ```
+To ensure this behaviour even if a TTY is attached, set your formatter as follows:
+
+```go
+	log.SetFormatter(&log.TextFormatter{
+		DisableColors: true,
+		FullTimestamp: true,
+	})
+```
+
+#### Logging Method Name
+
+If you wish to add the calling method as a field, instruct the logger via:
+```go
+log.SetReportCaller(true)
+```
+This adds the caller as 'method' like so:
+
+```json
+{"animal":"penguin","level":"fatal","method":"github.com/sirupsen/arcticcreatures.migrate","msg":"a penguin swims by",
+"time":"2014-03-10 19:57:38.562543129 -0400 EDT"}
+```
+
+```text
+time="2015-03-26T01:27:38-04:00" level=fatal method=github.com/sirupsen/arcticcreatures.migrate msg="a penguin swims by" animal=penguin
+```
+Note that this does add measurable overhead - the cost will depend on the version of Go, but is
+between 20 and 40% in recent tests with 1.6 and 1.7.  You can validate this in your
+environment via benchmarks: 
+```
+go test -bench=.*CallerTracing
+```
+
 
 #### Case-sensitivity
 
@@ -246,9 +277,10 @@ A list of currently known of service hook can be found in this wiki [page](https
 
 #### Level logging
 
-Logrus has six logging levels: Debug, Info, Warning, Error, Fatal and Panic.
+Logrus has seven logging levels: Trace, Debug, Info, Warning, Error, Fatal and Panic.
 
 ```go
+log.Trace("Something very low level.")
 log.Debug("Useful debugging information.")
 log.Info("Something noteworthy happened!")
 log.Warn("You should probably take a look at this.")
@@ -329,9 +361,11 @@ The built-in logging formatters are:
 Third party logging formatters:
 
 * [`FluentdFormatter`](https://github.com/joonix/log). Formats entries that can be parsed by Kubernetes and Google Container Engine.
+* [`GELF`](https://github.com/fabienm/go-logrus-formatters). Formats entries so they comply to Graylog's [GELF 1.1 specification](http://docs.graylog.org/en/2.4/pages/gelf.html).
 * [`logstash`](https://github.com/bshuster-repo/logrus-logstash-hook). Logs fields as [Logstash](http://logstash.net) Events.
 * [`prefixed`](https://github.com/x-cray/logrus-prefixed-formatter). Displays log entry source along with alternative layout.
 * [`zalgo`](https://github.com/aybabtme/logzalgo). Invoking the P͉̫o̳̼̊w̖͈̰͎e̬͔̭͂r͚̼̹̲ ̫͓͉̳͈ō̠͕͖̚f̝͍̠ ͕̲̞͖͑Z̖̫̤̫ͪa͉̬͈̗l͖͎g̳̥o̰̥̅!̣͔̲̻͊̄ ̙̘̦̹̦.
+* [`nested-logrus-formatter`](https://github.com/antonfisher/nested-logrus-formatter). Converts logrus fields to a nested structure.
 
 You can define your formatter by implementing the `Formatter` interface,
 requiring a `Format` method. `Format` takes an `*Entry`. `entry.Data` is a

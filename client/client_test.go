@@ -2,10 +2,13 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/api"
@@ -123,9 +126,10 @@ func TestGetAPIPath(t *testing.T) {
 		{"v1.22", "/networks/kiwl$%^", nil, "/v1.22/networks/kiwl$%25%5E"},
 	}
 
+	ctx := context.TODO()
 	for _, testcase := range testcases {
 		c := Client{version: testcase.version, basePath: "/"}
-		actual := c.getAPIPath(testcase.path, testcase.query)
+		actual := c.getAPIPath(ctx, testcase.path, testcase.query)
 		assert.Check(t, is.Equal(actual, testcase.expected))
 	}
 }
@@ -263,6 +267,55 @@ func TestNegotiateAPVersionOverride(t *testing.T) {
 	// test that we honored the env var
 	client.NegotiateAPIVersionPing(ping)
 	assert.Check(t, is.Equal(expected, client.version))
+}
+
+func TestNegotiateAPIVersionAutomatic(t *testing.T) {
+	var pingVersion string
+	httpClient := newMockClient(func(req *http.Request) (*http.Response, error) {
+		resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}}
+		resp.Header.Set("API-Version", pingVersion)
+		resp.Body = ioutil.NopCloser(strings.NewReader("OK"))
+		return resp, nil
+	})
+
+	client, err := NewClientWithOpts(
+		WithHTTPClient(httpClient),
+		WithAPIVersionNegotiation(),
+	)
+	assert.NilError(t, err)
+
+	ctx := context.Background()
+	assert.Equal(t, client.ClientVersion(), api.DefaultVersion)
+
+	// First request should trigger negotiation
+	pingVersion = "1.35"
+	_, _ = client.Info(ctx)
+	assert.Equal(t, client.ClientVersion(), "1.35")
+
+	// Once successfully negotiated, subsequent requests should not re-negotiate
+	pingVersion = "1.25"
+	_, _ = client.Info(ctx)
+	assert.Equal(t, client.ClientVersion(), "1.35")
+}
+
+// TestNegotiateAPIVersionWithEmptyVersion asserts that initializing a client
+// with an empty version string does still allow API-version negotiation
+func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
+	client, err := NewClientWithOpts(WithVersion(""))
+	assert.NilError(t, err)
+
+	client.NegotiateAPIVersionPing(types.Ping{APIVersion: "1.35"})
+	assert.Equal(t, client.version, "1.35")
+}
+
+// TestNegotiateAPIVersionWithFixedVersion asserts that initializing a client
+// with an fixed version disables API-version negotiation
+func TestNegotiateAPIVersionWithFixedVersion(t *testing.T) {
+	client, err := NewClientWithOpts(WithVersion("1.35"))
+	assert.NilError(t, err)
+
+	client.NegotiateAPIVersionPing(types.Ping{APIVersion: "1.31"})
+	assert.Equal(t, client.version, "1.35")
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

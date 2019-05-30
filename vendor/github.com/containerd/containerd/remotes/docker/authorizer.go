@@ -81,7 +81,7 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 			// TODO(dmcg): Store challenge, not token
 			// Move token fetching to authorize
 			return a.setTokenAuth(ctx, host, c.parameters)
-		} else if c.scheme == basicAuth {
+		} else if c.scheme == basicAuth && a.credentials != nil {
 			// TODO: Resolve credentials on authorize
 			username, secret, err := a.credentials(host)
 			if err != nil {
@@ -194,7 +194,11 @@ func (a *dockerAuthorizer) fetchTokenWithOAuth(ctx context.Context, to tokenOpti
 		form.Set("password", to.secret)
 	}
 
-	resp, err := ctxhttp.PostForm(ctx, a.client, to.realm, form)
+	resp, err := ctxhttp.Post(
+		ctx, a.client, to.realm,
+		"application/x-www-form-urlencoded; charset=utf-8",
+		strings.NewReader(form.Encode()),
+	)
 	if err != nil {
 		return "", err
 	}

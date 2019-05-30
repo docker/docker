@@ -3,52 +3,172 @@
 
 package events
 
-import proto "github.com/gogo/protobuf/proto"
-import fmt "fmt"
-import math "math"
-
-// skipping weak import containerd_plugin "github.com/containerd/containerd/protobuf/plugin"
-
-import strings "strings"
-import reflect "reflect"
-
-import io "io"
+import (
+	fmt "fmt"
+	proto "github.com/gogo/protobuf/proto"
+	io "io"
+	math "math"
+	reflect "reflect"
+	strings "strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the proto package it is being compiled against.
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+
 type SnapshotPrepare struct {
-	Key    string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Parent string `protobuf:"bytes,2,opt,name=parent,proto3" json:"parent,omitempty"`
+	Key                  string   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Parent               string   `protobuf:"bytes,2,opt,name=parent,proto3" json:"parent,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *SnapshotPrepare) Reset()                    { *m = SnapshotPrepare{} }
-func (*SnapshotPrepare) ProtoMessage()               {}
-func (*SnapshotPrepare) Descriptor() ([]byte, []int) { return fileDescriptorSnapshot, []int{0} }
+func (m *SnapshotPrepare) Reset()      { *m = SnapshotPrepare{} }
+func (*SnapshotPrepare) ProtoMessage() {}
+func (*SnapshotPrepare) Descriptor() ([]byte, []int) {
+	return fileDescriptor_bd6c184d3d9aa5f2, []int{0}
+}
+func (m *SnapshotPrepare) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SnapshotPrepare) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SnapshotPrepare.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SnapshotPrepare) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SnapshotPrepare.Merge(m, src)
+}
+func (m *SnapshotPrepare) XXX_Size() int {
+	return m.Size()
+}
+func (m *SnapshotPrepare) XXX_DiscardUnknown() {
+	xxx_messageInfo_SnapshotPrepare.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SnapshotPrepare proto.InternalMessageInfo
 
 type SnapshotCommit struct {
-	Key  string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Key                  string   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *SnapshotCommit) Reset()                    { *m = SnapshotCommit{} }
-func (*SnapshotCommit) ProtoMessage()               {}
-func (*SnapshotCommit) Descriptor() ([]byte, []int) { return fileDescriptorSnapshot, []int{1} }
+func (m *SnapshotCommit) Reset()      { *m = SnapshotCommit{} }
+func (*SnapshotCommit) ProtoMessage() {}
+func (*SnapshotCommit) Descriptor() ([]byte, []int) {
+	return fileDescriptor_bd6c184d3d9aa5f2, []int{1}
+}
+func (m *SnapshotCommit) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SnapshotCommit) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SnapshotCommit.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SnapshotCommit) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SnapshotCommit.Merge(m, src)
+}
+func (m *SnapshotCommit) XXX_Size() int {
+	return m.Size()
+}
+func (m *SnapshotCommit) XXX_DiscardUnknown() {
+	xxx_messageInfo_SnapshotCommit.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SnapshotCommit proto.InternalMessageInfo
 
 type SnapshotRemove struct {
-	Key string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Key                  string   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *SnapshotRemove) Reset()                    { *m = SnapshotRemove{} }
-func (*SnapshotRemove) ProtoMessage()               {}
-func (*SnapshotRemove) Descriptor() ([]byte, []int) { return fileDescriptorSnapshot, []int{2} }
+func (m *SnapshotRemove) Reset()      { *m = SnapshotRemove{} }
+func (*SnapshotRemove) ProtoMessage() {}
+func (*SnapshotRemove) Descriptor() ([]byte, []int) {
+	return fileDescriptor_bd6c184d3d9aa5f2, []int{2}
+}
+func (m *SnapshotRemove) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SnapshotRemove) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_SnapshotRemove.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *SnapshotRemove) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SnapshotRemove.Merge(m, src)
+}
+func (m *SnapshotRemove) XXX_Size() int {
+	return m.Size()
+}
+func (m *SnapshotRemove) XXX_DiscardUnknown() {
+	xxx_messageInfo_SnapshotRemove.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SnapshotRemove proto.InternalMessageInfo
 
 func init() {
 	proto.RegisterType((*SnapshotPrepare)(nil), "containerd.events.SnapshotPrepare")
 	proto.RegisterType((*SnapshotCommit)(nil), "containerd.events.SnapshotCommit")
 	proto.RegisterType((*SnapshotRemove)(nil), "containerd.events.SnapshotRemove")
+}
+
+func init() {
+	proto.RegisterFile("github.com/containerd/containerd/api/events/snapshot.proto", fileDescriptor_bd6c184d3d9aa5f2)
+}
+
+var fileDescriptor_bd6c184d3d9aa5f2 = []byte{
+	// 235 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xb2, 0x4a, 0xcf, 0x2c, 0xc9,
+	0x28, 0x4d, 0xd2, 0x4b, 0xce, 0xcf, 0xd5, 0x4f, 0xce, 0xcf, 0x2b, 0x49, 0xcc, 0xcc, 0x4b, 0x2d,
+	0x4a, 0x41, 0x66, 0x26, 0x16, 0x64, 0xea, 0xa7, 0x96, 0xa5, 0xe6, 0x95, 0x14, 0xeb, 0x17, 0xe7,
+	0x25, 0x16, 0x14, 0x67, 0xe4, 0x97, 0xe8, 0x15, 0x14, 0xe5, 0x97, 0xe4, 0x0b, 0x09, 0x22, 0x54,
+	0xe9, 0x41, 0x54, 0x48, 0x39, 0x10, 0x34, 0x0e, 0xac, 0x35, 0xa9, 0x34, 0x4d, 0xbf, 0x20, 0xa7,
+	0x34, 0x3d, 0x33, 0x4f, 0x3f, 0x2d, 0x33, 0x35, 0x27, 0xa5, 0x20, 0xb1, 0x24, 0x03, 0x62, 0xa8,
+	0x92, 0x35, 0x17, 0x7f, 0x30, 0xd4, 0x9a, 0x80, 0xa2, 0xd4, 0x82, 0xc4, 0xa2, 0x54, 0x21, 0x01,
+	0x2e, 0xe6, 0xec, 0xd4, 0x4a, 0x09, 0x46, 0x05, 0x46, 0x0d, 0xce, 0x20, 0x10, 0x53, 0x48, 0x8c,
+	0x8b, 0x0d, 0x24, 0x93, 0x57, 0x22, 0xc1, 0x04, 0x16, 0x84, 0xf2, 0x94, 0xcc, 0xb8, 0xf8, 0x60,
+	0x9a, 0x9d, 0xf3, 0x73, 0x73, 0x33, 0x4b, 0xb0, 0xe8, 0x15, 0xe2, 0x62, 0xc9, 0x4b, 0xcc, 0x4d,
+	0x85, 0xea, 0x04, 0xb3, 0x95, 0x94, 0x10, 0xfa, 0x82, 0x52, 0x73, 0xf3, 0xcb, 0xb0, 0xd8, 0xe9,
+	0x14, 0x70, 0xe2, 0xa1, 0x1c, 0xc3, 0x8d, 0x87, 0x72, 0x0c, 0x0d, 0x8f, 0xe4, 0x18, 0x4f, 0x3c,
+	0x92, 0x63, 0xbc, 0xf0, 0x48, 0x8e, 0xf1, 0xc1, 0x23, 0x39, 0xc6, 0x05, 0x5f, 0xe4, 0x18, 0xa3,
+	0x8c, 0x48, 0x08, 0x47, 0x6b, 0x08, 0x15, 0xc1, 0x90, 0xc4, 0x06, 0xf6, 0xb3, 0x31, 0x20, 0x00,
+	0x00, 0xff, 0xff, 0x69, 0x66, 0xa9, 0x2a, 0x86, 0x01, 0x00, 0x00,
 }
 
 // Field returns the value for the given fieldpath as a string, if defined.
@@ -123,6 +243,9 @@ func (m *SnapshotPrepare) MarshalTo(dAtA []byte) (int, error) {
 		i = encodeVarintSnapshot(dAtA, i, uint64(len(m.Parent)))
 		i += copy(dAtA[i:], m.Parent)
 	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
 	return i, nil
 }
 
@@ -153,6 +276,9 @@ func (m *SnapshotCommit) MarshalTo(dAtA []byte) (int, error) {
 		i = encodeVarintSnapshot(dAtA, i, uint64(len(m.Name)))
 		i += copy(dAtA[i:], m.Name)
 	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
 	return i, nil
 }
 
@@ -177,6 +303,9 @@ func (m *SnapshotRemove) MarshalTo(dAtA []byte) (int, error) {
 		i = encodeVarintSnapshot(dAtA, i, uint64(len(m.Key)))
 		i += copy(dAtA[i:], m.Key)
 	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
 	return i, nil
 }
 
@@ -190,6 +319,9 @@ func encodeVarintSnapshot(dAtA []byte, offset int, v uint64) int {
 	return offset + 1
 }
 func (m *SnapshotPrepare) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.Key)
@@ -200,10 +332,16 @@ func (m *SnapshotPrepare) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovSnapshot(uint64(l))
 	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
 	return n
 }
 
 func (m *SnapshotCommit) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.Key)
@@ -214,15 +352,24 @@ func (m *SnapshotCommit) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovSnapshot(uint64(l))
 	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
 	return n
 }
 
 func (m *SnapshotRemove) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.Key)
 	if l > 0 {
 		n += 1 + l + sovSnapshot(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
 	}
 	return n
 }
@@ -247,6 +394,7 @@ func (this *SnapshotPrepare) String() string {
 	s := strings.Join([]string{`&SnapshotPrepare{`,
 		`Key:` + fmt.Sprintf("%v", this.Key) + `,`,
 		`Parent:` + fmt.Sprintf("%v", this.Parent) + `,`,
+		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -258,6 +406,7 @@ func (this *SnapshotCommit) String() string {
 	s := strings.Join([]string{`&SnapshotCommit{`,
 		`Key:` + fmt.Sprintf("%v", this.Key) + `,`,
 		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
+		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -268,6 +417,7 @@ func (this *SnapshotRemove) String() string {
 	}
 	s := strings.Join([]string{`&SnapshotRemove{`,
 		`Key:` + fmt.Sprintf("%v", this.Key) + `,`,
+		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -295,7 +445,7 @@ func (m *SnapshotPrepare) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -323,7 +473,7 @@ func (m *SnapshotPrepare) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -333,6 +483,9 @@ func (m *SnapshotPrepare) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -352,7 +505,7 @@ func (m *SnapshotPrepare) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -362,6 +515,9 @@ func (m *SnapshotPrepare) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -376,9 +532,13 @@ func (m *SnapshotPrepare) Unmarshal(dAtA []byte) error {
 			if skippy < 0 {
 				return ErrInvalidLengthSnapshot
 			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if (iNdEx + skippy) > l {
 				return io.ErrUnexpectedEOF
 			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
 			iNdEx += skippy
 		}
 	}
@@ -403,7 +563,7 @@ func (m *SnapshotCommit) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -431,7 +591,7 @@ func (m *SnapshotCommit) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -441,6 +601,9 @@ func (m *SnapshotCommit) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -460,7 +623,7 @@ func (m *SnapshotCommit) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -470,6 +633,9 @@ func (m *SnapshotCommit) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -484,9 +650,13 @@ func (m *SnapshotCommit) Unmarshal(dAtA []byte) error {
 			if skippy < 0 {
 				return ErrInvalidLengthSnapshot
 			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if (iNdEx + skippy) > l {
 				return io.ErrUnexpectedEOF
 			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
 			iNdEx += skippy
 		}
 	}
@@ -511,7 +681,7 @@ func (m *SnapshotRemove) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -539,7 +709,7 @@ func (m *SnapshotRemove) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -549,6 +719,9 @@ func (m *SnapshotRemove) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthSnapshot
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -563,9 +736,13 @@ func (m *SnapshotRemove) Unmarshal(dAtA []byte) error {
 			if skippy < 0 {
 				return ErrInvalidLengthSnapshot
 			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthSnapshot
+			}
 			if (iNdEx + skippy) > l {
 				return io.ErrUnexpectedEOF
 			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
 			iNdEx += skippy
 		}
 	}
@@ -629,8 +806,11 @@ func skipSnapshot(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
+				return 0, ErrInvalidLengthSnapshot
+			}
+			iNdEx += length
+			if iNdEx < 0 {
 				return 0, ErrInvalidLengthSnapshot
 			}
 			return iNdEx, nil
@@ -661,6 +841,9 @@ func skipSnapshot(dAtA []byte) (n int, err error) {
 					return 0, err
 				}
 				iNdEx = start + next
+				if iNdEx < 0 {
+					return 0, ErrInvalidLengthSnapshot
+				}
 			}
 			return iNdEx, nil
 		case 4:
@@ -679,26 +862,3 @@ var (
 	ErrInvalidLengthSnapshot = fmt.Errorf("proto: negative length found during unmarshaling")
 	ErrIntOverflowSnapshot   = fmt.Errorf("proto: integer overflow")
 )
-
-func init() {
-	proto.RegisterFile("github.com/containerd/containerd/api/events/snapshot.proto", fileDescriptorSnapshot)
-}
-
-var fileDescriptorSnapshot = []byte{
-	// 235 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xb2, 0x4a, 0xcf, 0x2c, 0xc9,
-	0x28, 0x4d, 0xd2, 0x4b, 0xce, 0xcf, 0xd5, 0x4f, 0xce, 0xcf, 0x2b, 0x49, 0xcc, 0xcc, 0x4b, 0x2d,
-	0x4a, 0x41, 0x66, 0x26, 0x16, 0x64, 0xea, 0xa7, 0x96, 0xa5, 0xe6, 0x95, 0x14, 0xeb, 0x17, 0xe7,
-	0x25, 0x16, 0x14, 0x67, 0xe4, 0x97, 0xe8, 0x15, 0x14, 0xe5, 0x97, 0xe4, 0x0b, 0x09, 0x22, 0x54,
-	0xe9, 0x41, 0x54, 0x48, 0x39, 0x10, 0x34, 0x0e, 0xac, 0x35, 0xa9, 0x34, 0x4d, 0xbf, 0x20, 0xa7,
-	0x34, 0x3d, 0x33, 0x4f, 0x3f, 0x2d, 0x33, 0x35, 0x27, 0xa5, 0x20, 0xb1, 0x24, 0x03, 0x62, 0xa8,
-	0x92, 0x35, 0x17, 0x7f, 0x30, 0xd4, 0x9a, 0x80, 0xa2, 0xd4, 0x82, 0xc4, 0xa2, 0x54, 0x21, 0x01,
-	0x2e, 0xe6, 0xec, 0xd4, 0x4a, 0x09, 0x46, 0x05, 0x46, 0x0d, 0xce, 0x20, 0x10, 0x53, 0x48, 0x8c,
-	0x8b, 0x0d, 0x24, 0x93, 0x57, 0x22, 0xc1, 0x04, 0x16, 0x84, 0xf2, 0x94, 0xcc, 0xb8, 0xf8, 0x60,
-	0x9a, 0x9d, 0xf3, 0x73, 0x73, 0x33, 0x4b, 0xb0, 0xe8, 0x15, 0xe2, 0x62, 0xc9, 0x4b, 0xcc, 0x4d,
-	0x85, 0xea, 0x04, 0xb3, 0x95, 0x94, 0x10, 0xfa, 0x82, 0x52, 0x73, 0xf3, 0xcb, 0xb0, 0xd8, 0xe9,
-	0x14, 0x70, 0xe2, 0xa1, 0x1c, 0xc3, 0x8d, 0x87, 0x72, 0x0c, 0x0d, 0x8f, 0xe4, 0x18, 0x4f, 0x3c,
-	0x92, 0x63, 0xbc, 0xf0, 0x48, 0x8e, 0xf1, 0xc1, 0x23, 0x39, 0xc6, 0x05, 0x5f, 0xe4, 0x18, 0xa3,
-	0x8c, 0x48, 0x08, 0x47, 0x6b, 0x08, 0x15, 0xc1, 0x90, 0xc4, 0x06, 0xf6, 0xb3, 0x31, 0x20, 0x00,
-	0x00, 0xff, 0xff, 0x69, 0x66, 0xa9, 0x2a, 0x86, 0x01, 0x00, 0x00,
-}

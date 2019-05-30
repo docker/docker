@@ -41,6 +41,22 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 		}
 	}
 
+	labelsRegex, ok := info.Config["labels-regex"]
+	if ok && len(labels) > 0 {
+		re, err := regexp.Compile(labelsRegex)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range info.ContainerLabels {
+			if re.MatchString(k) {
+				if keyMod != nil {
+					k = keyMod(k)
+				}
+				extra[k] = v
+			}
+		}
+	}
+
 	envMapping := make(map[string]string)
 	for _, e := range info.ContainerEnv {
 		if kv := strings.SplitN(e, "=", 2); len(kv) == 2 {

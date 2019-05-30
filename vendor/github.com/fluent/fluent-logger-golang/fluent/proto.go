@@ -16,9 +16,9 @@ type Entry struct {
 
 //msgp:tuple Forward
 type Forward struct {
-	Tag     string      `msg:"tag"`
-	Entries []Entry     `msg:"entries"`
-	Option  interface{} `msg:"option"`
+	Tag     string  `msg:"tag"`
+	Entries []Entry `msg:"entries"`
+	Option  map[string]string
 }
 
 //msgp:tuple Message
@@ -26,7 +26,7 @@ type Message struct {
 	Tag    string      `msg:"tag"`
 	Time   int64       `msg:"time"`
 	Record interface{} `msg:"record"`
-	Option interface{} `msg:"option"`
+	Option map[string]string
 }
 
 //msgp:tuple MessageExt
@@ -34,7 +34,11 @@ type MessageExt struct {
 	Tag    string      `msg:"tag"`
 	Time   EventTime   `msg:"time,extension"`
 	Record interface{} `msg:"record"`
-	Option interface{} `msg:"option"`
+	Option map[string]string
+}
+
+type AckResp struct {
+	Ack string `json:"ack" msg:"ack"`
 }
 
 // EventTime is an extension to the serialized time value. It builds in support

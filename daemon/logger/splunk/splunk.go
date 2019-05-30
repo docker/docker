@@ -44,6 +44,7 @@ const (
 	envKey                        = "env"
 	envRegexKey                   = "env-regex"
 	labelsKey                     = "labels"
+	labelsRegexKey                = "labels-regex"
 	tagKey                        = "tag"
 )
 
@@ -565,6 +566,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case envKey:
 		case envRegexKey:
 		case labelsKey:
+		case labelsRegexKey:
 		case tagKey:
 		default:
 			return fmt.Errorf("unknown log opt '%s' for %s log driver", key, driverName)

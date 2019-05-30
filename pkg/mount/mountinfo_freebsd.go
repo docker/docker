@@ -13,8 +13,7 @@ import (
 	"unsafe"
 )
 
-// Parse /proc/self/mountinfo because comparing Dev and ino does not work from
-// bind mounts.
+//parseMountTable returns information about mounted filesystems
 func parseMountTable(filter FilterFunc) ([]*Info, error) {
 	var rawEntries *C.struct_statfs
 
@@ -37,7 +36,7 @@ func parseMountTable(filter FilterFunc) ([]*Info, error) {
 
 		if filter != nil {
 			// filter out entries we're not interested in
-			skip, stop = filter(p)
+			skip, stop = filter(&mountinfo)
 			if skip {
 				continue
 			}

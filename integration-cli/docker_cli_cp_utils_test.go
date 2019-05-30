@@ -10,9 +10,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 type fileType uint32
@@ -97,15 +97,15 @@ func makeTestContentInDir(c *check.C, dir string) {
 		path := filepath.Join(dir, filepath.FromSlash(fd.path))
 		switch fd.filetype {
 		case ftRegular:
-			c.Assert(ioutil.WriteFile(path, []byte(fd.contents+"\n"), os.FileMode(fd.mode)), checker.IsNil)
+			assert.NilError(c, ioutil.WriteFile(path, []byte(fd.contents+"\n"), os.FileMode(fd.mode)))
 		case ftDir:
-			c.Assert(os.Mkdir(path, os.FileMode(fd.mode)), checker.IsNil)
+			assert.NilError(c, os.Mkdir(path, os.FileMode(fd.mode)))
 		case ftSymlink:
-			c.Assert(os.Symlink(fd.contents, path), checker.IsNil)
+			assert.NilError(c, os.Symlink(fd.contents, path))
 		}
 
 		if fd.filetype != ftSymlink && runtime.GOOS != "windows" {
-			c.Assert(os.Chown(path, fd.uid, fd.gid), checker.IsNil)
+			assert.NilError(c, os.Chown(path, fd.uid, fd.gid))
 		}
 	}
 }
@@ -158,7 +158,7 @@ func makeTestContainer(c *check.C, options testContainerOptions) (containerID st
 	if exitCode != "0" {
 		out, _ = dockerCmd(c, "logs", containerID)
 	}
-	c.Assert(exitCode, checker.Equals, "0", check.Commentf("failed to make test container: %s", out))
+	assert.Equal(c, exitCode, "0", "failed to make test container: %s", out)
 
 	return
 }
@@ -223,7 +223,7 @@ func getTestDir(c *check.C, label string) (tmpDir string) {
 
 	tmpDir, err = ioutil.TempDir("", label)
 	// unable to make temporary directory
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	return
 }

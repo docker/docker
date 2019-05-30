@@ -22,3 +22,10 @@ package sys
 func SetOOMScore(pid, score int) error {
 	return nil
 }
+
+// GetOOMScoreAdj gets the oom score for a process
+//
+// Not implemented on Windows
+func GetOOMScoreAdj(pid int) (int, error) {
+	return 0, nil
+}

@@ -17,11 +17,14 @@
 package containerd
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,7 +43,6 @@ import (
 	"github.com/containerd/containerd/content"
 	contentproxy "github.com/containerd/containerd/content/proxy"
 	"github.com/containerd/containerd/defaults"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/leases"
@@ -51,7 +53,6 @@ import (
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/containerd/containerd/remotes/docker/schema1"
 	"github.com/containerd/containerd/snapshots"
 	snproxy "github.com/containerd/containerd/snapshots/proxy"
 	"github.com/containerd/typeurl"
@@ -135,6 +136,20 @@ func New(address string, opts ...ClientOpt) (*Client, error) {
 	if copts.services == nil && c.conn == nil {
 		return nil, errors.New("no grpc connection or services is available")
 	}
+
+	// check namespace labels for default runtime
+	if copts.defaultRuntime == "" && copts.defaultns != "" {
+		namespaces := c.NamespaceService()
+		ctx := context.Background()
+		if labels, err := namespaces.Labels(ctx, copts.defaultns); err == nil {
+			if defaultRuntime, ok := labels[defaults.DefaultRuntimeNSLabel]; ok {
+				c.runtime = defaultRuntime
+			}
+		} else {
+			return nil, err
+		}
+	}
+
 	return c, nil
 }
 
@@ -151,6 +166,20 @@ func NewWithConn(conn *grpc.ClientConn, opts ...ClientOpt) (*Client, error) {
 		conn:    conn,
 		runtime: fmt.Sprintf("%s.%s", plugin.RuntimePlugin, runtime.GOOS),
 	}
+
+	// check namespace labels for default runtime
+	if copts.defaultRuntime == "" && copts.defaultns != "" {
+		namespaces := c.NamespaceService()
+		ctx := context.Background()
+		if labels, err := namespaces.Labels(ctx, copts.defaultns); err == nil {
+			if defaultRuntime, ok := labels[defaults.DefaultRuntimeNSLabel]; ok {
+				c.runtime = defaultRuntime
+			}
+		} else {
+			return nil, err
+		}
+	}
+
 	if copts.services != nil {
 		c.services = *copts.services
 	}
@@ -280,6 +309,12 @@ type RemoteContext struct {
 	// handlers.
 	BaseHandlers []images.Handler
 
+	// HandlerWrapper wraps the handler which gets sent to dispatch.
+	// Unlike BaseHandlers, this can run before and after the built
+	// in handlers, allowing operations to run on the descriptor
+	// after it has completed transferring.
+	HandlerWrapper func(images.Handler) images.Handler
+
 	// ConvertSchema1 is whether to convert Docker registry schema 1
 	// manifests. If this option is false then any image which resolves
 	// to schema 1 will return an error since schema 1 is not supported.
@@ -290,6 +325,13 @@ type RemoteContext struct {
 	// platforms will be used to create a PlatformMatcher with no ordering
 	// preference.
 	Platforms []string
+
+	// MaxConcurrentDownloads is the max concurrent content downloads for each pull.
+	MaxConcurrentDownloads int
+
+	// AppendDistributionSourceLabel allows fetcher to add distribute source
+	// label for each blob content, which doesn't work for legacy schema1.
+	AppendDistributionSourceLabel bool
 }
 
 func defaultRemoteContext() *RemoteContext {
@@ -341,157 +383,6 @@ func (c *Client) Fetch(ctx context.Context, ref string, opts ...RemoteOpt) (imag
 	return c.fetch(ctx, fetchCtx, ref, 0)
 }
 
-// Pull downloads the provided content into containerd's content store
-// and returns a platform specific image object
-func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image, error) {
-	pullCtx := defaultRemoteContext()
-	for _, o := range opts {
-		if err := o(c, pullCtx); err != nil {
-			return nil, err
-		}
-	}
-
-	if pullCtx.PlatformMatcher == nil {
-		if len(pullCtx.Platforms) > 1 {
-			return nil, errors.New("cannot pull multiplatform image locally, try Fetch")
-		} else if len(pullCtx.Platforms) == 0 {
-			pullCtx.PlatformMatcher = platforms.Default()
-		} else {
-			p, err := platforms.Parse(pullCtx.Platforms[0])
-			if err != nil {
-				return nil, errors.Wrapf(err, "invalid platform %s", pullCtx.Platforms[0])
-			}
-
-			pullCtx.PlatformMatcher = platforms.Only(p)
-		}
-	}
-
-	ctx, done, err := c.WithLease(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer done(ctx)
-
-	img, err := c.fetch(ctx, pullCtx, ref, 1)
-	if err != nil {
-		return nil, err
-	}
-
-	i := NewImageWithPlatform(c, img, pullCtx.PlatformMatcher)
-
-	if pullCtx.Unpack {
-		if err := i.Unpack(ctx, pullCtx.Snapshotter); err != nil {
-			return nil, errors.Wrapf(err, "failed to unpack image on snapshotter %s", pullCtx.Snapshotter)
-		}
-	}
-
-	return i, nil
-}
-
-func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string, limit int) (images.Image, error) {
-	store := c.ContentStore()
-	name, desc, err := rCtx.Resolver.Resolve(ctx, ref)
-	if err != nil {
-		return images.Image{}, errors.Wrapf(err, "failed to resolve reference %q", ref)
-	}
-
-	fetcher, err := rCtx.Resolver.Fetcher(ctx, name)
-	if err != nil {
-		return images.Image{}, errors.Wrapf(err, "failed to get fetcher for %q", name)
-	}
-
-	var (
-		handler images.Handler
-
-		isConvertible bool
-		converterFunc func(context.Context, ocispec.Descriptor) (ocispec.Descriptor, error)
-	)
-
-	if desc.MediaType == images.MediaTypeDockerSchema1Manifest && rCtx.ConvertSchema1 {
-		schema1Converter := schema1.NewConverter(store, fetcher)
-
-		handler = images.Handlers(append(rCtx.BaseHandlers, schema1Converter)...)
-
-		isConvertible = true
-
-		converterFunc = func(ctx context.Context, _ ocispec.Descriptor) (ocispec.Descriptor, error) {
-			return schema1Converter.Convert(ctx)
-		}
-	} else {
-		// Get all the children for a descriptor
-		childrenHandler := images.ChildrenHandler(store)
-		// Set any children labels for that content
-		childrenHandler = images.SetChildrenLabels(store, childrenHandler)
-		// Filter children by platforms
-		childrenHandler = images.FilterPlatforms(childrenHandler, rCtx.PlatformMatcher)
-		// Sort and limit manifests if a finite number is needed
-		if limit > 0 {
-			childrenHandler = images.LimitManifests(childrenHandler, rCtx.PlatformMatcher, limit)
-		}
-
-		// set isConvertible to true if there is application/octet-stream media type
-		convertibleHandler := images.HandlerFunc(
-			func(_ context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-				if desc.MediaType == docker.LegacyConfigMediaType {
-					isConvertible = true
-				}
-
-				return []ocispec.Descriptor{}, nil
-			},
-		)
-
-		handler = images.Handlers(append(rCtx.BaseHandlers,
-			remotes.FetchHandler(store, fetcher),
-			convertibleHandler,
-			childrenHandler,
-		)...)
-
-		converterFunc = func(ctx context.Context, desc ocispec.Descriptor) (ocispec.Descriptor, error) {
-			return docker.ConvertManifest(ctx, store, desc)
-		}
-	}
-
-	if err := images.Dispatch(ctx, handler, desc); err != nil {
-		return images.Image{}, err
-	}
-
-	if isConvertible {
-		if desc, err = converterFunc(ctx, desc); err != nil {
-			return images.Image{}, err
-		}
-	}
-
-	img := images.Image{
-		Name:   name,
-		Target: desc,
-		Labels: rCtx.Labels,
-	}
-
-	is := c.ImageService()
-	for {
-		if created, err := is.Create(ctx, img); err != nil {
-			if !errdefs.IsAlreadyExists(err) {
-				return images.Image{}, err
-			}
-
-			updated, err := is.Update(ctx, img)
-			if err != nil {
-				// if image was removed, try create again
-				if errdefs.IsNotFound(err) {
-					continue
-				}
-				return images.Image{}, err
-			}
-
-			img = updated
-		} else {
-			img = created
-		}
-
-		return img, nil
-	}
-}
-
 // Push uploads the provided content to a remote resource
 func (c *Client) Push(ctx context.Context, ref string, desc ocispec.Descriptor, opts ...RemoteOpt) error {
 	pushCtx := defaultRemoteContext()
@@ -521,7 +412,21 @@ func (c *Client) Push(ctx context.Context, ref string, desc ocispec.Descriptor, 
 		return err
 	}
 
-	return remotes.PushContent(ctx, pusher, desc, c.ContentStore(), pushCtx.PlatformMatcher, pushCtx.BaseHandlers...)
+	var wrapper func(images.Handler) images.Handler
+
+	if len(pushCtx.BaseHandlers) > 0 {
+		wrapper = func(h images.Handler) images.Handler {
+			h = images.Handlers(append(pushCtx.BaseHandlers, h)...)
+			if pushCtx.HandlerWrapper != nil {
+				h = pushCtx.HandlerWrapper(h)
+			}
+			return h
+		}
+	} else if pushCtx.HandlerWrapper != nil {
+		wrapper = pushCtx.HandlerWrapper
+	}
+
+	return remotes.PushContent(ctx, pusher, desc, c.ContentStore(), pushCtx.PlatformMatcher, wrapper)
 }
 
 // GetImage returns an existing image
@@ -544,6 +449,45 @@ func (c *Client) ListImages(ctx context.Context, filters ...string) ([]Image, er
 		images[i] = NewImage(c, img)
 	}
 	return images, nil
+}
+
+// Restore restores a container from a checkpoint
+func (c *Client) Restore(ctx context.Context, id string, checkpoint Image, opts ...RestoreOpts) (Container, error) {
+	store := c.ContentStore()
+	index, err := decodeIndex(ctx, store, checkpoint.Target())
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, done, err := c.WithLease(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer done(ctx)
+
+	copts := []NewContainerOpts{}
+	for _, o := range opts {
+		copts = append(copts, o(ctx, id, c, checkpoint, index))
+	}
+
+	ctr, err := c.NewContainer(ctx, id, copts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return ctr, nil
+}
+
+func writeIndex(ctx context.Context, index *ocispec.Index, client *Client, ref string) (d ocispec.Descriptor, err error) {
+	labels := map[string]string{}
+	for i, m := range index.Manifests {
+		labels[fmt.Sprintf("containerd.io/gc.ref.content.%d", i)] = m.Digest.String()
+	}
+	data, err := json.Marshal(index)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+	return writeContent(ctx, client.ContentStore(), ocispec.MediaTypeImageIndex, ref, bytes.NewReader(data), content.WithLabels(labels))
 }
 
 // Subscribe to events that match one or more of the provided filters.
@@ -678,6 +622,13 @@ func (c *Client) VersionService() versionservice.VersionClient {
 	return versionservice.NewVersionClient(c.conn)
 }
 
+// Conn returns the underlying GRPC connection object
+func (c *Client) Conn() *grpc.ClientConn {
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	return c.conn
+}
+
 // Version of containerd
 type Version struct {
 	// Version number
@@ -702,4 +653,21 @@ func (c *Client) Version(ctx context.Context) (Version, error) {
 		Version:  response.Version,
 		Revision: response.Revision,
 	}, nil
+}
+
+// CheckRuntime returns true if the current runtime matches the expected
+// runtime. Providing various parts of the runtime schema will match those
+// parts of the expected runtime
+func CheckRuntime(current, expected string) bool {
+	cp := strings.Split(current, ".")
+	l := len(cp)
+	for i, p := range strings.Split(expected, ".") {
+		if i > l {
+			return false
+		}
+		if p != cp[i] {
+			return false
+		}
+	}
+	return true
 }

@@ -18,24 +18,6 @@ import (
 type Mode uint
 
 const (
-	// Constants for the actual mode after validation
-
-	// ModeActualError means an error has occurred during validation
-	ModeActualError = iota
-	// ModeActualVhdx means that we are going to use VHDX boot after validation
-	ModeActualVhdx
-	// ModeActualKernelInitrd means that we are going to use kernel+initrd for boot after validation
-	ModeActualKernelInitrd
-
-	// Constants for the requested mode
-
-	// ModeRequestAuto means auto-select the boot mode for a utility VM
-	ModeRequestAuto = iota // VHDX will be priority over kernel+initrd
-	// ModeRequestVhdx means request VHDX boot if possible
-	ModeRequestVhdx
-	// ModeRequestKernelInitrd means request Kernel+initrd boot if possible
-	ModeRequestKernelInitrd
-
 	// defaultUvmTimeoutSeconds is the default time to wait for utility VM operations
 	defaultUvmTimeoutSeconds = 5 * 60
 
@@ -54,8 +36,6 @@ const (
 type Config struct {
 	Options                                        // Configuration options
 	Name               string                      // Name of the utility VM
-	RequestedMode      Mode                        // What mode is preferred when validating
-	ActualMode         Mode                        // What mode was obtained during validation
 	UvmTimeoutSeconds  int                         // How long to wait for the utility VM to respond in seconds
 	Uvm                hcsshim.Container           // The actual container
 	MappedVirtualDisks []hcsshim.MappedVirtualDisk // Data-disks to be attached
@@ -66,9 +46,8 @@ type Options struct {
 	KirdPath       string // Path to where kernel/initrd are found (defaults to %PROGRAMFILES%\Linux Containers)
 	KernelFile     string // Kernel for Utility VM (embedded in a UEFI bootloader) - does NOT include full path, just filename
 	InitrdFile     string // Initrd image for Utility VM - does NOT include full path, just filename
-	Vhdx           string // VHD for booting the utility VM - is a full path
 	TimeoutSeconds int    // Requested time for the utility VM to respond in seconds (may be over-ridden by environment)
-	BootParameters string // Additional boot parameters for initrd booting (not VHDx)
+	BootParameters string // Additional boot parameters for initrd booting
 }
 
 // ParseOptions parses a set of K-V pairs into options used by opengcs. Note
@@ -86,8 +65,6 @@ func ParseOptions(options []string) (Options, error) {
 				rOpts.KernelFile = opt[1]
 			case "lcow.initrd":
 				rOpts.InitrdFile = opt[1]
-			case "lcow.vhdx":
-				rOpts.Vhdx = opt[1]
 			case "lcow.bootparameters":
 				rOpts.BootParameters = opt[1]
 			case "lcow.timeout":
@@ -105,9 +82,6 @@ func ParseOptions(options []string) (Options, error) {
 	// Set default values if not supplied
 	if rOpts.KirdPath == "" {
 		rOpts.KirdPath = filepath.Join(os.Getenv("ProgramFiles"), "Linux Containers")
-	}
-	if rOpts.Vhdx == "" {
-		rOpts.Vhdx = filepath.Join(rOpts.KirdPath, `uvm.vhdx`)
 	}
 	if rOpts.KernelFile == "" {
 		rOpts.KernelFile = `kernel`
@@ -157,47 +131,11 @@ func (config *Config) GenerateDefault(options []string) error {
 	// Last priority is the default timeout
 	config.UvmTimeoutSeconds = defaultUvmTimeoutSeconds
 
-	// Set the default requested mode
-	config.RequestedMode = ModeRequestAuto
-
 	return nil
 }
 
 // Validate validates a Config structure for starting a utility VM.
 func (config *Config) Validate() error {
-	config.ActualMode = ModeActualError
-
-	if config.RequestedMode == ModeRequestVhdx && config.Vhdx == "" {
-		return fmt.Errorf("VHDx mode must supply a VHDx")
-	}
-	if config.RequestedMode == ModeRequestKernelInitrd && (config.KernelFile == "" || config.InitrdFile == "") {
-		return fmt.Errorf("kernel+initrd mode must supply both kernel and initrd")
-	}
-
-	// Validate that if VHDX requested or auto, it exists.
-	if config.RequestedMode == ModeRequestAuto || config.RequestedMode == ModeRequestVhdx {
-		if _, err := os.Stat(config.Vhdx); os.IsNotExist(err) {
-			if config.RequestedMode == ModeRequestVhdx {
-				return fmt.Errorf("VHDx '%s' not found", config.Vhdx)
-			}
-		} else {
-			config.ActualMode = ModeActualVhdx
-
-			// Can't specify boot parameters with VHDx
-			if config.BootParameters != "" {
-				return fmt.Errorf("Boot parameters cannot be specified in VHDx mode")
-			}
-			return nil
-		}
-	}
-
-	// So must be kernel+initrd, or auto where we fallback as the VHDX doesn't exist
-	if config.InitrdFile == "" || config.KernelFile == "" {
-		if config.RequestedMode == ModeRequestKernelInitrd {
-			return fmt.Errorf("initrd and kernel options must be supplied")
-		}
-		return fmt.Errorf("opengcs: configuration is invalid")
-	}
 
 	if _, err := os.Stat(filepath.Join(config.KirdPath, config.KernelFile)); os.IsNotExist(err) {
 		return fmt.Errorf("kernel '%s' not found", filepath.Join(config.KirdPath, config.KernelFile))
@@ -205,8 +143,6 @@ func (config *Config) Validate() error {
 	if _, err := os.Stat(filepath.Join(config.KirdPath, config.InitrdFile)); os.IsNotExist(err) {
 		return fmt.Errorf("initrd '%s' not found", filepath.Join(config.KirdPath, config.InitrdFile))
 	}
-
-	config.ActualMode = ModeActualKernelInitrd
 
 	// Ensure all the MappedVirtualDisks exist on the host
 	for _, mvd := range config.MappedVirtualDisks {
@@ -236,21 +172,12 @@ func (config *Config) StartUtilityVM() error {
 		ContainerType:               "linux",
 		TerminateOnLastHandleClosed: true,
 		MappedVirtualDisks:          config.MappedVirtualDisks,
-	}
-
-	if config.ActualMode == ModeActualVhdx {
-		configuration.HvRuntime = &hcsshim.HvRuntime{
-			ImagePath:          config.Vhdx,
-			BootSource:         "Vhd",
-			WritableBootSource: false,
-		}
-	} else {
-		configuration.HvRuntime = &hcsshim.HvRuntime{
+		HvRuntime: &hcsshim.HvRuntime{
 			ImagePath:           config.KirdPath,
 			LinuxInitrdFile:     config.InitrdFile,
 			LinuxKernelFile:     config.KernelFile,
 			LinuxBootParameters: config.BootParameters,
-		}
+		},
 	}
 
 	configurationS, _ := json.Marshal(configuration)

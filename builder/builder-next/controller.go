@@ -6,8 +6,10 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/content/local"
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
+	"github.com/docker/docker/builder/builder-next/adapters/localinlinecache"
 	"github.com/docker/docker/builder/builder-next/adapters/snapshot"
 	containerimageexp "github.com/docker/docker/builder/builder-next/exporter"
 	"github.com/docker/docker/builder/builder-next/imagerefchecker"
@@ -17,17 +19,21 @@ import (
 	units "github.com/docker/go-units"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
-	registryremotecache "github.com/moby/buildkit/cache/remotecache/registry"
+	"github.com/moby/buildkit/cache/remotecache"
+	inlineremotecache "github.com/moby/buildkit/cache/remotecache/inline"
+	localremotecache "github.com/moby/buildkit/cache/remotecache/local"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/control"
-	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/frontend"
 	dockerfile "github.com/moby/buildkit/frontend/dockerfile/builder"
 	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/frontend/gateway/forwarder"
 	"github.com/moby/buildkit/snapshot/blobmapping"
 	"github.com/moby/buildkit/solver/bboltcachestorage"
+	"github.com/moby/buildkit/util/binfmt_misc"
+	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/worker"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -94,7 +100,6 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	}
 
 	src, err := containerimage.NewSource(containerimage.SourceOpt{
-		SessionManager:  opt.SessionManager,
 		CacheAccessor:   cm,
 		ContentStore:    store,
 		DownloadManager: dist.DownloadManager,
@@ -136,9 +141,18 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, errors.Wrap(err, "could not get builder GC policy")
 	}
 
+	layers, ok := sbase.(mobyworker.LayerAccess)
+	if !ok {
+		return nil, errors.Errorf("snapshotter doesn't support differ")
+	}
+
+	p, err := parsePlatforms(binfmt_misc.SupportedPlatforms())
+	if err != nil {
+		return nil, err
+	}
+
 	wopt := mobyworker.Opt{
 		ID:                "moby",
-		SessionManager:    opt.SessionManager,
 		MetadataStore:     md,
 		ContentStore:      store,
 		CacheManager:      cm,
@@ -148,10 +162,10 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		ImageSource:       src,
 		DownloadManager:   dist.DownloadManager,
 		V2MetadataService: dist.V2MetadataService,
-		Exporters: map[string]exporter.Exporter{
-			"moby": exp,
-		},
-		Transport: rt,
+		Exporter:          exp,
+		Transport:         rt,
+		Layers:            layers,
+		Platforms:         p,
 	}
 
 	wc := &worker.Controller{}
@@ -167,12 +181,21 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	}
 
 	return control.NewController(control.Opt{
-		SessionManager:           opt.SessionManager,
-		WorkerController:         wc,
-		Frontends:                frontends,
-		CacheKeyStorage:          cacheStorage,
-		ResolveCacheImporterFunc: registryremotecache.ResolveCacheImporterFunc(opt.SessionManager, opt.ResolverOpt),
-		// TODO: set ResolveCacheExporterFunc for exporting cache
+		SessionManager:   opt.SessionManager,
+		WorkerController: wc,
+		Frontends:        frontends,
+		CacheKeyStorage:  cacheStorage,
+		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
+			"registry": localinlinecache.ResolveCacheImporterFunc(opt.SessionManager, opt.ResolverOpt, dist.ReferenceStore, dist.ImageStore),
+			"local":    localremotecache.ResolveCacheImporterFunc(opt.SessionManager),
+		},
+		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
+			"inline": inlineremotecache.ResolveCacheExporterFunc(),
+		},
+		Entitlements: []string{
+			string(entitlements.EntitlementNetworkHost),
+			// string(entitlements.EntitlementSecurityInsecure),
+		},
 	})
 }
 
@@ -215,4 +238,16 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 		}
 	}
 	return gcPolicy, nil
+}
+
+func parsePlatforms(platformsStr []string) ([]specs.Platform, error) {
+	out := make([]specs.Platform, 0, len(platformsStr))
+	for _, s := range platformsStr {
+		p, err := platforms.Parse(s)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, platforms.Normalize(p))
+	}
+	return out, nil
 }

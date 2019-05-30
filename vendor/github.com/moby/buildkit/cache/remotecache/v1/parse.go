@@ -15,6 +15,10 @@ func Parse(configJSON []byte, provider DescriptorProvider, t solver.CacheExporte
 		return err
 	}
 
+	return ParseConfig(config, provider, t)
+}
+
+func ParseConfig(config CacheConfig, provider DescriptorProvider, t solver.CacheExporterTarget) error {
 	cache := map[int]solver.CacheExporterRecord{}
 
 	for i := range config.Records {
@@ -22,7 +26,6 @@ func Parse(configJSON []byte, provider DescriptorProvider, t solver.CacheExporte
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -57,7 +60,9 @@ func parseRecord(cc CacheConfig, idx int, provider DescriptorProvider, t solver.
 		if err != nil {
 			return nil, err
 		}
-		r.AddResult(res.CreatedAt, remote)
+		if remote != nil {
+			r.AddResult(res.CreatedAt, remote)
+		}
 	}
 
 	cache[idx] = r
@@ -78,7 +83,7 @@ func getRemoteChain(layers []CacheLayer, idx int, provider DescriptorProvider, v
 
 	descPair, ok := provider[l.Blob]
 	if !ok {
-		return nil, errors.Errorf("missing blob for %s", l.Blob)
+		return nil, nil
 	}
 
 	var r *solver.Remote
@@ -87,6 +92,9 @@ func getRemoteChain(layers []CacheLayer, idx int, provider DescriptorProvider, v
 		r, err = getRemoteChain(layers, l.ParentIndex, provider, visited)
 		if err != nil {
 			return nil, err
+		}
+		if r == nil {
+			return nil, nil
 		}
 		r.Descriptors = append(r.Descriptors, descPair.Descriptor)
 		mp := contentutil.NewMultiProvider(r.Provider)

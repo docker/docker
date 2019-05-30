@@ -16,6 +16,12 @@
 # where docker's pid get stored
 #DOCKER_PIDFILE="/run/docker.pid"
 
+# Settings for process limits (ulimit)
+#DOCKER_ULIMIT="-c unlimited -n 1048576 -u unlimited"
+
+# seconds to wait for sending SIGTERM and SIGKILL signals when stopping docker
+#DOCKER_RETRY="TERM/60/KILL/10"
+
 # where the docker daemon itself is run from
 #DOCKERD_BINARY="/usr/bin/dockerd"
 

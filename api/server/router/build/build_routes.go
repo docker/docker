@@ -148,6 +148,17 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	}
 	options.Version = builderVersion
 
+	if versions.GreaterThanOrEqualTo(version, "1.40") {
+		outputsJSON := r.FormValue("outputs")
+		if outputsJSON != "" {
+			var outputs []types.ImageBuildOutput
+			if err := json.Unmarshal([]byte(outputsJSON), &outputs); err != nil {
+				return nil, err
+			}
+			options.Outputs = outputs
+		}
+	}
+
 	return options, nil
 }
 

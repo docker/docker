@@ -20,7 +20,7 @@ type cacheResultStorage struct {
 	wc *Controller
 }
 
-func (s *cacheResultStorage) Save(res solver.Result) (solver.CacheResult, error) {
+func (s *cacheResultStorage) Save(res solver.Result, createdAt time.Time) (solver.CacheResult, error) {
 	ref, ok := res.Sys().(*WorkerRef)
 	if !ok {
 		return solver.CacheResult{}, errors.Errorf("invalid result: %T", res.Sys())
@@ -33,7 +33,7 @@ func (s *cacheResultStorage) Save(res solver.Result) (solver.CacheResult, error)
 			ref.ImmutableRef.Metadata().Commit()
 		}
 	}
-	return solver.CacheResult{ID: ref.ID(), CreatedAt: time.Now()}, nil
+	return solver.CacheResult{ID: ref.ID(), CreatedAt: createdAt}, nil
 }
 func (s *cacheResultStorage) Load(ctx context.Context, res solver.CacheResult) (solver.Result, error) {
 	return s.load(res.ID, false)

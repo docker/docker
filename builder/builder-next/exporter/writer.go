@@ -41,7 +41,7 @@ func parseHistoryFromConfig(dt []byte) ([]ocispec.History, error) {
 	return config.History, nil
 }
 
-func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History) ([]byte, error) {
+func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History, cache []byte) ([]byte, error) {
 	m := map[string]json.RawMessage{}
 	if err := json.Unmarshal(dt, &m); err != nil {
 		return nil, errors.Wrap(err, "failed to parse image config for patch")
@@ -75,6 +75,14 @@ func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History)
 			return nil, errors.Wrap(err, "failed to marshal creation time")
 		}
 		m["created"] = dt
+	}
+
+	if cache != nil {
+		dt, err := json.Marshal(cache)
+		if err != nil {
+			return nil, err
+		}
+		m["moby.buildkit.cache.v0"] = dt
 	}
 
 	dt, err = json.Marshal(m)

@@ -2,6 +2,7 @@ package cacheimport
 
 import (
 	"context"
+	"time"
 
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/solver"
@@ -26,6 +27,7 @@ func NewCacheKeyStorage(cc *CacheChains, w worker.Worker) (solver.CacheKeyStorag
 	results := &cacheResultStorage{
 		w:        w,
 		byID:     storage.byID,
+		byItem:   storage.byItem,
 		byResult: storage.byResult,
 	}
 
@@ -154,8 +156,22 @@ func (cs *cacheKeyStorage) WalkLinks(id string, link solver.CacheInfoLink, fn fu
 	return nil
 }
 
-// TODO:
 func (cs *cacheKeyStorage) WalkBacklinks(id string, fn func(id string, link solver.CacheInfoLink) error) error {
+	for k, it := range cs.byID {
+		for nl, ids := range it.links {
+			for _, id2 := range ids {
+				if id == id2 {
+					if err := fn(k, solver.CacheInfoLink{
+						Input:    solver.Index(nl.input),
+						Selector: digest.Digest(nl.selector),
+						Digest:   nl.dgst,
+					}); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -189,19 +205,54 @@ type cacheResultStorage struct {
 	w        worker.Worker
 	byID     map[string]*itemWithOutgoingLinks
 	byResult map[string]map[string]struct{}
+	byItem   map[*item]string
 }
 
-func (cs *cacheResultStorage) Save(res solver.Result) (solver.CacheResult, error) {
+func (cs *cacheResultStorage) Save(res solver.Result, createdAt time.Time) (solver.CacheResult, error) {
 	return solver.CacheResult{}, errors.Errorf("importer is immutable")
 }
 
-func (cs *cacheResultStorage) Load(ctx context.Context, res solver.CacheResult) (solver.Result, error) {
-	remote, err := cs.LoadRemote(ctx, res)
-	if err != nil {
+func (cs *cacheResultStorage) LoadWithParents(ctx context.Context, res solver.CacheResult) (map[string]solver.Result, error) {
+	v := cs.byResultID(res.ID)
+	if v == nil || v.result == nil {
+		return nil, errors.WithStack(solver.ErrNotFound)
+	}
+
+	m := map[string]solver.Result{}
+
+	if err := v.walkAllResults(func(i *item) error {
+		if i.result == nil {
+			return nil
+		}
+		id, ok := cs.byItem[i]
+		if !ok {
+			return nil
+		}
+		if isSubRemote(*i.result, *v.result) {
+			ref, err := cs.w.FromRemote(ctx, i.result)
+			if err != nil {
+				return err
+			}
+			m[id] = worker.NewWorkerRefResult(ref, cs.w)
+		}
+		return nil
+	}); err != nil {
+		for _, v := range m {
+			v.Release(context.TODO())
+		}
 		return nil, err
 	}
 
-	ref, err := cs.w.FromRemote(ctx, remote)
+	return m, nil
+}
+
+func (cs *cacheResultStorage) Load(ctx context.Context, res solver.CacheResult) (solver.Result, error) {
+	item := cs.byResultID(res.ID)
+	if item == nil || item.result == nil {
+		return nil, errors.WithStack(solver.ErrNotFound)
+	}
+
+	ref, err := cs.w.FromRemote(ctx, item.result)
 	if err != nil {
 		return nil, err
 	}
@@ -209,8 +260,8 @@ func (cs *cacheResultStorage) Load(ctx context.Context, res solver.CacheResult) 
 }
 
 func (cs *cacheResultStorage) LoadRemote(ctx context.Context, res solver.CacheResult) (*solver.Remote, error) {
-	if r := cs.byResultID(res.ID); r != nil {
-		return r, nil
+	if r := cs.byResultID(res.ID); r != nil && r.result != nil {
+		return r.result, nil
 	}
 	return nil, errors.WithStack(solver.ErrNotFound)
 }
@@ -219,7 +270,7 @@ func (cs *cacheResultStorage) Exists(id string) bool {
 	return cs.byResultID(id) != nil
 }
 
-func (cs *cacheResultStorage) byResultID(resultID string) *solver.Remote {
+func (cs *cacheResultStorage) byResultID(resultID string) *itemWithOutgoingLinks {
 	m, ok := cs.byResult[resultID]
 	if !ok || len(m) == 0 {
 		return nil
@@ -228,9 +279,7 @@ func (cs *cacheResultStorage) byResultID(resultID string) *solver.Remote {
 	for id := range m {
 		it, ok := cs.byID[id]
 		if ok {
-			if r := it.result; r != nil {
-				return r
-			}
+			return it
 		}
 	}
 

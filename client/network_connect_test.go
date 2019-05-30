@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestNetworkConnectError(t *testing.T) {
@@ -22,6 +23,9 @@ func TestNetworkConnectError(t *testing.T) {
 	err := client.NetworkConnect(context.Background(), "network_id", "container_id", nil)
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
+	}
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %T", err)
 	}
 }
 

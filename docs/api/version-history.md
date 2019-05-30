@@ -13,6 +13,17 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.41 API changes
+
+[Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.41/) documentation
+
+* `POST /containers/create` on Linux now accepts the `HostConfig.CgroupnsMode` property.
+  Set the property to `host` to create the container in the daemon's cgroup namespace, or
+  `private` to create the container in its own private cgroup namespace.  The per-daemon
+  default is `host`, and can be changed by using the`CgroupNamespaceMode` daemon configuration
+  parameter.
+
+
 ## v1.40 API changes
 
 [Docker Engine API v1.40](https://docs.docker.com/engine/api/v1.40/) documentation
@@ -49,7 +60,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /info` now returns information about `DataPathPort` that is currently used in swarm
 * `GET /info` now returns `PidsLimit` boolean to indicate if the host kernel has
   PID limit support enabled.
-
+* `POST /containers/create` now accepts `DeviceRequests` as part of `HostConfig`.
+  Can be used to set Nvidia GPUs.
 * `GET /swarm` endpoint now returns DataPathPort info
 * `POST /containers/create` now takes `KernelMemoryTCP` field to set hard limit for kernel TCP buffer memory.
 * `GET /service` now  returns `MaxReplicas` as part of the `Placement`.
@@ -57,12 +69,16 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /service/create` and `POST /services/(id or name)/update` now take the field `MaxReplicas`
   as part of the service `Placement`, allowing to specify maximum replicas per node for the service.
 * `GET /containers` now returns `Capabilities` field as part of the `HostConfig`.
-* `GET /containers/{id}` now returns a `Capabilities` field as part of the `HostConfig`.
+* `GET /containers/{id}/json` now returns a `Capabilities` field as part of the `HostConfig`.
 * `POST /containers/create` now takes a `Capabilities` field to set the list of
   kernel capabilities to be available for the container (this overrides the default
   set).
+* `POST /containers/create` on Linux now creates a container with `HostConfig.IpcMode=private`
+  by default, if IpcMode is not explicitly specified. The per-daemon default can be changed
+  back to `shareable` by using `DefaultIpcMode` daemon configuration parameter.
 * `POST /containers/{id}/update` now accepts a `PidsLimit` field to tune a container's
   PID limit. Set `0` or `-1` for unlimited. Leave `null` to not change the current value.
+* `POST /build` now accepts `outputs` key for configuring build outputs when using BuildKit mode.
 * `GET /services` now returns `SwapBytes` and `MemorySwappiness` fields as part of the `Resource` requirements.
 * `GET /services/{id}` now returns `SwapBytes` and `MemorySwappiness` fields as part of the `Resource` requirements.
 * `POST /services/create` now accepts `SwapBytes` and `MemorySwappiness` fields as part of the `Resource` requirements.

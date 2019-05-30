@@ -72,7 +72,7 @@ type Process interface {
 // platform implementations
 type Platform interface {
 	CopyConsole(ctx context.Context, console console.Console, stdin, stdout, stderr string,
-		wg, cwg *sync.WaitGroup) (console.Console, error)
+		wg *sync.WaitGroup) (console.Console, error)
 	ShutdownConsole(ctx context.Context, console console.Console) error
 	Close() error
 }

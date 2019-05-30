@@ -50,6 +50,10 @@ func TestKernelTCPMemory(t *testing.T) {
 }
 
 func TestNISDomainname(t *testing.T) {
+	// Older versions of the daemon would concatenate hostname and domainname,
+	// so hostname "foobar" and domainname "baz.cyphar.com" would produce
+	// `foobar.baz.cyphar.com` as hostname.
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "skip test from new feature")
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
 	defer setupTest(t)()

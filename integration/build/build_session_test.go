@@ -3,6 +3,7 @@ package build
 import (
 	"context"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strings"
 	"testing"
@@ -109,7 +110,9 @@ func testBuildWithSession(t *testing.T, client dclient.APIClient, daemonHost str
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
-		return sess.Run(ctx, client.DialSession)
+		return sess.Run(ctx, func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error) {
+			return client.DialHijack(ctx, "/session", "h2c", meta)
+		})
 	})
 
 	g.Go(func() error {

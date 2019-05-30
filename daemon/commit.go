@@ -68,7 +68,6 @@ func merge(userConf, imageConf *containertypes.Config) error {
 	if len(userConf.Entrypoint) == 0 {
 		if len(userConf.Cmd) == 0 {
 			userConf.Cmd = imageConf.Cmd
-			userConf.ArgsEscaped = imageConf.ArgsEscaped
 		}
 
 		if userConf.Entrypoint == nil {

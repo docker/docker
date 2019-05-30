@@ -14,6 +14,32 @@ import (
 	is "gotest.tools/assert/cmp"
 )
 
+func TestCgroupnsModeTest(t *testing.T) {
+	cgroupNsModes := map[container.CgroupnsMode][]bool{
+		// private, host, empty, valid
+		"":                {false, false, true, true},
+		"something:weird": {false, false, false, false},
+		"host":            {false, true, false, true},
+		"host:name":       {false, false, false, false},
+		"private":         {true, false, false, true},
+		"private:name":    {false, false, false, false},
+	}
+	for cgroupNsMode, state := range cgroupNsModes {
+		if cgroupNsMode.IsPrivate() != state[0] {
+			t.Fatalf("CgroupnsMode.IsPrivate for %v should have been %v but was %v", cgroupNsMode, state[0], cgroupNsMode.IsPrivate())
+		}
+		if cgroupNsMode.IsHost() != state[1] {
+			t.Fatalf("CgroupnsMode.IsHost for %v should have been %v but was %v", cgroupNsMode, state[1], cgroupNsMode.IsHost())
+		}
+		if cgroupNsMode.IsEmpty() != state[2] {
+			t.Fatalf("CgroupnsMode.Valid for %v should have been %v but was %v", cgroupNsMode, state[2], cgroupNsMode.Valid())
+		}
+		if cgroupNsMode.Valid() != state[3] {
+			t.Fatalf("CgroupnsMode.Valid for %v should have been %v but was %v", cgroupNsMode, state[2], cgroupNsMode.Valid())
+		}
+	}
+}
+
 // TODO Windows: This will need addressing for a Windows daemon.
 func TestNetworkModeTest(t *testing.T) {
 	networkModes := map[container.NetworkMode][]bool{

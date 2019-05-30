@@ -109,6 +109,10 @@ func (r *Reader) more() {
 	if a == 0 && r.state == nil {
 		r.state = io.ErrNoProgress
 		return
+	} else if a > 0 && r.state == io.EOF {
+		// discard the io.EOF if we read more than 0 bytes.
+		// the next call to Read should return io.EOF again.
+		r.state = nil
 	}
 	r.data = r.data[:len(r.data)+a]
 }

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/errdefs"
 )
 
 func TestContainerRestartError(t *testing.T) {
@@ -19,6 +21,9 @@ func TestContainerRestartError(t *testing.T) {
 	err := client.ContainerRestart(context.Background(), "nothing", &timeout)
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
+	}
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %T", err)
 	}
 }
 

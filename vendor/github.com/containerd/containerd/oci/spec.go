@@ -247,17 +247,8 @@ func populateDefaultWindowsSpec(ctx context.Context, s *Spec, id string) error {
 		Root:    &specs.Root{},
 		Process: &specs.Process{
 			Cwd: `C:\`,
-			ConsoleSize: &specs.Box{
-				Width:  80,
-				Height: 20,
-			},
 		},
-		Windows: &specs.Windows{
-			IgnoreFlushesDuringBoot: true,
-			Network: &specs.WindowsNetwork{
-				AllowUnqualifiedDNSQuery: true,
-			},
-		},
+		Windows: &specs.Windows{},
 	}
 	return nil
 }

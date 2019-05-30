@@ -209,6 +209,8 @@ type Info struct {
 	Managers       int `json:",omitempty"`
 
 	Cluster *ClusterInfo `json:",omitempty"`
+
+	Warnings []string `json:",omitempty"`
 }
 
 // Peer represents a peer.

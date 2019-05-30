@@ -55,6 +55,7 @@ type ExecConfig struct {
 
 // CheckpointConfig holds task checkpoint configuration
 type CheckpointConfig struct {
+	WorkDir                  string
 	Path                     string
 	Exit                     bool
 	AllowOpenTCP             bool

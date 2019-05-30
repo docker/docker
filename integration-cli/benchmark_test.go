@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 func (s *DockerSuite) BenchmarkConcurrentContainerActions(c *check.C) {
@@ -90,6 +90,6 @@ func (s *DockerSuite) BenchmarkConcurrentContainerActions(c *check.C) {
 	close(chErr)
 
 	for err := range chErr {
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 	}
 }

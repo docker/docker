@@ -485,7 +485,7 @@ func (na *cnmNetworkAllocator) IsAttachmentAllocated(node *api.Node, networkAtta
 		return false
 	}
 
-	if networkAttachment == nil {
+	if networkAttachment == nil || networkAttachment.Network == nil {
 		return false
 	}
 

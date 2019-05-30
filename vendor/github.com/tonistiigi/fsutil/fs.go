@@ -3,9 +3,11 @@ package fsutil
 import (
 	"context"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -37,36 +39,80 @@ func (fs *fs) Open(p string) (io.ReadCloser, error) {
 	return os.Open(filepath.Join(fs.root, p))
 }
 
-func SubDirFS(fs FS, stat types.Stat) FS {
-	return &subDirFS{fs: fs, stat: stat}
+type Dir struct {
+	Stat types.Stat
+	FS   FS
+}
+
+func SubDirFS(dirs []Dir) (FS, error) {
+	sort.Slice(dirs, func(i, j int) bool {
+		return dirs[i].Stat.Path < dirs[j].Stat.Path
+	})
+	m := map[string]Dir{}
+	for _, d := range dirs {
+		if path.Base(d.Stat.Path) != d.Stat.Path {
+			return nil, errors.Errorf("subdir %s must be single file", d.Stat.Path)
+		}
+		if _, ok := m[d.Stat.Path]; ok {
+			return nil, errors.Errorf("invalid path %s", d.Stat.Path)
+		}
+		m[d.Stat.Path] = d
+	}
+	return &subDirFS{m: m, dirs: dirs}, nil
 }
 
 type subDirFS struct {
-	fs   FS
-	stat types.Stat
+	m    map[string]Dir
+	dirs []Dir
 }
 
 func (fs *subDirFS) Walk(ctx context.Context, fn filepath.WalkFunc) error {
-	main := &StatInfo{Stat: &fs.stat}
-	if !main.IsDir() {
-		return errors.Errorf("fs subdir not mode directory")
-	}
-	if main.Name() != fs.stat.Path {
-		return errors.Errorf("subdir path must be single file")
-	}
-	if err := fn(fs.stat.Path, main, nil); err != nil {
-		return err
-	}
-	return fs.fs.Walk(ctx, func(p string, fi os.FileInfo, err error) error {
-		stat, ok := fi.Sys().(*types.Stat)
-		if !ok {
-			return errors.Wrapf(err, "invalid fileinfo without stat info: %s", p)
+	for _, d := range fs.dirs {
+		fi := &StatInfo{Stat: &d.Stat}
+		if !fi.IsDir() {
+			return errors.Errorf("fs subdir %s not mode directory", d.Stat.Path)
 		}
-		stat.Path = path.Join(fs.stat.Path, stat.Path)
-		return fn(filepath.Join(fs.stat.Path, p), &StatInfo{stat}, nil)
-	})
+		if err := fn(d.Stat.Path, fi, nil); err != nil {
+			return err
+		}
+		if err := d.FS.Walk(ctx, func(p string, fi os.FileInfo, err error) error {
+			stat, ok := fi.Sys().(*types.Stat)
+			if !ok {
+				return errors.Wrapf(err, "invalid fileinfo without stat info: %s", p)
+			}
+			stat.Path = path.Join(d.Stat.Path, stat.Path)
+			if stat.Linkname != "" {
+				if fi.Mode()&os.ModeSymlink != 0 {
+					if strings.HasPrefix(stat.Linkname, "/") {
+						stat.Linkname = path.Join("/"+d.Stat.Path, stat.Linkname)
+					}
+				} else {
+					stat.Linkname = path.Join(d.Stat.Path, stat.Linkname)
+				}
+			}
+			return fn(filepath.Join(d.Stat.Path, p), &StatInfo{stat}, nil)
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (fs *subDirFS) Open(p string) (io.ReadCloser, error) {
-	return fs.fs.Open(strings.TrimPrefix(p, fs.stat.Path+"/"))
+	parts := strings.SplitN(filepath.Clean(p), string(filepath.Separator), 2)
+	if len(parts) == 0 {
+		return ioutil.NopCloser(&emptyReader{}), nil
+	}
+	d, ok := fs.m[parts[0]]
+	if !ok {
+		return nil, os.ErrNotExist
+	}
+	return d.FS.Open(parts[1])
+}
+
+type emptyReader struct {
+}
+
+func (*emptyReader) Read([]byte) (int, error) {
+	return 0, io.EOF
 }

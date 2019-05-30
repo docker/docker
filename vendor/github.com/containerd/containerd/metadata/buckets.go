@@ -14,13 +14,11 @@
    limitations under the License.
 */
 
-package metadata
-
-import (
-	digest "github.com/opencontainers/go-digest"
-	bolt "go.etcd.io/bbolt"
-)
-
+// Package metadata stores all labels and object specific metadata by namespace.
+// This package also contains the main garbage collection logic  for cleaning up
+// resources consistently and atomically. Resources used by backends will be
+// tracked in the metadata store to be exposed to consumers of this package.
+//
 // The layout where a "/" delineates a bucket is described in the following
 // section. Please try to follow this as closely as possible when adding
 // functionality. We can bolster this with helpers and more structure if that
@@ -43,6 +41,84 @@ import (
 //
 // key: object-specific key identifying the storage bucket for the objects
 // contents.
+//
+// Below is the current database schema. This should be updated each time
+// the structure is changed in addition to adding a migration and incrementing
+// the database version. Note that `╘══*...*` refers to maps with arbitrary
+// keys.
+//  ├──version : <varint>                        - Latest version, see migrations
+//  └──v1                                        - Schema version bucket
+//     ╘══*namespace*
+//        ├──labels
+//        │  ╘══*key* : <string>                 - Label value
+//        ├──image
+//        │  ╘══*image name*
+//        │     ├──createdat : <binary time>     - Created at
+//        │     ├──updatedat : <binary time>     - Updated at
+//        │     ├──target
+//        │     │  ├──digest : <digest>          - Descriptor digest
+//        │     │  ├──mediatype : <string>       - Descriptor media type
+//        │     │  └──size : <varint>            - Descriptor size
+//        │     └──labels
+//        │        ╘══*key* : <string>           - Label value
+//        ├──containers
+//        │  ╘══*container id*
+//        │     ├──createdat : <binary time>     - Created at
+//        │     ├──updatedat : <binary time>     - Updated at
+//        │     ├──spec : <binary>               - Proto marshaled spec
+//        │     ├──image : <string>              - Image name
+//        │     ├──snapshotter : <string>        - Snapshotter name
+//        │     ├──snapshotKey : <string>        - Snapshot key
+//        │     ├──runtime
+//        │     │  ├──name : <string>            - Runtime name
+//        │     │  ├──extensions
+//        │     │  │  ╘══*name* : <binary>       - Proto marshaled extension
+//        │     │  └──options : <binary>         - Proto marshaled options
+//        │     └──labels
+//        │        ╘══*key* : <string>           - Label value
+//        ├──snapshots
+//        │  ╘══*snapshotter*
+//        │     ╘══*snapshot key*
+//        │        ├──name : <string>            - Snapshot name in backend
+//        │        ├──createdat : <binary time>  - Created at
+//        │        ├──updatedat : <binary time>  - Updated at
+//        │        ├──parent : <string>          - Parent snapshot name
+//        │        ├──children
+//        │        │  ╘══*snapshot key* : <nil>  - Child snapshot reference
+//        │        └──labels
+//        │           ╘══*key* : <string>        - Label value
+//        ├──content
+//        │  ├──blob
+//        │  │  ╘══*blob digest*
+//        │  │     ├──createdat : <binary time>  - Created at
+//        │  │     ├──updatedat : <binary time>  - Updated at
+//        │  │     ├──size : <varint>            - Blob size
+//        │  │     └──labels
+//        │  │        ╘══*key* : <string>        - Label value
+//        │  └──ingests
+//        │     ╘══*ingest reference*
+//        │        ├──ref : <string>             - Ingest reference in backend
+//        │        ├──expireat : <binary time>   - Time to expire ingest
+//        │        └──expected : <digest>        - Expected commit digest
+//        └──leases
+//           ╘══*lease id*
+//              ├──createdat : <binary time>     - Created at
+//              ├──labels
+//              │  ╘══*key* : <string>           - Label value
+//              ├──snapshots
+//              │  ╘══*snapshotter*
+//              │     ╘══*snapshot key* : <nil>  - Snapshot reference
+//              ├──content
+//              │  ╘══*blob digest* : <nil>      - Content blob reference
+//              └──ingests
+//                 ╘══*ingest reference* : <nil> - Content ingest reference
+package metadata
+
+import (
+	digest "github.com/opencontainers/go-digest"
+	bolt "go.etcd.io/bbolt"
+)
+
 var (
 	bucketKeyVersion          = []byte(schemaVersion)
 	bucketKeyDBVersion        = []byte("version")    // stores the version of the schema

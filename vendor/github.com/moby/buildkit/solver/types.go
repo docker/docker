@@ -164,5 +164,5 @@ type CacheManager interface {
 	// Load pulls and returns the cached result
 	Load(ctx context.Context, rec *CacheRecord) (Result, error)
 	// Save saves a result based on a cache key
-	Save(key *CacheKey, s Result) (*ExportableCacheKey, error)
+	Save(key *CacheKey, s Result, createdAt time.Time) (*ExportableCacheKey, error)
 }

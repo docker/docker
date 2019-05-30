@@ -25,6 +25,8 @@ message CreateOptions {
 	string shim_cgroup = 9;
 	uint32 io_uid = 10;
 	uint32 io_gid = 11;
+	string criu_work_path = 12;
+	string criu_image_path = 13;
 }
 
 message CheckpointOptions {
@@ -35,6 +37,8 @@ message CheckpointOptions {
 	bool file_locks = 5;
 	repeated string empty_namespaces = 6;
 	string cgroups_mode = 7;
+	string work_path = 8;
+	string image_path = 9;
 }
 
 message ProcessDetails {

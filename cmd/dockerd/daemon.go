@@ -21,6 +21,7 @@ import (
 	checkpointrouter "github.com/docker/docker/api/server/router/checkpoint"
 	"github.com/docker/docker/api/server/router/container"
 	distributionrouter "github.com/docker/docker/api/server/router/distribution"
+	grpcrouter "github.com/docker/docker/api/server/router/grpc"
 	"github.com/docker/docker/api/server/router/image"
 	"github.com/docker/docker/api/server/router/network"
 	pluginrouter "github.com/docker/docker/api/server/router/plugin"
@@ -90,6 +91,8 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return err
 	}
 
+	logrus.Info("Starting up")
+
 	cli.configFile = &opts.configFile
 	cli.flags = opts.flags
 
@@ -101,6 +104,12 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		logrus.Warn("Running experimental build")
 		if cli.Config.IsRootless() {
 			logrus.Warn("Running in rootless mode. Cgroups, AppArmor, and CRIU are disabled.")
+		}
+		if rootless.RunningWithRootlessKit() {
+			logrus.Info("Running with RootlessKit integration")
+			if !cli.Config.IsRootless() {
+				return fmt.Errorf("rootless mode needs to be enabled for running with RootlessKit")
+			}
 		}
 	} else {
 		if cli.Config.IsRootless() {
@@ -163,31 +172,13 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	if cli.Config.ContainerdAddr == "" && runtime.GOOS != "windows" {
-		systemContainerdAddr, ok, err := systemContainerdRunning(cli.Config.IsRootless())
-		if err != nil {
-			cancel()
-			return errors.Wrap(err, "could not determine whether the system containerd is running")
-		}
-		if !ok {
-			opts, err := cli.getContainerdDaemonOpts()
-			if err != nil {
-				cancel()
-				return errors.Wrap(err, "failed to generate containerd options")
-			}
-
-			r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
-			if err != nil {
-				cancel()
-				return errors.Wrap(err, "failed to start containerd")
-			}
-			cli.Config.ContainerdAddr = r.Address()
-
-			// Try to wait for containerd to shutdown
-			defer r.WaitTimeout(10 * time.Second)
-		} else {
-			cli.Config.ContainerdAddr = systemContainerdAddr
-		}
+	waitForContainerDShutdown, err := cli.initContainerD(ctx)
+	if waitForContainerDShutdown != nil {
+		defer waitForContainerDShutdown(10 * time.Second)
+	}
+	if err != nil {
+		cancel()
+		return err
 	}
 	defer cancel()
 
@@ -277,6 +268,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return errors.Wrap(errAPI, "shutting down due to ServeAPI error")
 	}
 
+	logrus.Info("Daemon shutdown complete")
 	return nil
 }
 
@@ -503,6 +495,16 @@ func initRouter(opts routerOptions) {
 		distributionrouter.NewRouter(opts.daemon.ImageService()),
 	}
 
+	grpcBackends := []grpcrouter.Backend{}
+	for _, b := range []interface{}{opts.daemon, opts.buildBackend} {
+		if b, ok := b.(grpcrouter.Backend); ok {
+			grpcBackends = append(grpcBackends, b)
+		}
+	}
+	if len(grpcBackends) > 0 {
+		routers = append(routers, grpcrouter.NewRouter(grpcBackends...))
+	}
+
 	if opts.daemon.NetworkControllerEnabled() {
 		routers = append(routers, network.NewRouter(opts.daemon, opts.cluster))
 	}
@@ -598,7 +600,7 @@ func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, er
 	var hosts []string
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		var err error
-		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, rootless.RunningWithNonRootUsername(), cli.Config.Hosts[i]); err != nil {
+		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, honorXDG, cli.Config.Hosts[i]); err != nil {
 			return nil, errors.Wrapf(err, "error parsing -H %s", cli.Config.Hosts[i])
 		}
 
@@ -675,9 +677,9 @@ func validateAuthzPlugins(requestedPlugins []string, pg plugingetter.PluginGette
 	return nil
 }
 
-func systemContainerdRunning(isRootless bool) (string, bool, error) {
+func systemContainerdRunning(honorXDG bool) (string, bool, error) {
 	addr := containerddefaults.DefaultAddress
-	if isRootless {
+	if honorXDG {
 		runtimeDir, err := homedir.GetRuntimeDir()
 		if err != nil {
 			return "", false, err

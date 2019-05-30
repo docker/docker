@@ -189,6 +189,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "env":
 		case "env-regex":
 		case "labels":
+		case "labels-regex":
 		case "syslog-address":
 		case "syslog-facility":
 		case "syslog-tls-ca-cert":

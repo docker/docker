@@ -95,7 +95,7 @@ func FromGRPC(err error) error {
 
 	msg := rebaseMessage(cls, err)
 	if msg != "" {
-		err = errors.Wrapf(cls, msg)
+		err = errors.Wrap(cls, msg)
 	} else {
 		err = errors.WithStack(cls)
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/containerd/containerd/snapshots"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
 	digest "github.com/opencontainers/go-digest"
@@ -71,6 +72,14 @@ func NewSnapshotter(opt Opt) (snapshot.SnapshotterBase, error) {
 		reg:  reg,
 	}
 	return s, nil
+}
+
+func (s *snapshotter) Name() string {
+	return "default"
+}
+
+func (s *snapshotter) IdentityMapping() *idtools.IdentityMapping {
+	return nil
 }
 
 func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) error {
@@ -468,4 +477,8 @@ func (m *mountable) Release() error {
 
 	m.mounts = nil
 	return m.release()
+}
+
+func (m *mountable) IdentityMapping() *idtools.IdentityMapping {
+	return nil
 }

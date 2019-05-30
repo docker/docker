@@ -148,7 +148,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source)
 
 	diffs, history = normalizeLayersAndHistory(diffs, history, ref)
 
-	config, err = patchImageConfig(config, diffs, history)
+	config, err = patchImageConfig(config, diffs, history, inp.Metadata[exptypes.ExporterInlineCache])
 	if err != nil {
 		return nil, err
 	}

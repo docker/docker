@@ -28,6 +28,8 @@ type Config struct {
 	Root string `toml:"root"`
 	// State is the path to a directory where containerd will store transient data
 	State string `toml:"state"`
+	// PluginDir is the directory for dynamic plugins to be stored
+	PluginDir string `toml:"plugin_dir"`
 	// GRPC configuration settings
 	GRPC GRPCConfig `toml:"grpc"`
 	// Debug and profiling settings
@@ -37,6 +39,9 @@ type Config struct {
 	// DisabledPlugins are IDs of plugins to disable. Disabled plugins won't be
 	// initialized and started.
 	DisabledPlugins []string `toml:"disabled_plugins"`
+	// RequiredPlugins are IDs of required plugins. Containerd exits if any
+	// required plugin doesn't exist or fails to be initialized or started.
+	RequiredPlugins []string `toml:"required_plugins"`
 	// Plugins provides plugin specific configuration for the initialization of a plugin
 	Plugins map[string]toml.Primitive `toml:"plugins"`
 	// OOMScore adjust the containerd's oom score
@@ -52,6 +57,9 @@ type Config struct {
 // GRPCConfig provides GRPC configuration for the socket
 type GRPCConfig struct {
 	Address        string `toml:"address"`
+	TCPAddress     string `toml:"tcp_address"`
+	TCPTLSCert     string `toml:"tcp_tls_cert"`
+	TCPTLSKey      string `toml:"tcp_tls_key"`
 	UID            int    `toml:"uid"`
 	GID            int    `toml:"gid"`
 	MaxRecvMsgSize int    `toml:"max_recv_message_size"`
@@ -81,6 +89,44 @@ type CgroupConfig struct {
 type ProxyPlugin struct {
 	Type    string `toml:"type"`
 	Address string `toml:"address"`
+}
+
+// BoltConfig defines the configuration values for the bolt plugin, which is
+// loaded here, rather than back registered in the metadata package.
+type BoltConfig struct {
+	// ContentSharingPolicy sets the sharing policy for content between
+	// namespaces.
+	//
+	// The default mode "shared" will make blobs available in all
+	// namespaces once it is pulled into any namespace. The blob will be pulled
+	// into the namespace if a writer is opened with the "Expected" digest that
+	// is already present in the backend.
+	//
+	// The alternative mode, "isolated" requires that clients prove they have
+	// access to the content by providing all of the content to the ingest
+	// before the blob is added to the namespace.
+	//
+	// Both modes share backing data, while "shared" will reduce total
+	// bandwidth across namespaces, at the cost of allowing access to any blob
+	// just by knowing its digest.
+	ContentSharingPolicy string `toml:"content_sharing_policy"`
+}
+
+const (
+	// SharingPolicyShared represents the "shared" sharing policy
+	SharingPolicyShared = "shared"
+	// SharingPolicyIsolated represents the "isolated" sharing policy
+	SharingPolicyIsolated = "isolated"
+)
+
+// Validate validates if BoltConfig is valid
+func (bc *BoltConfig) Validate() error {
+	switch bc.ContentSharingPolicy {
+	case SharingPolicyShared, SharingPolicyIsolated:
+		return nil
+	default:
+		return errors.Wrapf(errdefs.ErrInvalidArgument, "unknown policy: %s", bc.ContentSharingPolicy)
+	}
 }
 
 // Decode unmarshals a plugin specific configuration by plugin id

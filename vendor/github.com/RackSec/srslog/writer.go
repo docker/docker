@@ -17,6 +17,9 @@ type Writer struct {
 	framer    Framer
 	formatter Formatter
 
+	//non-nil if custom dialer set, used in getDialer
+	customDial DialFunc
+
 	mu   sync.RWMutex // guards conn
 	conn serverConn
 }
@@ -71,15 +74,20 @@ func (w *Writer) SetFramer(f Framer) {
 	w.framer = f
 }
 
+// SetHostname changes the hostname for syslog messages if needed.
+func (w *Writer) SetHostname(hostname string) {
+	w.hostname = hostname
+}
+
 // Write sends a log message to the syslog daemon using the default priority
 // passed into `srslog.New` or the `srslog.Dial*` functions.
 func (w *Writer) Write(b []byte) (int, error) {
 	return w.writeAndRetry(w.priority, string(b))
 }
 
-// WriteWithPriority sends a log message with a custom priority
+// WriteWithPriority sends a log message with a custom priority.
 func (w *Writer) WriteWithPriority(p Priority, b []byte) (int, error) {
-	return w.writeAndRetry(p, string(b))
+	return w.writeAndRetryWithPriority(p, string(b))
 }
 
 // Close closes a connection to the syslog daemon.
@@ -149,12 +157,20 @@ func (w *Writer) Debug(m string) (err error) {
 	return err
 }
 
-func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
-	pr := (w.priority & facilityMask) | (p & severityMask)
+// writeAndRetry takes a severity and the string to write. Any facility passed to
+// it as part of the severity Priority will be ignored.
+func (w *Writer) writeAndRetry(severity Priority, s string) (int, error) {
+	pr := (w.priority & facilityMask) | (severity & severityMask)
 
+	return w.writeAndRetryWithPriority(pr, s)
+}
+
+// writeAndRetryWithPriority differs from writeAndRetry in that it allows setting
+// of both the facility and the severity.
+func (w *Writer) writeAndRetryWithPriority(p Priority, s string) (int, error) {
 	conn := w.getConn()
 	if conn != nil {
-		if n, err := w.write(conn, pr, s); err == nil {
+		if n, err := w.write(conn, p, s); err == nil {
 			return n, err
 		}
 	}
@@ -163,7 +179,7 @@ func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
 	if conn, err = w.connect(); err != nil {
 		return 0, err
 	}
-	return w.write(conn, pr, s)
+	return w.write(conn, p, s)
 }
 
 // write generates and writes a syslog formatted string. It formats the

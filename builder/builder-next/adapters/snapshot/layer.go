@@ -12,11 +12,21 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func (s *snapshotter) EnsureLayer(ctx context.Context, key string) ([]layer.DiffID, error) {
+func (s *snapshotter) GetDiffIDs(ctx context.Context, key string) ([]layer.DiffID, error) {
 	if l, err := s.getLayer(key, true); err != nil {
 		return nil, err
 	} else if l != nil {
 		return getDiffChain(l), nil
+	}
+	return nil, nil
+}
+
+func (s *snapshotter) EnsureLayer(ctx context.Context, key string) ([]layer.DiffID, error) {
+	diffIDs, err := s.GetDiffIDs(ctx, key)
+	if err != nil {
+		return nil, err
+	} else if diffIDs != nil {
+		return diffIDs, nil
 	}
 
 	id, committed := s.getGraphDriverID(key)

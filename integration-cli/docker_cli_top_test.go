@@ -3,8 +3,8 @@ package main
 import (
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )
 
@@ -40,8 +40,8 @@ func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
 		lookingFor = "top"
 	}
 
-	c.Assert(out1, checker.Contains, lookingFor, check.Commentf("top should've listed `%s` in the process list, but failed the first time", lookingFor))
-	c.Assert(out2, checker.Contains, lookingFor, check.Commentf("top should've listed `%s` in the process list, but failed the second time", lookingFor))
+	assert.Assert(c, strings.Contains(out1, lookingFor), "top should've listed `%s` in the process list, but failed the first time", lookingFor)
+	assert.Assert(c, strings.Contains(out2, lookingFor), "top should've listed `%s` in the process list, but failed the second time", lookingFor)
 }
 
 // TestTopWindowsCoreProcesses validates that there are lines for the critical
@@ -54,7 +54,7 @@ func (s *DockerSuite) TestTopWindowsCoreProcesses(c *check.C) {
 	out1, _ := dockerCmd(c, "top", cleanedContainerID)
 	lookingFor := []string{"smss.exe", "csrss.exe", "wininit.exe", "services.exe", "lsass.exe", "CExecSvc.exe"}
 	for i, s := range lookingFor {
-		c.Assert(out1, checker.Contains, s, check.Commentf("top should've listed `%s` in the process list, but failed. Test case %d", s, i))
+		assert.Assert(c, strings.Contains(out1, s), "top should've listed `%s` in the process list, but failed. Test case %d", s, i)
 	}
 }
 
@@ -68,6 +68,6 @@ func (s *DockerSuite) TestTopPrivileged(c *check.C) {
 	out2, _ := dockerCmd(c, "top", cleanedContainerID)
 	dockerCmd(c, "kill", cleanedContainerID)
 
-	c.Assert(out1, checker.Contains, "top", check.Commentf("top should've listed `top` in the process list, but failed the first time"))
-	c.Assert(out2, checker.Contains, "top", check.Commentf("top should've listed `top` in the process list, but failed the second time"))
+	assert.Assert(c, strings.Contains(out1, "top"), "top should've listed `top` in the process list, but failed the first time")
+	assert.Assert(c, strings.Contains(out2, "top"), "top should've listed `top` in the process list, but failed the second time")
 }

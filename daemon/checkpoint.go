@@ -62,10 +62,6 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 		return fmt.Errorf("Container %s not running", name)
 	}
 
-	if container.Config.Tty {
-		return fmt.Errorf("checkpoint not support on containers with tty")
-	}
-
 	if !validCheckpointNamePattern.MatchString(config.CheckpointID) {
 		return fmt.Errorf("Invalid checkpoint ID (%s), only %s are allowed", config.CheckpointID, validCheckpointNameChars)
 	}

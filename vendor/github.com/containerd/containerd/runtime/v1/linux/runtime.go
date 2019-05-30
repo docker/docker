@@ -21,6 +21,7 @@ package linux
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -40,6 +41,7 @@ import (
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/runtime"
 	"github.com/containerd/containerd/runtime/linux/runctypes"
+	"github.com/containerd/containerd/runtime/v1"
 	"github.com/containerd/containerd/runtime/v1/linux/proc"
 	shim "github.com/containerd/containerd/runtime/v1/shim/v1"
 	runc "github.com/containerd/go-runc"
@@ -288,6 +290,10 @@ func (r *Runtime) restoreTasks(ctx context.Context) ([]*Task, error) {
 			continue
 		}
 		name := namespace.Name()
+		// skip hidden directories
+		if len(name) > 0 && name[0] == '.' {
+			continue
+		}
 		log.G(ctx).WithField("namespace", name).Debug("loading tasks in namespace")
 		tasks, err := r.loadTasks(ctx, name)
 		if err != nil {
@@ -332,8 +338,12 @@ func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 		ctx = namespaces.WithNamespace(ctx, ns)
 		pid, _ := runc.ReadPidFile(filepath.Join(bundle.path, proc.InitPidFile))
 		s, err := bundle.NewShimClient(ctx, ns, ShimConnect(r.config, func() {
-			err := r.cleanupAfterDeadShim(ctx, bundle, ns, id, pid)
+			_, err := r.tasks.Get(ctx, id)
 			if err != nil {
+				// Task was never started or was already successfully deleted
+				return
+			}
+			if err := r.cleanupAfterDeadShim(ctx, bundle, ns, id, pid); err != nil {
 				log.G(ctx).WithError(err).WithField("bundle", bundle.path).
 					Error("cleaning up after dead shim")
 			}
@@ -350,6 +360,30 @@ func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 			}
 			continue
 		}
+
+		logDirPath := filepath.Join(r.root, ns, id)
+
+		shimStdoutLog, err := v1.OpenShimStdoutLog(ctx, logDirPath)
+		if err != nil {
+			log.G(ctx).WithError(err).WithFields(logrus.Fields{
+				"id":         id,
+				"namespace":  ns,
+				"logDirPath": logDirPath,
+			}).Error("opening shim stdout log pipe")
+			continue
+		}
+		go io.Copy(os.Stdout, shimStdoutLog)
+
+		shimStderrLog, err := v1.OpenShimStderrLog(ctx, logDirPath)
+		if err != nil {
+			log.G(ctx).WithError(err).WithFields(logrus.Fields{
+				"id":         id,
+				"namespace":  ns,
+				"logDirPath": logDirPath,
+			}).Error("opening shim stderr log pipe")
+			continue
+		}
+		go io.Copy(os.Stderr, shimStderrLog)
 
 		t, err := newTask(id, ns, pid, s, r.events, r.tasks, bundle)
 		if err != nil {

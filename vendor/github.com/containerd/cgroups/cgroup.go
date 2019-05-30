@@ -30,47 +30,88 @@ import (
 )
 
 // New returns a new control via the cgroup cgroups interface
-func New(hierarchy Hierarchy, path Path, resources *specs.LinuxResources) (Cgroup, error) {
+func New(hierarchy Hierarchy, path Path, resources *specs.LinuxResources, opts ...InitOpts) (Cgroup, error) {
+	config := newInitConfig()
+	for _, o := range opts {
+		if err := o(config); err != nil {
+			return nil, err
+		}
+	}
 	subsystems, err := hierarchy()
 	if err != nil {
 		return nil, err
 	}
+	var active []Subsystem
 	for _, s := range subsystems {
+		// check if subsystem exists
 		if err := initializeSubsystem(s, path, resources); err != nil {
+			if err == ErrControllerNotActive {
+				if config.InitCheck != nil {
+					if skerr := config.InitCheck(s, path, err); skerr != nil {
+						if skerr != ErrIgnoreSubsystem {
+							return nil, skerr
+						}
+					}
+				}
+				continue
+			}
 			return nil, err
 		}
+		active = append(active, s)
 	}
 	return &cgroup{
 		path:       path,
-		subsystems: subsystems,
+		subsystems: active,
 	}, nil
 }
 
 // Load will load an existing cgroup and allow it to be controlled
-func Load(hierarchy Hierarchy, path Path) (Cgroup, error) {
+func Load(hierarchy Hierarchy, path Path, opts ...InitOpts) (Cgroup, error) {
+	config := newInitConfig()
+	for _, o := range opts {
+		if err := o(config); err != nil {
+			return nil, err
+		}
+	}
+	var activeSubsystems []Subsystem
 	subsystems, err := hierarchy()
 	if err != nil {
 		return nil, err
 	}
-	// check the the subsystems still exist
+	// check that the subsystems still exist, and keep only those that actually exist
 	for _, s := range pathers(subsystems) {
 		p, err := path(s.Name())
 		if err != nil {
 			if os.IsNotExist(errors.Cause(err)) {
 				return nil, ErrCgroupDeleted
 			}
+			if err == ErrControllerNotActive {
+				if config.InitCheck != nil {
+					if skerr := config.InitCheck(s, path, err); skerr != nil {
+						if skerr != ErrIgnoreSubsystem {
+							return nil, skerr
+						}
+					}
+				}
+				continue
+			}
 			return nil, err
 		}
 		if _, err := os.Lstat(s.Path(p)); err != nil {
 			if os.IsNotExist(err) {
-				return nil, ErrCgroupDeleted
+				continue
 			}
 			return nil, err
 		}
+		activeSubsystems = append(activeSubsystems, s)
+	}
+	// if we do not have any active systems then the cgroup is deleted
+	if len(activeSubsystems) == 0 {
+		return nil, ErrCgroupDeleted
 	}
 	return &cgroup{
 		path:       path,
-		subsystems: subsystems,
+		subsystems: activeSubsystems,
 	}, nil
 }
 
@@ -317,6 +358,49 @@ func (c *cgroup) processes(subsystem Name, recursive bool) ([]Process, error) {
 		return nil
 	})
 	return processes, err
+}
+
+// Tasks returns the tasks running inside the cgroup along
+// with the subsystem used, pid, and path
+func (c *cgroup) Tasks(subsystem Name, recursive bool) ([]Task, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.err != nil {
+		return nil, c.err
+	}
+	return c.tasks(subsystem, recursive)
+}
+
+func (c *cgroup) tasks(subsystem Name, recursive bool) ([]Task, error) {
+	s := c.getSubsystem(subsystem)
+	sp, err := c.path(subsystem)
+	if err != nil {
+		return nil, err
+	}
+	path := s.(pather).Path(sp)
+	var tasks []Task
+	err = filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !recursive && info.IsDir() {
+			if p == path {
+				return nil
+			}
+			return filepath.SkipDir
+		}
+		dir, name := filepath.Split(p)
+		if name != cgroupTasks {
+			return nil
+		}
+		procs, err := readTasksPids(dir, subsystem)
+		if err != nil {
+			return err
+		}
+		tasks = append(tasks, procs...)
+		return nil
+	})
+	return tasks, err
 }
 
 // Freeze freezes the entire cgroup and all the processes inside it

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"gotest.tools/assert"
 )
 
 const defaultFileMode = 0644
@@ -144,6 +145,14 @@ func WithDir(name string, ops ...PathOp) PathOp {
 	}
 }
 
+// Apply the PathOps to the File
+func Apply(t assert.TestingT, path Path, ops ...PathOp) {
+	if ht, ok := t.(helperT); ok {
+		ht.Helper()
+	}
+	assert.NilError(t, applyPathOps(path, ops))
+}
+
 func applyPathOps(path Path, ops []PathOp) error {
 	for _, op := range ops {
 		if err := op(path); err != nil {
@@ -172,21 +181,33 @@ func copyDirectory(source, dest string) error {
 	for _, entry := range entries {
 		sourcePath := filepath.Join(source, entry.Name())
 		destPath := filepath.Join(dest, entry.Name())
-		if entry.IsDir() {
+		switch {
+		case entry.IsDir():
 			if err := os.Mkdir(destPath, 0755); err != nil {
 				return err
 			}
 			if err := copyDirectory(sourcePath, destPath); err != nil {
 				return err
 			}
-			continue
-		}
-		// TODO: handle symlinks
-		if err := copyFile(sourcePath, destPath); err != nil {
-			return err
+		case entry.Mode()&os.ModeSymlink != 0:
+			if err := copySymLink(sourcePath, destPath); err != nil {
+				return err
+			}
+		default:
+			if err := copyFile(sourcePath, destPath); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+func copySymLink(source, dest string) error {
+	link, err := os.Readlink(source)
+	if err != nil {
+		return err
+	}
+	return os.Symlink(link, dest)
 }
 
 func copyFile(source, dest string) error {
@@ -219,7 +240,7 @@ func WithSymlink(path, target string) PathOp {
 func WithHardlink(path, target string) PathOp {
 	return func(root Path) error {
 		if _, ok := root.(manifestDirectory); ok {
-			return errors.New("WithHardlink yet implemented for manifests")
+			return errors.New("WithHardlink not implemented for manifests")
 		}
 		return os.Link(filepath.Join(root.Path(), target), filepath.Join(root.Path(), path))
 	}
@@ -230,7 +251,7 @@ func WithHardlink(path, target string) PathOp {
 func WithTimestamps(atime, mtime time.Time) PathOp {
 	return func(root Path) error {
 		if _, ok := root.(manifestDirectory); ok {
-			return errors.New("WithTimestamp yet implemented for manifests")
+			return errors.New("WithTimestamp not implemented for manifests")
 		}
 		return os.Chtimes(root.Path(), atime, mtime)
 	}

@@ -77,6 +77,18 @@ func MaxChildrenPerSparseNode(value int) Option {
 	}
 }
 
+// Clone makes a copy of an existing trie.
+// Items stored in both tries become shared, obviously.
+func (trie *Trie) Clone() *Trie {
+	return &Trie{
+		prefix:                   append(Prefix(nil), trie.prefix...),
+		item:                     trie.item,
+		maxPrefixPerNode:         trie.maxPrefixPerNode,
+		maxChildrenPerSparseNode: trie.maxChildrenPerSparseNode,
+		children:                 trie.children.clone(),
+	}
+}
+
 // Item returns the item stored in the root of this trie.
 func (trie *Trie) Item() Item {
 	return trie.item

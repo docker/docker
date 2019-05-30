@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 func (s *DockerSuite) TestLinksPingUnlinkedContainers(c *check.C) {
@@ -99,14 +100,14 @@ func (s *DockerSuite) TestLinksInspectLinksStarted(c *check.C) {
 
 	var result []string
 	err := json.Unmarshal([]byte(links), &result)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	var expected = []string{
 		"/container1:/testinspectlink/alias1",
 		"/container2:/testinspectlink/alias2",
 	}
 	sort.Strings(result)
-	c.Assert(result, checker.DeepEquals, expected)
+	assert.DeepEqual(c, result, expected)
 }
 
 func (s *DockerSuite) TestLinksInspectLinksStopped(c *check.C) {
@@ -119,14 +120,14 @@ func (s *DockerSuite) TestLinksInspectLinksStopped(c *check.C) {
 
 	var result []string
 	err := json.Unmarshal([]byte(links), &result)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	var expected = []string{
 		"/container1:/testinspectlink/alias1",
 		"/container2:/testinspectlink/alias2",
 	}
 	sort.Strings(result)
-	c.Assert(result, checker.DeepEquals, expected)
+	assert.DeepEqual(c, result, expected)
 }
 
 func (s *DockerSuite) TestLinksNotStartedParentNotFail(c *check.C) {

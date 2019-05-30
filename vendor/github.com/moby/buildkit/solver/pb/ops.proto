@@ -15,7 +15,7 @@ message Op {
 	oneof op {
 		ExecOp exec = 2;
 		SourceOp source = 3;
-		CopyOp copy = 4;
+		FileOp file = 4;
 		BuildOp build = 5;
 	}
 	Platform platform = 10;
@@ -44,6 +44,7 @@ message ExecOp {
 	Meta meta = 1;
 	repeated Mount mounts = 2;
 	NetMode network = 3;
+	SecurityMode security = 4;
 }
 
 // Meta is a set of arguments for ExecOp.
@@ -62,6 +63,11 @@ enum NetMode {
 	UNSET = 0; // sandbox
 	HOST = 1;
 	NONE = 2;
+}
+
+enum SecurityMode {
+	SANDBOX = 0;
+	INSECURE = 1; // privileged mode
 }
 
 // Mount specifies how to mount an input Op as a filesystem.
@@ -134,18 +140,6 @@ message SSHOpt {
 	bool optional = 5;
 }
 
-// CopyOp copies files across Ops.
-message CopyOp {
-	repeated CopySource src = 1;
-	string dest = 2;
-}
-
-// CopySource specifies a source for CopyOp.
-message CopySource {
-	int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
-	string selector = 2;
-}
-
 // SourceOp specifies a source such as build contexts and images.
 message SourceOp {
 	// TODO: use source type or any type instead of URL protocol.
@@ -211,4 +205,101 @@ message Definition {
 message HostIP {
 	string Host = 1;
 	string IP = 2;
+}
+
+message FileOp {
+	repeated FileAction actions = 2;
+}
+
+message FileAction {
+	int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false]; // could be real input or target (target index + max input index)
+	int64 secondaryInput = 2 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false]; // --//--
+	int64 output = 3 [(gogoproto.customtype) = "OutputIndex", (gogoproto.nullable) = false];
+	oneof action {
+		// FileActionCopy copies files from secondaryInput on top of input
+		FileActionCopy copy = 4;
+		// FileActionMkFile creates a new file
+		FileActionMkFile mkfile = 5;
+		// FileActionMkDir creates a new directory
+		FileActionMkDir mkdir = 6;
+		// FileActionRm removes a file
+		FileActionRm rm = 7;
+	}
+}
+
+message FileActionCopy {
+	// src is the source path
+	string src = 1;
+	// dest path
+	string dest = 2;
+	// optional owner override
+	ChownOpt owner = 3;
+	// optional permission bits override
+	int32 mode = 4;
+	// followSymlink resolves symlinks in src
+	bool followSymlink = 5;
+	// dirCopyContents only copies contents if src is a directory
+	bool dirCopyContents = 6;
+	// attemptUnpackDockerCompatibility detects if src is an archive to unpack it instead
+	bool attemptUnpackDockerCompatibility = 7;
+	// createDestPath creates dest path directories if needed
+	bool createDestPath = 8;
+	// allowWildcard allows filepath.Match wildcards in src path
+	bool allowWildcard = 9;
+	// allowEmptyWildcard doesn't fail the whole copy if wildcard doesn't resolve to files
+	bool allowEmptyWildcard = 10;
+	// optional created time override
+	int64 timestamp = 11;
+}
+
+message FileActionMkFile {
+	// path for the new file
+	string path = 1;
+	// permission bits
+	int32 mode = 2;
+	// data is the new file contents
+	bytes data = 3;
+	// optional owner for the new file
+	ChownOpt owner = 4;
+	// optional created time override
+	int64 timestamp = 5;
+}
+
+message FileActionMkDir {
+	// path for the new directory
+	string path = 1;
+	// permission bits
+	int32 mode = 2;
+	// makeParents creates parent directories as well if needed
+	bool makeParents = 3;
+	// optional owner for the new directory
+	ChownOpt owner = 4;
+	// optional created time override
+	int64 timestamp = 5;
+}
+
+message FileActionRm {
+	// path to remove
+	string path = 1;
+	// allowNotFound doesn't fail the rm if file is not found
+	bool allowNotFound = 2;
+	// allowWildcard allows filepath.Match wildcards in path
+	bool allowWildcard = 3;
+}
+
+message ChownOpt {
+	UserOpt user = 1;
+	UserOpt group = 2;
+}
+
+message UserOpt {
+	oneof user {
+		NamedUserOpt byName = 1;
+		uint32 byID = 2;
+	}
+}
+
+message NamedUserOpt {
+	string name = 1;
+	int64 input = 2 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
 }

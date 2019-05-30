@@ -75,6 +75,8 @@ func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*
 		}
 		if mount.ReadOnly {
 			mountOpts = append(mountOpts, llb.Readonly)
+		} else if mount.Type == instructions.MountTypeBind {
+			mountOpts = append(mountOpts, llb.ForceNoOutput)
 		}
 		if mount.Type == instructions.MountTypeCache {
 			sharing := llb.CacheMountShared

@@ -3,11 +3,14 @@
 package daemon // import "github.com/docker/docker/internal/test/daemon"
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/internal/test"
 	"golang.org/x/sys/unix"
+	"gotest.tools/assert"
 )
 
 func cleanupNetworkNamespace(t testingT, execRoot string) {
@@ -27,6 +30,14 @@ func cleanupNetworkNamespace(t testingT, execRoot string) {
 		os.Remove(path)
 		return nil
 	})
+}
+
+// CgroupNamespace returns the cgroup namespace the daemon is running in
+func (d *Daemon) CgroupNamespace(t assert.TestingT) string {
+	link, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/cgroup", d.Pid()))
+	assert.NilError(t, err)
+
+	return strings.TrimSpace(link)
 }
 
 // SignalDaemonDump sends a signal to the daemon to write a dump file

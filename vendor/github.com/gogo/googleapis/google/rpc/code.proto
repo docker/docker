@@ -22,7 +22,6 @@ option java_outer_classname = "CodeProto";
 option java_package = "com.google.rpc";
 option objc_class_prefix = "RPC";
 
-
 // The canonical error codes for Google APIs.
 //
 //

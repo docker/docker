@@ -414,6 +414,9 @@ func (c *serverConn) run(sctx context.Context) {
 		case request := <-requests:
 			active++
 			go func(id uint32) {
+				ctx, cancel := getRequestContext(ctx, request.req)
+				defer cancel()
+
 				p, status := c.server.services.call(ctx, request.req.Service, request.req.Method, request.req.Payload)
 				resp := &Response{
 					Status:  status.Proto(),
@@ -453,4 +456,16 @@ func (c *serverConn) run(sctx context.Context) {
 			return
 		}
 	}
+}
+
+var noopFunc = func() {}
+
+func getRequestContext(ctx context.Context, req *Request) (retCtx context.Context, cancel func()) {
+	cancel = noopFunc
+	if req.TimeoutNano == 0 {
+		return ctx, cancel
+	}
+
+	ctx, cancel = context.WithTimeout(ctx, time.Duration(req.TimeoutNano))
+	return ctx, cancel
 }

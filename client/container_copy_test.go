@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestContainerStatPathError(t *testing.T) {
@@ -21,6 +22,9 @@ func TestContainerStatPathError(t *testing.T) {
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server error, got %v", err)
+	}
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %T", err)
 	}
 }
 
@@ -102,6 +106,9 @@ func TestCopyToContainerError(t *testing.T) {
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server error, got %v", err)
 	}
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %T", err)
+	}
 }
 
 func TestCopyToContainerNotFoundError(t *testing.T) {
@@ -114,6 +121,7 @@ func TestCopyToContainerNotFoundError(t *testing.T) {
 	}
 }
 
+// TODO TestCopyToContainerNotStatusOKError expects a non-error status-code ("204 No Content") to produce an error; verify if this is the desired behavior
 func TestCopyToContainerNotStatusOKError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
@@ -178,6 +186,9 @@ func TestCopyFromContainerError(t *testing.T) {
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server error, got %v", err)
 	}
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %T", err)
+	}
 }
 
 func TestCopyFromContainerNotFoundError(t *testing.T) {
@@ -190,6 +201,7 @@ func TestCopyFromContainerNotFoundError(t *testing.T) {
 	}
 }
 
+// TODO TestCopyFromContainerNotStatusOKError expects a non-error status-code ("204 No Content") to produce an error; verify if this is the desired behavior
 func TestCopyFromContainerNotStatusOKError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusNoContent, "No content")),

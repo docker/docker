@@ -83,7 +83,6 @@ func lookupNTAccount(builder *Builder, accountName string, state *dispatchState)
 	runConfig := copyRunConfig(state.runConfig,
 		withCmdCommentString("internal run to obtain NT account information.", optionsPlatform.OS))
 
-	runConfig.ArgsEscaped = true
 	runConfig.Cmd = []string{targetExecutable, "getaccountsid", accountName}
 
 	hostConfig := &container.HostConfig{Mounts: []mount.Mount{

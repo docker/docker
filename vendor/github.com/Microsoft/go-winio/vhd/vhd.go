@@ -7,7 +7,7 @@ import "syscall"
 //go:generate go run mksyscall_windows.go -output zvhd.go vhd.go
 
 //sys createVirtualDisk(virtualStorageType *virtualStorageType, path string, virtualDiskAccessMask uint32, securityDescriptor *uintptr, flags uint32, providerSpecificFlags uint32, parameters *createVirtualDiskParameters, o *syscall.Overlapped, handle *syscall.Handle) (err error) [failretval != 0] = VirtDisk.CreateVirtualDisk
-//sys openVirtualDisk(virtualStorageType *virtualStorageType, path string, virtualDiskAccessMask uint32, flags uint32, parameters *uintptr, handle *syscall.Handle) (err error) [failretval != 0] = VirtDisk.OpenVirtualDisk
+//sys openVirtualDisk(virtualStorageType *virtualStorageType, path string, virtualDiskAccessMask uint32, flags uint32, parameters *openVirtualDiskParameters, handle *syscall.Handle) (err error) [failretval != 0] = VirtDisk.OpenVirtualDisk
 //sys detachVirtualDisk(handle syscall.Handle, flags uint32, providerSpecificFlags uint32) (err error) [failretval != 0] = VirtDisk.DetachVirtualDisk
 
 type virtualStorageType struct {
@@ -15,23 +15,45 @@ type virtualStorageType struct {
 	VendorID [16]byte
 }
 
-const virtualDiskAccessNONE uint32 = 0
-const virtualDiskAccessATTACHRO uint32 = 65536
-const virtualDiskAccessATTACHRW uint32 = 131072
-const virtualDiskAccessDETACH uint32 = 262144
-const virtualDiskAccessGETINFO uint32 = 524288
-const virtualDiskAccessCREATE uint32 = 1048576
-const virtualDiskAccessMETAOPS uint32 = 2097152
-const virtualDiskAccessREAD uint32 = 851968
-const virtualDiskAccessALL uint32 = 4128768
-const virtualDiskAccessWRITABLE uint32 = 3276800
+type (
+	createVirtualDiskFlag uint32
+	VirtualDiskAccessMask uint32
+	VirtualDiskFlag       uint32
+)
 
-const createVirtualDiskFlagNone uint32 = 0
-const createVirtualDiskFlagFullPhysicalAllocation uint32 = 1
-const createVirtualDiskFlagPreventWritesToSourceDisk uint32 = 2
-const createVirtualDiskFlagDoNotCopyMetadataFromParent uint32 = 4
+const (
+	// Flags for creating a VHD (not exported)
+	createVirtualDiskFlagNone                        createVirtualDiskFlag = 0
+	createVirtualDiskFlagFullPhysicalAllocation      createVirtualDiskFlag = 1
+	createVirtualDiskFlagPreventWritesToSourceDisk   createVirtualDiskFlag = 2
+	createVirtualDiskFlagDoNotCopyMetadataFromParent createVirtualDiskFlag = 4
 
-type version2 struct {
+	// Access Mask for opening a VHD
+	VirtualDiskAccessNone     VirtualDiskAccessMask = 0
+	VirtualDiskAccessAttachRO VirtualDiskAccessMask = 65536
+	VirtualDiskAccessAttachRW VirtualDiskAccessMask = 131072
+	VirtualDiskAccessDetach   VirtualDiskAccessMask = 262144
+	VirtualDiskAccessGetInfo  VirtualDiskAccessMask = 524288
+	VirtualDiskAccessCreate   VirtualDiskAccessMask = 1048576
+	VirtualDiskAccessMetaOps  VirtualDiskAccessMask = 2097152
+	VirtualDiskAccessRead     VirtualDiskAccessMask = 851968
+	VirtualDiskAccessAll      VirtualDiskAccessMask = 4128768
+	VirtualDiskAccessWritable VirtualDiskAccessMask = 3276800
+
+	// Flags for opening a VHD
+	OpenVirtualDiskFlagNone                        VirtualDiskFlag = 0
+	OpenVirtualDiskFlagNoParents                   VirtualDiskFlag = 0x1
+	OpenVirtualDiskFlagBlankFile                   VirtualDiskFlag = 0x2
+	OpenVirtualDiskFlagBootDrive                   VirtualDiskFlag = 0x4
+	OpenVirtualDiskFlagCachedIO                    VirtualDiskFlag = 0x8
+	OpenVirtualDiskFlagCustomDiffChain             VirtualDiskFlag = 0x10
+	OpenVirtualDiskFlagParentCachedIO              VirtualDiskFlag = 0x20
+	OpenVirtualDiskFlagVhdSetFileOnly              VirtualDiskFlag = 0x40
+	OpenVirtualDiskFlagIgnoreRelativeParentLocator VirtualDiskFlag = 0x80
+	OpenVirtualDiskFlagNoWriteHardening            VirtualDiskFlag = 0x100
+)
+
+type createVersion2 struct {
 	UniqueID                 [16]byte // GUID
 	MaximumSize              uint64
 	BlockSizeInBytes         uint32
@@ -46,29 +68,41 @@ type version2 struct {
 
 type createVirtualDiskParameters struct {
 	Version  uint32 // Must always be set to 2
-	Version2 version2
+	Version2 createVersion2
+}
+
+type openVersion2 struct {
+	GetInfoOnly    int32    // bool but 4-byte aligned
+	ReadOnly       int32    // bool but 4-byte aligned
+	ResiliencyGUID [16]byte // GUID
+}
+
+type openVirtualDiskParameters struct {
+	Version  uint32 // Must always be set to 2
+	Version2 openVersion2
 }
 
 // CreateVhdx will create a simple vhdx file at the given path using default values.
 func CreateVhdx(path string, maxSizeInGb, blockSizeInMb uint32) error {
-	var defaultType virtualStorageType
+	var (
+		defaultType virtualStorageType
+		handle      syscall.Handle
+	)
 
 	parameters := createVirtualDiskParameters{
 		Version: 2,
-		Version2: version2{
+		Version2: createVersion2{
 			MaximumSize:      uint64(maxSizeInGb) * 1024 * 1024 * 1024,
 			BlockSizeInBytes: blockSizeInMb * 1024 * 1024,
 		},
 	}
 
-	var handle syscall.Handle
-
 	if err := createVirtualDisk(
 		&defaultType,
 		path,
-		virtualDiskAccessNONE,
+		uint32(VirtualDiskAccessNone),
 		nil,
-		createVirtualDiskFlagNone,
+		uint32(createVirtualDiskFlagNone),
 		0,
 		&parameters,
 		nil,
@@ -85,24 +119,29 @@ func CreateVhdx(path string, maxSizeInGb, blockSizeInMb uint32) error {
 
 // DetachVhd detaches a VHD attached at the given path.
 func DetachVhd(path string) error {
+	handle, err := OpenVirtualDisk(path, VirtualDiskAccessDetach, OpenVirtualDiskFlagNone)
+	if err != nil {
+		return err
+	}
+	defer syscall.CloseHandle(handle)
+	return detachVirtualDisk(handle, 0, 0)
+}
+
+// OpenVirtuaDisk obtains a handle to a VHD opened with supplied access mask and flags.
+func OpenVirtualDisk(path string, accessMask VirtualDiskAccessMask, flag VirtualDiskFlag) (syscall.Handle, error) {
 	var (
 		defaultType virtualStorageType
 		handle      syscall.Handle
 	)
-
+	parameters := openVirtualDiskParameters{Version: 2}
 	if err := openVirtualDisk(
 		&defaultType,
 		path,
-		virtualDiskAccessDETACH,
-		0,
-		nil,
+		uint32(accessMask),
+		uint32(flag),
+		&parameters,
 		&handle); err != nil {
-		return err
+		return 0, err
 	}
-	defer syscall.CloseHandle(handle)
-
-	if err := detachVirtualDisk(handle, 0, 0); err != nil {
-		return err
-	}
-	return nil
+	return handle, nil
 }

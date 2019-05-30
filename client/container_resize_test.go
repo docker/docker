@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestContainerResizeError(t *testing.T) {
@@ -20,6 +21,9 @@ func TestContainerResizeError(t *testing.T) {
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
 	}
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %T", err)
+	}
 }
 
 func TestContainerExecResizeError(t *testing.T) {
@@ -29,6 +33,9 @@ func TestContainerExecResizeError(t *testing.T) {
 	err := client.ContainerExecResize(context.Background(), "exec_id", types.ResizeOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
+	}
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %T", err)
 	}
 }
 

@@ -6,12 +6,15 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/docker/docker/api/types/blkiodev"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/sysinfo"
+	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )
@@ -375,4 +378,62 @@ func sysInfo(t *testing.T, opts ...func(*sysinfo.SysInfo)) sysinfo.SysInfo {
 		t.Log(t.Name(), "OOM disable supported")
 	}
 	return si
+}
+
+const (
+	// prepare major 0x1FD(509 in decimal) and minor 0x130(304)
+	DEVNO  = 0x11FD30
+	MAJOR  = 509
+	MINOR  = 304
+	WEIGHT = 1024
+)
+
+func deviceTypeMock(t *testing.T, testAndCheck func(string)) {
+	if os.Getuid() != 0 {
+		t.Skip("root required") // for mknod
+	}
+
+	t.Parallel()
+
+	tempDir, err := ioutil.TempDir("", "tempDevDir"+t.Name())
+	assert.NilError(t, err, "create temp file")
+	tempFile := filepath.Join(tempDir, "dev")
+
+	defer os.RemoveAll(tempDir)
+
+	if err = unix.Mknod(tempFile, unix.S_IFCHR, DEVNO); err != nil {
+		t.Fatalf("mknod error %s(%x): %v", tempFile, DEVNO, err)
+	}
+
+	testAndCheck(tempFile)
+}
+
+func TestGetBlkioWeightDevices(t *testing.T) {
+	deviceTypeMock(t, func(tempFile string) {
+		mockResource := containertypes.Resources{
+			BlkioWeightDevice: []*blkiodev.WeightDevice{{Path: tempFile, Weight: WEIGHT}},
+		}
+
+		weightDevs, err := getBlkioWeightDevices(mockResource)
+
+		assert.NilError(t, err, "getBlkioWeightDevices")
+		assert.Check(t, is.Len(weightDevs, 1), "getBlkioWeightDevices")
+		assert.Check(t, weightDevs[0].Major == MAJOR, "get major device type")
+		assert.Check(t, weightDevs[0].Minor == MINOR, "get minor device type")
+		assert.Check(t, *weightDevs[0].Weight == WEIGHT, "get device weight")
+	})
+}
+
+func TestGetBlkioThrottleDevices(t *testing.T) {
+	deviceTypeMock(t, func(tempFile string) {
+		mockDevs := []*blkiodev.ThrottleDevice{{Path: tempFile, Rate: WEIGHT}}
+
+		retDevs, err := getBlkioThrottleDevices(mockDevs)
+
+		assert.NilError(t, err, "getBlkioThrottleDevices")
+		assert.Check(t, is.Len(retDevs, 1), "getBlkioThrottleDevices")
+		assert.Check(t, retDevs[0].Major == MAJOR, "get major device type")
+		assert.Check(t, retDevs[0].Minor == MINOR, "get minor device type")
+		assert.Check(t, retDevs[0].Rate == WEIGHT, "get device rate")
+	})
 }

@@ -29,6 +29,9 @@ message TaskDelete {
 	uint32 pid = 2;
 	uint32 exit_status = 3;
 	google.protobuf.Timestamp exited_at = 4 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	// id is the specific exec. By default if omitted will be `""` thus matches
+	// the init exec of the task matching `container_id`.
+	string id = 5;
 }
 
 message TaskIO {

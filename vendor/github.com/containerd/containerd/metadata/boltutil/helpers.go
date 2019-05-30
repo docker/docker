@@ -24,15 +24,26 @@ import (
 )
 
 var (
-	bucketKeyLabels    = []byte("labels")
-	bucketKeyCreatedAt = []byte("createdat")
-	bucketKeyUpdatedAt = []byte("updatedat")
+	bucketKeyAnnotations = []byte("annotations")
+	bucketKeyLabels      = []byte("labels")
+	bucketKeyCreatedAt   = []byte("createdat")
+	bucketKeyUpdatedAt   = []byte("updatedat")
 )
 
 // ReadLabels reads the labels key from the bucket
 // Uses the key "labels"
 func ReadLabels(bkt *bolt.Bucket) (map[string]string, error) {
-	lbkt := bkt.Bucket(bucketKeyLabels)
+	return readMap(bkt, bucketKeyLabels)
+}
+
+// ReadAnnotations reads the OCI Descriptor Annotations key from the bucket
+// Uses the key "annotations"
+func ReadAnnotations(bkt *bolt.Bucket) (map[string]string, error) {
+	return readMap(bkt, bucketKeyAnnotations)
+}
+
+func readMap(bkt *bolt.Bucket, bucketName []byte) (map[string]string, error) {
+	lbkt := bkt.Bucket(bucketName)
 	if lbkt == nil {
 		return nil, nil
 	}
@@ -53,9 +64,18 @@ func ReadLabels(bkt *bolt.Bucket) (map[string]string, error) {
 // bucket. Typically, this removes zero-value entries.
 // Uses the key "labels"
 func WriteLabels(bkt *bolt.Bucket, labels map[string]string) error {
+	return writeMap(bkt, bucketKeyLabels, labels)
+}
+
+// WriteAnnotations writes the OCI Descriptor Annotations
+func WriteAnnotations(bkt *bolt.Bucket, labels map[string]string) error {
+	return writeMap(bkt, bucketKeyAnnotations, labels)
+}
+
+func writeMap(bkt *bolt.Bucket, bucketName []byte, labels map[string]string) error {
 	// Remove existing labels to keep from merging
-	if lbkt := bkt.Bucket(bucketKeyLabels); lbkt != nil {
-		if err := bkt.DeleteBucket(bucketKeyLabels); err != nil {
+	if lbkt := bkt.Bucket(bucketName); lbkt != nil {
+		if err := bkt.DeleteBucket(bucketName); err != nil {
 			return err
 		}
 	}
@@ -64,7 +84,7 @@ func WriteLabels(bkt *bolt.Bucket, labels map[string]string) error {
 		return nil
 	}
 
-	lbkt, err := bkt.CreateBucket(bucketKeyLabels)
+	lbkt, err := bkt.CreateBucket(bucketName)
 	if err != nil {
 		return err
 	}

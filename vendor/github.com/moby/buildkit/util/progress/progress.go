@@ -101,7 +101,9 @@ func (pr *progressReader) Read(ctx context.Context) ([]*Progress, error) {
 		select {
 		case <-done:
 		case <-ctx.Done():
+			pr.mu.Lock()
 			pr.cond.Broadcast()
+			pr.mu.Unlock()
 		}
 	}()
 	pr.mu.Lock()
@@ -163,7 +165,9 @@ func pipe() (*progressReader, *progressWriter, func()) {
 	pr.cond = sync.NewCond(&pr.mu)
 	go func() {
 		<-ctx.Done()
+		pr.mu.Lock()
 		pr.cond.Broadcast()
+		pr.mu.Unlock()
 	}()
 	pw := &progressWriter{
 		reader: pr,

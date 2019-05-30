@@ -8,39 +8,46 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/builder/dockerignore"
+	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend/dockerfile/dockerfile2llb"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/apicaps"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
 
 const (
-	LocalNameContext      = "context"
-	LocalNameDockerfile   = "dockerfile"
-	keyTarget             = "target"
-	keyFilename           = "filename"
-	keyCacheFrom          = "cache-from"
-	defaultDockerfileName = "Dockerfile"
-	dockerignoreFilename  = ".dockerignore"
-	buildArgPrefix        = "build-arg:"
-	labelPrefix           = "label:"
-	keyNoCache            = "no-cache"
-	keyTargetPlatform     = "platform"
-	keyMultiPlatform      = "multi-platform"
-	keyImageResolveMode   = "image-resolve-mode"
-	keyGlobalAddHosts     = "add-hosts"
-	keyForceNetwork       = "force-network-mode"
-	keyOverrideCopyImage  = "override-copy-image" // remove after CopyOp implemented
+	DefaultLocalNameContext    = "context"
+	DefaultLocalNameDockerfile = "dockerfile"
+	keyTarget                  = "target"
+	keyFilename                = "filename"
+	keyCacheFrom               = "cache-from"    // for registry only. deprecated in favor of keyCacheImports
+	keyCacheImports            = "cache-imports" // JSON representation of []CacheOptionsEntry
+	defaultDockerfileName      = "Dockerfile"
+	dockerignoreFilename       = ".dockerignore"
+	buildArgPrefix             = "build-arg:"
+	labelPrefix                = "label:"
+	keyNoCache                 = "no-cache"
+	keyTargetPlatform          = "platform"
+	keyMultiPlatform           = "multi-platform"
+	keyImageResolveMode        = "image-resolve-mode"
+	keyGlobalAddHosts          = "add-hosts"
+	keyForceNetwork            = "force-network-mode"
+	keyOverrideCopyImage       = "override-copy-image" // remove after CopyOp implemented
+	keyNameContext             = "contextkey"
+	keyNameDockerfile          = "dockerfilekey"
+	keyContextSubDir           = "contextsubdir"
 )
 
 var httpPrefix = regexp.MustCompile("^https?://")
@@ -51,6 +58,18 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 	caps := c.BuildOpts().LLBCaps
 
 	marshalOpts := []llb.ConstraintsOpt{llb.WithCaps(caps)}
+
+	localNameContext := DefaultLocalNameContext
+	if v, ok := opts[keyNameContext]; ok {
+		localNameContext = v
+	}
+
+	forceLocalDockerfile := false
+	localNameDockerfile := DefaultLocalNameDockerfile
+	if v, ok := opts[keyNameDockerfile]; ok {
+		forceLocalDockerfile = true
+		localNameDockerfile = v
+	}
 
 	defaultBuildPlatform := platforms.DefaultSpec()
 	if workers := c.BuildOpts().Workers; len(workers) > 0 && len(workers[0].Platforms) > 0 {
@@ -98,19 +117,24 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 	name := "load build definition from " + filename
 
-	src := llb.Local(LocalNameDockerfile,
-		llb.FollowPaths([]string{filename}),
+	src := llb.Local(localNameDockerfile,
+		llb.FollowPaths([]string{filename, filename + ".dockerignore"}),
 		llb.SessionID(c.BuildOpts().SessionID),
-		llb.SharedKeyHint(defaultDockerfileName),
+		llb.SharedKeyHint(localNameDockerfile),
 		dockerfile2llb.WithInternalName(name),
 	)
+
+	fileop := useFileOp(opts, &caps)
+
 	var buildContext *llb.State
 	isScratchContext := false
-	if st, ok := detectGitContext(opts[LocalNameContext]); ok {
-		src = *st
-		buildContext = &src
-	} else if httpPrefix.MatchString(opts[LocalNameContext]) {
-		httpContext := llb.HTTP(opts[LocalNameContext], llb.Filename("context"), dockerfile2llb.WithInternalName("load remote build context"))
+	if st, ok := detectGitContext(opts[localNameContext]); ok {
+		if !forceLocalDockerfile {
+			src = *st
+		}
+		buildContext = st
+	} else if httpPrefix.MatchString(opts[localNameContext]) {
+		httpContext := llb.HTTP(opts[localNameContext], llb.Filename("context"), dockerfile2llb.WithInternalName("load remote build context"))
 		def, err := httpContext.Marshal(marshalOpts...)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to marshal httpcontext")
@@ -137,20 +161,41 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			return nil, errors.Errorf("failed to read downloaded context")
 		}
 		if isArchive(dt) {
-			copyImage := opts[keyOverrideCopyImage]
-			if copyImage == "" {
-				copyImage = dockerfile2llb.DefaultCopyImage
+			if fileop {
+				bc := llb.Scratch().File(llb.Copy(httpContext, "/context", "/", &llb.CopyInfo{
+					AttemptUnpack: true,
+				}))
+				if !forceLocalDockerfile {
+					src = bc
+				}
+				buildContext = &bc
+			} else {
+				copyImage := opts[keyOverrideCopyImage]
+				if copyImage == "" {
+					copyImage = dockerfile2llb.DefaultCopyImage
+				}
+				unpack := llb.Image(copyImage, dockerfile2llb.WithInternalName("helper image for file operations")).
+					Run(llb.Shlex("copy --unpack /src/context /out/"), llb.ReadonlyRootFS(), dockerfile2llb.WithInternalName("extracting build context"))
+				unpack.AddMount("/src", httpContext, llb.Readonly)
+				bc := unpack.AddMount("/out", llb.Scratch())
+				if !forceLocalDockerfile {
+					src = bc
+				}
+				buildContext = &bc
 			}
-			unpack := llb.Image(copyImage, dockerfile2llb.WithInternalName("helper image for file operations")).
-				Run(llb.Shlex("copy --unpack /src/context /out/"), llb.ReadonlyRootFS(), dockerfile2llb.WithInternalName("extracting build context"))
-			unpack.AddMount("/src", httpContext, llb.Readonly)
-			src = unpack.AddMount("/out", llb.Scratch())
-			buildContext = &src
 		} else {
 			filename = "context"
-			src = httpContext
-			buildContext = &src
+			if !forceLocalDockerfile {
+				src = httpContext
+			}
+			buildContext = &httpContext
 			isScratchContext = true
+		}
+	}
+
+	if buildContext != nil {
+		if sub, ok := opts[keyContextSubDir]; ok {
+			buildContext = scopeToSubDir(buildContext, fileop, sub)
 		}
 	}
 
@@ -161,6 +206,8 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 	eg, ctx2 := errgroup.WithContext(ctx)
 	var dtDockerfile []byte
+	var dtDockerignore []byte
+	var dtDockerignoreDefault []byte
 	eg.Go(func() error {
 		res, err := c.Solve(ctx2, client.SolveRequest{
 			Definition: def.ToPB(),
@@ -180,6 +227,13 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		if err != nil {
 			return errors.Wrapf(err, "failed to read dockerfile")
 		}
+
+		dt, err := ref.ReadFile(ctx2, client.ReadRequest{
+			Filename: filename + ".dockerignore",
+		})
+		if err == nil {
+			dtDockerignore = dt
+		}
 		return nil
 	})
 	var excludes []string
@@ -187,10 +241,10 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		eg.Go(func() error {
 			dockerignoreState := buildContext
 			if dockerignoreState == nil {
-				st := llb.Local(LocalNameContext,
+				st := llb.Local(localNameContext,
 					llb.SessionID(c.BuildOpts().SessionID),
 					llb.FollowPaths([]string{dockerignoreFilename}),
-					llb.SharedKeyHint(dockerignoreFilename),
+					llb.SharedKeyHint(localNameContext+"-"+dockerignoreFilename),
 					dockerfile2llb.WithInternalName("load "+dockerignoreFilename),
 				)
 				dockerignoreState = &st
@@ -209,14 +263,11 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			if err != nil {
 				return err
 			}
-			dtDockerignore, err := ref.ReadFile(ctx2, client.ReadRequest{
+			dtDockerignoreDefault, err = ref.ReadFile(ctx2, client.ReadRequest{
 				Filename: dockerignoreFilename,
 			})
-			if err == nil {
-				excludes, err = dockerignore.ReadAll(bytes.NewBuffer(dtDockerignore))
-				if err != nil {
-					return errors.Wrap(err, "failed to parse dockerignore")
-				}
+			if err != nil {
+				return nil
 			}
 			return nil
 		})
@@ -224,6 +275,16 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 	if err := eg.Wait(); err != nil {
 		return nil, err
+	}
+
+	if dtDockerignore == nil {
+		dtDockerignore = dtDockerignoreDefault
+	}
+	if dtDockerignore != nil {
+		excludes, err = dockerignore.ReadAll(bytes.NewBuffer(dtDockerignore))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse dockerignore")
+		}
 	}
 
 	if _, ok := opts["cmdline"]; !ok {
@@ -289,14 +350,35 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 					return errors.Wrapf(err, "failed to marshal image config")
 				}
 
-				var cacheFrom []string
+				var cacheImports []client.CacheOptionsEntry
+				// new API
+				if cacheImportsStr := opts[keyCacheImports]; cacheImportsStr != "" {
+					var cacheImportsUM []controlapi.CacheOptionsEntry
+					if err := json.Unmarshal([]byte(cacheImportsStr), &cacheImportsUM); err != nil {
+						return errors.Wrapf(err, "failed to unmarshal %s (%q)", keyCacheImports, cacheImportsStr)
+					}
+					for _, um := range cacheImportsUM {
+						cacheImports = append(cacheImports, client.CacheOptionsEntry{Type: um.Type, Attrs: um.Attrs})
+					}
+				}
+				// old API
 				if cacheFromStr := opts[keyCacheFrom]; cacheFromStr != "" {
-					cacheFrom = strings.Split(cacheFromStr, ",")
+					cacheFrom := strings.Split(cacheFromStr, ",")
+					for _, s := range cacheFrom {
+						im := client.CacheOptionsEntry{
+							Type: "registry",
+							Attrs: map[string]string{
+								"ref": s,
+							},
+						}
+						// FIXME(AkihiroSuda): skip append if already exists
+						cacheImports = append(cacheImports, im)
+					}
 				}
 
 				r, err := c.Solve(ctx, client.SolveRequest{
-					Definition:      def.ToPB(),
-					ImportCacheRefs: cacheFrom,
+					Definition:   def.ToPB(),
+					CacheImports: cacheImports,
 				})
 				if err != nil {
 					return err
@@ -477,4 +559,28 @@ func parseNetMode(v string) (pb.NetMode, error) {
 	default:
 		return 0, errors.Errorf("invalid netmode %s", v)
 	}
+}
+
+func useFileOp(args map[string]string, caps *apicaps.CapSet) bool {
+	enabled := true
+	if v, ok := args["build-arg:BUILDKIT_DISABLE_FILEOP"]; ok {
+		if b, err := strconv.ParseBool(v); err == nil {
+			enabled = !b
+		}
+	}
+	return enabled && caps != nil && caps.Supports(pb.CapFileBase) == nil
+}
+
+func scopeToSubDir(c *llb.State, fileop bool, dir string) *llb.State {
+	if fileop {
+		bc := llb.Scratch().File(llb.Copy(*c, dir, "/", &llb.CopyInfo{
+			CopyDirContentsOnly: true,
+		}))
+		return &bc
+	}
+	unpack := llb.Image(dockerfile2llb.DefaultCopyImage, dockerfile2llb.WithInternalName("helper image for file operations")).
+		Run(llb.Shlexf("copy %s/. /out/", path.Join("/src", dir)), llb.ReadonlyRootFS(), dockerfile2llb.WithInternalName("filtering build context"))
+	unpack.AddMount("/src", *c, llb.Readonly)
+	bc := unpack.AddMount("/out", llb.Scratch())
+	return &bc
 }

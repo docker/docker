@@ -5,7 +5,6 @@ package main
 import (
 	"net/http"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/go-check/check"
@@ -30,8 +29,8 @@ func (s *DockerSuite) TestBuildWithRecycleBin(c *check.C) {
 		request.RawContent(ctx.AsTarReader(c)),
 		request.ContentType("application/x-tar"))
 
-	c.Assert(err, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
+	assert.NilError(c, err)
+	assert.Equal(c, res.StatusCode, http.StatusOK)
 
 	out, err := request.ReadBody(body)
 	assert.NilError(c, err)

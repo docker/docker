@@ -27,6 +27,8 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/runtime/linux/runctypes"
+	"github.com/containerd/containerd/runtime/v2/runc/options"
 	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -57,9 +59,10 @@ func WithTaskCheckpoint(im Image) NewTaskOpts {
 		for _, m := range index.Manifests {
 			if m.MediaType == images.MediaTypeContainerd1Checkpoint {
 				info.Checkpoint = &types.Descriptor{
-					MediaType: m.MediaType,
-					Size_:     m.Size,
-					Digest:    m.Digest,
+					MediaType:   m.MediaType,
+					Size_:       m.Size,
+					Digest:      m.Digest,
+					Annotations: m.Annotations,
 				}
 				return nil
 			}
@@ -85,6 +88,58 @@ func decodeIndex(ctx context.Context, store content.Provider, desc imagespec.Des
 func WithCheckpointName(name string) CheckpointTaskOpts {
 	return func(r *CheckpointTaskInfo) error {
 		r.Name = name
+		return nil
+	}
+}
+
+// WithCheckpointImagePath sets image path for checkpoint option
+func WithCheckpointImagePath(path string) CheckpointTaskOpts {
+	return func(r *CheckpointTaskInfo) error {
+		if CheckRuntime(r.Runtime(), "io.containerd.runc") {
+			if r.Options == nil {
+				r.Options = &options.CheckpointOptions{}
+			}
+			opts, ok := r.Options.(*options.CheckpointOptions)
+			if !ok {
+				return errors.New("invalid v2 shim checkpoint options format")
+			}
+			opts.ImagePath = path
+		} else {
+			if r.Options == nil {
+				r.Options = &runctypes.CheckpointOptions{}
+			}
+			opts, ok := r.Options.(*runctypes.CheckpointOptions)
+			if !ok {
+				return errors.New("invalid v1 shim checkpoint options format")
+			}
+			opts.ImagePath = path
+		}
+		return nil
+	}
+}
+
+// WithRestoreImagePath sets image path for create option
+func WithRestoreImagePath(path string) NewTaskOpts {
+	return func(ctx context.Context, c *Client, ti *TaskInfo) error {
+		if CheckRuntime(ti.Runtime(), "io.containerd.runc") {
+			if ti.Options == nil {
+				ti.Options = &options.Options{}
+			}
+			opts, ok := ti.Options.(*options.Options)
+			if !ok {
+				return errors.New("invalid v2 shim create options format")
+			}
+			opts.CriuImagePath = path
+		} else {
+			if ti.Options == nil {
+				ti.Options = &runctypes.CreateOptions{}
+			}
+			opts, ok := ti.Options.(*runctypes.CreateOptions)
+			if !ok {
+				return errors.New("invalid v1 shim create options format")
+			}
+			opts.CriuImagePath = path
+		}
 		return nil
 	}
 }

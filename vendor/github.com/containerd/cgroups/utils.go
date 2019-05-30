@@ -111,7 +111,7 @@ func remove(path string) error {
 	return fmt.Errorf("cgroups: unable to remove path %q", path)
 }
 
-// readPids will read all the pids in a cgroup by the provided path
+// readPids will read all the pids of processes in a cgroup by the provided path
 func readPids(path string, subsystem Name) ([]Process, error) {
 	f, err := os.Open(filepath.Join(path, cgroupProcs))
 	if err != nil {
@@ -129,6 +129,33 @@ func readPids(path string, subsystem Name) ([]Process, error) {
 				return nil, err
 			}
 			out = append(out, Process{
+				Pid:       pid,
+				Subsystem: subsystem,
+				Path:      path,
+			})
+		}
+	}
+	return out, nil
+}
+
+// readTasksPids will read all the pids of tasks in a cgroup by the provided path
+func readTasksPids(path string, subsystem Name) ([]Task, error) {
+	f, err := os.Open(filepath.Join(path, cgroupTasks))
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var (
+		out []Task
+		s   = bufio.NewScanner(f)
+	)
+	for s.Scan() {
+		if t := s.Text(); t != "" {
+			pid, err := strconv.Atoi(t)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, Task{
 				Pid:       pid,
 				Subsystem: subsystem,
 				Path:      path,

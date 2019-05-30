@@ -154,7 +154,8 @@ func enableIPOnPredefinedNetwork() bool {
 	return true
 }
 
-func (daemon *Daemon) isNetworkHotPluggable() bool {
+// serviceDiscoveryOnDefaultNetwork indicates if service discovery is supported on the default network
+func serviceDiscoveryOnDefaultNetwork() bool {
 	return true
 }
 

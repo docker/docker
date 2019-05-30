@@ -46,7 +46,7 @@ type execProcess struct {
 	mu      sync.Mutex
 	id      string
 	console console.Console
-	io      runc.IO
+	io      *processIO
 	status  int
 	exited  time.Time
 	pid     *safePid
@@ -172,28 +172,29 @@ func (e *execProcess) start(ctx context.Context) (err error) {
 	// access e.pid until it is updated.
 	e.pid.Lock()
 	defer e.pid.Unlock()
+
 	var (
 		socket  *runc.Socket
-		pidfile = filepath.Join(e.path, fmt.Sprintf("%s.pid", e.id))
+		pio     *processIO
+		pidFile = newExecPidFile(e.path, e.id)
 	)
 	if e.stdio.Terminal {
 		if socket, err = runc.NewTempConsoleSocket(); err != nil {
 			return errors.Wrap(err, "failed to create runc console socket")
 		}
 		defer socket.Close()
-	} else if e.stdio.IsNull() {
-		if e.io, err = runc.NewNullIO(); err != nil {
-			return errors.Wrap(err, "creating new NULL IO")
-		}
 	} else {
-		if e.io, err = runc.NewPipeIO(e.parent.IoUID, e.parent.IoGID, withConditionalIO(e.stdio)); err != nil {
-			return errors.Wrap(err, "failed to create runc io pipes")
+		if pio, err = createIO(ctx, e.id, e.parent.IoUID, e.parent.IoGID, e.stdio); err != nil {
+			return errors.Wrap(err, "failed to create init process I/O")
 		}
+		e.io = pio
 	}
 	opts := &runc.ExecOpts{
-		PidFile: pidfile,
-		IO:      e.io,
+		PidFile: pidFile.Path(),
 		Detach:  true,
+	}
+	if pio != nil {
+		opts.IO = pio.IO()
 	}
 	if socket != nil {
 		opts.ConsoleSocket = socket
@@ -203,14 +204,10 @@ func (e *execProcess) start(ctx context.Context) (err error) {
 		return e.parent.runtimeError(err, "OCI runtime exec failed")
 	}
 	if e.stdio.Stdin != "" {
-		sc, err := fifo.OpenFifo(context.Background(), e.stdio.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
-		if err != nil {
-			return errors.Wrapf(err, "failed to open stdin fifo %s", e.stdio.Stdin)
+		if err := e.openStdin(e.stdio.Stdin); err != nil {
+			return err
 		}
-		e.closers = append(e.closers, sc)
-		e.stdin = sc
 	}
-	var copyWaitGroup sync.WaitGroup
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	if socket != nil {
@@ -218,20 +215,29 @@ func (e *execProcess) start(ctx context.Context) (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve console master")
 		}
-		if e.console, err = e.parent.Platform.CopyConsole(ctx, console, e.stdio.Stdin, e.stdio.Stdout, e.stdio.Stderr, &e.wg, &copyWaitGroup); err != nil {
+		if e.console, err = e.parent.Platform.CopyConsole(ctx, console, e.stdio.Stdin, e.stdio.Stdout, e.stdio.Stderr, &e.wg); err != nil {
 			return errors.Wrap(err, "failed to start console copy")
 		}
-	} else if !e.stdio.IsNull() {
-		if err := copyPipes(ctx, e.io, e.stdio.Stdin, e.stdio.Stdout, e.stdio.Stderr, &e.wg, &copyWaitGroup); err != nil {
+	} else {
+		if err := pio.Copy(ctx, &e.wg); err != nil {
 			return errors.Wrap(err, "failed to start io pipe copy")
 		}
 	}
-	copyWaitGroup.Wait()
-	pid, err := runc.ReadPidFile(opts.PidFile)
+	pid, err := pidFile.Read()
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve OCI runtime exec pid")
 	}
 	e.pid.pid = pid
+	return nil
+}
+
+func (e *execProcess) openStdin(path string) error {
+	sc, err := fifo.OpenFifo(context.Background(), path, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return errors.Wrapf(err, "failed to open stdin fifo %s", path)
+	}
+	e.stdin = sc
+	e.closers = append(e.closers, sc)
 	return nil
 }
 

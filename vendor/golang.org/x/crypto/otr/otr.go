@@ -4,6 +4,10 @@
 
 // Package otr implements the Off The Record protocol as specified in
 // http://www.cypherpunks.ca/otr/Protocol-v2-3.1.0.html
+//
+// The version of OTR implemented by this package has been deprecated
+// (https://bugs.otr.im/lib/libotr/issues/140). An implementation of OTRv3 is
+// available at https://github.com/coyim/otr3.
 package otr // import "golang.org/x/crypto/otr"
 
 import (
@@ -637,7 +641,7 @@ func (c *Conversation) serializeDHKey() []byte {
 }
 
 func (c *Conversation) processDHKey(in []byte) (isSame bool, err error) {
-	gy, in, ok := getMPI(in)
+	gy, _, ok := getMPI(in)
 	if !ok {
 		err = errors.New("otr: corrupt DH key message")
 		return

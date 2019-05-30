@@ -44,6 +44,15 @@ type Process struct {
 	Path string
 }
 
+type Task struct {
+	// Subsystem is the name of the subsystem that the task is in
+	Subsystem Name
+	// Pid is the process id of the task
+	Pid int
+	// Path is the full path of the subsystem and location that the task is in
+	Path string
+}
+
 // Cgroup handles interactions with the individual groups to perform
 // actions on them as them main interface to this cgroup package
 type Cgroup interface {
@@ -64,6 +73,8 @@ type Cgroup interface {
 	Update(resources *specs.LinuxResources) error
 	// Processes returns all the processes in a select subsystem for the cgroup
 	Processes(Name, bool) ([]Process, error)
+	// Tasks returns all the tasks in a select subsystem for the cgroup
+	Tasks(Name, bool) ([]Task, error)
 	// Freeze freezes or pauses all processes inside the cgroup
 	Freeze() error
 	// Thaw thaw or resumes all processes inside the cgroup

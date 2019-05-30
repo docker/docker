@@ -20,6 +20,7 @@ type childList interface {
 	next(b byte) *Trie
 	walk(prefix *Prefix, visitor VisitorFunc) error
 	print(w io.Writer, indent int)
+	clone() childList
 	total() int
 }
 
@@ -141,6 +142,17 @@ func (list *sparseChildList) total() int {
 		}
 	}
 	return tot
+}
+
+func (list *sparseChildList) clone() childList {
+	clones := make(tries, len(list.children), cap(list.children))
+	for i, child := range list.children {
+		clones[i] = child.Clone()
+	}
+
+	return &sparseChildList{
+		children: clones,
+	}
 }
 
 func (list *sparseChildList) print(w io.Writer, indent int) {
@@ -311,6 +323,32 @@ func (list *denseChildList) print(w io.Writer, indent int) {
 		if child != nil {
 			child.print(w, indent)
 		}
+	}
+}
+
+func (list *denseChildList) clone() childList {
+	clones := make(tries, cap(list.children))
+
+	if list.numChildren != 0 {
+		clonedCount := 0
+		for i := list.headIndex; i < len(list.children); i++ {
+			child := list.children[i]
+			if child != nil {
+				clones[i] = child.Clone()
+				clonedCount++
+				if clonedCount == list.numChildren {
+					break
+				}
+			}
+		}
+	}
+
+	return &denseChildList{
+		min:         list.min,
+		max:         list.max,
+		numChildren: list.numChildren,
+		headIndex:   list.headIndex,
+		children:    clones,
 	}
 }
 

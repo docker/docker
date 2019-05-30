@@ -44,7 +44,7 @@ type CacheInfoLink struct {
 // CacheResultStorage is interface for converting cache metadata result to
 // actual solve result
 type CacheResultStorage interface {
-	Save(Result) (CacheResult, error)
+	Save(Result, time.Time) (CacheResult, error)
 	Load(ctx context.Context, res CacheResult) (Result, error)
 	LoadRemote(ctx context.Context, res CacheResult) (*Remote, error)
 	Exists(id string) bool

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strconv"
 	"testing"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/oci"
@@ -60,6 +60,7 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 				"",
 			)
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
+			assert.Check(t, errdefs.IsNotFound(err))
 		})
 	}
 }
@@ -100,6 +101,7 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 				"",
 			)
 			assert.Check(t, is.ErrorContains(err, tc.expectedError))
+			assert.Check(t, errdefs.IsInvalidParameter(err))
 		})
 	}
 }
@@ -145,6 +147,7 @@ func TestCreateTmpfsMountsTarget(t *testing.T) {
 			"",
 		)
 		assert.Check(t, is.ErrorContains(err, tc.expectedError))
+		assert.Check(t, errdefs.IsInvalidParameter(err))
 	}
 }
 func TestCreateWithCustomMaskedPaths(t *testing.T) {
@@ -346,6 +349,7 @@ func TestCreateWithCapabilities(t *testing.T) {
 				assert.DeepEqual(t, tc.expected, ci.HostConfig.Capabilities)
 			} else {
 				assert.ErrorContains(t, err, tc.expectedError)
+				assert.Check(t, errdefs.IsInvalidParameter(err))
 			}
 		})
 	}
@@ -432,6 +436,8 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 
 func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
 
 	testCases := []struct {
 		doc         string
@@ -479,38 +485,31 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 		},
 	}
 
-	for i, tc := range testCases {
-		i := i
+	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
-			healthCheck := map[string]interface{}{
-				"Interval": tc.interval,
-				"Timeout":  tc.timeout,
-				"Retries":  tc.retries,
+			cfg := container.Config{
+				Image: "busybox",
+				Healthcheck: &container.HealthConfig{
+					Interval: tc.interval,
+					Timeout:  tc.timeout,
+					Retries:  tc.retries,
+				},
 			}
 			if tc.startPeriod != 0 {
-				healthCheck["StartPeriod"] = tc.startPeriod
+				cfg.Healthcheck.StartPeriod = tc.startPeriod
 			}
 
-			config := map[string]interface{}{
-				"Image":       "busybox",
-				"Healthcheck": healthCheck,
-			}
-
-			res, body, err := request.Post("/containers/create?name="+fmt.Sprintf("test_%d_", i)+t.Name(), request.JSONBody(config))
-			assert.NilError(t, err)
+			resp, err := client.ContainerCreate(ctx, &cfg, &container.HostConfig{}, nil, "")
+			assert.Check(t, is.Equal(len(resp.Warnings), 0))
 
 			if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-				assert.Check(t, is.Equal(http.StatusInternalServerError, res.StatusCode))
+				assert.Check(t, errdefs.IsSystem(err))
 			} else {
-				assert.Check(t, is.Equal(http.StatusBadRequest, res.StatusCode))
+				assert.Check(t, errdefs.IsInvalidParameter(err))
 			}
-
-			buf, err := request.ReadBody(body)
-			assert.NilError(t, err)
-
-			assert.Check(t, is.Contains(string(buf), tc.expectedErr))
+			assert.ErrorContains(t, err, tc.expectedErr)
 		})
 	}
 }

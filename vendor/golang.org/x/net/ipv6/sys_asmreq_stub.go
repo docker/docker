@@ -13,5 +13,5 @@ import (
 )
 
 func (so *sockOpt) setIPMreq(c *socket.Conn, ifi *net.Interface, grp net.IP) error {
-	return errOpNoSupport
+	return errNotImplemented
 }

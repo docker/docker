@@ -47,6 +47,26 @@ if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARC
 			export CC=x86_64-w64-mingw32-gcc
 			export CGO_ENABLED=1
 			;;
+		linux/arm)
+			case "${GOARM}" in
+			5|"")
+				export CC=arm-linux-gnueabi-gcc
+				export CGO_ENABLED=1
+				;;
+			7)
+				export CC=arm-linux-gnueabihf-gcc
+				export CGO_ENABLED=1
+				;;
+			esac
+			;;
+		linux/arm64)
+			export CC=aarch64-linux-gnu-gcc
+			export CGO_ENABLED=1
+			;;
+		linux/amd64)
+			export CC=x86_64-linux-gnu-gcc
+			export CGO_ENABLED=1
+			;;
 	esac
 fi
 
@@ -60,6 +80,7 @@ case "$(go env GOOS)/$(go env GOARCH)" in
 esac
 
 echo "Building: $DEST/$BINARY_FULLNAME"
+echo "GOOS=\"${GOOS}\" GOARCH=\"${GOARCH}\" GOARM=\"${GOARM}\""
 go build \
 	-o "$DEST/$BINARY_FULLNAME" \
 	"${BUILDFLAGS[@]}" \

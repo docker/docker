@@ -6,6 +6,7 @@ import (
 
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
+	"github.com/docker/distribution/reference"
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/auth"
@@ -15,10 +16,26 @@ import (
 	"github.com/pkg/errors"
 )
 
+func canonicalizeRef(rawRef string) (string, error) {
+	if rawRef == "" {
+		return "", errors.New("missing ref")
+	}
+	parsed, err := reference.ParseNormalizedNamed(rawRef)
+	if err != nil {
+		return "", err
+	}
+	return reference.TagNameOnly(parsed).String(), nil
+}
+
+const (
+	attrRef = "ref"
+)
+
 func ResolveCacheExporterFunc(sm *session.Manager, resolverOpt resolver.ResolveOptionsFunc) remotecache.ResolveCacheExporterFunc {
-	return func(ctx context.Context, typ, ref string) (remotecache.Exporter, error) {
-		if typ != "" {
-			return nil, errors.Errorf("unsupported cache exporter type: %s", typ)
+	return func(ctx context.Context, attrs map[string]string) (remotecache.Exporter, error) {
+		ref, err := canonicalizeRef(attrs[attrRef])
+		if err != nil {
+			return nil, err
 		}
 		remote := newRemoteResolver(ctx, resolverOpt, sm, ref)
 		pusher, err := remote.Pusher(ctx, ref)
@@ -30,9 +47,10 @@ func ResolveCacheExporterFunc(sm *session.Manager, resolverOpt resolver.ResolveO
 }
 
 func ResolveCacheImporterFunc(sm *session.Manager, resolverOpt resolver.ResolveOptionsFunc) remotecache.ResolveCacheImporterFunc {
-	return func(ctx context.Context, typ, ref string) (remotecache.Importer, specs.Descriptor, error) {
-		if typ != "" {
-			return nil, specs.Descriptor{}, errors.Errorf("unsupported cache importer type: %s", typ)
+	return func(ctx context.Context, attrs map[string]string) (remotecache.Importer, specs.Descriptor, error) {
+		ref, err := canonicalizeRef(attrs[attrRef])
+		if err != nil {
+			return nil, specs.Descriptor{}, err
 		}
 		remote := newRemoteResolver(ctx, resolverOpt, sm, ref)
 		xref, desc, err := remote.Resolve(ctx, ref)

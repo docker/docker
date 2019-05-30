@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"golang.org/x/sys/windows"
+	"gotest.tools/assert"
 )
 
 // SignalDaemonDump sends a signal to the daemon to write a dump file
@@ -22,4 +23,10 @@ func signalDaemonReload(pid int) error {
 }
 
 func cleanupNetworkNamespace(t testingT, execRoot string) {
+}
+
+// CgroupNamespace returns the cgroup namespace the daemon is running in
+func (d *Daemon) CgroupNamespace(t assert.TestingT) string {
+	assert.Assert(t, false)
+	return "cgroup namespaces are not supported on Windows"
 }

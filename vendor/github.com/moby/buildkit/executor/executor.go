@@ -18,6 +18,7 @@ type Meta struct {
 	ReadonlyRootFS bool
 	ExtraHosts     []HostIP
 	NetMode        pb.NetMode
+	SecurityMode   pb.SecurityMode
 }
 
 type Mount struct {

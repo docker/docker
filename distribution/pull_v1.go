@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
@@ -70,9 +69,7 @@ func (p *v1Puller) Pull(ctx context.Context, ref reference.Named, _ *specs.Platf
 	return nil
 }
 
-// Note use auth.Scope rather than reference.Named due to this warning causing Jenkins CI to fail:
-// warning: ref can be github.com/docker/docker/vendor/github.com/docker/distribution/registry/client/auth.Scope (interfacer)
-func (p *v1Puller) pullRepository(ctx context.Context, ref auth.Scope) error {
+func (p *v1Puller) pullRepository(ctx context.Context, ref reference.Named) error {
 	progress.Message(p.config.ProgressOutput, "", "Pulling repository "+p.repoInfo.Name.Name())
 
 	tagged, isTagged := ref.(reference.NamedTagged)

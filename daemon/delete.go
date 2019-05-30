@@ -54,13 +54,13 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 	}
 	parent, n := path.Split(name)
 	if parent == "/" {
-		return fmt.Errorf("Conflict, cannot remove the default name of the container")
+		return fmt.Errorf("Conflict, cannot remove the default link name of the container")
 	}
 
 	parent = strings.TrimSuffix(parent, "/")
 	pe, err := daemon.containersReplica.Snapshot().GetID(parent)
 	if err != nil {
-		return fmt.Errorf("Cannot get parent %s for name %s", parent, name)
+		return fmt.Errorf("Cannot get parent %s for link name %s", parent, name)
 	}
 
 	daemon.releaseName(name)

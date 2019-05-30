@@ -4,7 +4,7 @@
 # The version of runc should match the version that is used by the containerd
 # version that is used. If you need to update runc, open a pull request in
 # the containerd project first, and update both after that is merged.
-RUNC_COMMIT=6635b4f0c6af3810594d2770f662f34ddc15b40d
+RUNC_COMMIT=425e105d5a03fabd737a126ad93d62a9eeede87f # v1.0.0-rc8
 
 install_runc() {
 	# If using RHEL7 kernels (3.10.0 el7), disable kmem accounting/limiting

@@ -100,6 +100,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "env":
 		case "env-regex":
 		case "labels":
+		case "labels-regex":
 		case "tag":
 		case key:
 		default:

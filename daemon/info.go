@@ -178,6 +178,10 @@ func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInf
 	if daemon.Rootless() {
 		securityOptions = append(securityOptions, "name=rootless")
 	}
+	if daemon.cgroupNamespacesEnabled(sysInfo) {
+		securityOptions = append(securityOptions, "name=cgroupns")
+	}
+
 	v.SecurityOptions = securityOptions
 }
 

@@ -37,7 +37,7 @@ func (so *sockOpt) getICMPFilter(c *socket.Conn) (*ICMPFilter, error) {
 		return nil, err
 	}
 	if n != sizeofICMPv6Filter {
-		return nil, errOpNoSupport
+		return nil, errNotImplemented
 	}
 	return (*ICMPFilter)(unsafe.Pointer(&b[0])), nil
 }
@@ -54,7 +54,7 @@ func (so *sockOpt) getMTUInfo(c *socket.Conn) (*net.Interface, int, error) {
 		return nil, 0, err
 	}
 	if n != sizeofIPv6Mtuinfo {
-		return nil, 0, errOpNoSupport
+		return nil, 0, errNotImplemented
 	}
 	mi := (*ipv6Mtuinfo)(unsafe.Pointer(&b[0]))
 	if mi.Addr.Scope_id == 0 {
@@ -74,7 +74,7 @@ func (so *sockOpt) setGroup(c *socket.Conn, ifi *net.Interface, grp net.IP) erro
 	case ssoTypeGroupReq:
 		return so.setGroupReq(c, ifi, grp)
 	default:
-		return errOpNoSupport
+		return errNotImplemented
 	}
 }
 

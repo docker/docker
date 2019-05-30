@@ -168,7 +168,7 @@ SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPref
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
 #  - FROM_DOCKERFILE is used for detection of building within a container.
-ENV GO_VERSION=1.11.5 `
+ENV GO_VERSION=1.12.5 `
     GIT_VERSION=2.11.1 `
     GOPATH=C:\go `
     FROM_DOCKERFILE=1

@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func (s *DockerSuite) TestStatsNoStream(c *check.C) {
@@ -17,7 +18,7 @@ func (s *DockerSuite) TestStatsNoStream(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), checker.IsNil)
+	assert.NilError(c, waitRun(id))
 
 	statsCmd := exec.Command(dockerBinary, "stats", "--no-stream", id)
 	type output struct {
@@ -33,8 +34,8 @@ func (s *DockerSuite) TestStatsNoStream(c *check.C) {
 
 	select {
 	case outerr := <-ch:
-		c.Assert(outerr.err, checker.IsNil, check.Commentf("Error running stats: %v", outerr.err))
-		c.Assert(string(outerr.out), checker.Contains, id[:12]) //running container wasn't present in output
+		assert.NilError(c, outerr.err, "Error running stats: %v", outerr.err)
+		assert.Assert(c, is.Contains(string(outerr.out), id[:12]), "running container wasn't present in output")
 	case <-time.After(3 * time.Second):
 		statsCmd.Process.Kill()
 		c.Fatalf("stats did not return immediately when not streaming")
@@ -46,12 +47,12 @@ func (s *DockerSuite) TestStatsContainerNotFound(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	out, _, err := dockerCmdWithError("stats", "notfound")
-	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "No such container: notfound", check.Commentf("Expected to fail on not found container stats, got %q instead", out))
+	assert.ErrorContains(c, err, "")
+	assert.Assert(c, is.Contains(out, "No such container: notfound"), "Expected to fail on not found container stats, got %q instead", out)
 
 	out, _, err = dockerCmdWithError("stats", "--no-stream", "notfound")
-	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "No such container: notfound", check.Commentf("Expected to fail on not found container stats with --no-stream, got %q instead", out))
+	assert.ErrorContains(c, err, "")
+	assert.Assert(c, is.Contains(out, "No such container: notfound"), "Expected to fail on not found container stats with --no-stream, got %q instead", out)
 }
 
 func (s *DockerSuite) TestStatsAllRunningNoStream(c *check.C) {
@@ -60,13 +61,13 @@ func (s *DockerSuite) TestStatsAllRunningNoStream(c *check.C) {
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id1 := strings.TrimSpace(out)[:12]
-	c.Assert(waitRun(id1), check.IsNil)
+	assert.NilError(c, waitRun(id1))
 	out, _ = dockerCmd(c, "run", "-d", "busybox", "top")
 	id2 := strings.TrimSpace(out)[:12]
-	c.Assert(waitRun(id2), check.IsNil)
+	assert.NilError(c, waitRun(id2))
 	out, _ = dockerCmd(c, "run", "-d", "busybox", "top")
 	id3 := strings.TrimSpace(out)[:12]
-	c.Assert(waitRun(id3), check.IsNil)
+	assert.NilError(c, waitRun(id3))
 	dockerCmd(c, "stop", id3)
 
 	out, _ = dockerCmd(c, "stats", "--no-stream")
@@ -84,10 +85,10 @@ func (s *DockerSuite) TestStatsAllRunningNoStream(c *check.C) {
 	outLines := strings.Split(out, "\n")
 	// check stat result of id2 contains real data
 	realData := reg.Find([]byte(outLines[1][12:]))
-	c.Assert(realData, checker.NotNil, check.Commentf("stat result are empty: %s", out))
+	assert.Assert(c, realData != nil, "stat result are empty: %s", out)
 	// check stat result of id1 contains real data
 	realData = reg.Find([]byte(outLines[2][12:]))
-	c.Assert(realData, checker.NotNil, check.Commentf("stat result are empty: %s", out))
+	assert.Assert(c, realData != nil, "stat result are empty: %s", out)
 }
 
 func (s *DockerSuite) TestStatsAllNoStream(c *check.C) {
@@ -96,11 +97,11 @@ func (s *DockerSuite) TestStatsAllNoStream(c *check.C) {
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id1 := strings.TrimSpace(out)[:12]
-	c.Assert(waitRun(id1), check.IsNil)
+	assert.NilError(c, waitRun(id1))
 	dockerCmd(c, "stop", id1)
 	out, _ = dockerCmd(c, "run", "-d", "busybox", "top")
 	id2 := strings.TrimSpace(out)[:12]
-	c.Assert(waitRun(id2), check.IsNil)
+	assert.NilError(c, waitRun(id2))
 
 	out, _ = dockerCmd(c, "stats", "--all", "--no-stream")
 	if !strings.Contains(out, id1) || !strings.Contains(out, id2) {
@@ -113,10 +114,11 @@ func (s *DockerSuite) TestStatsAllNoStream(c *check.C) {
 	outLines := strings.Split(out, "\n")
 	// check stat result of id2 contains real data
 	realData := reg.Find([]byte(outLines[1][12:]))
-	c.Assert(realData, checker.NotNil, check.Commentf("stat result of %s is empty: %s", id2, out))
+	assert.Assert(c, realData != nil, "stat result of %s is empty: %s", id2, out)
+
 	// check stat result of id1 contains all zero
 	realData = reg.Find([]byte(outLines[2][12:]))
-	c.Assert(realData, checker.IsNil, check.Commentf("stat result of %s should be empty : %s", id1, out))
+	assert.Assert(c, realData == nil, "stat result of %s should be empty : %s", id1, out)
 }
 
 func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
@@ -129,8 +131,8 @@ func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 	runSleepingContainer(c, "-d")
 	statsCmd := exec.Command(dockerBinary, "stats")
 	stdout, err := statsCmd.StdoutPipe()
-	c.Assert(err, check.IsNil)
-	c.Assert(statsCmd.Start(), check.IsNil)
+	assert.NilError(c, err)
+	assert.NilError(c, statsCmd.Start())
 	go statsCmd.Wait()
 	defer statsCmd.Process.Kill()
 
@@ -149,7 +151,7 @@ func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 	}()
 
 	out := runSleepingContainer(c, "-d")
-	c.Assert(waitRun(strings.TrimSpace(out)), check.IsNil)
+	assert.NilError(c, waitRun(strings.TrimSpace(out)))
 	id <- strings.TrimSpace(out)[:12]
 
 	select {
@@ -171,10 +173,10 @@ func (s *DockerSuite) TestStatsFormatAll(c *check.C) {
 	cli.WaitExited(c, "ExitedOne", 5*time.Second)
 
 	out := cli.DockerCmd(c, "stats", "--no-stream", "--format", "{{.Name}}").Combined()
-	c.Assert(out, checker.Contains, "RunningOne")
-	c.Assert(out, checker.Not(checker.Contains), "ExitedOne")
+	assert.Assert(c, is.Contains(out, "RunningOne"))
+	assert.Assert(c, !strings.Contains(out, "ExitedOne"))
 
 	out = cli.DockerCmd(c, "stats", "--all", "--no-stream", "--format", "{{.Name}}").Combined()
-	c.Assert(out, checker.Contains, "RunningOne")
-	c.Assert(out, checker.Contains, "ExitedOne")
+	assert.Assert(c, is.Contains(out, "RunningOne"))
+	assert.Assert(c, is.Contains(out, "ExitedOne"))
 }

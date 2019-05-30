@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/pkg/errors"
@@ -245,6 +246,10 @@ func parseRuncVersion(v string) (version string, commit string, err error) {
 		err = errors.Errorf("unknown output format: %s", v)
 	}
 	return version, commit, err
+}
+
+func (daemon *Daemon) cgroupNamespacesEnabled(sysInfo *sysinfo.SysInfo) bool {
+	return sysInfo.CgroupNamespaces && containertypes.CgroupnsMode(daemon.configStore.CgroupNamespaceMode).IsPrivate()
 }
 
 // Rootless returns true if daemon is running in rootless mode

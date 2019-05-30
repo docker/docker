@@ -583,12 +583,28 @@ func (m *Reader) ReadInt64() (i int64, err error) {
 		i = int64(getMint8(p))
 		return
 
+	case muint8:
+		p, err = m.R.Next(2)
+		if err != nil {
+			return
+		}
+		i = int64(getMuint8(p))
+		return
+
 	case mint16:
 		p, err = m.R.Next(3)
 		if err != nil {
 			return
 		}
 		i = int64(getMint16(p))
+		return
+
+	case muint16:
+		p, err = m.R.Next(3)
+		if err != nil {
+			return
+		}
+		i = int64(getMuint16(p))
 		return
 
 	case mint32:
@@ -599,12 +615,33 @@ func (m *Reader) ReadInt64() (i int64, err error) {
 		i = int64(getMint32(p))
 		return
 
+	case muint32:
+		p, err = m.R.Next(5)
+		if err != nil {
+			return
+		}
+		i = int64(getMuint32(p))
+		return
+
 	case mint64:
 		p, err = m.R.Next(9)
 		if err != nil {
 			return
 		}
 		i = getMint64(p)
+		return
+
+	case muint64:
+		p, err = m.R.Next(9)
+		if err != nil {
+			return
+		}
+		u := getMuint64(p)
+		if u > math.MaxInt64 {
+			err = UintOverflow{Value: u, FailedBitsize: 64}
+			return
+		}
+		i = int64(u)
 		return
 
 	default:
@@ -678,12 +715,38 @@ func (m *Reader) ReadUint64() (u uint64, err error) {
 		return
 	}
 	switch lead {
+	case mint8:
+		p, err = m.R.Next(2)
+		if err != nil {
+			return
+		}
+		v := int64(getMint8(p))
+		if v < 0 {
+			err = UintBelowZero{Value: v}
+			return
+		}
+		u = uint64(v)
+		return
+
 	case muint8:
 		p, err = m.R.Next(2)
 		if err != nil {
 			return
 		}
 		u = uint64(getMuint8(p))
+		return
+
+	case mint16:
+		p, err = m.R.Next(3)
+		if err != nil {
+			return
+		}
+		v := int64(getMint16(p))
+		if v < 0 {
+			err = UintBelowZero{Value: v}
+			return
+		}
+		u = uint64(v)
 		return
 
 	case muint16:
@@ -694,12 +757,38 @@ func (m *Reader) ReadUint64() (u uint64, err error) {
 		u = uint64(getMuint16(p))
 		return
 
+	case mint32:
+		p, err = m.R.Next(5)
+		if err != nil {
+			return
+		}
+		v := int64(getMint32(p))
+		if v < 0 {
+			err = UintBelowZero{Value: v}
+			return
+		}
+		u = uint64(v)
+		return
+
 	case muint32:
 		p, err = m.R.Next(5)
 		if err != nil {
 			return
 		}
 		u = uint64(getMuint32(p))
+		return
+
+	case mint64:
+		p, err = m.R.Next(9)
+		if err != nil {
+			return
+		}
+		v := int64(getMint64(p))
+		if v < 0 {
+			err = UintBelowZero{Value: v}
+			return
+		}
+		u = uint64(v)
 		return
 
 	case muint64:
@@ -711,7 +800,11 @@ func (m *Reader) ReadUint64() (u uint64, err error) {
 		return
 
 	default:
-		err = badPrefix(UintType, lead)
+		if isnfixint(lead) {
+			err = UintBelowZero{Value: int64(rnfixint(lead))}
+		} else {
+			err = badPrefix(UintType, lead)
+		}
 		return
 
 	}

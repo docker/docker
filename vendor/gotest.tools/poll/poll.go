@@ -104,7 +104,7 @@ func Error(err error) Result {
 // WaitOn a condition or until a timeout. Poll by calling check and exit when
 // check returns a done Result. To fail a test and exit polling with an error
 // return a error result.
-func WaitOn(t TestingT, check func(t LogT) Result, pollOps ...SettingOp) {
+func WaitOn(t TestingT, check Check, pollOps ...SettingOp) {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
 	}

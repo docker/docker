@@ -221,7 +221,7 @@ func parseMount(value string) (*Mount, error) {
 	}
 
 	if roAuto {
-		if m.Type == MountTypeCache {
+		if m.Type == MountTypeCache || m.Type == MountTypeTmpfs {
 			m.ReadOnly = false
 		} else {
 			m.ReadOnly = true

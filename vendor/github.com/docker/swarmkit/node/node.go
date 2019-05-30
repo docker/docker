@@ -274,9 +274,10 @@ func (n *Node) currentRole() api.NodeRole {
 // configVXLANUDPPort sets vxlan port in libnetwork
 func configVXLANUDPPort(ctx context.Context, vxlanUDPPort uint32) {
 	if err := overlayutils.ConfigVXLANUDPPort(vxlanUDPPort); err != nil {
-		log.G(ctx).WithError(err).Error("Configuring VXLAN port failed")
+		log.G(ctx).WithError(err).Error("failed to configure VXLAN UDP port")
+		return
 	}
-	logrus.Infof(" Swarm successfully initialized VXLAN UDP Port to %d ", vxlanUDPPort)
+	logrus.Infof("initialized VXLAN UDP port to %d ", vxlanUDPPort)
 }
 
 func (n *Node) run(ctx context.Context) (err error) {

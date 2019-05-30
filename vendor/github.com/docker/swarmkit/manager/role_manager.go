@@ -4,12 +4,12 @@ import (
 	"context"
 	"time"
 
+	"code.cloudfoundry.org/clock"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state/raft"
 	"github.com/docker/swarmkit/manager/state/raft/membership"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/pivotal-golang/clock"
 )
 
 const (

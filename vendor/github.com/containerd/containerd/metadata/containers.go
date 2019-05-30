@@ -72,7 +72,7 @@ func (s *containerStore) List(ctx context.Context, fs ...string) ([]containers.C
 
 	filter, err := filters.ParseAll(fs...)
 	if err != nil {
-		return nil, errors.Wrapf(errdefs.ErrInvalidArgument, err.Error())
+		return nil, errors.Wrap(errdefs.ErrInvalidArgument, err.Error())
 	}
 
 	bkt := getContainersBucket(s.tx, namespace)

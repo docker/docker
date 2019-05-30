@@ -20,8 +20,10 @@ package proc
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -114,6 +116,29 @@ func checkKillError(err error) error {
 	return errors.Wrapf(err, "unknown error after kill")
 }
 
-func hasNoIO(r *CreateConfig) bool {
-	return r.Stdin == "" && r.Stdout == "" && r.Stderr == ""
+// InitPidFile name of the file that contains the init pid
+const InitPidFile = "init.pid"
+
+func newPidFile(bundle string) *pidFile {
+	return &pidFile{
+		path: filepath.Join(bundle, InitPidFile),
+	}
+}
+
+func newExecPidFile(bundle, id string) *pidFile {
+	return &pidFile{
+		path: filepath.Join(bundle, fmt.Sprintf("%s.pid", id)),
+	}
+}
+
+type pidFile struct {
+	path string
+}
+
+func (p *pidFile) Path() string {
+	return p.path
+}
+
+func (p *pidFile) Read() (int, error) {
+	return runc.ReadPidFile(p.path)
 }

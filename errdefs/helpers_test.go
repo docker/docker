@@ -89,19 +89,6 @@ func TestNotModified(t *testing.T) {
 	}
 }
 
-func TestAlreadyExists(t *testing.T) {
-	if IsAlreadyExists(errTest) {
-		t.Fatalf("did not expect already exists error, got %T", errTest)
-	}
-	e := AlreadyExists(errTest)
-	if !IsAlreadyExists(e) {
-		t.Fatalf("expected already exists error, got %T", e)
-	}
-	if cause := e.(causal).Cause(); cause != errTest {
-		t.Fatalf("causual should be errTest, got: %v", cause)
-	}
-}
-
 func TestUnauthorized(t *testing.T) {
 	if IsUnauthorized(errTest) {
 		t.Fatalf("did not expect unauthorized error, got %T", errTest)

@@ -1,8 +1,6 @@
 # go-patricia #
 
 **Documentation**: [GoDoc](http://godoc.org/github.com/tchap/go-patricia/patricia)<br />
-**Build Status**: [![Build
-Status](https://drone.io/github.com/tchap/go-patricia/status.png)](https://drone.io/github.com/tchap/go-patricia/latest)<br />
 **Test Coverage**: [![Coverage
 Status](https://coveralls.io/repos/tchap/go-patricia/badge.png)](https://coveralls.io/r/tchap/go-patricia)
 
@@ -117,7 +115,3 @@ MIT, check the `LICENSE` file.
 [![Gittip
 Badge](http://img.shields.io/gittip/alanhamlett.png)](https://www.gittip.com/tchap/
 "Gittip Badge")
-
-[![Bitdeli
-Badge](https://d2weczhvl823v0.cloudfront.net/tchap/go-patricia/trend.png)](https://bitdeli.com/free
-"Bitdeli Badge")

@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.40"
+basePath: "/v1.41"
 info:
   title: "Docker Engine API"
-  version: "1.40"
+  version: "1.41"
   x-logo:
     url: "https://docs.docker.com/images/logo-docker-main.png"
   description: |
@@ -49,8 +49,8 @@ info:
     the URL is not supported by the daemon, a HTTP `400 Bad Request` error message
     is returned.
 
-    If you omit the version-prefix, the current version of the API (v1.40) is used.
-    For example, calling `/info` is the same as calling `/v1.40/info`. Using the
+    If you omit the version-prefix, the current version of the API (v1.41) is used.
+    For example, calling `/info` is the same as calling `/v1.41/info`. Using the
     API without a version-prefix is deprecated and will be removed in a future release.
 
     Engine releases in the near future should support this version of the API,
@@ -209,6 +209,43 @@ definitions:
       PathOnHost: "/dev/deviceName"
       PathInContainer: "/dev/deviceName"
       CgroupPermissions: "mrw"
+
+  DeviceRequest:
+    type: "object"
+    description: "A request for devices to be sent to device drivers"
+    properties:
+      Driver:
+        type: "string"
+        example: "nvidia"
+      Count:
+        type: "integer"
+        example: -1
+      DeviceIDs:
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "0"
+          - "1"
+          - "GPU-fef8089b-4820-abfc-e83e-94318197576e"
+      Capabilities:
+        description: |
+          A list of capabilities; an OR list of AND lists of capabilities.
+        type: "array"
+        items:
+          type: "array"
+          items:
+            type: "string"
+        example:
+          # gpu AND nvidia AND compute
+          - ["gpu", "nvidia", "compute"]
+      Options:
+        description: |
+          Driver-specific options, specified as a key/value pairs. These options
+          are passed directly to the driver.
+        type: "object"
+        additionalProperties:
+          type: "string"
 
   ThrottleDevice:
     type: "object"
@@ -421,10 +458,11 @@ definitions:
         items:
           type: "string"
           example: "c 13:* rwm"
-      DiskQuota:
-        description: "Disk limit (in bytes)."
-        type: "integer"
-        format: "int64"
+      DeviceRequests:
+        description: "a list of requests for devices to be sent to device drivers"
+        type: "array"
+        items:
+          $ref: "#/definitions/DeviceRequest"
       KernelMemory:
         description: "Kernel memory limit in bytes."
         type: "integer"
@@ -665,6 +703,19 @@ definitions:
             description: "A list of kernel capabilities to drop from the container. Conflicts with option 'Capabilities'"
             items:
               type: "string"
+          CgroupnsMode:
+            type: "string"
+            enum:
+              - "private"
+              - "host"
+            description: |
+                    cgroup namespace mode for the container. Possible values are:
+
+                    - `"private"`: the container runs in its own private cgroup namespace
+                    - `"host"`: use the host system's cgroup namespace
+
+                    If not specified, the daemon default is used, which can either be `"private"`
+                    or `"host"`, depending on daemon version, kernel support and configuration.
           Dns:
             type: "array"
             description: "A list of DNS servers for the container to use."
@@ -1103,6 +1154,7 @@ definitions:
     type: "object"
     additionalProperties:
       type: "array"
+      x-nullable: true
       items:
         $ref: "#/definitions/PortBinding"
     example:
@@ -1127,7 +1179,6 @@ definitions:
       PortBinding represents a binding between a host IP address and a host
       port.
     type: "object"
-    x-nullable: true
     properties:
       HostIp:
         description: "Host IP address that the container's port is mapped to."
@@ -4585,9 +4636,9 @@ paths:
       parameters:
         - name: "name"
           in: "query"
-          description: "Assign the specified name to the container. Must match `/?[a-zA-Z0-9_-]+`."
+          description: "Assign the specified name to the container. Must match `/?[a-zA-Z0-9][a-zA-Z0-9_.-]+`."
           type: "string"
-          pattern: "/?[a-zA-Z0-9_-]+"
+          pattern: "^/?[a-zA-Z0-9][a-zA-Z0-9_.-]+$"
         - name: "body"
           in: "body"
           description: "Container to create"
@@ -5151,15 +5202,15 @@ paths:
         Note: This endpoint works only for containers with the `json-file` or `journald` logging driver.
       operationId: "ContainerLogs"
       responses:
-        101:
-          description: "logs returned as a stream"
+        200:
+          description: |
+                  logs returned as a stream in response body.
+                  For the stream format, [see the documentation for the attach endpoint](#operation/ContainerAttach).
+                  Note that unlike the attach endpoint, the logs endpoint does not upgrade the connection and does not
+                  set Content-Type.
           schema:
             type: "string"
             format: "binary"
-        200:
-          description: "logs returned as a string in response body"
-          schema:
-            type: "string"
         404:
           description: "no such container"
           schema:
@@ -5179,10 +5230,7 @@ paths:
           type: "string"
         - name: "follow"
           in: "query"
-          description: |
-            Return the logs as a stream.
-
-            This will return a `101` HTTP response with a `Connection: upgrade` header, then hijack the HTTP connection to send raw output. For more information about hijacking and the stream format, [see the documentation for the attach endpoint](#operation/ContainerAttach).
+          description: "Keep connection after returning logs."
           type: "boolean"
           default: false
         - name: "stdout"
@@ -5443,7 +5491,7 @@ paths:
   /containers/{id}/resize:
     post:
       summary: "Resize a container TTY"
-      description: "Resize the TTY for a container. You must restart the container for the resize to take effect."
+      description: "Resize the TTY for a container."
       operationId: "ContainerResize"
       consumes:
         - "application/octet-stream"
@@ -6473,6 +6521,11 @@ paths:
         - name: "target"
           in: "query"
           description: "Target build stage"
+          type: "string"
+          default: ""
+        - name: "outputs"
+          in: "query"
+          description: "BuildKit output configuration"
           type: "string"
           default: ""
       responses:
@@ -9082,7 +9135,9 @@ paths:
                 type: "string"
               RemoteAddrs:
                 description: "Addresses of manager nodes already participating in the swarm."
-                type: "string"
+                type: "array"
+                items:
+                  type: "string"
               JoinToken:
                 description: "Secret token for joining this swarm."
                 type: "string"
@@ -9538,23 +9593,16 @@ paths:
     get:
       summary: "Get service logs"
       description: |
-        Get `stdout` and `stderr` logs from a service.
+        Get `stdout` and `stderr` logs from a service. See also [`/containers/{id}/logs`](#operation/ContainerLogs).
 
-        **Note**: This endpoint works only for services with the `json-file` or `journald` logging drivers.
+        **Note**: This endpoint works only for services with the `local`, `json-file` or `journald` logging drivers.
       operationId: "ServiceLogs"
-      produces:
-        - "application/vnd.docker.raw-stream"
-        - "application/json"
       responses:
-        101:
-          description: "logs returned as a stream"
+        200:
+          description: "logs returned as a stream in response body"
           schema:
             type: "string"
             format: "binary"
-        200:
-          description: "logs returned as a string in response body"
-          schema:
-            type: "string"
         404:
           description: "no such service"
           schema:
@@ -9583,10 +9631,7 @@ paths:
           default: false
         - name: "follow"
           in: "query"
-          description: |
-            Return the logs as a stream.
-
-            This will return a `101` HTTP response with a `Connection: upgrade` header, then hijack the HTTP connection to send raw output. For more information about hijacking and the stream format, [see the documentation for the attach endpoint](#operation/ContainerAttach).
+          description: "Keep connection after returning logs."
           type: "boolean"
           default: false
         - name: "stdout"
@@ -9795,23 +9840,16 @@ paths:
     get:
       summary: "Get task logs"
       description: |
-        Get `stdout` and `stderr` logs from a task.
+        Get `stdout` and `stderr` logs from a task. See also [`/containers/{id}/logs`](#operation/ContainerLogs).
 
-        **Note**: This endpoint works only for services with the `json-file` or `journald` logging drivers.
+        **Note**: This endpoint works only for services with the `local`, `json-file` or `journald` logging drivers.
       operationId: "TaskLogs"
-      produces:
-        - "application/vnd.docker.raw-stream"
-        - "application/json"
       responses:
-        101:
-          description: "logs returned as a stream"
+        200:
+          description: "logs returned as a stream in response body"
           schema:
             type: "string"
             format: "binary"
-        200:
-          description: "logs returned as a string in response body"
-          schema:
-            type: "string"
         404:
           description: "no such task"
           schema:
@@ -9840,10 +9878,7 @@ paths:
           default: false
         - name: "follow"
           in: "query"
-          description: |
-            Return the logs as a stream.
-
-            This will return a `101` HTTP response with a `Connection: upgrade` header, then hijack the HTTP connection to send raw output. For more information about hijacking and the stream format, [see the documentation for the attach endpoint](#operation/ContainerAttach).
+          description: "Keep connection after returning logs."
           type: "boolean"
           default: false
         - name: "stdout"

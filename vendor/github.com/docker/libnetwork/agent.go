@@ -378,6 +378,9 @@ func (c *controller) agentClose() {
 	c.agent = nil
 	c.Unlock()
 
+	// when the agent is closed the cluster provider should be cleaned up
+	c.SetClusterProvider(nil)
+
 	if agent == nil {
 		return
 	}

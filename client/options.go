@@ -6,11 +6,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/pkg/errors"
 )
+
+// Opt is a configuration option to initialize a client
+type Opt func(*Client) error
 
 // FromEnv configures the client with values from environment variables.
 //
@@ -45,8 +49,9 @@ func FromEnv(c *Client) error {
 	}
 
 	if version := os.Getenv("DOCKER_API_VERSION"); version != "" {
-		c.version = version
-		c.manualOverride = true
+		if err := WithVersion(version)(c); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -54,13 +59,13 @@ func FromEnv(c *Client) error {
 // WithDialer applies the dialer.DialContext to the client transport. This can be
 // used to set the Timeout and KeepAlive settings of the client.
 // Deprecated: use WithDialContext
-func WithDialer(dialer *net.Dialer) func(*Client) error {
+func WithDialer(dialer *net.Dialer) Opt {
 	return WithDialContext(dialer.DialContext)
 }
 
 // WithDialContext applies the dialer to the client transport. This can be
 // used to set the Timeout and KeepAlive settings of the client.
-func WithDialContext(dialContext func(ctx context.Context, network, addr string) (net.Conn, error)) func(*Client) error {
+func WithDialContext(dialContext func(ctx context.Context, network, addr string) (net.Conn, error)) Opt {
 	return func(c *Client) error {
 		if transport, ok := c.client.Transport.(*http.Transport); ok {
 			transport.DialContext = dialContext
@@ -71,7 +76,7 @@ func WithDialContext(dialContext func(ctx context.Context, network, addr string)
 }
 
 // WithHost overrides the client host with the specified one.
-func WithHost(host string) func(*Client) error {
+func WithHost(host string) Opt {
 	return func(c *Client) error {
 		hostURL, err := ParseHostURL(host)
 		if err != nil {
@@ -89,7 +94,7 @@ func WithHost(host string) func(*Client) error {
 }
 
 // WithHTTPClient overrides the client http client with the specified one
-func WithHTTPClient(client *http.Client) func(*Client) error {
+func WithHTTPClient(client *http.Client) Opt {
 	return func(c *Client) error {
 		if client != nil {
 			c.client = client
@@ -98,8 +103,16 @@ func WithHTTPClient(client *http.Client) func(*Client) error {
 	}
 }
 
+// WithTimeout configures the time limit for requests made by the HTTP client
+func WithTimeout(timeout time.Duration) Opt {
+	return func(c *Client) error {
+		c.client.Timeout = timeout
+		return nil
+	}
+}
+
 // WithHTTPHeaders overrides the client default http headers
-func WithHTTPHeaders(headers map[string]string) func(*Client) error {
+func WithHTTPHeaders(headers map[string]string) Opt {
 	return func(c *Client) error {
 		c.customHTTPHeaders = headers
 		return nil
@@ -107,7 +120,7 @@ func WithHTTPHeaders(headers map[string]string) func(*Client) error {
 }
 
 // WithScheme overrides the client scheme with the specified one
-func WithScheme(scheme string) func(*Client) error {
+func WithScheme(scheme string) Opt {
 	return func(c *Client) error {
 		c.scheme = scheme
 		return nil
@@ -115,7 +128,7 @@ func WithScheme(scheme string) func(*Client) error {
 }
 
 // WithTLSClientConfig applies a tls config to the client transport.
-func WithTLSClientConfig(cacertPath, certPath, keyPath string) func(*Client) error {
+func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 	return func(c *Client) error {
 		opts := tlsconfig.Options{
 			CAFile:             cacertPath,
@@ -135,10 +148,25 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) func(*Client) err
 	}
 }
 
-// WithVersion overrides the client version with the specified one
-func WithVersion(version string) func(*Client) error {
+// WithVersion overrides the client version with the specified one. If an empty
+// version is specified, the value will be ignored to allow version negotiation.
+func WithVersion(version string) Opt {
 	return func(c *Client) error {
-		c.version = version
+		if version != "" {
+			c.version = version
+			c.manualOverride = true
+		}
+		return nil
+	}
+}
+
+// WithAPIVersionNegotiation enables automatic API version negotiation for the client.
+// With this option enabled, the client automatically negotiates the API version
+// to use when making requests. API version negotiation is performed on the first
+// request; subsequent requests will not re-negotiate.
+func WithAPIVersionNegotiation() Opt {
+	return func(c *Client) error {
+		c.negotiateVersion = true
 		return nil
 	}
 }

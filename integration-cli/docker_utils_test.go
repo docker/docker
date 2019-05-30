@@ -16,10 +16,10 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )
 
@@ -66,7 +66,7 @@ func getContainerCount(c *check.C) int {
 			output = strings.TrimLeft(output, containers)
 			output = strings.Trim(output, " ")
 			containerCount, err := strconv.Atoi(output)
-			c.Assert(err, checker.IsNil)
+			assert.NilError(c, err)
 			return containerCount
 		}
 	}
@@ -100,7 +100,7 @@ func inspectFieldWithError(name, field string) (string, error) {
 func inspectField(c *check.C, name, field string) string {
 	out, err := inspectFilter(name, fmt.Sprintf(".%s", field))
 	if c != nil {
-		c.Assert(err, check.IsNil)
+		assert.NilError(c, err)
 	}
 	return out
 }
@@ -109,7 +109,7 @@ func inspectField(c *check.C, name, field string) string {
 func inspectFieldJSON(c *check.C, name, field string) string {
 	out, err := inspectFilter(name, fmt.Sprintf("json .%s", field))
 	if c != nil {
-		c.Assert(err, check.IsNil)
+		assert.NilError(c, err)
 	}
 	return out
 }
@@ -118,7 +118,7 @@ func inspectFieldJSON(c *check.C, name, field string) string {
 func inspectFieldMap(c *check.C, name, path, field string) string {
 	out, err := inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
 	if c != nil {
-		c.Assert(err, check.IsNil)
+		assert.NilError(c, err)
 	}
 	return out
 }
@@ -181,7 +181,7 @@ func inspectImage(c *check.C, name, filter string) string {
 
 func getIDByName(c *check.C, name string) string {
 	id, err := inspectFieldWithError(name, "Id")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	return id
 }
 
@@ -203,18 +203,18 @@ func writeFile(dst, content string, c *check.C) {
 	// Create subdirectories if necessary
 	c.Assert(os.MkdirAll(path.Dir(dst), 0700), check.IsNil)
 	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0700)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer f.Close()
 	// Write content (truncate if it exists)
 	_, err = io.Copy(f, strings.NewReader(content))
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 }
 
 // Return the contents of file at path `src`.
 // Fail the test when error occurs.
 func readFile(src string, c *check.C) (content string) {
 	data, err := ioutil.ReadFile(src)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	return string(data)
 }
@@ -236,11 +236,11 @@ func runCommandAndReadContainerFile(c *check.C, filename string, command string,
 
 func readContainerFile(c *check.C, containerID, filename string) []byte {
 	f, err := os.Open(containerStorageFile(containerID, filename))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer f.Close()
 
 	content, err := ioutil.ReadAll(f)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	return content
 }
 
@@ -256,11 +256,11 @@ func daemonTime(c *check.C) time.Time {
 		return time.Now()
 	}
 	cli, err := client.NewClientWithOpts(client.FromEnv)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer cli.Close()
 
 	info, err := cli.Info(context.Background())
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
 	c.Assert(err, check.IsNil, check.Commentf("invalid time format in GET /info response"))
@@ -306,12 +306,12 @@ func appendBaseEnv(isTLS bool, env ...string) []string {
 
 func createTmpFile(c *check.C, content string) string {
 	f, err := ioutil.TempFile("", "testfile")
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	filename := f.Name()
 
 	err = ioutil.WriteFile(filename, []byte(content), 0644)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	return filename
 }
@@ -337,10 +337,10 @@ func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg
 
 func getInspectBody(c *check.C, version, id string) []byte {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(version))
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer cli.Close()
 	_, body, err := cli.ContainerInspectWithRaw(context.Background(), id, false)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	return body
 }
 

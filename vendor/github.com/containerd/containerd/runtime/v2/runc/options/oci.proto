@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package containerd.runc.v1;
+
+import weak "gogoproto/gogo.proto";
+
+option go_package = "github.com/containerd/containerd/runtime/v2/runc/options;options";
+
+message Options {
+	// disable pivot root when creating a container
+	bool no_pivot_root = 1;
+	// create a new keyring for the container
+	bool no_new_keyring = 2;
+	// place the shim in a cgroup
+	string shim_cgroup = 3;
+	// set the I/O's pipes uid
+	uint32 io_uid = 4;
+	// set the I/O's pipes gid
+	uint32 io_gid = 5;
+	// binary name of the runc binary
+	string binary_name = 6;
+	// runc root directory
+	string root = 7;
+	// criu binary path
+	string criu_path = 8;
+	// enable systemd cgroups
+	bool systemd_cgroup = 9;
+	// criu image path
+	string criu_image_path = 10;
+	// criu work path
+	string criu_work_path = 11;
+}
+
+message CheckpointOptions {
+	// exit the container after a checkpoint
+	bool exit = 1;
+	// checkpoint open tcp connections
+	bool open_tcp = 2;
+	// checkpoint external unix sockets
+	bool external_unix_sockets = 3;
+	// checkpoint terminals (ptys)
+	bool terminal = 4;
+	// allow checkpointing of file locks
+	bool file_locks = 5;
+	// restore provided namespaces as empty namespaces
+	repeated string empty_namespaces = 6;
+	// set the cgroups mode, soft, full, strict
+	string cgroups_mode = 7;
+	// checkpoint image path
+	string image_path = 8;
+	// checkpoint work path
+	string work_path = 9;
+}
+
+message ProcessDetails {
+	// exec process id if the process is managed by a shim
+	string exec_id = 1;
+}

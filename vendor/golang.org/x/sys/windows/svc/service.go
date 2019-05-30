@@ -80,6 +80,7 @@ type ChangeRequest struct {
 	EventType     uint32
 	EventData     uintptr
 	CurrentStatus Status
+	Context       uintptr
 }
 
 // Handler is the interface that must be implemented to build Windows service.
@@ -114,19 +115,18 @@ var (
 )
 
 func init() {
-	k := syscall.MustLoadDLL("kernel32.dll")
-	cSetEvent = k.MustFindProc("SetEvent").Addr()
-	cWaitForSingleObject = k.MustFindProc("WaitForSingleObject").Addr()
-	a := syscall.MustLoadDLL("advapi32.dll")
-	cRegisterServiceCtrlHandlerExW = a.MustFindProc("RegisterServiceCtrlHandlerExW").Addr()
+	k := windows.NewLazySystemDLL("kernel32.dll")
+	cSetEvent = k.NewProc("SetEvent").Addr()
+	cWaitForSingleObject = k.NewProc("WaitForSingleObject").Addr()
+	a := windows.NewLazySystemDLL("advapi32.dll")
+	cRegisterServiceCtrlHandlerExW = a.NewProc("RegisterServiceCtrlHandlerExW").Addr()
 }
 
-// The HandlerEx prototype also has a context pointer but since we don't use
-// it at start-up time we don't have to pass it over either.
 type ctlEvent struct {
 	cmd       Cmd
 	eventType uint32
 	eventData uintptr
+	context   uintptr
 	errno     uint32
 }
 
@@ -238,13 +238,12 @@ func (s *service) run() {
 		exitFromHandler <- exitCode{ss, errno}
 	}()
 
-	status := Status{State: Stopped}
 	ec := exitCode{isSvcSpecific: true, errno: 0}
+	outcr := ChangeRequest{
+		CurrentStatus: Status{State: Stopped},
+	}
 	var outch chan ChangeRequest
 	inch := s.c
-	var cmd Cmd
-	var evtype uint32
-	var evdata uintptr
 loop:
 	for {
 		select {
@@ -255,10 +254,11 @@ loop:
 			}
 			inch = nil
 			outch = cmdsToHandler
-			cmd = r.cmd
-			evtype = r.eventType
-			evdata = r.eventData
-		case outch <- ChangeRequest{cmd, evtype, evdata, status}:
+			outcr.Cmd = r.cmd
+			outcr.EventType = r.eventType
+			outcr.EventData = r.eventData
+			outcr.Context = r.context
+		case outch <- outcr:
 			inch = s.c
 			outch = nil
 		case c := <-changesFromHandler:
@@ -271,7 +271,7 @@ loop:
 				}
 				break loop
 			}
-			status = c
+			outcr.CurrentStatus = c
 		case ec = <-exitFromHandler:
 			break loop
 		}
@@ -315,8 +315,8 @@ func Run(name string, handler Handler) error {
 		return err
 	}
 
-	ctlHandler := func(ctl uint32, evtype uint32, evdata uintptr, context uintptr) uintptr {
-		e := ctlEvent{cmd: Cmd(ctl), eventType: evtype, eventData: evdata}
+	ctlHandler := func(ctl, evtype, evdata, context uintptr) uintptr {
+		e := ctlEvent{cmd: Cmd(ctl), eventType: uint32(evtype), eventData: evdata, context: context}
 		// We assume that this callback function is running on
 		// the same thread as Run. Nowhere in MS documentation
 		// I could find statement to guarantee that. So putting

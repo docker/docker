@@ -13,6 +13,7 @@ import (
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
+	"github.com/pkg/errors"
 	"github.com/vishvananda/netlink"
 )
 
@@ -94,10 +95,11 @@ func ElectInterfaceAddresses(name string) ([]*net.IPNet, []*net.IPNet, error) {
 	}
 
 	if link == nil || len(v4Nets) == 0 {
-		// Choose from predefined local scope  networks
+		// Choose from predefined local scope networks
 		v4Net, err := FindAvailableNetwork(ipamutils.PredefinedLocalScopeDefaultNetworks)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, errors.Wrapf(err, "PredefinedLocalScopeDefaultNetworks List: %+v",
+				ipamutils.PredefinedLocalScopeDefaultNetworks)
 		}
 		v4Nets = append(v4Nets, v4Net)
 	}

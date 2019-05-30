@@ -16,6 +16,7 @@ import (
 //sys createIoCompletionPort(file syscall.Handle, port syscall.Handle, key uintptr, threadCount uint32) (newport syscall.Handle, err error) = CreateIoCompletionPort
 //sys getQueuedCompletionStatus(port syscall.Handle, bytes *uint32, key *uintptr, o **ioOperation, timeout uint32) (err error) = GetQueuedCompletionStatus
 //sys setFileCompletionNotificationModes(h syscall.Handle, flags uint8) (err error) = SetFileCompletionNotificationModes
+//sys wsaGetOverlappedResult(h syscall.Handle, o *syscall.Overlapped, bytes *uint32, wait bool, flags *uint32) (err error) = ws2_32.WSAGetOverlappedResult
 
 type atomicBool int32
 
@@ -79,6 +80,7 @@ type win32File struct {
 	wg            sync.WaitGroup
 	wgLock        sync.RWMutex
 	closing       atomicBool
+	socket        bool
 	readDeadline  deadlineHandler
 	writeDeadline deadlineHandler
 }
@@ -190,6 +192,10 @@ func (f *win32File) asyncIo(c *ioOperation, d *deadlineHandler, bytes uint32, er
 			if f.closing.isSet() {
 				err = ErrFileClosed
 			}
+		} else if err != nil && f.socket {
+			// err is from Win32. Query the overlapped structure to get the winsock error.
+			var bytes, flags uint32
+			err = wsaGetOverlappedResult(f.handle, &c.o, &bytes, false, &flags)
 		}
 	case <-timeout:
 		cancelIoEx(f.handle, &c.o)

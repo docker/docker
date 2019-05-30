@@ -7,22 +7,28 @@ import (
 	"unsafe"
 )
 
-func posix_openpt(oflag int) (fd int, err error) {
+func posixOpenpt(oflag int) (fd int, err error) {
 	r0, _, e1 := syscall.Syscall(syscall.SYS_POSIX_OPENPT, uintptr(oflag), 0, 0)
 	fd = int(r0)
 	if e1 != 0 {
 		err = e1
 	}
-	return
+	return fd, err
 }
 
 func open() (pty, tty *os.File, err error) {
-	fd, err := posix_openpt(syscall.O_RDWR | syscall.O_CLOEXEC)
+	fd, err := posixOpenpt(syscall.O_RDWR | syscall.O_CLOEXEC)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	p := os.NewFile(uintptr(fd), "/dev/pts")
+	// In case of error after this point, make sure we close the pts fd.
+	defer func() {
+		if err != nil {
+			_ = p.Close() // Best effort.
+		}
+	}()
+
 	sname, err := ptsname(p)
 	if err != nil {
 		return nil, nil, err
@@ -42,7 +48,7 @@ func isptmaster(fd uintptr) (bool, error) {
 
 var (
 	emptyFiodgnameArg fiodgnameArg
-	ioctl_FIODGNAME   = _IOW('f', 120, unsafe.Sizeof(emptyFiodgnameArg))
+	ioctlFIODGNAME    = _IOW('f', 120, unsafe.Sizeof(emptyFiodgnameArg))
 )
 
 func ptsname(f *os.File) (string, error) {
@@ -59,8 +65,7 @@ func ptsname(f *os.File) (string, error) {
 		buf = make([]byte, n)
 		arg = fiodgnameArg{Len: n, Buf: (*byte)(unsafe.Pointer(&buf[0]))}
 	)
-	err = ioctl(f.Fd(), ioctl_FIODGNAME, uintptr(unsafe.Pointer(&arg)))
-	if err != nil {
+	if err := ioctl(f.Fd(), ioctlFIODGNAME, uintptr(unsafe.Pointer(&arg))); err != nil {
 		return "", err
 	}
 

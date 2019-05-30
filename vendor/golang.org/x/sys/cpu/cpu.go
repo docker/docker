@@ -6,6 +6,13 @@
 // various CPU architectures.
 package cpu
 
+// Initialized reports whether the CPU features were initialized.
+//
+// For some GOOS/GOARCH combinations initialization of the CPU features depends
+// on reading an operating specific file, e.g. /proc/self/auxv on linux/arm
+// Initialized will report false if reading the file fails.
+var Initialized bool
+
 // CacheLinePad is used to pad structs to avoid false sharing.
 type CacheLinePad struct{ _ [cacheLineSize]byte }
 
@@ -86,4 +93,34 @@ var PPC64 struct {
 	IsPOWER8 bool // ISA v2.07 (POWER8)
 	IsPOWER9 bool // ISA v3.00 (POWER9)
 	_        CacheLinePad
+}
+
+// S390X contains the supported CPU features of the current IBM Z
+// (s390x) platform. If the current platform is not IBM Z then all
+// feature flags are false.
+//
+// S390X is padded to avoid false sharing. Further HasVX is only set
+// if the OS supports vector registers in addition to the STFLE
+// feature bit being set.
+var S390X struct {
+	_         CacheLinePad
+	HasZARCH  bool // z/Architecture mode is active [mandatory]
+	HasSTFLE  bool // store facility list extended
+	HasLDISP  bool // long (20-bit) displacements
+	HasEIMM   bool // 32-bit immediates
+	HasDFP    bool // decimal floating point
+	HasETF3EH bool // ETF-3 enhanced
+	HasMSA    bool // message security assist (CPACF)
+	HasAES    bool // KM-AES{128,192,256} functions
+	HasAESCBC bool // KMC-AES{128,192,256} functions
+	HasAESCTR bool // KMCTR-AES{128,192,256} functions
+	HasAESGCM bool // KMA-GCM-AES{128,192,256} functions
+	HasGHASH  bool // KIMD-GHASH function
+	HasSHA1   bool // K{I,L}MD-SHA-1 functions
+	HasSHA256 bool // K{I,L}MD-SHA-256 functions
+	HasSHA512 bool // K{I,L}MD-SHA-512 functions
+	HasSHA3   bool // K{I,L}MD-SHA3-{224,256,384,512} and K{I,L}MD-SHAKE-{128,256} functions
+	HasVX     bool // vector facility
+	HasVXE    bool // vector-enhancements facility 1
+	_         CacheLinePad
 }

@@ -102,6 +102,11 @@ func parseRemoteURL(remoteURL string) (gitRepo, error) {
 		u.Fragment = ""
 		repo.remote = u.String()
 	}
+
+	if strings.HasPrefix(repo.ref, "-") {
+		return gitRepo{}, errors.Errorf("invalid refspec: %s", repo.ref)
+	}
+
 	return repo, nil
 }
 
@@ -124,7 +129,7 @@ func fetchArgs(remoteURL string, ref string) []string {
 		args = append(args, "--depth", "1")
 	}
 
-	return append(args, "origin", ref)
+	return append(args, "origin", "--", ref)
 }
 
 // Check if a given git URL supports a shallow git clone,

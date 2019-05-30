@@ -19,17 +19,29 @@ type skipT interface {
 	Log(args ...interface{})
 }
 
+// Result of skip function
+type Result interface {
+	Skip() bool
+	Message() string
+}
+
 type helperT interface {
 	Helper()
 }
 
-// BoolOrCheckFunc can be a bool or func() bool, other types will panic
+// BoolOrCheckFunc can be a bool, func() bool, or func() Result. Other types will panic
 type BoolOrCheckFunc interface{}
 
-// If the condition expression evaluates to true, or the condition function returns
-// true, skip the test.
+// If the condition expression evaluates to true, skip the test.
+//
+// The condition argument may be one of three types: bool, func() bool, or
+// func() SkipResult.
+// When called with a bool, the test will be skip if the condition evaluates to true.
+// When called with a func() bool, the test will be skip if the function returns true.
+// When called with a func() Result, the test will be skip if the Skip method
+// of the result returns true.
 // The skip message will contain the source code of the expression.
-// Extra message text can be passed as a format string with args
+// Extra message text can be passed as a format string with args.
 func If(t skipT, condition BoolOrCheckFunc, msgAndArgs ...interface{}) {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
@@ -41,12 +53,18 @@ func If(t skipT, condition BoolOrCheckFunc, msgAndArgs ...interface{}) {
 		if check() {
 			t.Skip(format.WithCustomMessage(getFunctionName(check), msgAndArgs...))
 		}
+	case func() Result:
+		result := check()
+		if result.Skip() {
+			msg := getFunctionName(check) + ": " + result.Message()
+			t.Skip(format.WithCustomMessage(msg, msgAndArgs...))
+		}
 	default:
 		panic(fmt.Sprintf("invalid type for condition arg: %T", check))
 	}
 }
 
-func getFunctionName(function func() bool) string {
+func getFunctionName(function interface{}) string {
 	funcPath := runtime.FuncForPC(reflect.ValueOf(function).Pointer()).Name()
 	return strings.SplitN(path.Base(funcPath), ".", 2)[1]
 }

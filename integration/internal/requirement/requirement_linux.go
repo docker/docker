@@ -1,11 +1,21 @@
 package requirement // import "github.com/docker/docker/integration/internal/requirement"
 
 import (
+	"os"
 	"strings"
 
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"gotest.tools/icmd"
 )
+
+// CgroupNamespacesEnabled checks if cgroup namespaces are enabled on this host
+func CgroupNamespacesEnabled() bool {
+	if _, err := os.Stat("/proc/self/ns/cgroup"); os.IsNotExist(err) {
+		return false
+	}
+
+	return true
+}
 
 func overlayFSSupported() bool {
 	result := icmd.RunCommand("/bin/sh", "-c", "cat /proc/filesystems")

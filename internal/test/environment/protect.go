@@ -33,7 +33,7 @@ func newProtectedElements() protectedElements {
 // ProtectAll protects the existing environment (containers, images, networks,
 // volumes, and, on Linux, plugins) from being cleaned up at the end of test
 // runs
-func ProtectAll(t testingT, testEnv *Execution) {
+func ProtectAll(t assert.TestingT, testEnv *Execution) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -48,7 +48,7 @@ func ProtectAll(t testingT, testEnv *Execution) {
 
 // ProtectContainer adds the specified container(s) to be protected in case of
 // clean
-func (e *Execution) ProtectContainer(t testingT, containers ...string) {
+func (e *Execution) ProtectContainer(t assert.TestingT, containers ...string) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -59,7 +59,7 @@ func (e *Execution) ProtectContainer(t testingT, containers ...string) {
 
 // ProtectContainers protects existing containers from being cleaned up at the
 // end of test runs
-func ProtectContainers(t testingT, testEnv *Execution) {
+func ProtectContainers(t assert.TestingT, testEnv *Execution) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -85,7 +85,7 @@ func getExistingContainers(t assert.TestingT, testEnv *Execution) []string {
 }
 
 // ProtectImage adds the specified image(s) to be protected in case of clean
-func (e *Execution) ProtectImage(t testingT, images ...string) {
+func (e *Execution) ProtectImage(t assert.TestingT, images ...string) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -96,7 +96,7 @@ func (e *Execution) ProtectImage(t testingT, images ...string) {
 
 // ProtectImages protects existing images and on linux frozen images from being
 // cleaned up at the end of test runs
-func ProtectImages(t testingT, testEnv *Execution) {
+func ProtectImages(t assert.TestingT, testEnv *Execution) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -145,7 +145,7 @@ func tagsFromImageSummary(image types.ImageSummary) []string {
 
 // ProtectNetwork adds the specified network(s) to be protected in case of
 // clean
-func (e *Execution) ProtectNetwork(t testingT, networks ...string) {
+func (e *Execution) ProtectNetwork(t assert.TestingT, networks ...string) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -156,7 +156,7 @@ func (e *Execution) ProtectNetwork(t testingT, networks ...string) {
 
 // ProtectNetworks protects existing networks from being cleaned up at the end
 // of test runs
-func ProtectNetworks(t testingT, testEnv *Execution) {
+func ProtectNetworks(t assert.TestingT, testEnv *Execution) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -180,7 +180,7 @@ func getExistingNetworks(t assert.TestingT, testEnv *Execution) []string {
 }
 
 // ProtectPlugin adds the specified plugin(s) to be protected in case of clean
-func (e *Execution) ProtectPlugin(t testingT, plugins ...string) {
+func (e *Execution) ProtectPlugin(t assert.TestingT, plugins ...string) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -191,7 +191,7 @@ func (e *Execution) ProtectPlugin(t testingT, plugins ...string) {
 
 // ProtectPlugins protects existing plugins from being cleaned up at the end of
 // test runs
-func ProtectPlugins(t testingT, testEnv *Execution) {
+func ProtectPlugins(t assert.TestingT, testEnv *Execution) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -219,7 +219,7 @@ func getExistingPlugins(t assert.TestingT, testEnv *Execution) []string {
 }
 
 // ProtectVolume adds the specified volume(s) to be protected in case of clean
-func (e *Execution) ProtectVolume(t testingT, volumes ...string) {
+func (e *Execution) ProtectVolume(t assert.TestingT, volumes ...string) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -230,7 +230,7 @@ func (e *Execution) ProtectVolume(t testingT, volumes ...string) {
 
 // ProtectVolumes protects existing volumes from being cleaned up at the end of
 // test runs
-func ProtectVolumes(t testingT, testEnv *Execution) {
+func ProtectVolumes(t assert.TestingT, testEnv *Execution) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}

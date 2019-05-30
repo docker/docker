@@ -20,8 +20,10 @@ package sys
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/opencontainers/runc/libcontainer/system"
 )
@@ -44,4 +46,14 @@ func SetOOMScore(pid, score int) error {
 		return err
 	}
 	return nil
+}
+
+// GetOOMScoreAdj gets the oom score for a process
+func GetOOMScoreAdj(pid int) (int, error) {
+	path := fmt.Sprintf("/proc/%d/oom_score_adj", pid)
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(strings.TrimSpace(string(data)))
 }

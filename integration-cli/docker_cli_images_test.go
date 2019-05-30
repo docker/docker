@@ -14,6 +14,8 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 	"gotest.tools/icmd"
 )
 
@@ -68,7 +70,7 @@ func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
 
 func (s *DockerSuite) TestImagesErrorWithInvalidFilterNameTest(c *check.C) {
 	out, _, err := dockerCmdWithError("images", "-f", "FOO=123")
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 	c.Assert(out, checker.Contains, "Invalid filter")
 }
 
@@ -96,7 +98,7 @@ func (s *DockerSuite) TestImagesFilterLabelMatch(c *check.C) {
 
 	out, _ = dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match=me too")
 	out = strings.TrimSpace(out)
-	c.Assert(out, check.Equals, image2ID)
+	assert.Equal(c, out, image2ID)
 }
 
 // Regression : #15659
@@ -109,7 +111,7 @@ func (s *DockerSuite) TestCommitWithFilterLabel(c *check.C) {
 
 	out, _ = dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=foo.version=1.0.0-1")
 	out = strings.TrimSpace(out)
-	c.Assert(out, check.Equals, imageID)
+	assert.Equal(c, out, imageID)
 }
 
 func (s *DockerSuite) TestImagesFilterSinceAndBefore(c *check.C) {
@@ -252,7 +254,7 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 // FIXME(vdemeester) should be a unit test for `docker image ls`
 func (s *DockerSuite) TestImagesWithIncorrectFilter(c *check.C) {
 	out, _, err := dockerCmdWithError("images", "-f", "dangling=invalid")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	c.Assert(out, checker.Contains, "Invalid filter")
 }
 
@@ -336,7 +338,7 @@ func (s *DockerSuite) TestImagesFormat(c *check.C) {
 	expected := []string{"myimage", "myimage"}
 	var names []string
 	names = append(names, lines...)
-	c.Assert(names, checker.DeepEquals, expected, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
+	assert.Assert(c, is.DeepEqual(names, expected), "Expected array with truncated names: %v, got: %v", expected, names)
 }
 
 // ImagesDefaultFormatAndQuiet
@@ -355,12 +357,12 @@ func (s *DockerSuite) TestImagesFormatDefaultFormat(c *check.C) {
 		"imagesFormat": "{{ .ID }} default"
 }`
 	d, err := ioutil.TempDir("", "integration-cli-")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer os.RemoveAll(d)
 
 	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	out, _ = dockerCmd(c, "--config", d, "images", "-q", "myimage")
-	c.Assert(out, checker.Equals, imageID+"\n", check.Commentf("Expected to print only the image id, got %v\n", out))
+	assert.Equal(c, out, imageID+"\n", "Expected to print only the image id, got %v\n", out)
 }

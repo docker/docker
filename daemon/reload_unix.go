@@ -34,6 +34,10 @@ func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]
 		daemon.configStore.ShmSize = conf.ShmSize
 	}
 
+	if conf.CgroupNamespaceMode != "" {
+		daemon.configStore.CgroupNamespaceMode = conf.CgroupNamespaceMode
+	}
+
 	if conf.IpcMode != "" {
 		daemon.configStore.IpcMode = conf.IpcMode
 	}
@@ -51,6 +55,7 @@ func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]
 	attributes["default-runtime"] = daemon.configStore.DefaultRuntime
 	attributes["default-shm-size"] = fmt.Sprintf("%d", daemon.configStore.ShmSize)
 	attributes["default-ipc-mode"] = daemon.configStore.IpcMode
+	attributes["default-cgroupns-mode"] = daemon.configStore.CgroupNamespaceMode
 
 	return nil
 }

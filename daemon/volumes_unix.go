@@ -141,10 +141,6 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 		if m.Writable {
 			writeMode = "rw"
 		}
-		opts := strings.Join([]string{bindMode, writeMode}, ",")
-		if err := mount.Mount(m.Source, dest, bindMountType, opts); err != nil {
-			return err
-		}
 
 		// mountVolumes() seems to be called for temporary mounts
 		// outside the container. Soon these will be unmounted with
@@ -154,8 +150,9 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 		// then these unmounts will propagate and unmount original
 		// mount as well. So make all these mounts rprivate.
 		// Do not use propagation property of volume as that should
-		// apply only when mounting happen inside the container.
-		if err := mount.MakeRPrivate(dest); err != nil {
+		// apply only when mounting happens inside the container.
+		opts := strings.Join([]string{bindMode, writeMode, "rprivate"}, ",")
+		if err := mount.Mount(m.Source, dest, "", opts); err != nil {
 			return err
 		}
 	}

@@ -177,7 +177,7 @@ func (sb *subBuilder) Context(ctx context.Context) context.Context {
 
 func (sb *subBuilder) EachValue(ctx context.Context, key string, fn func(interface{}) error) error {
 	sb.mu.Lock()
-	defer sb.mu.Lock()
+	defer sb.mu.Unlock()
 	for j := range sb.jobs {
 		if err := j.EachValue(ctx, key, fn); err != nil {
 			return err
@@ -404,7 +404,9 @@ func (jl *Solver) Get(id string) (*Job, error) {
 
 	go func() {
 		<-ctx.Done()
+		jl.mu.Lock()
 		jl.updateCond.Broadcast()
+		jl.mu.Unlock()
 	}()
 
 	jl.mu.RLock()

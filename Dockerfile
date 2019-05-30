@@ -24,7 +24,9 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM golang:1.11.5 AS base
+ARG CROSS="false"
+
+FROM golang:1.12.5 AS base
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
 RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
@@ -92,12 +94,48 @@ RUN /download-frozen-image-v2.sh /build \
 	hello-world:latest@sha256:be0cd392e45be79ffeffa6b05338b98ebb16c87b255f48e297ec7f98e123905c
 # See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
-# Just a little hack so we don't have to install these deps twice, once for runc and once for dockerd
-FROM base AS runtime-dev
+FROM base AS cross-false
+
+FROM base AS cross-true
+RUN dpkg --add-architecture armhf
+RUN dpkg --add-architecture arm64
+RUN dpkg --add-architecture armel
+RUN if [ "$(go env GOHOSTARCH)" = "amd64" ]; then \
+	apt-get update \
+	&& apt-get install -y --no-install-recommends \
+		crossbuild-essential-armhf \
+		crossbuild-essential-arm64 \
+		crossbuild-essential-armel; \
+	fi
+
+FROM cross-${CROSS} as dev-base
+
+FROM dev-base AS runtime-dev-cross-false
 RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libseccomp-dev
 
+FROM cross-true AS runtime-dev-cross-true
+# These crossbuild packages rely on gcc-<arch>, but this doesn't want to install
+# on non-amd64 systems.
+# Additionally, the crossbuild-amd64 is currently only on debian:buster, so
+# other architectures cannnot crossbuild amd64.
+RUN if [ "$(go env GOHOSTARCH)" = "amd64" ]; then \
+	apt-get update \
+	&& apt-get install -y \
+		libseccomp-dev:armhf \
+		libseccomp-dev:arm64 \
+		libseccomp-dev:armel \
+		libapparmor-dev:armhf \
+		libapparmor-dev:arm64 \
+		libapparmor-dev:armel \
+		# install this arches seccomp here due to compat issues with the v0 builder
+		# This is as opposed to inheriting from runtime-dev-cross-false
+		libapparmor-dev \
+		libseccomp-dev; \
+	fi
+
+FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
 FROM base AS tomlv
 ENV INSTALL_BINARY_NAME=tomlv
@@ -111,14 +149,14 @@ COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
-FROM base AS containerd
+FROM dev-base AS containerd
 RUN apt-get update && apt-get install -y btrfs-tools
 ENV INSTALL_BINARY_NAME=containerd
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
-FROM base AS proxy
+FROM dev-base AS proxy
 ENV INSTALL_BINARY_NAME=proxy
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
@@ -130,7 +168,7 @@ COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
-FROM base AS dockercli
+FROM dev-base AS dockercli
 ENV INSTALL_BINARY_NAME=dockercli
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
@@ -142,14 +180,14 @@ COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
-FROM base AS tini
+FROM dev-base AS tini
 RUN apt-get update && apt-get install -y cmake vim-common
 COPY hack/dockerfile/install/install.sh ./install.sh
 ENV INSTALL_BINARY_NAME=tini
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
-FROM base AS rootlesskit
+FROM dev-base AS rootlesskit
 ENV INSTALL_BINARY_NAME=rootlesskit
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./

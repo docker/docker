@@ -248,7 +248,6 @@ func (err PingResponseError) Error() string {
 // challenge manager for the supported authentication types and
 // whether v2 was confirmed by the response. If a response is received but
 // cannot be interpreted a PingResponseError will be returned.
-// nolint: interfacer
 func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.Manager, bool, error) {
 	var (
 		foundV2   = false

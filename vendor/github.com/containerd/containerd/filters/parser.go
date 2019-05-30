@@ -71,7 +71,7 @@ func ParseAll(ss ...string) (Filter, error) {
 	for _, s := range ss {
 		f, err := Parse(s)
 		if err != nil {
-			return nil, errors.Wrapf(errdefs.ErrInvalidArgument, err.Error())
+			return nil, errors.Wrap(errdefs.ErrInvalidArgument, err.Error())
 		}
 
 		fs = append(fs, f)

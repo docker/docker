@@ -79,6 +79,9 @@ func ToMap(env []string) map[string]string {
 }
 
 func getParts(raw string) (string, string) {
+	if raw == "" {
+		return "", ""
+	}
 	// Environment variables on windows can begin with =
 	// http://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
 	parts := strings.SplitN(raw[1:], "=", 2)

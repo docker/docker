@@ -63,7 +63,9 @@ func (gwf *GatewayForwarder) lookupForwarder(ctx context.Context) (gateway.LLBBr
 
 	go func() {
 		<-ctx.Done()
+		gwf.mu.Lock()
 		gwf.updateCond.Broadcast()
+		gwf.mu.Unlock()
 	}()
 
 	gwf.mu.RLock()

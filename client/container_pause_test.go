@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/docker/docker/errdefs"
 )
 
 func TestContainerPauseError(t *testing.T) {
@@ -17,6 +19,9 @@ func TestContainerPauseError(t *testing.T) {
 	err := client.ContainerPause(context.Background(), "nothing")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
+	}
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %T", err)
 	}
 }
 

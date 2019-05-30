@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 // Try all of the test cases from the archive package which implements the
@@ -147,7 +148,7 @@ func (s *DockerSuite) TestCpFromCaseB(c *check.C) {
 	dstDir := cpPathTrailingSep(tmpDir, "testDir")
 
 	err := runDockerCp(c, srcPath, dstDir, nil)
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 
 	c.Assert(isCpDirNotExist(err), checker.True, check.Commentf("expected DirNotExists error, but got %T: %s", err, err))
 }
@@ -263,7 +264,7 @@ func (s *DockerSuite) TestCpFromCaseF(c *check.C) {
 	dstFile := cpPath(tmpDir, "file1")
 
 	err := runDockerCp(c, srcDir, dstFile, nil)
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 
 	c.Assert(isCpCannotCopyDir(err), checker.True, check.Commentf("expected ErrCannotCopyDir error, but got %T: %s", err, err))
 }
@@ -355,7 +356,7 @@ func (s *DockerSuite) TestCpFromCaseI(c *check.C) {
 	dstFile := cpPath(tmpDir, "file1")
 
 	err := runDockerCp(c, srcDir, dstFile, nil)
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 
 	c.Assert(isCpCannotCopyDir(err), checker.True, check.Commentf("expected ErrCannotCopyDir error, but got %T: %s", err, err))
 }

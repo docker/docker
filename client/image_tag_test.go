@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/docker/docker/errdefs"
 )
 
 func TestImageTagError(t *testing.T) {
@@ -18,6 +20,9 @@ func TestImageTagError(t *testing.T) {
 	err := client.ImageTag(context.Background(), "image_id", "repo:tag")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
+	}
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %T", err)
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestNetworkCreateError(t *testing.T) {
@@ -21,6 +22,9 @@ func TestNetworkCreateError(t *testing.T) {
 	_, err := client.NetworkCreate(context.Background(), "mynetwork", types.NetworkCreate{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
+	}
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %T", err)
 	}
 }
 

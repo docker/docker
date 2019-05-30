@@ -4,6 +4,9 @@
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
 export DOCKER_GRAPHDRIVER
 
+# enable/disable cross-compile
+DOCKER_CROSS ?= false
+
 # get OS/Arch of docker engine
 DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKER_ENGINE_OSARCH}')
 DOCKERFILE := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKERFILE}')
@@ -117,9 +120,6 @@ INTERACTIVE := $(shell [ -t 0 ] && echo 1 || echo 0)
 ifeq ($(INTERACTIVE), 1)
 	DOCKER_FLAGS += -t
 endif
-ifeq ($(BIND_DIR), .)
-	DOCKER_BUILD_OPTS += --target=dev
-endif
 
 DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
 
@@ -134,9 +134,23 @@ binary: build ## build the linux binaries
 dynbinary: build ## build the linux dynbinaries
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary
 
+
+
+cross: DOCKER_CROSS := true
+cross: build ## cross build the binaries for darwin, freebsd and\nwindows
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
+
+ifdef DOCKER_CROSSPLATFORMS
+build: DOCKER_CROSS := true
+endif
+ifeq ($(BIND_DIR), .)
+build: DOCKER_BUILD_OPTS += --target=dev
+endif
+build: DOCKER_BUILD_ARGS += --build-arg=CROSS=$(DOCKER_CROSS)
+build: DOCKER_BUILDKIT ?= 1
 build: bundles
 	$(warning The docker client CLI has moved to github.com/docker/cli. For a dev-test cycle involving the CLI, run:${\n} DOCKER_CLI_PATH=/host/path/to/cli/binary make shell ${\n} then change the cli and compile into a binary at the same location.${\n})
-	docker build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
+	DOCKER_BUILDKIT="${DOCKER_BUILDKIT}" docker build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
 
 bundles:
 	mkdir bundles
@@ -147,9 +161,6 @@ clean: clean-cache
 .PHONY: clean-cache
 clean-cache:
 	docker volume rm -f docker-dev-cache
-
-cross: build ## cross build the binaries for darwin, freebsd and\nwindows
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
 
 help: ## this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / {gsub("\\\\n",sprintf("\n%22c",""), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -184,7 +195,7 @@ validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isol
 	$(DOCKER_RUN_DOCKER) hack/validate/all
 
 win: build ## cross build the binary for windows
-	$(DOCKER_RUN_DOCKER) hack/make.sh win
+	$(DOCKER_RUN_DOCKER) DOCKER_CROSSPLATFORMS=windows/amd64 hack/make.sh cross
 
 .PHONY: swagger-gen
 swagger-gen:

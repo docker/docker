@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 func (s *DockerSwarmSuite) TestServiceScale(c *check.C) {
@@ -22,16 +22,16 @@ func (s *DockerSwarmSuite) TestServiceScale(c *check.C) {
 
 	// Create services
 	_, err := d.Cmd(service1Args...)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	_, err = d.Cmd(service2Args...)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	_, err = d.Cmd("service", "scale", "TestService1=2")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	out, err := d.Cmd("service", "scale", "TestService1=foobar")
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 
 	str := fmt.Sprintf("%s: invalid replicas value %s", service1Name, "foobar")
 	if !strings.Contains(out, str) {
@@ -39,7 +39,7 @@ func (s *DockerSwarmSuite) TestServiceScale(c *check.C) {
 	}
 
 	out, err = d.Cmd("service", "scale", "TestService1=-1")
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 
 	str = fmt.Sprintf("%s: invalid replicas value %s", service1Name, "-1")
 	if !strings.Contains(out, str) {
@@ -48,7 +48,7 @@ func (s *DockerSwarmSuite) TestServiceScale(c *check.C) {
 
 	// TestService2 is a global mode
 	out, err = d.Cmd("service", "scale", "TestService2=2")
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 
 	str = fmt.Sprintf("%s: scale can only be used with replicated mode\n", service2Name)
 	if out != str {

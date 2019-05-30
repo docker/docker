@@ -162,7 +162,9 @@ func (sm *Manager) Get(ctx context.Context, id string) (Caller, error) {
 	go func() {
 		select {
 		case <-ctx.Done():
+			sm.mu.Lock()
 			sm.updateCondition.Broadcast()
+			sm.mu.Unlock()
 		}
 	}()
 

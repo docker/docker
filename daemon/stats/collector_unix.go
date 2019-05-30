@@ -33,7 +33,6 @@ const nanoSecondsPerSecond = 1e9
 // provided. See `man 5 proc` for details on specific field
 // information.
 func (s *Collector) getSystemCPUUsage() (uint64, error) {
-	var line string
 	f, err := os.Open("/proc/stat")
 	if err != nil {
 		return 0, err
@@ -43,9 +42,9 @@ func (s *Collector) getSystemCPUUsage() (uint64, error) {
 		f.Close()
 	}()
 	s.bufReader.Reset(f)
-	err = nil
-	for err == nil {
-		line, err = s.bufReader.ReadString('\n')
+
+	for {
+		line, err := s.bufReader.ReadString('\n')
 		if err != nil {
 			break
 		}

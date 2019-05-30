@@ -12,6 +12,7 @@ import (
 )
 
 func TestPingCacheHeaders(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "skip test from new feature")
 	defer setupTest(t)()
 
 	res, _, err := request.Get("/_ping")

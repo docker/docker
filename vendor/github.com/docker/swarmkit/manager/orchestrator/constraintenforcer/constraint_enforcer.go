@@ -76,8 +76,22 @@ func (ce *ConstraintEnforcer) rejectNoncompliantTasks(node *api.Node) {
 		err   error
 	)
 
+	services := map[string]*api.Service{}
 	ce.store.View(func(tx store.ReadTx) {
 		tasks, err = store.FindTasks(tx, store.ByNodeID(node.ID))
+		if err != nil {
+			return
+		}
+
+		// Deduplicate service IDs using the services map. It's okay for the
+		// values to be nil for now, we will look them up from the store next.
+		for _, task := range tasks {
+			services[task.ServiceID] = nil
+		}
+
+		for serviceID := range services {
+			services[serviceID] = store.GetService(tx, serviceID)
+		}
 	})
 
 	if err != nil {
@@ -105,10 +119,44 @@ loop:
 			continue
 		}
 
-		// Ensure that the task still meets scheduling
-		// constraints.
-		if t.Spec.Placement != nil && len(t.Spec.Placement.Constraints) != 0 {
-			constraints, _ := constraint.Parse(t.Spec.Placement.Constraints)
+		// Ensure that the node still satisfies placement constraints.
+		// NOTE: If the task is associacted with a service then we must use the
+		// constraints from the current service spec rather than the
+		// constraints from the task spec because they may be outdated. This
+		// will happen if the service was previously updated in a way which
+		// only changes the placement constraints and the node matched the
+		// placement constraints both before and after that update. In the case
+		// of such updates, the tasks are not considered "dirty" and are not
+		// restarted but it will mean that the task spec's placement
+		// constraints are outdated. Consider this example:
+		// - A service is created with no constraints and a task is scheduled
+		//   to a node.
+		// - The node is updated to add a label, this doesn't affect the task
+		//   on that node because it has no constraints.
+		// - The service is updated to add a node label constraint which
+		//   matches the label which was just added to the node. The updater
+		//   does not shut down the task because the only the constraints have
+		//   changed and the node still matches the updated constraints.
+		// - The node is updated to remove the node label. The node no longer
+		//   satisfies the placement constraints of the service, so the task
+		//   should be shutdown. However, the task's spec still has the
+		//   original and outdated constraints (that are still satisfied by
+		//   the node). If we used those original constraints then the task
+		//   would incorrectly not be removed. This is why the constraints
+		//   from the service spec should be used instead.
+		var placement *api.Placement
+		if service := services[t.ServiceID]; service != nil {
+			// This task is associated with a service, so we use the service's
+			// current placement constraints.
+			placement = service.Spec.Task.Placement
+		} else {
+			// This task is not associated with a service (or the service no
+			// longer exists), so we use the placement constraints from the
+			// original task spec.
+			placement = t.Spec.Placement
+		}
+		if placement != nil && len(placement.Constraints) > 0 {
+			constraints, _ := constraint.Parse(placement.Constraints)
 			if !constraint.NodeMatches(constraints, node) {
 				removeTasks[t.ID] = t
 				continue

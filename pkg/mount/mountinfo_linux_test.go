@@ -422,6 +422,9 @@ const (
 286 15 0:3631 / /var/lib/docker/aufs/mnt/ff28c27d5f894363993622de26d5dd352dba072f219e4691d6498c19bbbc15a9 rw,relatime - aufs none rw,si=9b4a7642265b339c
 289 15 0:3634 / /var/lib/docker/aufs/mnt/aa128fe0e64fdede333aa48fd9de39530c91a9244a0f0649a3c411c61e372daa rw,relatime - aufs none rw,si=9b4a764012ada39c
 99 15 8:33 / /media/REMOVE\040ME rw,nosuid,nodev,relatime - fuseblk /dev/sdc1 rw,user_id=0,group_id=0,allow_other,blksize=4096`
+
+	mountInfoWithSpaces = `486 28 252:1 / /mnt/foo\040bar rw,relatime shared:243 - ext4 /dev/vda1 rw,data=ordered
+31 21 0:23 / /DATA/foo_bla_bla rw,relatime - cifs //foo/BLA\040BLA\040BLA/ rw,sec=ntlm,cache=loose,unc=\\foo\BLA BLA BLA,username=my_login,domain=mydomain.com,uid=12345678,forceuid,gid=12345678,forcegid,addr=10.1.30.10,file_mode=0755,dir_mode=0755,nounix,rsize=61440,wsize=65536,actimeo=1`
 )
 
 func TestParseFedoraMountinfo(t *testing.T) {
@@ -474,6 +477,51 @@ func TestParseFedoraMountinfoFields(t *testing.T) {
 
 	if *infos[0] != mi {
 		t.Fatalf("expected %#v, got %#v", mi, infos[0])
+	}
+}
+
+func TestParseMountinfoWithSpaces(t *testing.T) {
+	r := bytes.NewBuffer([]byte(mountInfoWithSpaces))
+	infos, err := parseInfoFile(r, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []Info{
+		{
+			ID:         486,
+			Parent:     28,
+			Major:      252,
+			Minor:      1,
+			Root:       "/",
+			Mountpoint: "/mnt/foo bar",
+			Opts:       "rw,relatime",
+			Optional:   "shared:243",
+			Fstype:     "ext4",
+			Source:     "/dev/vda1",
+			VfsOpts:    "rw,data=ordered",
+		},
+		{
+			ID:         31,
+			Parent:     21,
+			Major:      0,
+			Minor:      23,
+			Root:       "/",
+			Mountpoint: "/DATA/foo_bla_bla",
+			Opts:       "rw,relatime",
+			Optional:   "",
+			Fstype:     "cifs",
+			Source:     `//foo/BLA\040BLA\040BLA/`,
+			VfsOpts:    `rw,sec=ntlm,cache=loose,unc=\\foo\BLA`,
+		},
+	}
+
+	if len(infos) != len(expected) {
+		t.Fatalf("expected %d entries, got %d", len(expected), len(infos))
+	}
+	for i, mi := range expected {
+		if *infos[i] != mi {
+			t.Fatalf("expected %#v, got %#v", mi, infos[i])
+		}
 	}
 }
 

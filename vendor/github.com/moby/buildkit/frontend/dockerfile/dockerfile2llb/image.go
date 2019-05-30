@@ -50,6 +50,9 @@ type Image struct {
 
 	// Config defines the execution parameters which should be used as a base when running a container using the image.
 	Config ImageConfig `json:"config,omitempty"`
+
+	// Variant defines platform variant. To be added to OCI.
+	Variant string `json:"variant,omitempty"`
 }
 
 func clone(src Image) Image {
@@ -67,6 +70,7 @@ func emptyImage(platform specs.Platform) Image {
 			Architecture: platform.Architecture,
 			OS:           platform.OS,
 		},
+		Variant: platform.Variant,
 	}
 	img.RootFS.Type = "layers"
 	img.Config.WorkingDir = "/"

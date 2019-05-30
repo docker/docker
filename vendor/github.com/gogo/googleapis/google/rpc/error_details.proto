@@ -24,7 +24,6 @@ option java_outer_classname = "ErrorDetailsProto";
 option java_package = "com.google.rpc";
 option objc_class_prefix = "RPC";
 
-
 // Describes when the clients can retry a failed request. Clients could ignore
 // the recommendation here or retry when this information is missing from error
 // responses.
@@ -154,7 +153,8 @@ message ResourceInfo {
 
   // The name of the resource being accessed.  For example, a shared calendar
   // name: "example.com_4fghdhgsrgh@group.calendar.google.com", if the current
-  // error is [google.rpc.Code.PERMISSION_DENIED][google.rpc.Code.PERMISSION_DENIED].
+  // error is
+  // [google.rpc.Code.PERMISSION_DENIED][google.rpc.Code.PERMISSION_DENIED].
   string resource_name = 2;
 
   // The owner of the resource (optional).

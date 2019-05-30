@@ -23,4 +23,10 @@ const (
 	// DefaultMaxSendMsgSize defines the default maximum message size for
 	// sending protobufs passed over the GRPC API.
 	DefaultMaxSendMsgSize = 16 << 20
+	// DefaultRuntimeNSLabel defines the namespace label to check for
+	// default runtime
+	DefaultRuntimeNSLabel = "containerd.io/defaults/runtime"
+	// DefaultSnapshotterNSLabel defines the namespances label to check for
+	// default snapshotter
+	DefaultSnapshotterNSLabel = "containerd.io/defaults/snapshotter"
 )

@@ -24,7 +24,7 @@ type contextKeyT string
 
 var contextKey = contextKeyT("buildkit/util/flightcontrol.progress")
 
-// Group is a flightcontrol syncronization group
+// Group is a flightcontrol synchronization group
 type Group struct {
 	mu sync.Mutex       // protects m
 	m  map[string]*call // lazily initialized

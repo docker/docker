@@ -3,9 +3,10 @@ package main
 import (
 	"bytes"
 	"os/exec"
+	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 func (s *DockerSuite) TestLoginWithoutTTY(c *check.C) {
@@ -16,14 +17,14 @@ func (s *DockerSuite) TestLoginWithoutTTY(c *check.C) {
 
 	// run the command and block until it's done
 	err := cmd.Run()
-	c.Assert(err, checker.NotNil) //"Expected non nil err when logging in & TTY not available"
+	assert.ErrorContains(c, err, "") //"Expected non nil err when logging in & TTY not available"
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistry(c *check.C) {
 	// wrong credentials
 	out, _, err := dockerCmdWithError("login", "-u", s.reg.Username(), "-p", "WRONGPASSWORD", privateRegistryURL)
-	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
-	c.Assert(out, checker.Contains, "401 Unauthorized")
+	assert.ErrorContains(c, err, "", out)
+	assert.Assert(c, strings.Contains(out, "401 Unauthorized"))
 
 	// now it's fine
 	dockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)

@@ -191,30 +191,41 @@ func (b *blkioController) readEntry(devices map[deviceKey]string, path, name str
 }
 
 func createBlkioSettings(blkio *specs.LinuxBlockIO) []blkioSettings {
-	settings := []blkioSettings{
-		{
-			name:   "weight",
-			value:  blkio.Weight,
-			format: uintf,
-		},
-		{
-			name:   "leaf_weight",
-			value:  blkio.LeafWeight,
-			format: uintf,
-		},
-	}
-	for _, wd := range blkio.WeightDevice {
+	settings := []blkioSettings{}
+
+	if blkio.Weight != nil {
 		settings = append(settings,
 			blkioSettings{
-				name:   "weight_device",
-				value:  wd,
-				format: weightdev,
-			},
-			blkioSettings{
-				name:   "leaf_weight_device",
-				value:  wd,
-				format: weightleafdev,
+				name:   "weight",
+				value:  blkio.Weight,
+				format: uintf,
 			})
+	}
+	if blkio.LeafWeight != nil {
+		settings = append(settings,
+			blkioSettings{
+				name:   "leaf_weight",
+				value:  blkio.LeafWeight,
+				format: uintf,
+			})
+	}
+	for _, wd := range blkio.WeightDevice {
+		if wd.Weight != nil {
+			settings = append(settings,
+				blkioSettings{
+					name:   "weight_device",
+					value:  wd,
+					format: weightdev,
+				})
+		}
+		if wd.LeafWeight != nil {
+			settings = append(settings,
+				blkioSettings{
+					name:   "leaf_weight_device",
+					value:  wd,
+					format: weightleafdev,
+				})
+		}
 	}
 	for _, t := range []struct {
 		name string
@@ -265,12 +276,12 @@ func uintf(v interface{}) []byte {
 
 func weightdev(v interface{}) []byte {
 	wd := v.(specs.LinuxWeightDevice)
-	return []byte(fmt.Sprintf("%d:%d %d", wd.Major, wd.Minor, wd.Weight))
+	return []byte(fmt.Sprintf("%d:%d %d", wd.Major, wd.Minor, *wd.Weight))
 }
 
 func weightleafdev(v interface{}) []byte {
 	wd := v.(specs.LinuxWeightDevice)
-	return []byte(fmt.Sprintf("%d:%d %d", wd.Major, wd.Minor, wd.LeafWeight))
+	return []byte(fmt.Sprintf("%d:%d %d", wd.Major, wd.Minor, *wd.LeafWeight))
 }
 
 func throttleddev(v interface{}) []byte {

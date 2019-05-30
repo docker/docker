@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -217,12 +218,23 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 		ec.StreamConfig.NewNopInputPipe()
 	}
 
-	p := &specs.Process{
-		Args:     append([]string{ec.Entrypoint}, ec.Args...),
-		Env:      ec.Env,
-		Terminal: ec.Tty,
-		Cwd:      ec.WorkingDir,
+	p := &specs.Process{}
+	if runtime.GOOS != "windows" {
+		container, err := d.containerdCli.LoadContainer(ctx, ec.ContainerID)
+		if err != nil {
+			return err
+		}
+		spec, err := container.Spec(ctx)
+		if err != nil {
+			return err
+		}
+		p = spec.Process
 	}
+	p.Args = append([]string{ec.Entrypoint}, ec.Args...)
+	p.Env = ec.Env
+	p.Cwd = ec.WorkingDir
+	p.Terminal = ec.Tty
+
 	if p.Cwd == "" {
 		p.Cwd = "/"
 	}

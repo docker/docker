@@ -31,6 +31,7 @@ func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, ro
 		CommandCandidates:   []string{"runc"},
 		DefaultCgroupParent: cgroupParent,
 		Rootless:            rootless,
+		NoPivot:             os.Getenv("DOCKER_RAMDISK") != "",
 	}, networkProviders)
 }
 

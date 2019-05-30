@@ -53,6 +53,7 @@ func New(quiet bool) *SysInfo {
 		applyNetworkingInfo,
 		applyAppArmorInfo,
 		applySeccompInfo,
+		applyCgroupNsInfo,
 	}...)
 
 	for _, o := range ops {
@@ -246,6 +247,15 @@ func applyAppArmorInfo(info *SysInfo, _ map[string]string) []string {
 		if _, err := ioutil.ReadFile("/sys/kernel/security/apparmor/profiles"); err == nil {
 			info.AppArmor = true
 		}
+	}
+	return warnings
+}
+
+// applyCgroupNsInfo adds cgroup namespace information to the info.
+func applyCgroupNsInfo(info *SysInfo, _ map[string]string) []string {
+	var warnings []string
+	if _, err := os.Stat("/proc/self/ns/cgroup"); !os.IsNotExist(err) {
+		info.CgroupNamespaces = true
 	}
 	return warnings
 }

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	units "github.com/docker/go-units"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -463,11 +464,40 @@ func WriteCgroupProc(dir string, pid int) error {
 		return fmt.Errorf("no such directory for %s", CgroupProcesses)
 	}
 
-	// Don't attach any pid to the cgroup if -1 is specified as a pid
-	if pid != -1 {
-		if err := ioutil.WriteFile(filepath.Join(dir, CgroupProcesses), []byte(strconv.Itoa(pid)), 0700); err != nil {
-			return fmt.Errorf("failed to write %v to %v: %v", pid, CgroupProcesses, err)
-		}
+	// Dont attach any pid to the cgroup if -1 is specified as a pid
+	if pid == -1 {
+		return nil
 	}
-	return nil
+
+	cgroupProcessesFile, err := os.OpenFile(filepath.Join(dir, CgroupProcesses), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0700)
+	if err != nil {
+		return fmt.Errorf("failed to write %v to %v: %v", pid, CgroupProcesses, err)
+	}
+	defer cgroupProcessesFile.Close()
+
+	for i := 0; i < 5; i++ {
+		_, err = cgroupProcessesFile.WriteString(strconv.Itoa(pid))
+		if err == nil {
+			return nil
+		}
+
+		// EINVAL might mean that the task being added to cgroup.procs is in state
+		// TASK_NEW. We should attempt to do so again.
+		if isEINVAL(err) {
+			time.Sleep(30 * time.Millisecond)
+			continue
+		}
+
+		return fmt.Errorf("failed to write %v to %v: %v", pid, CgroupProcesses, err)
+	}
+	return err
+}
+
+func isEINVAL(err error) bool {
+	switch err := err.(type) {
+	case *os.PathError:
+		return err.Err == unix.EINVAL
+	default:
+		return false
+	}
 }

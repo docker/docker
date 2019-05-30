@@ -33,6 +33,7 @@ const (
 	CapExecMetaBase            apicaps.CapID = "exec.meta.base"
 	CapExecMetaProxy           apicaps.CapID = "exec.meta.proxyenv"
 	CapExecMetaNetwork         apicaps.CapID = "exec.meta.network"
+	CapExecMetaSecurity        apicaps.CapID = "exec.meta.security"
 	CapExecMetaSetsDefaultPath apicaps.CapID = "exec.meta.setsdefaultpath"
 	CapExecMountBind           apicaps.CapID = "exec.mount.bind"
 	CapExecMountCache          apicaps.CapID = "exec.mount.cache"
@@ -42,6 +43,8 @@ const (
 	CapExecMountSecret         apicaps.CapID = "exec.mount.secret"
 	CapExecMountSSH            apicaps.CapID = "exec.mount.ssh"
 	CapExecCgroupsMounted      apicaps.CapID = "exec.cgroup"
+
+	CapFileBase apicaps.CapID = "file.base"
 
 	CapConstraints apicaps.CapID = "constraints"
 	CapPlatform    apicaps.CapID = "platform"
@@ -179,6 +182,12 @@ func init() {
 	})
 
 	Caps.Init(apicaps.Cap{
+		ID:      CapExecMetaSecurity,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
 		ID:      CapExecMountBind,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
@@ -224,6 +233,16 @@ func init() {
 		ID:      CapExecCgroupsMounted,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapFileBase,
+		Enabled: true,
+		Status:  apicaps.CapStatusPrerelease,
+		SupportedHint: map[string]string{
+			"docker":   "Docker v19.03",
+			"buildkit": "BuildKit v0.5.0",
+		},
 	})
 
 	Caps.Init(apicaps.Cap{

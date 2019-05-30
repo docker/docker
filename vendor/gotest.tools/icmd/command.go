@@ -132,18 +132,21 @@ func (r *Result) String() string {
 	if r.Timeout {
 		timeout = " (timeout)"
 	}
+	var errString string
+	if r.Error != nil {
+		errString = "\nError:    " + r.Error.Error()
+	}
 
 	return fmt.Sprintf(`
 Command:  %s
-ExitCode: %d%s
-Error:    %v
+ExitCode: %d%s%s
 Stdout:   %v
 Stderr:   %v
 `,
 		strings.Join(r.Cmd.Args, " "),
 		r.ExitCode,
 		timeout,
-		r.Error,
+		errString,
 		r.Stdout(),
 		r.Stderr())
 }

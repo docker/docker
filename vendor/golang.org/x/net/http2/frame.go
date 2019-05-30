@@ -643,7 +643,7 @@ func (f *Framer) WriteData(streamID uint32, endStream bool, data []byte) error {
 	return f.WriteDataPadded(streamID, endStream, data, nil)
 }
 
-// WriteData writes a DATA frame with optional padding.
+// WriteDataPadded writes a DATA frame with optional padding.
 //
 // If pad is nil, the padding bit is not sent.
 // The length of pad must not exceed 255 bytes.
@@ -1477,7 +1477,7 @@ func (fr *Framer) maxHeaderStringLen() int {
 }
 
 // readMetaFrame returns 0 or more CONTINUATION frames from fr and
-// merge them into into the provided hf and returns a MetaHeadersFrame
+// merge them into the provided hf and returns a MetaHeadersFrame
 // with the decoded hpack values.
 func (fr *Framer) readMetaFrame(hf *HeadersFrame) (*MetaHeadersFrame, error) {
 	if fr.AllowIllegalReads {

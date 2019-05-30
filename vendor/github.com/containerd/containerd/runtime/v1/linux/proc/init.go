@@ -41,9 +41,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// InitPidFile name of the file that contains the init pid
-const InitPidFile = "init.pid"
-
 // Init represents an initial process for a container
 type Init struct {
 	wg        sync.WaitGroup
@@ -63,7 +60,7 @@ type Init struct {
 	Bundle       string
 	console      console.Console
 	Platform     proc.Platform
-	io           runc.IO
+	io           *processIO
 	runtime      *runc.Runc
 	status       int
 	exited       time.Time
@@ -76,6 +73,7 @@ type Init struct {
 	IoGID        int
 	NoPivotRoot  bool
 	NoNewKeyring bool
+	CriuWorkPath string
 }
 
 // NewRunc returns a new runc instance for a process
@@ -110,48 +108,32 @@ func New(id string, runtime *runc.Runc, stdio proc.Stdio) *Init {
 // Create the process with the provided config
 func (p *Init) Create(ctx context.Context, r *CreateConfig) error {
 	var (
-		err    error
-		socket *runc.Socket
+		err     error
+		socket  *runc.Socket
+		pio     *processIO
+		pidFile = newPidFile(p.Bundle)
 	)
 	if r.Terminal {
 		if socket, err = runc.NewTempConsoleSocket(); err != nil {
 			return errors.Wrap(err, "failed to create OCI runtime console socket")
 		}
 		defer socket.Close()
-	} else if hasNoIO(r) {
-		if p.io, err = runc.NewNullIO(); err != nil {
-			return errors.Wrap(err, "creating new NULL IO")
-		}
 	} else {
-		if p.io, err = runc.NewPipeIO(p.IoUID, p.IoGID, withConditionalIO(p.stdio)); err != nil {
-			return errors.Wrap(err, "failed to create OCI runtime io pipes")
+		if pio, err = createIO(ctx, p.id, p.IoUID, p.IoGID, p.stdio); err != nil {
+			return errors.Wrap(err, "failed to create init process I/O")
 		}
+		p.io = pio
 	}
-	pidFile := filepath.Join(p.Bundle, InitPidFile)
 	if r.Checkpoint != "" {
-		opts := &runc.RestoreOpts{
-			CheckpointOpts: runc.CheckpointOpts{
-				ImagePath:  r.Checkpoint,
-				WorkDir:    p.WorkDir,
-				ParentPath: r.ParentCheckpoint,
-			},
-			PidFile:     pidFile,
-			IO:          p.io,
-			NoPivot:     p.NoPivotRoot,
-			Detach:      true,
-			NoSubreaper: true,
-		}
-		p.initState = &createdCheckpointState{
-			p:    p,
-			opts: opts,
-		}
-		return nil
+		return p.createCheckpointedState(r, pidFile)
 	}
 	opts := &runc.CreateOpts{
-		PidFile:      pidFile,
-		IO:           p.io,
+		PidFile:      pidFile.Path(),
 		NoPivot:      p.NoPivotRoot,
 		NoNewKeyring: p.NoNewKeyring,
+	}
+	if p.io != nil {
+		opts.IO = p.io.IO()
 	}
 	if socket != nil {
 		opts.ConsoleSocket = socket
@@ -160,14 +142,10 @@ func (p *Init) Create(ctx context.Context, r *CreateConfig) error {
 		return p.runtimeError(err, "OCI runtime create failed")
 	}
 	if r.Stdin != "" {
-		sc, err := fifo.OpenFifo(context.Background(), r.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
-		if err != nil {
-			return errors.Wrapf(err, "failed to open stdin fifo %s", r.Stdin)
+		if err := p.openStdin(r.Stdin); err != nil {
+			return err
 		}
-		p.stdin = sc
-		p.closers = append(p.closers, sc)
 	}
-	var copyWaitGroup sync.WaitGroup
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	if socket != nil {
@@ -175,23 +153,51 @@ func (p *Init) Create(ctx context.Context, r *CreateConfig) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve console master")
 		}
-		console, err = p.Platform.CopyConsole(ctx, console, r.Stdin, r.Stdout, r.Stderr, &p.wg, &copyWaitGroup)
+		console, err = p.Platform.CopyConsole(ctx, console, r.Stdin, r.Stdout, r.Stderr, &p.wg)
 		if err != nil {
 			return errors.Wrap(err, "failed to start console copy")
 		}
 		p.console = console
-	} else if !hasNoIO(r) {
-		if err := copyPipes(ctx, p.io, r.Stdin, r.Stdout, r.Stderr, &p.wg, &copyWaitGroup); err != nil {
+	} else {
+		if err := pio.Copy(ctx, &p.wg); err != nil {
 			return errors.Wrap(err, "failed to start io pipe copy")
 		}
 	}
-
-	copyWaitGroup.Wait()
-	pid, err := runc.ReadPidFile(pidFile)
+	pid, err := pidFile.Read()
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve OCI runtime container pid")
 	}
 	p.pid = pid
+	return nil
+}
+
+func (p *Init) openStdin(path string) error {
+	sc, err := fifo.OpenFifo(context.Background(), path, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return errors.Wrapf(err, "failed to open stdin fifo %s", path)
+	}
+	p.stdin = sc
+	p.closers = append(p.closers, sc)
+	return nil
+}
+
+func (p *Init) createCheckpointedState(r *CreateConfig, pidFile *pidFile) error {
+	opts := &runc.RestoreOpts{
+		CheckpointOpts: runc.CheckpointOpts{
+			ImagePath:  r.Checkpoint,
+			WorkDir:    p.CriuWorkPath,
+			ParentPath: r.ParentCheckpoint,
+		},
+		PidFile:     pidFile.Path(),
+		IO:          p.io.IO(),
+		NoPivot:     p.NoPivotRoot,
+		Detach:      true,
+		NoSubreaper: true,
+	}
+	p.initState = &createdCheckpointState{
+		p:    p,
+		opts: opts,
+	}
 	return nil
 }
 
@@ -425,8 +431,12 @@ func (p *Init) checkpoint(ctx context.Context, r *CheckpointConfig) error {
 	if !r.Exit {
 		actions = append(actions, runc.LeaveRunning)
 	}
-	work := filepath.Join(p.WorkDir, "criu-work")
-	defer os.RemoveAll(work)
+	// keep criu work directory if criu work dir is set
+	work := r.WorkDir
+	if work == "" {
+		work = filepath.Join(p.WorkDir, "criu-work")
+		defer os.RemoveAll(work)
+	}
 	if err := p.runtime.Checkpoint(ctx, p.id, &runc.CheckpointOpts{
 		WorkDir:                  work,
 		ImagePath:                r.Path,

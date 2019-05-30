@@ -1,4 +1,4 @@
-/* Package difflib is a partial port of Python difflib module.
+/*Package difflib is a partial port of Python difflib module.
 
 Original source: https://github.com/pmezard/go-difflib
 
@@ -20,12 +20,14 @@ func max(a, b int) int {
 	return b
 }
 
+// Match stores line numbers of size of match
 type Match struct {
 	A    int
 	B    int
 	Size int
 }
 
+// OpCode identifies the type of diff
 type OpCode struct {
 	Tag byte
 	I1  int
@@ -73,19 +75,20 @@ type SequenceMatcher struct {
 	opCodes        []OpCode
 }
 
+// NewMatcher returns a new SequenceMatcher
 func NewMatcher(a, b []string) *SequenceMatcher {
 	m := SequenceMatcher{autoJunk: true}
 	m.SetSeqs(a, b)
 	return &m
 }
 
-// Set two sequences to be compared.
+// SetSeqs sets two sequences to be compared.
 func (m *SequenceMatcher) SetSeqs(a, b []string) {
 	m.SetSeq1(a)
 	m.SetSeq2(b)
 }
 
-// Set the first sequence to be compared. The second sequence to be compared is
+// SetSeq1 sets the first sequence to be compared. The second sequence to be compared is
 // not changed.
 //
 // SequenceMatcher computes and caches detailed information about the second
@@ -103,7 +106,7 @@ func (m *SequenceMatcher) SetSeq1(a []string) {
 	m.opCodes = nil
 }
 
-// Set the second sequence to be compared. The first sequence to be compared is
+// SetSeq2 sets the second sequence to be compared. The first sequence to be compared is
 // not changed.
 func (m *SequenceMatcher) SetSeq2(b []string) {
 	if &b == &m.b {
@@ -129,12 +132,12 @@ func (m *SequenceMatcher) chainB() {
 	m.bJunk = map[string]struct{}{}
 	if m.IsJunk != nil {
 		junk := m.bJunk
-		for s, _ := range b2j {
+		for s := range b2j {
 			if m.IsJunk(s) {
 				junk[s] = struct{}{}
 			}
 		}
-		for s, _ := range junk {
+		for s := range junk {
 			delete(b2j, s)
 		}
 	}
@@ -149,7 +152,7 @@ func (m *SequenceMatcher) chainB() {
 				popular[s] = struct{}{}
 			}
 		}
-		for s, _ := range popular {
+		for s := range popular {
 			delete(b2j, s)
 		}
 	}
@@ -259,7 +262,7 @@ func (m *SequenceMatcher) findLongestMatch(alo, ahi, blo, bhi int) Match {
 	return Match{A: besti, B: bestj, Size: bestsize}
 }
 
-// Return list of triples describing matching subsequences.
+// GetMatchingBlocks returns a list of triples describing matching subsequences.
 //
 // Each triple is of the form (i, j, n), and means that
 // a[i:i+n] == b[j:j+n].  The triples are monotonically increasing in
@@ -323,7 +326,7 @@ func (m *SequenceMatcher) GetMatchingBlocks() []Match {
 	return m.matchingBlocks
 }
 
-// Return list of 5-tuples describing how to turn a into b.
+// GetOpCodes returns a list of 5-tuples describing how to turn a into b.
 //
 // Each tuple is of the form (tag, i1, i2, j1, j2).  The first tuple
 // has i1 == j1 == 0, and remaining tuples have i1 == the i2 from the
@@ -374,7 +377,7 @@ func (m *SequenceMatcher) GetOpCodes() []OpCode {
 	return m.opCodes
 }
 
-// Isolate change clusters by eliminating ranges with no changes.
+// GetGroupedOpCodes isolates change clusters by eliminating ranges with no changes.
 //
 // Return a generator of groups with up to n lines of context.
 // Each group is in the same format as returned by GetOpCodes().
@@ -384,7 +387,7 @@ func (m *SequenceMatcher) GetGroupedOpCodes(n int) [][]OpCode {
 	}
 	codes := m.GetOpCodes()
 	if len(codes) == 0 {
-		codes = []OpCode{OpCode{'e', 0, 1, 0, 1}}
+		codes = []OpCode{{'e', 0, 1, 0, 1}}
 	}
 	// Fixup leading and trailing groups if they show no changes.
 	if codes[0].Tag == 'e' {

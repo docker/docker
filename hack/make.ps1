@@ -351,6 +351,8 @@ Try {
 
     # Get the version of docker (eg 17.04.0-dev)
     $dockerVersion="0.0.0-dev"
+    # Overwrite dockerVersion if VERSION Environment variable is available
+    if (Test-Path Env:\VERSION) { $dockerVersion=$env:VERSION }
 
     # Give a warning if we are not running in a container and are building binaries or running unit tests.
     # Not relevant for validation tests as these are fine to run outside of a container.

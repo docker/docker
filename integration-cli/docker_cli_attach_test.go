@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )
 
@@ -99,7 +100,7 @@ func (s *DockerSuite) TestAttachTTYWithoutStdin(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), check.IsNil)
+	assert.NilError(c, waitRun(id))
 
 	done := make(chan error)
 	go func() {
@@ -126,7 +127,7 @@ func (s *DockerSuite) TestAttachTTYWithoutStdin(c *check.C) {
 
 	select {
 	case err := <-done:
-		c.Assert(err, check.IsNil)
+		assert.NilError(c, err)
 	case <-time.After(attachWait):
 		c.Fatal("attach is running but should have failed")
 	}
@@ -144,7 +145,7 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 	}
 	defer stdin.Close()
 	stdout, err := cmd.StdoutPipe()
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer stdout.Close()
 	c.Assert(cmd.Start(), check.IsNil)
 	defer func() {
@@ -153,9 +154,9 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 	}()
 
 	_, err = stdin.Write([]byte("hello\n"))
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	out, err = bufio.NewReader(stdout).ReadString('\n')
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
 
 	c.Assert(stdin.Close(), check.IsNil)

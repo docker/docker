@@ -392,6 +392,21 @@ func validateConfigRefsSpec(spec api.TaskSpec) error {
 		return nil
 	}
 
+	// check if we're using a config as a CredentialSpec -- if so, we need to
+	// verify
+	var (
+		credSpecConfig      string
+		credSpecConfigFound bool
+	)
+	if p := container.Privileges; p != nil {
+		if cs := p.CredentialSpec; cs != nil {
+			// if there is no config in the credspec, then this will just be
+			// assigned to emptystring anyway, so we don't need to check
+			// existence.
+			credSpecConfig = cs.GetConfig()
+		}
+	}
+
 	// Keep a map to track all the targets that will be exposed
 	// The string returned is only used for logging. It could as well be struct{}{}
 	existingTargets := make(map[string]string)
@@ -421,6 +436,20 @@ func validateConfigRefsSpec(spec api.TaskSpec) error {
 
 			existingTargets[fileName] = configRef.ConfigName
 		}
+
+		if configRef.GetRuntime() != nil {
+			if configRef.ConfigID == credSpecConfig {
+				credSpecConfigFound = true
+			}
+		}
+	}
+
+	if credSpecConfig != "" && !credSpecConfigFound {
+		return status.Errorf(
+			codes.InvalidArgument,
+			"CredentialSpec references config '%s', but that config isn't in config references with RuntimeTarget",
+			credSpecConfig,
+		)
 	}
 
 	return nil
@@ -938,4 +967,68 @@ func (s *Server) ListServices(ctx context.Context, request *api.ListServicesRequ
 	return &api.ListServicesResponse{
 		Services: services,
 	}, nil
+}
+
+// ListServiceStatuses returns a `ListServiceStatusesResponse` with the status
+// of the requested services, formed by computing the number of running vs
+// desired tasks. It is provided as a shortcut or helper method, which allows a
+// client to avoid having to calculate this value by listing all Tasks.  If any
+// service requested does not exist, it will be returned but with empty status
+// values.
+func (s *Server) ListServiceStatuses(ctx context.Context, req *api.ListServiceStatusesRequest) (*api.ListServiceStatusesResponse, error) {
+	resp := &api.ListServiceStatusesResponse{}
+	if req == nil {
+		return resp, nil
+	}
+
+	s.store.View(func(tx store.ReadTx) {
+		for _, id := range req.Services {
+			status := &api.ListServiceStatusesResponse_ServiceStatus{
+				ServiceID: id,
+			}
+			// no matter what, add this status to the list.
+			resp.Statuses = append(resp.Statuses, status)
+
+			tasks, findErr := store.FindTasks(tx, store.ByServiceID(id))
+			if findErr != nil {
+				// if there is another kind of error here (not sure what it
+				// could be) then still return 0/0 for this service.
+				continue
+			}
+
+			// use a boolean to see global vs replicated. this avoids us having to
+			// iterate the task list twice.
+			global := false
+			service := store.GetService(tx, id)
+			// a service might be deleted, but it may still have tasks. in that
+			// case, we will be using 0 as the desired task count.
+			if service != nil {
+				// figure out how many tasks the service requires. for replicated
+				// services, this is easy: we can just check the replicas field. for
+				// global services, this is a bit harder and we'll need to do some
+				// numbercrunchin
+				if replicated := service.Spec.GetReplicated(); replicated != nil {
+					status.DesiredTasks = replicated.Replicas
+				} else {
+					global = true
+				}
+			}
+
+			// now, figure out how many tasks are running. Pretty easy, and
+			// universal across both global and replicated services
+			for _, task := range tasks {
+				if task.Status.State == api.TaskStateRunning {
+					status.RunningTasks++
+				}
+				// if the service is global,  a shortcut for figuring out the
+				// number of tasks desired is to look at all tasks, and take a
+				// count of the ones whose desired state is not Shutdown.
+				if global && task.DesiredState == api.TaskStateRunning {
+					status.DesiredTasks++
+				}
+			}
+		}
+	})
+
+	return resp, nil
 }

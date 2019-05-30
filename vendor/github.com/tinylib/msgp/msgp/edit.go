@@ -198,6 +198,7 @@ func resizeMap(raw []byte, delta int64) []byte {
 		if cap(raw)-len(raw) >= 2 {
 			raw = raw[0 : len(raw)+2]
 			copy(raw[5:], raw[3:])
+			raw[0] = mmap32
 			big.PutUint32(raw[1:], uint32(sz+delta))
 			return raw
 		}

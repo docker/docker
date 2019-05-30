@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
+	"gotest.tools/assert"
 )
 
 // regression test for #12546
@@ -22,7 +22,7 @@ func (s *DockerSuite) TestExecInteractiveStdinClose(c *check.C) {
 
 	cmd := exec.Command(dockerBinary, "exec", "-i", contID, "echo", "-n", "hello")
 	p, err := pty.Start(cmd)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	b := bytes.NewBuffer(nil)
 
@@ -31,13 +31,13 @@ func (s *DockerSuite) TestExecInteractiveStdinClose(c *check.C) {
 
 	select {
 	case err := <-ch:
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 		io.Copy(b, p)
 		p.Close()
 		bs := b.Bytes()
 		bs = bytes.Trim(bs, "\x00")
 		output := string(bs[:])
-		c.Assert(strings.TrimSpace(output), checker.Equals, "hello")
+		assert.Equal(c, strings.TrimSpace(output), "hello")
 	case <-time.After(5 * time.Second):
 		p.Close()
 		c.Fatal("timed out running docker exec")
@@ -50,11 +50,11 @@ func (s *DockerSuite) TestExecTTY(c *check.C) {
 
 	cmd := exec.Command(dockerBinary, "exec", "-it", "test", "sh")
 	p, err := pty.Start(cmd)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer p.Close()
 
 	_, err = p.Write([]byte("cat /foo && exit\n"))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	chErr := make(chan error)
 	go func() {
@@ -62,15 +62,15 @@ func (s *DockerSuite) TestExecTTY(c *check.C) {
 	}()
 	select {
 	case err := <-chErr:
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 	case <-time.After(3 * time.Second):
 		c.Fatal("timeout waiting for exec to exit")
 	}
 
 	buf := make([]byte, 256)
 	read, err := p.Read(buf)
-	c.Assert(err, checker.IsNil)
-	c.Assert(bytes.Contains(buf, []byte("hello")), checker.Equals, true, check.Commentf(string(buf[:read])))
+	assert.NilError(c, err)
+	assert.Assert(c, bytes.Contains(buf, []byte("hello")), string(buf[:read]))
 }
 
 // Test the TERM env var is set when -t is provided on exec
@@ -80,7 +80,7 @@ func (s *DockerSuite) TestExecWithTERM(c *check.C) {
 	contID := strings.TrimSpace(out)
 	cmd := exec.Command(dockerBinary, "exec", "-t", contID, "sh", "-c", "if [ -z $TERM ]; then exit 1; else exit 0; fi")
 	if err := cmd.Run(); err != nil {
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 	}
 }
 
@@ -92,6 +92,6 @@ func (s *DockerSuite) TestExecWithNoTERM(c *check.C) {
 	contID := strings.TrimSpace(out)
 	cmd := exec.Command(dockerBinary, "exec", contID, "sh", "-c", "if [ -z $TERM ]; then exit 0; else exit 1; fi")
 	if err := cmd.Run(); err != nil {
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 	}
 }

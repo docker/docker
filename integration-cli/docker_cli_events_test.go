@@ -17,10 +17,11 @@ import (
 	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/client"
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 	"gotest.tools/icmd"
 )
 
@@ -47,15 +48,9 @@ func (s *DockerSuite) TestEventsTimestampFormats(c *check.C) {
 		events = events[:len(events)-1]
 
 		nEvents := len(events)
-		c.Assert(nEvents, checker.GreaterOrEqualThan, 5) //Missing expected event
+		assert.Assert(c, nEvents >= 5) //Missing expected event
 		containerEvents := eventActionsByIDAndType(c, events, name, "container")
-		c.Assert(containerEvents, checker.HasLen, 5, check.Commentf("events: %v", events))
-
-		c.Assert(containerEvents[0], checker.Equals, "create", check.Commentf("%s", out))
-		c.Assert(containerEvents[1], checker.Equals, "attach", check.Commentf("%s", out))
-		c.Assert(containerEvents[2], checker.Equals, "start", check.Commentf("%s", out))
-		c.Assert(containerEvents[3], checker.Equals, "die", check.Commentf("%s", out))
-		c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf("%s", out))
+		assert.Assert(c, is.DeepEqual(containerEvents, []string{"create", "attach", "start", "die", "destroy"}), out)
 	}
 }
 
@@ -78,7 +73,7 @@ func (s *DockerSuite) TestEventsUntag(c *check.C) {
 	// get the two elements before the last, which are the untags we're
 	// looking for.
 	for _, v := range events[nEvents-3 : nEvents-1] {
-		c.Assert(v, checker.Contains, "untag", check.Commentf("event should be untag"))
+		assert.Check(c, strings.Contains(v, "untag"), "event should be untag")
 	}
 }
 
@@ -89,16 +84,9 @@ func (s *DockerSuite) TestEventsContainerEvents(c *check.C) {
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
 
-	nEvents := len(events)
-	c.Assert(nEvents, checker.GreaterOrEqualThan, 5) //Missing expected event
+	assert.Assert(c, len(events) >= 5) //Missing expected event
 	containerEvents := eventActionsByIDAndType(c, events, "container-events-test", "container")
-	c.Assert(containerEvents, checker.HasLen, 5, check.Commentf("events: %v", events))
-
-	c.Assert(containerEvents[0], checker.Equals, "create", check.Commentf("%s", out))
-	c.Assert(containerEvents[1], checker.Equals, "attach", check.Commentf("%s", out))
-	c.Assert(containerEvents[2], checker.Equals, "start", check.Commentf("%s", out))
-	c.Assert(containerEvents[3], checker.Equals, "die", check.Commentf("%s", out))
-	c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf("%s", out))
+	assert.Assert(c, is.DeepEqual(containerEvents[:5], []string{"create", "attach", "start", "die", "destroy"}), out)
 }
 
 func (s *DockerSuite) TestEventsContainerEventsAttrSort(c *check.C) {
@@ -109,19 +97,20 @@ func (s *DockerSuite) TestEventsContainerEventsAttrSort(c *check.C) {
 	events := strings.Split(out, "\n")
 
 	nEvents := len(events)
-	c.Assert(nEvents, checker.GreaterOrEqualThan, 3) //Missing expected event
+	assert.Assert(c, nEvents >= 3) //Missing expected event
 	matchedEvents := 0
 	for _, event := range events {
 		matches := eventstestutils.ScanMap(event)
 		if matches["eventType"] == "container" && matches["action"] == "create" {
 			matchedEvents++
-			c.Assert(out, checker.Contains, "(image=busybox, name=container-events-test)", check.Commentf("Event attributes not sorted"))
+			assert.Check(c, strings.Contains(out, "(image=busybox, name=container-events-test)"), "Event attributes not sorted")
+
 		} else if matches["eventType"] == "container" && matches["action"] == "start" {
 			matchedEvents++
-			c.Assert(out, checker.Contains, "(image=busybox, name=container-events-test)", check.Commentf("Event attributes not sorted"))
+			assert.Check(c, strings.Contains(out, "(image=busybox, name=container-events-test)"), "Event attributes not sorted")
 		}
 	}
-	c.Assert(matchedEvents, checker.Equals, 2, check.Commentf("missing events for container container-events-test:\n%s", out))
+	assert.Equal(c, matchedEvents, 2, "missing events for container container-events-test:\n%s", out)
 }
 
 func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *check.C) {
@@ -133,15 +122,9 @@ func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *check.C) {
 	events = events[:len(events)-1]
 
 	nEvents := len(events)
-	c.Assert(nEvents, checker.GreaterOrEqualThan, 5) //Missing expected event
+	assert.Assert(c, nEvents >= 5) //Missing expected event
 	containerEvents := eventActionsByIDAndType(c, events, "since-epoch-test", "container")
-	c.Assert(containerEvents, checker.HasLen, 5, check.Commentf("events: %v", events))
-
-	c.Assert(containerEvents[0], checker.Equals, "create", check.Commentf("%s", out))
-	c.Assert(containerEvents[1], checker.Equals, "attach", check.Commentf("%s", out))
-	c.Assert(containerEvents[2], checker.Equals, "start", check.Commentf("%s", out))
-	c.Assert(containerEvents[3], checker.Equals, "die", check.Commentf("%s", out))
-	c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf("%s", out))
+	assert.Assert(c, is.DeepEqual(containerEvents, []string{"create", "attach", "start", "die", "destroy"}), out)
 }
 
 func (s *DockerSuite) TestEventsImageTag(c *check.C) {
@@ -154,12 +137,12 @@ func (s *DockerSuite) TestEventsImageTag(c *check.C) {
 		"--since", since, "--until", daemonUnixTime(c))
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(events, checker.HasLen, 1, check.Commentf("was expecting 1 event. out=%s", out))
+	assert.Equal(c, len(events), 1, "was expecting 1 event. out=%s", out)
 	event := strings.TrimSpace(events[0])
 
 	matches := eventstestutils.ScanMap(event)
-	c.Assert(matchEventID(matches, image), checker.True, check.Commentf("matches: %v\nout:\n%s", matches, out))
-	c.Assert(matches["action"], checker.Equals, "tag")
+	assert.Assert(c, matchEventID(matches, image), "matches: %v\nout:\n%s", matches, out)
+	assert.Equal(c, matches["action"], "tag")
 }
 
 func (s *DockerSuite) TestEventsImagePull(c *check.C) {
@@ -176,9 +159,8 @@ func (s *DockerSuite) TestEventsImagePull(c *check.C) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	event := strings.TrimSpace(events[len(events)-1])
 	matches := eventstestutils.ScanMap(event)
-	c.Assert(matches["id"], checker.Equals, "hello-world:latest")
-	c.Assert(matches["action"], checker.Equals, "pull")
-
+	assert.Equal(c, matches["id"], "hello-world:latest")
+	assert.Equal(c, matches["action"], "pull")
 }
 
 func (s *DockerSuite) TestEventsImageImport(c *check.C) {
@@ -194,15 +176,15 @@ func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 		exec.Command(dockerBinary, "export", cleanedContainerID),
 		exec.Command(dockerBinary, "import", "-"),
 	)
-	c.Assert(err, checker.IsNil, check.Commentf("import failed with output: %q", out))
+	assert.NilError(c, err, "import failed with output: %q", out)
 	imageRef := strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c), "--filter", "event=import")
 	events := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(events, checker.HasLen, 1)
+	assert.Equal(c, len(events), 1)
 	matches := eventstestutils.ScanMap(events[0])
-	c.Assert(matches["id"], checker.Equals, imageRef, check.Commentf("matches: %v\nout:\n%s\n", matches, out))
-	c.Assert(matches["action"], checker.Equals, "import", check.Commentf("matches: %v\nout:\n%s\n", matches, out))
+	assert.Equal(c, matches["id"], imageRef, "matches: %v\nout:\n%s\n", matches, out)
+	assert.Equal(c, matches["action"], "import", "matches: %v\nout:\n%s\n", matches, out)
 }
 
 func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
@@ -213,13 +195,13 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 
 	out, _ := dockerCmd(c, "images", "-q", "--no-trunc", myImageName)
 	longImageID := strings.TrimSpace(out)
-	c.Assert(longImageID, checker.Not(check.Equals), "", check.Commentf("Id should not be empty"))
+	assert.Assert(c, longImageID != "", "Id should not be empty")
 
 	dockerCmd(c, "save", "-o", "saveimg.tar", myImageName)
 	dockerCmd(c, "rmi", myImageName)
 	out, _ = dockerCmd(c, "images", "-q", myImageName)
 	noImageID := strings.TrimSpace(out)
-	c.Assert(noImageID, checker.Equals, "", check.Commentf("Should not have any image"))
+	assert.Equal(c, noImageID, "", "Should not have any image")
 	dockerCmd(c, "load", "-i", "saveimg.tar")
 
 	result := icmd.RunCommand("rm", "-rf", "saveimg.tar")
@@ -227,21 +209,21 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 
 	out, _ = dockerCmd(c, "images", "-q", "--no-trunc", myImageName)
 	imageID := strings.TrimSpace(out)
-	c.Assert(imageID, checker.Equals, longImageID, check.Commentf("Should have same image id as before"))
+	assert.Equal(c, imageID, longImageID, "Should have same image id as before")
 
 	out, _ = dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c), "--filter", "event=load")
 	events := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(events, checker.HasLen, 1)
+	assert.Equal(c, len(events), 1)
 	matches := eventstestutils.ScanMap(events[0])
-	c.Assert(matches["id"], checker.Equals, imageID, check.Commentf("matches: %v\nout:\n%s\n", matches, out))
-	c.Assert(matches["action"], checker.Equals, "load", check.Commentf("matches: %v\nout:\n%s\n", matches, out))
+	assert.Equal(c, matches["id"], imageID, "matches: %v\nout:\n%s\n", matches, out)
+	assert.Equal(c, matches["action"], "load", "matches: %v\nout:\n%s\n", matches, out)
 
 	out, _ = dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c), "--filter", "event=save")
 	events = strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(events, checker.HasLen, 1)
+	assert.Equal(c, len(events), 1)
 	matches = eventstestutils.ScanMap(events[0])
-	c.Assert(matches["id"], checker.Equals, imageID, check.Commentf("matches: %v\nout:\n%s\n", matches, out))
-	c.Assert(matches["action"], checker.Equals, "save", check.Commentf("matches: %v\nout:\n%s\n", matches, out))
+	assert.Equal(c, matches["id"], imageID, "matches: %v\nout:\n%s\n", matches, out)
+	assert.Equal(c, matches["action"], "save", "matches: %v\nout:\n%s\n", matches, out)
 }
 
 func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
@@ -257,16 +239,10 @@ func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
 
-	nEvents := len(events)
-	c.Assert(nEvents, checker.GreaterOrEqualThan, 4)
+	assert.Assert(c, len(events) >= 4)
 
 	pluginEvents := eventActionsByIDAndType(c, events, pNameWithTag, "plugin")
-	c.Assert(pluginEvents, checker.HasLen, 4, check.Commentf("events: %v", events))
-
-	c.Assert(pluginEvents[0], checker.Equals, "pull", check.Commentf("%s", out))
-	c.Assert(pluginEvents[1], checker.Equals, "enable", check.Commentf("%s", out))
-	c.Assert(pluginEvents[2], checker.Equals, "disable", check.Commentf("%s", out))
-	c.Assert(pluginEvents[3], checker.Equals, "remove", check.Commentf("%s", out))
+	assert.Assert(c, is.DeepEqual(pluginEvents, []string{"pull", "enable", "disable", "remove"}), out)
 }
 
 func (s *DockerSuite) TestEventsFilters(c *check.C) {
@@ -281,8 +257,7 @@ func (s *DockerSuite) TestEventsFilters(c *check.C) {
 
 	// make sure we at least got 2 start events
 	count := strings.Count(out, "start")
-	c.Assert(strings.Count(out, "start"), checker.GreaterOrEqualThan, 2, check.Commentf("should have had 2 start events but had %d, out: %s", count, out))
-
+	assert.Assert(c, count >= 2, "should have had 2 start events but had %d, out: %s", count, out)
 }
 
 func (s *DockerSuite) TestEventsFilterImageName(c *check.C) {
@@ -298,7 +273,7 @@ func (s *DockerSuite) TestEventsFilterImageName(c *check.C) {
 	out, _ = dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("image=%s", name))
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
-	c.Assert(events, checker.Not(checker.HasLen), 0) //Expected events but found none for the image busybox:latest
+	assert.Assert(c, len(events) != 0, "Expected events but found none for the image busybox:latest")
 	count1 := 0
 	count2 := 0
 
@@ -309,9 +284,8 @@ func (s *DockerSuite) TestEventsFilterImageName(c *check.C) {
 			count2++
 		}
 	}
-	c.Assert(count1, checker.Not(checker.Equals), 0, check.Commentf("Expected event from container but got %d from %s", count1, container1))
-	c.Assert(count2, checker.Not(checker.Equals), 0, check.Commentf("Expected event from container but got %d from %s", count2, container2))
-
+	assert.Assert(c, count1 != 0, "Expected event from container but got %d from %s", count1, container1)
+	assert.Assert(c, count2 != 0, "Expected event from container but got %d from %s", count2, container2)
 }
 
 func (s *DockerSuite) TestEventsFilterLabels(c *check.C) {
@@ -319,11 +293,11 @@ func (s *DockerSuite) TestEventsFilterLabels(c *check.C) {
 	label := "io.docker.testing=foo"
 
 	out, exit := dockerCmd(c, "create", "-l", label, "busybox")
-	c.Assert(exit, checker.Equals, 0)
+	assert.Equal(c, exit, 0)
 	container1 := strings.TrimSpace(out)
 
 	out, exit = dockerCmd(c, "create", "busybox")
-	c.Assert(exit, checker.Equals, 0)
+	assert.Equal(c, exit, 0)
 	container2 := strings.TrimSpace(out)
 
 	// fetch events with `--until`, so that the client detaches after a second
@@ -337,16 +311,16 @@ func (s *DockerSuite) TestEventsFilterLabels(c *check.C) {
 	)
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(events), checker.GreaterThan, 0)
+	assert.Assert(c, len(events) > 0)
 
 	var found bool
 	for _, e := range events {
 		if strings.Contains(e, container1) {
 			found = true
 		}
-		c.Assert(e, checker.Not(checker.Contains), container2)
+		assert.Assert(c, !strings.Contains(e, container2))
 	}
-	c.Assert(found, checker.Equals, true)
+	assert.Assert(c, found)
 }
 
 func (s *DockerSuite) TestEventsFilterImageLabels(c *check.C) {
@@ -373,9 +347,9 @@ func (s *DockerSuite) TestEventsFilterImageLabels(c *check.C) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 
 	// 2 events from the "docker tag" command, another one is from "docker build"
-	c.Assert(events, checker.HasLen, 3, check.Commentf("Events == %s", events))
+	assert.Equal(c, len(events), 3, "Events == %s", events)
 	for _, e := range events {
-		c.Assert(e, checker.Contains, "labelfiltertest")
+		assert.Check(c, strings.Contains(e, "labelfiltertest"))
 	}
 }
 
@@ -408,12 +382,12 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 		// filter by names
 		out, _ := dockerCmd(c, "events", "--since", since, "--until", until, "--filter", "container="+name)
 		events := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
-		c.Assert(checkEvents(ID, events), checker.IsNil)
+		assert.NilError(c, checkEvents(ID, events))
 
 		// filter by ID's
 		out, _ = dockerCmd(c, "events", "--since", since, "--until", until, "--filter", "container="+ID)
 		events = strings.Split(strings.TrimSuffix(out, "\n"), "\n")
-		c.Assert(checkEvents(ID, events), checker.IsNil)
+		assert.NilError(c, checkEvents(ID, events))
 	}
 }
 
@@ -431,7 +405,7 @@ func (s *DockerSuite) TestEventsCommit(c *check.C) {
 
 	until := daemonUnixTime(c)
 	out = cli.DockerCmd(c, "events", "-f", "container="+cID, "--until="+until).Combined()
-	c.Assert(out, checker.Contains, "commit", check.Commentf("Missing 'commit' log event"))
+	assert.Assert(c, strings.Contains(out, "commit"), "Missing 'commit' log event")
 }
 
 func (s *DockerSuite) TestEventsCopy(c *check.C) {
@@ -443,10 +417,10 @@ func (s *DockerSuite) TestEventsCopy(c *check.C) {
 
 	// Create an empty test file.
 	tempFile, err := ioutil.TempFile("", "test-events-copy-")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer os.Remove(tempFile.Name())
 
-	c.Assert(tempFile.Close(), checker.IsNil)
+	assert.NilError(c, tempFile.Close())
 
 	dockerCmd(c, "create", "--name=cptest", id)
 
@@ -454,22 +428,22 @@ func (s *DockerSuite) TestEventsCopy(c *check.C) {
 
 	until := daemonUnixTime(c)
 	out, _ := dockerCmd(c, "events", "--since=0", "-f", "container=cptest", "--until="+until)
-	c.Assert(out, checker.Contains, "archive-path", check.Commentf("Missing 'archive-path' log event\n"))
+	assert.Assert(c, strings.Contains(out, "archive-path"), "Missing 'archive-path' log event")
 
 	dockerCmd(c, "cp", tempFile.Name(), "cptest:/filecopy")
 
 	until = daemonUnixTime(c)
 	out, _ = dockerCmd(c, "events", "-f", "container=cptest", "--until="+until)
-	c.Assert(out, checker.Contains, "extract-to-dir", check.Commentf("Missing 'extract-to-dir' log event"))
+	assert.Assert(c, strings.Contains(out, "extract-to-dir"), "Missing 'extract-to-dir' log event")
 }
 
 func (s *DockerSuite) TestEventsResize(c *check.C) {
 	out := runSleepingContainer(c, "-d")
 	cID := strings.TrimSpace(out)
-	c.Assert(waitRun(cID), checker.IsNil)
+	assert.NilError(c, waitRun(cID))
 
 	cli, err := client.NewClientWithOpts(client.FromEnv)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer cli.Close()
 
 	options := types.ResizeOptions{
@@ -477,13 +451,13 @@ func (s *DockerSuite) TestEventsResize(c *check.C) {
 		Width:  24,
 	}
 	err = cli.ContainerResize(context.Background(), cID, options)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	dockerCmd(c, "stop", cID)
 
 	until := daemonUnixTime(c)
 	out, _ = dockerCmd(c, "events", "-f", "container="+cID, "--until="+until)
-	c.Assert(out, checker.Contains, "resize", check.Commentf("Missing 'resize' log event"))
+	assert.Assert(c, strings.Contains(out, "resize"), "Missing 'resize' log event")
 }
 
 func (s *DockerSuite) TestEventsAttach(c *check.C) {
@@ -496,12 +470,12 @@ func (s *DockerSuite) TestEventsAttach(c *check.C) {
 
 	cmd := exec.Command(dockerBinary, "attach", cID)
 	stdin, err := cmd.StdinPipe()
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer stdin.Close()
 	stdout, err := cmd.StdoutPipe()
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer stdout.Close()
-	c.Assert(cmd.Start(), checker.IsNil)
+	assert.NilError(c, cmd.Start())
 	defer func() {
 		cmd.Process.Kill()
 		cmd.Wait()
@@ -509,19 +483,19 @@ func (s *DockerSuite) TestEventsAttach(c *check.C) {
 
 	// Make sure we're done attaching by writing/reading some stuff
 	_, err = stdin.Write([]byte("hello\n"))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	out, err = bufio.NewReader(stdout).ReadString('\n')
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "hello", check.Commentf("expected 'hello'"))
+	assert.NilError(c, err)
+	assert.Equal(c, strings.TrimSpace(out), "hello")
 
-	c.Assert(stdin.Close(), checker.IsNil)
+	assert.NilError(c, stdin.Close())
 
 	cli.DockerCmd(c, "kill", cID)
 	cli.WaitExited(c, cID, 5*time.Second)
 
 	until := daemonUnixTime(c)
 	out = cli.DockerCmd(c, "events", "-f", "container="+cID, "--until="+until).Combined()
-	c.Assert(out, checker.Contains, "attach", check.Commentf("Missing 'attach' log event"))
+	assert.Assert(c, strings.Contains(out, "attach"), "Missing 'attach' log event")
 }
 
 func (s *DockerSuite) TestEventsRename(c *check.C) {
@@ -532,7 +506,7 @@ func (s *DockerSuite) TestEventsRename(c *check.C) {
 	until := daemonUnixTime(c)
 	// filter by the container id because the name in the event will be the new name.
 	out, _ = dockerCmd(c, "events", "-f", "container="+cID, "--until", until)
-	c.Assert(out, checker.Contains, "rename", check.Commentf("Missing 'rename' log event\n"))
+	assert.Assert(c, strings.Contains(out, "rename"), "Missing 'rename' log event")
 }
 
 func (s *DockerSuite) TestEventsTop(c *check.C) {
@@ -541,14 +515,14 @@ func (s *DockerSuite) TestEventsTop(c *check.C) {
 
 	out := runSleepingContainer(c, "-d")
 	cID := strings.TrimSpace(out)
-	c.Assert(waitRun(cID), checker.IsNil)
+	assert.NilError(c, waitRun(cID))
 
 	dockerCmd(c, "top", cID)
 	dockerCmd(c, "stop", cID)
 
 	until := daemonUnixTime(c)
 	out, _ = dockerCmd(c, "events", "-f", "container="+cID, "--until="+until)
-	c.Assert(out, checker.Contains, " top", check.Commentf("Missing 'top' log event"))
+	assert.Assert(c, strings.Contains(out, "top"), "Missing 'top' log event")
 }
 
 // #14316
@@ -561,7 +535,7 @@ func (s *DockerRegistrySuite) TestEventsImageFilterPush(c *check.C) {
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	cID := strings.TrimSpace(out)
-	c.Assert(waitRun(cID), checker.IsNil)
+	assert.NilError(c, waitRun(cID))
 
 	dockerCmd(c, "commit", cID, repoName)
 	dockerCmd(c, "stop", cID)
@@ -569,7 +543,7 @@ func (s *DockerRegistrySuite) TestEventsImageFilterPush(c *check.C) {
 
 	until := daemonUnixTime(c)
 	out, _ = dockerCmd(c, "events", "-f", "image="+repoName, "-f", "event=push", "--until", until)
-	c.Assert(out, checker.Contains, repoName, check.Commentf("Missing 'push' log event for %s", repoName))
+	assert.Assert(c, strings.Contains(out, repoName), "Missing 'push' log event for %s", repoName)
 }
 
 func (s *DockerSuite) TestEventsFilterType(c *check.C) {
@@ -598,9 +572,9 @@ func (s *DockerSuite) TestEventsFilterType(c *check.C) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 
 	// 2 events from the "docker tag" command, another one is from "docker build"
-	c.Assert(events, checker.HasLen, 3, check.Commentf("Events == %s", events))
+	assert.Equal(c, len(events), 3, "Events == %s", events)
 	for _, e := range events {
-		c.Assert(e, checker.Contains, "labelfiltertest")
+		assert.Check(c, strings.Contains(e, "labelfiltertest"))
 	}
 
 	out, _ = dockerCmd(
@@ -613,7 +587,7 @@ func (s *DockerSuite) TestEventsFilterType(c *check.C) {
 	events = strings.Split(strings.TrimSpace(out), "\n")
 
 	// Events generated by the container that builds the image
-	c.Assert(events, checker.HasLen, 2, check.Commentf("Events == %s", events))
+	assert.Equal(c, len(events), 2, "Events == %s", events)
 
 	out, _ = dockerCmd(
 		c,
@@ -622,7 +596,7 @@ func (s *DockerSuite) TestEventsFilterType(c *check.C) {
 		"--until", daemonUnixTime(c),
 		"--filter", "type=network")
 	events = strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(events), checker.GreaterOrEqualThan, 1, check.Commentf("Events == %s", events))
+	assert.Assert(c, len(events) >= 1, "Events == %s", events)
 }
 
 // #25798
@@ -643,7 +617,7 @@ func (s *DockerSuite) TestEventsSpecialFiltersWithExecCreate(c *check.C) {
 	)
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(events), checker.Equals, 1, check.Commentf("%s", out))
+	assert.Equal(c, len(events), 1, out)
 
 	out, _ = dockerCmd(
 		c,
@@ -653,7 +627,7 @@ func (s *DockerSuite) TestEventsSpecialFiltersWithExecCreate(c *check.C) {
 		"--filter",
 		"event=exec_create",
 	)
-	c.Assert(len(events), checker.Equals, 1, check.Commentf("%s", out))
+	assert.Equal(c, len(events), 1, out)
 }
 
 func (s *DockerSuite) TestEventsFilterImageInContainerAction(c *check.C) {
@@ -663,7 +637,7 @@ func (s *DockerSuite) TestEventsFilterImageInContainerAction(c *check.C) {
 
 	out, _ := dockerCmd(c, "events", "--filter", "image=busybox", "--since", since, "--until", daemonUnixTime(c))
 	events := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(events), checker.GreaterThan, 1, check.Commentf("%s", out))
+	assert.Assert(c, len(events) > 1, out)
 }
 
 func (s *DockerSuite) TestEventsContainerRestart(c *check.C) {
@@ -677,7 +651,7 @@ func (s *DockerSuite) TestEventsContainerRestart(c *check.C) {
 	}
 
 	err := waitInspect("testEvent", "{{ .State.Restarting }} {{ .State.Running }}", "false false", waitTime)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	var (
 		createCount int
@@ -688,7 +662,7 @@ func (s *DockerSuite) TestEventsContainerRestart(c *check.C) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 
 	nEvents := len(events)
-	c.Assert(nEvents, checker.GreaterOrEqualThan, 1) //Missing expected event
+	assert.Assert(c, nEvents >= 1) //Missing expected event
 	actions := eventActionsByIDAndType(c, events, "testEvent", "container")
 
 	for _, a := range actions {
@@ -701,9 +675,9 @@ func (s *DockerSuite) TestEventsContainerRestart(c *check.C) {
 			dieCount++
 		}
 	}
-	c.Assert(createCount, checker.Equals, 1, check.Commentf("testEvent should be created 1 times: %v", actions))
-	c.Assert(startCount, checker.Equals, 4, check.Commentf("testEvent should start 4 times: %v", actions))
-	c.Assert(dieCount, checker.Equals, 4, check.Commentf("testEvent should die 4 times: %v", actions))
+	assert.Equal(c, createCount, 1, "testEvent should be created 1 times: %v", actions)
+	assert.Equal(c, startCount, 4, "testEvent should start 4 times: %v", actions)
+	assert.Equal(c, dieCount, 4, "testEvent should die 4 times: %v", actions)
 }
 
 func (s *DockerSuite) TestEventsSinceInTheFuture(c *check.C) {
@@ -714,8 +688,8 @@ func (s *DockerSuite) TestEventsSinceInTheFuture(c *check.C) {
 	until := since.Add(time.Duration(-24) * time.Hour)
 	out, _, err := dockerCmdWithError("events", "--filter", "image=busybox", "--since", parseEventTime(since), "--until", parseEventTime(until))
 
-	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "cannot be after `until`")
+	assert.ErrorContains(c, err, "")
+	assert.Assert(c, strings.Contains(out, "cannot be after `until`"))
 }
 
 func (s *DockerSuite) TestEventsUntilInThePast(c *check.C) {
@@ -731,8 +705,8 @@ func (s *DockerSuite) TestEventsUntilInThePast(c *check.C) {
 
 	out, _ := dockerCmd(c, "events", "--filter", "image=busybox", "--since", since, "--until", until)
 
-	c.Assert(out, checker.Not(checker.Contains), "test-container2")
-	c.Assert(out, checker.Contains, "test-container")
+	assert.Assert(c, !strings.Contains(out, "test-container2"))
+	assert.Assert(c, strings.Contains(out, "test-container"))
 }
 
 func (s *DockerSuite) TestEventsFormat(c *check.C) {
@@ -749,13 +723,13 @@ func (s *DockerSuite) TestEventsFormat(c *check.C) {
 		if err = dec.Decode(&ev); err == io.EOF {
 			break
 		}
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 		if ev.Status == "start" {
 			startCount++
 		}
 	}
 
-	c.Assert(startCount, checker.Equals, 2, check.Commentf("should have had 2 start events but had %d, out: %s", startCount, out))
+	assert.Equal(c, startCount, 2, "should have had 2 start events but had %d, out: %s", startCount, out)
 }
 
 func (s *DockerSuite) TestEventsFormatBadFunc(c *check.C) {

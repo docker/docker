@@ -42,10 +42,10 @@ type bridgeClient struct {
 
 func (c *bridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*client.Result, error) {
 	res, err := c.FrontendLLBBridge.Solve(ctx, frontend.SolveRequest{
-		Definition:      req.Definition,
-		Frontend:        req.Frontend,
-		FrontendOpt:     req.FrontendOpt,
-		ImportCacheRefs: req.ImportCacheRefs,
+		Definition:   req.Definition,
+		Frontend:     req.Frontend,
+		FrontendOpt:  req.FrontendOpt,
+		CacheImports: req.CacheImports,
 	})
 	if err != nil {
 		return nil, err

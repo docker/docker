@@ -50,6 +50,16 @@ service Control {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
 	};
 
+	// ListServiceStatuses returns a `ListServiceStatusesResponse` with the
+	// status of the requested services, formed by computing the number of
+	// running vs desired tasks. It is provided as a shortcut or helper method,
+	// which allows a client to avoid having to calculate this value by listing
+	// all Tasks. If any service requested does not exist, it will be returned
+	// but with empty status values.
+	rpc ListServiceStatuses(ListServiceStatusesRequest) returns (ListServiceStatusesResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
 	rpc GetNetwork(GetNetworkRequest) returns (GetNetworkResponse) {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
 	};
@@ -395,6 +405,37 @@ message ListServicesRequest {
 
 message ListServicesResponse {
 	repeated Service services = 1;
+}
+
+// ListServiceStatusesRequest is a request to get the aggregate status of a
+// service by computing the number of running vs desired tasks. It includes
+// only a service ID.
+message ListServiceStatusesRequest {
+	// Services is a list of service IDs to get statuses for.
+	repeated string services = 1;
+}
+
+// ListServiceStatusesResponse is a response containing the aggregate status of
+// a service, formed by computing the number of running vs desired tasks. The
+// values returned are only valid for the point in time at which the request is
+// made.
+message ListServiceStatusesResponse {
+	message ServiceStatus {
+		// ServiceID is the ID of the service this status describes
+		string service_id = 1;
+
+		// DesiredTasks is the number of tasks desired to be running according to the
+		// service definition at request time. It is a uint64 because that is what
+		// the replicas field on the service spec is
+		uint64 desired_tasks = 2;
+		
+		// RunningTasks is the number of tasks currently in the Running state at
+		// request time. This may be larger than desired tasks if, for example, a
+		// service has been scaled down.
+		uint64 running_tasks = 3;
+	}
+
+	repeated ServiceStatus statuses = 1;
 }
 
 message CreateNetworkRequest {

@@ -16,6 +16,9 @@ type SysInfo struct {
 	cgroupCpusetInfo
 	cgroupPids
 
+	// Whether the kernel supports cgroup namespaces or not
+	CgroupNamespaces bool
+
 	// Whether IPv4 forwarding is supported or not, if this was disabled, networking will not work
 	IPv4ForwardingDisabled bool
 

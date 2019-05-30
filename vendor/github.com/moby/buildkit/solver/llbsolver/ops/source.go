@@ -2,8 +2,10 @@ package ops
 
 import (
 	"context"
+	"strings"
 	"sync"
 
+	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
@@ -19,14 +21,16 @@ type sourceOp struct {
 	platform *pb.Platform
 	sm       *source.Manager
 	src      source.SourceInstance
+	sessM    *session.Manager
 	w        worker.Worker
 }
 
-func NewSourceOp(_ solver.Vertex, op *pb.Op_Source, platform *pb.Platform, sm *source.Manager, w worker.Worker) (solver.Op, error) {
+func NewSourceOp(_ solver.Vertex, op *pb.Op_Source, platform *pb.Platform, sm *source.Manager, sessM *session.Manager, w worker.Worker) (solver.Op, error) {
 	return &sourceOp{
 		op:       op,
 		sm:       sm,
 		w:        w,
+		sessM:    sessM,
 		platform: platform,
 	}, nil
 }
@@ -41,7 +45,7 @@ func (s *sourceOp) instance(ctx context.Context) (source.SourceInstance, error) 
 	if err != nil {
 		return nil, err
 	}
-	src, err := s.sm.Resolve(ctx, id)
+	src, err := s.sm.Resolve(ctx, id, s.sessM)
 	if err != nil {
 		return nil, err
 	}
@@ -59,9 +63,15 @@ func (s *sourceOp) CacheMap(ctx context.Context, index int) (*solver.CacheMap, b
 		return nil, false, err
 	}
 
+	dgst := digest.FromBytes([]byte(sourceCacheType + ":" + k))
+
+	if strings.HasPrefix(k, "session:") {
+		dgst = digest.Digest("random:" + strings.TrimPrefix(dgst.String(), dgst.Algorithm().String()+":"))
+	}
+
 	return &solver.CacheMap{
 		// TODO: add os/arch
-		Digest: digest.FromBytes([]byte(sourceCacheType + ":" + k)),
+		Digest: dgst,
 	}, done, nil
 }
 

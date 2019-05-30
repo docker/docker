@@ -20,9 +20,12 @@ import (
 	"context"
 
 	"github.com/containerd/containerd/containers"
+	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/typeurl"
 	"github.com/gogo/protobuf/types"
 	"github.com/opencontainers/image-spec/identity"
@@ -106,7 +109,7 @@ func WithSnapshotter(name string) NewContainerOpts {
 // WithSnapshot uses an existing root filesystem for the container
 func WithSnapshot(id string) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
-		setSnapshotterIfEmpty(c)
+		setSnapshotterIfEmpty(ctx, client, c)
 		// check that the snapshot exists, if not, fail on creation
 		if _, err := client.SnapshotService(c.Snapshotter).Mounts(ctx, id); err != nil {
 			return err
@@ -118,15 +121,15 @@ func WithSnapshot(id string) NewContainerOpts {
 
 // WithNewSnapshot allocates a new snapshot to be used by the container as the
 // root filesystem in read-write mode
-func WithNewSnapshot(id string, i Image) NewContainerOpts {
+func WithNewSnapshot(id string, i Image, opts ...snapshots.Opt) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
 		diffIDs, err := i.(*image).i.RootFS(ctx, client.ContentStore(), platforms.Default())
 		if err != nil {
 			return err
 		}
-		setSnapshotterIfEmpty(c)
+		setSnapshotterIfEmpty(ctx, client, c)
 		parent := identity.ChainID(diffIDs).String()
-		if _, err := client.SnapshotService(c.Snapshotter).Prepare(ctx, id, parent); err != nil {
+		if _, err := client.SnapshotService(c.Snapshotter).Prepare(ctx, id, parent, opts...); err != nil {
 			return err
 		}
 		c.SnapshotKey = id
@@ -148,15 +151,15 @@ func WithSnapshotCleanup(ctx context.Context, client *Client, c containers.Conta
 
 // WithNewSnapshotView allocates a new snapshot to be used by the container as the
 // root filesystem in read-only mode
-func WithNewSnapshotView(id string, i Image) NewContainerOpts {
+func WithNewSnapshotView(id string, i Image, opts ...snapshots.Opt) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
 		diffIDs, err := i.(*image).i.RootFS(ctx, client.ContentStore(), platforms.Default())
 		if err != nil {
 			return err
 		}
-		setSnapshotterIfEmpty(c)
+		setSnapshotterIfEmpty(ctx, client, c)
 		parent := identity.ChainID(diffIDs).String()
-		if _, err := client.SnapshotService(c.Snapshotter).View(ctx, id, parent); err != nil {
+		if _, err := client.SnapshotService(c.Snapshotter).View(ctx, id, parent, opts...); err != nil {
 			return err
 		}
 		c.SnapshotKey = id
@@ -165,9 +168,18 @@ func WithNewSnapshotView(id string, i Image) NewContainerOpts {
 	}
 }
 
-func setSnapshotterIfEmpty(c *containers.Container) {
+func setSnapshotterIfEmpty(ctx context.Context, client *Client, c *containers.Container) {
 	if c.Snapshotter == "" {
-		c.Snapshotter = DefaultSnapshotter
+		defaultSnapshotter := DefaultSnapshotter
+		namespaceService := client.NamespaceService()
+		if ns, err := namespaces.NamespaceRequired(ctx); err == nil {
+			if labels, err := namespaceService.Labels(ctx, ns); err == nil {
+				if snapshotLabel, ok := labels[defaults.DefaultSnapshotterNSLabel]; ok {
+					defaultSnapshotter = snapshotLabel
+				}
+			}
+		}
+		c.Snapshotter = defaultSnapshotter
 	}
 }
 

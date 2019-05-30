@@ -16,7 +16,7 @@ func dialer(address string, timeout time.Duration) (net.Conn, error) {
 	}
 	switch addrParts[0] {
 	case "npipe":
-		address = strings.Replace(addrParts[1], "/", "\\", 0)
+		address = strings.Replace(addrParts[1], "/", "\\", -1)
 		return winio.DialPipe(address, &timeout)
 	default:
 		return net.DialTimeout(addrParts[0], addrParts[1], timeout)

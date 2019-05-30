@@ -66,9 +66,31 @@ message SolveRequest {
 }
 
 message CacheOptions {
-	string ExportRef = 1;
-	repeated string ImportRefs = 2;
-	map<string, string> ExportAttrs = 3;
+	// ExportRefDeprecated is deprecated in favor or the new Exports since BuildKit v0.4.0.
+	// When ExportRefDeprecated is set, the solver appends
+	// {.Type = "registry", .Attrs = ExportAttrs.add("ref", ExportRef)}
+	// to Exports for compatibility. (planned to be removed)
+	string ExportRefDeprecated = 1;
+	// ImportRefsDeprecated is deprecated in favor or the new Imports since BuildKit v0.4.0.
+	// When ImportRefsDeprecated is set, the solver appends
+	// {.Type = "registry", .Attrs = {"ref": importRef}}
+	// for each of the ImportRefs entry to Imports for compatibility. (planned to be removed)
+	repeated string ImportRefsDeprecated = 2;
+	// ExportAttrsDeprecated is deprecated since BuildKit v0.4.0.
+	// See the description of ExportRefDeprecated.
+	map<string, string> ExportAttrsDeprecated = 3;
+	// Exports was introduced in BuildKit v0.4.0.
+	repeated CacheOptionsEntry Exports = 4;
+	// Imports was introduced in BuildKit v0.4.0.
+	repeated CacheOptionsEntry Imports = 5;
+}
+
+message CacheOptionsEntry {
+	// Type is like "registry" or "local"
+	string Type = 1;
+	// Attrs are like mode=(min,max), ref=example.com:5000/foo/bar .
+	// See cache importer/exporter implementations' documentation.
+	map<string, string> Attrs = 2;
 }
 
 message SolveResponse {

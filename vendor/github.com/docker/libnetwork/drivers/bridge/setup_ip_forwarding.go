@@ -48,7 +48,7 @@ func setupIPForwarding(enableIPTables bool) error {
 		iptables.OnReloaded(func() {
 			logrus.Debug("Setting the default DROP policy on firewall reload")
 			if err := iptables.SetDefaultPolicy(iptables.Filter, "FORWARD", iptables.Drop); err != nil {
-				logrus.Warnf("Settig the default DROP policy on firewall reload failed, %v", err)
+				logrus.Warnf("Setting the default DROP policy on firewall reload failed, %v", err)
 			}
 		})
 	}

@@ -4,6 +4,7 @@ package cmp // import "gotest.tools/assert/cmp"
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/google/go-cmp/cmp"
@@ -56,6 +57,39 @@ func toResult(success bool, msg string) Result {
 		return ResultSuccess
 	}
 	return ResultFailure(msg)
+}
+
+// RegexOrPattern may be either a *regexp.Regexp or a string that is a valid
+// regexp pattern.
+type RegexOrPattern interface{}
+
+// Regexp succeeds if value v matches regular expression re.
+//
+// Example:
+//   assert.Assert(t, cmp.Regexp("^[0-9a-f]{32}$", str))
+//   r := regexp.MustCompile("^[0-9a-f]{32}$")
+//   assert.Assert(t, cmp.Regexp(r, str))
+func Regexp(re RegexOrPattern, v string) Comparison {
+	match := func(re *regexp.Regexp) Result {
+		return toResult(
+			re.MatchString(v),
+			fmt.Sprintf("value %q does not match regexp %q", v, re.String()))
+	}
+
+	return func() Result {
+		switch regex := re.(type) {
+		case *regexp.Regexp:
+			return match(regex)
+		case string:
+			re, err := regexp.Compile(regex)
+			if err != nil {
+				return ResultFailure(err.Error())
+			}
+			return match(re)
+		default:
+			return ResultFailure(fmt.Sprintf("invalid type %T for regex pattern", regex))
+		}
+	}
 }
 
 // Equal succeeds if x == y. See assert.Equal for full documentation.
@@ -186,7 +220,7 @@ func Error(err error, message string) Comparison {
 			return ResultFailure("expected an error, got nil")
 		case err.Error() != message:
 			return ResultFailure(fmt.Sprintf(
-				"expected error %q, got %+v", message, err))
+				"expected error %q, got %s", message, formatErrorMessage(err)))
 		}
 		return ResultSuccess
 	}
@@ -201,10 +235,20 @@ func ErrorContains(err error, substring string) Comparison {
 			return ResultFailure("expected an error, got nil")
 		case !strings.Contains(err.Error(), substring):
 			return ResultFailure(fmt.Sprintf(
-				"expected error to contain %q, got %+v", substring, err))
+				"expected error to contain %q, got %s", substring, formatErrorMessage(err)))
 		}
 		return ResultSuccess
 	}
+}
+
+func formatErrorMessage(err error) string {
+	if _, ok := err.(interface {
+		Cause() error
+	}); ok {
+		return fmt.Sprintf("%q\n%+v", err, err)
+	}
+	// This error was not wrapped with github.com/pkg/errors
+	return fmt.Sprintf("%q", err)
 }
 
 // Nil succeeds if obj is a nil interface, pointer, or function.

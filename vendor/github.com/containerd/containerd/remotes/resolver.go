@@ -72,9 +72,9 @@ func (fn FetcherFunc) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Re
 
 // PusherFunc allows package users to implement a Pusher with just a
 // function.
-type PusherFunc func(ctx context.Context, desc ocispec.Descriptor, r io.Reader) error
+type PusherFunc func(ctx context.Context, desc ocispec.Descriptor) (content.Writer, error)
 
 // Push content
-func (fn PusherFunc) Push(ctx context.Context, desc ocispec.Descriptor, r io.Reader) error {
-	return fn(ctx, desc, r)
+func (fn PusherFunc) Push(ctx context.Context, desc ocispec.Descriptor) (content.Writer, error) {
+	return fn(ctx, desc)
 }

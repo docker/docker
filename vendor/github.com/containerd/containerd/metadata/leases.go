@@ -122,7 +122,7 @@ func (lm *LeaseManager) List(ctx context.Context, fs ...string) ([]leases.Lease,
 
 	filter, err := filters.ParseAll(fs...)
 	if err != nil {
-		return nil, errors.Wrapf(errdefs.ErrInvalidArgument, err.Error())
+		return nil, errors.Wrap(errdefs.ErrInvalidArgument, err.Error())
 	}
 
 	var ll []leases.Lease

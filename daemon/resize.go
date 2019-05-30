@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/libcontainerd"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 )
 
 // ContainerResize changes the size of the TTY of the process running
@@ -20,7 +20,7 @@ func (daemon *Daemon) ContainerResize(name string, height, width int) error {
 		return errNotRunning(container.ID)
 	}
 
-	if err = daemon.containerd.ResizeTerminal(context.Background(), container.ID, libcontainerd.InitProcessName, width, height); err == nil {
+	if err = daemon.containerd.ResizeTerminal(context.Background(), container.ID, libcontainerdtypes.InitProcessName, width, height); err == nil {
 		attributes := map[string]string{
 			"height": fmt.Sprintf("%d", height),
 			"width":  fmt.Sprintf("%d", width),

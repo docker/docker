@@ -19,7 +19,7 @@ type WalkOpt struct {
 	// FollowPaths contains symlinks that are resolved into include patterns
 	// before performing the fs walk
 	FollowPaths []string
-	Map         func(*types.Stat) bool
+	Map         FilterFunc
 }
 
 func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) error {
@@ -157,7 +157,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 			return ctx.Err()
 		default:
 			if opt != nil && opt.Map != nil {
-				if allowed := opt.Map(stat); !allowed {
+				if allowed := opt.Map(stat.Path, stat); !allowed {
 					return nil
 				}
 			}

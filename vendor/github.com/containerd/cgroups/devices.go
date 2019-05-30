@@ -58,6 +58,9 @@ func (d *devicesController) Create(path string, resources *specs.LinuxResources)
 		if device.Allow {
 			file = allowDeviceFile
 		}
+		if device.Type == "" {
+			device.Type = "a"
+		}
 		if err := ioutil.WriteFile(
 			filepath.Join(d.Path(path), file),
 			[]byte(deviceString(device)),

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -14,11 +13,11 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/internal/test/daemon"
-	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/go-units"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -132,6 +131,9 @@ func TestCreateServiceConflict(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+	ctx := context.Background()
 
 	serviceName := "TestService_" + t.Name()
 	serviceSpec := []swarm.ServiceSpecOpt{
@@ -141,18 +143,10 @@ func TestCreateServiceConflict(t *testing.T) {
 	swarm.CreateService(t, d, serviceSpec...)
 
 	spec := swarm.CreateServiceSpec(t, serviceSpec...)
-	res, body, err := request.Post(
-		"/services/create",
-		request.Host(d.Sock()),
-		request.JSONBody(spec),
-		request.JSON,
-	)
-	assert.NilError(t, err)
-	assert.Equal(t, res.StatusCode, http.StatusConflict)
 
-	buf, err := request.ReadBody(body)
-	assert.NilError(t, err)
-	assert.Check(t, is.Contains(string(buf), "service "+serviceName+" already exists"))
+	_, err := c.ServiceCreate(ctx, spec, types.ServiceCreateOptions{})
+	assert.Check(t, errdefs.IsConflict(err))
+	assert.ErrorContains(t, err, "service "+serviceName+" already exists")
 }
 
 func TestCreateServiceMaxReplicas(t *testing.T) {

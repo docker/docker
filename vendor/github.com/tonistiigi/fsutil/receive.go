@@ -92,7 +92,13 @@ func (w *dynamicWalker) fill(ctx context.Context, pathC chan<- *currentPath) err
 			if !ok {
 				return nil
 			}
-			pathC <- p
+			select {
+			case pathC <- p:
+			case <-ctx.Done():
+				w.err = ctx.Err()
+				close(w.closeCh)
+				return ctx.Err()
+			}
 		case <-ctx.Done():
 			w.err = ctx.Err()
 			close(w.closeCh)

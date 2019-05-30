@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"path"
-	"runtime"
 	"strings"
 	"time"
 
@@ -593,9 +592,9 @@ func (daemon *Daemon) getNetworkSandbox(container *container.Container) libnetwo
 	return sb
 }
 
-// hasUserDefinedIPAddress returns whether the passed endpoint configuration contains IP address configuration
-func hasUserDefinedIPAddress(epConfig *networktypes.EndpointSettings) bool {
-	return epConfig != nil && epConfig.IPAMConfig != nil && (len(epConfig.IPAMConfig.IPv4Address) > 0 || len(epConfig.IPAMConfig.IPv6Address) > 0)
+// hasUserDefinedIPAddress returns whether the passed IPAM configuration contains IP address configuration
+func hasUserDefinedIPAddress(ipamConfig *networktypes.EndpointIPAMConfig) bool {
+	return ipamConfig != nil && (len(ipamConfig.IPv4Address) > 0 || len(ipamConfig.IPv6Address) > 0)
 }
 
 // User specified ip address is acceptable only for networks with user specified subnets.
@@ -603,9 +602,18 @@ func validateNetworkingConfig(n libnetwork.Network, epConfig *networktypes.Endpo
 	if n == nil || epConfig == nil {
 		return nil
 	}
-	if !hasUserDefinedIPAddress(epConfig) {
+	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
+		if hasUserDefinedIPAddress(epConfig.IPAMConfig) && !enableIPOnPredefinedNetwork() {
+			return runconfig.ErrUnsupportedNetworkAndIP
+		}
+		if len(epConfig.Aliases) > 0 && !serviceDiscoveryOnDefaultNetwork() {
+			return runconfig.ErrUnsupportedNetworkAndAlias
+		}
+	}
+	if !hasUserDefinedIPAddress(epConfig.IPAMConfig) {
 		return nil
 	}
+
 	_, _, nwIPv4Configs, nwIPv6Configs := n.Info().IpamConfig()
 	for _, s := range []struct {
 		ipConfigured  bool
@@ -654,14 +662,7 @@ func cleanOperationalData(es *network.EndpointSettings) {
 
 func (daemon *Daemon) updateNetworkConfig(container *container.Container, n libnetwork.Network, endpointConfig *networktypes.EndpointSettings, updateSettings bool) error {
 
-	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
-		if hasUserDefinedIPAddress(endpointConfig) && !enableIPOnPredefinedNetwork() {
-			return runconfig.ErrUnsupportedNetworkAndIP
-		}
-		if endpointConfig != nil && len(endpointConfig.Aliases) > 0 && !container.EnableServiceDiscoveryOnDefaultNetwork() {
-			return runconfig.ErrUnsupportedNetworkAndAlias
-		}
-	} else {
+	if containertypes.NetworkMode(n.Name()).IsUserDefined() {
 		addShortID := true
 		shortID := stringid.TruncateID(container.ID)
 		for _, alias := range endpointConfig.Aliases {
@@ -725,8 +726,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		}
 	}
 
-	err = daemon.updateNetworkConfig(container, n, endpointConfig, updateSettings)
-	if err != nil {
+	if err := daemon.updateNetworkConfig(container, n, endpointConfig, updateSettings); err != nil {
 		return err
 	}
 
@@ -801,7 +801,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	return nil
 }
 
-func updateJoinInfo(networkSettings *network.Settings, n libnetwork.Network, ep libnetwork.Endpoint) error { // nolint: interfacer
+func updateJoinInfo(networkSettings *network.Settings, n libnetwork.Network, ep libnetwork.Endpoint) error {
 	if ep == nil {
 		return errors.New("invalid enppoint whhile building portmap info")
 	}
@@ -1040,8 +1040,6 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 				EndpointSettings: endpointConfig,
 			}
 		}
-	} else if !daemon.isNetworkHotPluggable() {
-		return fmt.Errorf(runtime.GOOS + " does not support connecting a running container to a network")
 	} else {
 		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
 			return err
@@ -1070,8 +1068,6 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, netw
 			return fmt.Errorf("container %s is not connected to the network %s", container.ID, networkName)
 		}
 		delete(container.NetworkSettings.Networks, networkName)
-	} else if err == nil && !daemon.isNetworkHotPluggable() {
-		return fmt.Errorf(runtime.GOOS + " does not support connecting a running container to a network")
 	} else if err == nil {
 		if container.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
 			return runconfig.ErrConflictHostNetwork

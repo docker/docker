@@ -137,9 +137,46 @@ func WithAutoRemove(c *TestContainerConfig) {
 	c.HostConfig.AutoRemove = true
 }
 
+// WithPidsLimit sets the container's "pids-limit
+func WithPidsLimit(limit *int64) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		if c.HostConfig == nil {
+			c.HostConfig = &containertypes.HostConfig{}
+		}
+		c.HostConfig.PidsLimit = limit
+	}
+}
+
 // WithRestartPolicy sets container's restart policy
 func WithRestartPolicy(policy string) func(c *TestContainerConfig) {
 	return func(c *TestContainerConfig) {
 		c.HostConfig.RestartPolicy.Name = policy
+	}
+}
+
+// WithUser sets the user
+func WithUser(user string) func(c *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.Config.User = user
+	}
+}
+
+// WithPrivileged sets privileged mode for the container
+func WithPrivileged(privileged bool) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		if c.HostConfig == nil {
+			c.HostConfig = &containertypes.HostConfig{}
+		}
+		c.HostConfig.Privileged = privileged
+	}
+}
+
+// WithCgroupnsMode sets the cgroup namespace mode for the container
+func WithCgroupnsMode(mode string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		if c.HostConfig == nil {
+			c.HostConfig = &containertypes.HostConfig{}
+		}
+		c.HostConfig.CgroupnsMode = containertypes.CgroupnsMode(mode)
 	}
 }

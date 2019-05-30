@@ -156,7 +156,7 @@ func push(ctx context.Context, provider content.Provider, pusher Pusher, desc oc
 //
 // Base handlers can be provided which will be called before any push specific
 // handlers.
-func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, provider content.Provider, platform platforms.MatchComparer, baseHandlers ...images.Handler) error {
+func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, provider content.Provider, platform platforms.MatchComparer, wrapper func(h images.Handler) images.Handler) error {
 	var m sync.Mutex
 	manifestStack := []ocispec.Descriptor{}
 
@@ -175,13 +175,16 @@ func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, pr
 
 	pushHandler := PushHandler(pusher, provider)
 
-	handlers := append(baseHandlers,
+	var handler images.Handler = images.Handlers(
 		images.FilterPlatforms(images.ChildrenHandler(provider), platform),
 		filterHandler,
 		pushHandler,
 	)
+	if wrapper != nil {
+		handler = wrapper(handler)
+	}
 
-	if err := images.Dispatch(ctx, images.Handlers(handlers...), desc); err != nil {
+	if err := images.Dispatch(ctx, handler, nil, desc); err != nil {
 		return err
 	}
 
@@ -202,4 +205,39 @@ func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, pr
 	}
 
 	return nil
+}
+
+// FilterManifestByPlatformHandler allows Handler to handle non-target
+// platform's manifest and configuration data.
+func FilterManifestByPlatformHandler(f images.HandlerFunc, m platforms.Matcher) images.HandlerFunc {
+	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		children, err := f(ctx, desc)
+		if err != nil {
+			return nil, err
+		}
+
+		// no platform information
+		if desc.Platform == nil || m == nil {
+			return children, nil
+		}
+
+		var descs []ocispec.Descriptor
+		switch desc.MediaType {
+		case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
+			if m.Match(*desc.Platform) {
+				descs = children
+			} else {
+				for _, child := range children {
+					if child.MediaType == images.MediaTypeDockerSchema2Config ||
+						child.MediaType == ocispec.MediaTypeImageConfig {
+
+						descs = append(descs, child)
+					}
+				}
+			}
+		default:
+			descs = children
+		}
+		return descs, nil
+	}
 }

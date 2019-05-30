@@ -38,7 +38,7 @@ BuildKit is used by the following projects:
 - [OpenFaaS Cloud](https://github.com/openfaas/openfaas-cloud)
 - [container build interface](https://github.com/containerbuilding/cbi)
 - [Knative Build Templates](https://github.com/knative/build-templates)
-- [boss](https://github.com/crosbymichael/boss)
+- [vab](https://github.com/stellarproject/vab)
 - [Rio](https://github.com/rancher/rio) (on roadmap)
 
 ### Quick start
@@ -100,7 +100,7 @@ To start building use `buildctl build` command. The example script accepts `--wi
 go run examples/buildkit0/buildkit.go | buildctl build
 ```
 
-`buildctl build` will show interactive progress bar by default while the build job is running. It will also show you the path to the trace file that contains all information about the timing of the individual steps and logs.
+`buildctl build` will show interactive progress bar by default while the build job is running. If the path to the trace file is specified, the trace file generated will contain all information about the timing of the individual steps and logs.
 
 Different versions of the example scripts show different ways of describing the build definition for this project to show the capabilities of the library. New versions have been added when new features have become available.
 
@@ -122,7 +122,7 @@ During development, Dockerfile frontend (dockerfile.v0) is also part of the Buil
 
 ```
 buildctl build --frontend=dockerfile.v0 --local context=. --local dockerfile=.
-buildctl build --frontend=dockerfile.v0 --local context=. --local dockerfile=. --frontend-opt target=foo --frontend-opt build-arg:foo=bar
+buildctl build --frontend=dockerfile.v0 --local context=. --local dockerfile=. --opt target=foo --opt build-arg:foo=bar
 ```
 
 `--local` exposes local source files from client to the builder. `context` and `dockerfile` are the names Dockerfile frontend looks for build context and Dockerfile location.
@@ -146,31 +146,31 @@ docker inspect myimage
 External versions of the Dockerfile frontend are pushed to https://hub.docker.com/r/docker/dockerfile-upstream and https://hub.docker.com/r/docker/dockerfile and can be used with the gateway frontend. The source for the external frontend is currently located in `./frontend/dockerfile/cmd/dockerfile-frontend` but will move out of this repository in the future ([#163](https://github.com/moby/buildkit/issues/163)). For automatic build from master branch of this repository `docker/dockerfile-upsteam:master` or `docker/dockerfile-upstream:master-experimental` image can be used.
 
 ```
-buildctl build --frontend=gateway.v0 --frontend-opt=source=docker/dockerfile --local context=. --local dockerfile=.
-buildctl build --frontend gateway.v0 --frontend-opt=source=docker/dockerfile --frontend-opt=context=git://github.com/moby/moby --frontend-opt build-arg:APT_MIRROR=cdn-fastly.deb.debian.org
+buildctl build --frontend gateway.v0 --opt source=docker/dockerfile --local context=. --local dockerfile=.
+buildctl build --frontend gateway.v0 --opt source=docker/dockerfile --opt context=git://github.com/moby/moby --opt build-arg:APT_MIRROR=cdn-fastly.deb.debian.org
 ````
 
 ##### Building a Dockerfile with experimental features like `RUN --mount=type=(bind|cache|tmpfs|secret|ssh)`
 
 See [`frontend/dockerfile/docs/experimental.md`](frontend/dockerfile/docs/experimental.md).
 
-### Exporters
+### Output
 
-By default, the build result and intermediate cache will only remain internally in BuildKit. Exporter needs to be specified to retrieve the result.
+By default, the build result and intermediate cache will only remain internally in BuildKit. An output needs to be specified to retrieve the result.
 
 ##### Exporting resulting image to containerd
 
 The containerd worker needs to be used
 
 ```
-buildctl build ... --exporter=image --exporter-opt name=docker.io/username/image
+buildctl build ... --output type=image,name=docker.io/username/image
 ctr --namespace=buildkit images ls
 ```
 
 ##### Push resulting image to registry
 
 ```
-buildctl build ... --exporter=image --exporter-opt name=docker.io/username/image --exporter-opt push=true
+buildctl build ... --output type=image,name=docker.io/username/image,push=true
 ```
 
 If credentials are required, `buildctl` will attempt to read Docker configuration file.
@@ -181,22 +181,59 @@ If credentials are required, `buildctl` will attempt to read Docker configuratio
 The local client will copy the files directly to the client. This is useful if BuildKit is being used for building something else than container images.
 
 ```
-buildctl build ... --exporter=local --exporter-opt output=path/to/output-dir
+buildctl build ... --output type=local,dest=path/to/output-dir
 ```
+
+Tar exporter is similar to local exporter but transfers the files through a tarball.
+
+```
+buildctl build ... --output type=tar,dest=out.tar
+buildctl build ... --output type=tar > out.tar
+```
+
 
 ##### Exporting built image to Docker
 
 ```
 # exported tarball is also compatible with OCI spec
-buildctl build ... --exporter=docker --exporter-opt name=myimage | docker load
+buildctl build ... --output type=docker,name=myimage | docker load
 ```
 
 ##### Exporting [OCI Image Format](https://github.com/opencontainers/image-spec) tarball to client
 
 ```
-buildctl build ... --exporter=oci --exporter-opt output=path/to/output.tar
-buildctl build ... --exporter=oci > output.tar
+buildctl build ... --output type=oci,dest=path/to/output.tar
+buildctl build ... --output type=oci > output.tar
 ```
+
+### Exporting/Importing build cache (not image itself)
+
+#### To/From registry
+
+```
+buildctl build ... --export-cache type=registry,ref=localhost:5000/myrepo:buildcache
+buildctl build ... --import-cache type=registry,ref=localhost:5000/myrepo:buildcache
+```
+
+#### To/From local filesystem
+
+```
+buildctl build ... --export-cache type=local,dest=path/to/output-dir
+buildctl build ... --import-cache type=local,src=path/to/input-dir
+```
+
+The directory layout conforms to OCI Image Spec v1.0.
+
+#### `--export-cache` options
+* `mode=min` (default): only export layers for the resulting image
+* `mode=max`: export all the layers of all intermediate steps
+* `ref=docker.io/user/image:tag`: reference for `registry` cache exporter
+* `dest=path/to/output-dir`: directory for `local` cache exporter
+
+#### `--import-cache` options
+* `ref=docker.io/user/image:tag`: reference for `registry` cache importer
+* `src=path/to/input-dir`: directory for `local` cache importer
+* `digest=sha256:deadbeef`: digest of the manifest list to import for `local` cache importer. Defaults to the digest of "latest" tag in `index.json`
 
 ### Other
 
@@ -232,6 +269,19 @@ buildctl build --help
 ```
 
 The images can be also built locally using `./hack/dockerfiles/test.Dockerfile` (or `./hack/dockerfiles/test.buildkit.Dockerfile` if you already have BuildKit).
+Run `make images` to build the images as `moby/buildkit:local` and `moby/buildkit:local-rootless`.
+
+#### Connection helpers
+
+If you are running `moby/buildkit:master` or `moby/buildkit:master-rootless` as a Docker/Kubernetes container, you can use special `BUILDKIT_HOST` URL for connecting to the BuildKit daemon in the container:
+
+```
+export BUILDKIT_HOST=docker://<container>
+```
+
+```
+export BUILDKIT_HOST=kube-pod://<pod>
+```
 
 ### Opentracing support
 

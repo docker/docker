@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 )
 
 type command struct {
@@ -38,7 +38,7 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 	}
 	cmd.Stderr = &stderr
 
-	id := uuid.New()
+	id := uuid.New().String()
 	joinedArgs := strings.Join(cmd.Args, " ")
 
 	logger.Log([]string{"ID:" + id, "START", joinedArgs})
@@ -48,7 +48,7 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 	if err != nil {
 		return nil, &Error{
 			Err:    err,
-			Debug:  strings.Join([]string{cmd.Path, joinedArgs}, " "),
+			Debug:  strings.Join([]string{cmd.Path, joinedArgs[1:]}, " "),
 			Stderr: stderr.String(),
 		}
 	}
@@ -118,20 +118,24 @@ func (ds *Dataset) parseLine(line []string) error {
 	if err = setUint(&ds.Quota, line[8]); err != nil {
 		return err
 	}
+	if err = setUint(&ds.Referenced, line[9]); err != nil {
+		return err
+	}
 
 	if runtime.GOOS == "solaris" {
 		return nil
 	}
 
-	if err = setUint(&ds.Written, line[9]); err != nil {
+	if err = setUint(&ds.Written, line[10]); err != nil {
 		return err
 	}
-	if err = setUint(&ds.Logicalused, line[10]); err != nil {
+	if err = setUint(&ds.Logicalused, line[11]); err != nil {
 		return err
 	}
-	if err = setUint(&ds.Usedbydataset, line[11]); err != nil {
+	if err = setUint(&ds.Usedbydataset, line[12]); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -337,7 +341,11 @@ func (z *Zpool) parseLine(line []string) error {
 		err = setUint(&z.Free, val)
 	case "fragmentation":
 		// Trim trailing "%" before parsing uint
-		err = setUint(&z.Fragmentation, val[:len(val)-1])
+		i := strings.Index(val, "%")
+		if i < 0 {
+			i = len(val)
+		}
+		err = setUint(&z.Fragmentation, val[:i])
 	case "readonly":
 		z.ReadOnly = val == "on"
 	case "freeing":

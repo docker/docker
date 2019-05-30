@@ -10,27 +10,27 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 func (s *DockerSuite) TestAPIOptionsRoute(c *check.C) {
 	resp, _, err := request.Do("/", request.Method(http.MethodOptions))
-	c.Assert(err, checker.IsNil)
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
+	assert.NilError(c, err)
+	assert.Equal(c, resp.StatusCode, http.StatusOK)
 }
 
 func (s *DockerSuite) TestAPIGetEnabledCORS(c *check.C) {
 	res, body, err := request.Get("/version")
-	c.Assert(err, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
+	assert.NilError(c, err)
+	assert.Equal(c, res.StatusCode, http.StatusOK)
 	body.Close()
 	// TODO: @runcom incomplete tests, why old integration tests had this headers
 	// and here none of the headers below are in the response?
 	//c.Log(res.Header)
-	//c.Assert(res.Header.Get("Access-Control-Allow-Origin"), check.Equals, "*")
-	//c.Assert(res.Header.Get("Access-Control-Allow-Headers"), check.Equals, "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
+	//assert.Equal(c, res.Header.Get("Access-Control-Allow-Origin"), "*")
+	//assert.Equal(c, res.Header.Get("Access-Control-Allow-Headers"), "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
 }
 
 func (s *DockerSuite) TestAPIClientVersionOldNotSupported(c *check.C) {
@@ -42,33 +42,33 @@ func (s *DockerSuite) TestAPIClientVersionOldNotSupported(c *check.C) {
 	}
 	v := strings.Split(api.MinVersion, ".")
 	vMinInt, err := strconv.Atoi(v[1])
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	vMinInt--
 	v[1] = strconv.Itoa(vMinInt)
 	version := strings.Join(v, ".")
 
 	resp, body, err := request.Get("/v" + version + "/version")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer body.Close()
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusBadRequest)
+	assert.Equal(c, resp.StatusCode, http.StatusBadRequest)
 	expected := fmt.Sprintf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", version, api.MinVersion)
 	content, err := ioutil.ReadAll(body)
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(string(content)), checker.Contains, expected)
+	assert.NilError(c, err)
+	assert.Equal(c, strings.TrimSpace(string(content)), expected)
 }
 
 func (s *DockerSuite) TestAPIErrorJSON(c *check.C) {
 	httpResp, body, err := request.Post("/containers/create", request.JSONBody(struct{}{}))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		c.Assert(httpResp.StatusCode, checker.Equals, http.StatusInternalServerError)
+		assert.Equal(c, httpResp.StatusCode, http.StatusInternalServerError)
 	} else {
-		c.Assert(httpResp.StatusCode, checker.Equals, http.StatusBadRequest)
+		assert.Equal(c, httpResp.StatusCode, http.StatusBadRequest)
 	}
-	c.Assert(httpResp.Header.Get("Content-Type"), checker.Equals, "application/json")
+	assert.Assert(c, strings.Contains(httpResp.Header.Get("Content-Type"), "application/json"))
 	b, err := request.ReadBody(body)
-	c.Assert(err, checker.IsNil)
-	c.Assert(getErrorMessage(c, b), checker.Equals, "Config cannot be empty in order to create a container")
+	assert.NilError(c, err)
+	assert.Equal(c, getErrorMessage(c, b), "Config cannot be empty in order to create a container")
 }
 
 func (s *DockerSuite) TestAPIErrorPlainText(c *check.C) {
@@ -76,35 +76,35 @@ func (s *DockerSuite) TestAPIErrorPlainText(c *check.C) {
 	// in v1.23, but changed in 1.24, hence not applicable on Windows. See apiVersionSupportsJSONErrors
 	testRequires(c, DaemonIsLinux)
 	httpResp, body, err := request.Post("/v1.23/containers/create", request.JSONBody(struct{}{}))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		c.Assert(httpResp.StatusCode, checker.Equals, http.StatusInternalServerError)
+		assert.Equal(c, httpResp.StatusCode, http.StatusInternalServerError)
 	} else {
-		c.Assert(httpResp.StatusCode, checker.Equals, http.StatusBadRequest)
+		assert.Equal(c, httpResp.StatusCode, http.StatusBadRequest)
 	}
-	c.Assert(httpResp.Header.Get("Content-Type"), checker.Contains, "text/plain")
+	assert.Assert(c, strings.Contains(httpResp.Header.Get("Content-Type"), "text/plain"))
 	b, err := request.ReadBody(body)
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(string(b)), checker.Equals, "Config cannot be empty in order to create a container")
+	assert.NilError(c, err)
+	assert.Equal(c, strings.TrimSpace(string(b)), "Config cannot be empty in order to create a container")
 }
 
 func (s *DockerSuite) TestAPIErrorNotFoundJSON(c *check.C) {
 	// 404 is a different code path to normal errors, so test separately
 	httpResp, body, err := request.Get("/notfound", request.JSON)
-	c.Assert(err, checker.IsNil)
-	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusNotFound)
-	c.Assert(httpResp.Header.Get("Content-Type"), checker.Equals, "application/json")
+	assert.NilError(c, err)
+	assert.Equal(c, httpResp.StatusCode, http.StatusNotFound)
+	assert.Assert(c, strings.Contains(httpResp.Header.Get("Content-Type"), "application/json"))
 	b, err := request.ReadBody(body)
-	c.Assert(err, checker.IsNil)
-	c.Assert(getErrorMessage(c, b), checker.Equals, "page not found")
+	assert.NilError(c, err)
+	assert.Equal(c, getErrorMessage(c, b), "page not found")
 }
 
 func (s *DockerSuite) TestAPIErrorNotFoundPlainText(c *check.C) {
 	httpResp, body, err := request.Get("/v1.23/notfound", request.JSON)
-	c.Assert(err, checker.IsNil)
-	c.Assert(httpResp.StatusCode, checker.Equals, http.StatusNotFound)
-	c.Assert(httpResp.Header.Get("Content-Type"), checker.Contains, "text/plain")
+	assert.NilError(c, err)
+	assert.Equal(c, httpResp.StatusCode, http.StatusNotFound)
+	assert.Assert(c, strings.Contains(httpResp.Header.Get("Content-Type"), "text/plain"))
 	b, err := request.ReadBody(body)
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(string(b)), checker.Equals, "page not found")
+	assert.NilError(c, err)
+	assert.Equal(c, strings.TrimSpace(string(b)), "page not found")
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/identity"
+	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/util/progress/logs"
@@ -152,7 +153,7 @@ type gitSourceHandler struct {
 	cacheKey string
 }
 
-func (gs *gitSource) Resolve(ctx context.Context, id source.Identifier) (source.SourceInstance, error) {
+func (gs *gitSource) Resolve(ctx context.Context, id source.Identifier, _ *session.Manager) (source.SourceInstance, error) {
 	gitIdentifier, ok := id.(*source.GitIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid git identifier %v", id)
@@ -248,6 +249,9 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context) (out cache.ImmutableRe
 	}
 
 	if doFetch {
+		// make sure no old lock files have leaked
+		os.RemoveAll(filepath.Join(gitDir, "shallow.lock"))
+
 		args := []string{"fetch"}
 		if !isCommitSHA(ref) { // TODO: find a branch from ls-remote?
 			args = append(args, "--depth=1", "--no-tags")
@@ -329,6 +333,16 @@ func (gs *gitSourceHandler) Snapshot(ctx context.Context) (out cache.ImmutableRe
 	_, err = gitWithinDir(ctx, gitDir, checkoutDir, "submodule", "update", "--init", "--recursive", "--depth=1")
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to update submodules for %s", gs.src.Remote)
+	}
+
+	if idmap := mount.IdentityMapping(); idmap != nil {
+		u := idmap.RootPair()
+		err := filepath.Walk(gitDir, func(p string, f os.FileInfo, err error) error {
+			return os.Lchown(p, u.UID, u.GID)
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to remap git checkout")
+		}
 	}
 
 	lm.Unmount()

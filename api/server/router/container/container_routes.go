@@ -428,6 +428,13 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.40") {
 		updateConfig.PidsLimit = nil
 	}
+	if updateConfig.PidsLimit != nil && *updateConfig.PidsLimit <= 0 {
+		// Both `0` and `-1` are accepted to set "unlimited" when updating.
+		// Historically, any negative value was accepted, so treat them as
+		// "unlimited" as well.
+		var unlimited int64
+		updateConfig.PidsLimit = &unlimited
+	}
 
 	hostConfig := &container.HostConfig{
 		Resources:     updateConfig.Resources,
@@ -474,11 +481,28 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 		// Ignore KernelMemoryTCP because it was added in API 1.40.
 		hostConfig.KernelMemoryTCP = 0
+
+		// Ignore Capabilities because it was added in API 1.40.
+		hostConfig.Capabilities = nil
+
+		// Older clients (API < 1.40) expects the default to be shareable, make them happy
+		if hostConfig.IpcMode.IsEmpty() {
+			hostConfig.IpcMode = container.IpcMode("shareable")
+		}
+	}
+	if hostConfig != nil && versions.LessThan(version, "1.41") {
+		// Older clients expect the default to be "host"
+		if hostConfig.CgroupnsMode.IsEmpty() {
+			hostConfig.CgroupnsMode = container.CgroupnsMode("host")
+		}
 	}
 
-	// Ignore Capabilities because it was added in API 1.40.
-	if hostConfig != nil && versions.LessThan(version, "1.40") {
-		hostConfig.Capabilities = nil
+	if hostConfig != nil && hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
+		// Don't set a limit if either no limit was specified, or "unlimited" was
+		// explicitly set.
+		// Both `0` and `-1` are accepted as "unlimited", and historically any
+		// negative value was accepted, so treat those as "unlimited" as well.
+		hostConfig.PidsLimit = nil
 	}
 
 	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
@@ -586,7 +610,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		// Remember to close stream if error happens
 		conn, _, errHijack := hijacker.Hijack()
 		if errHijack == nil {
-			statusCode := httputils.GetHTTPErrorStatusCode(err)
+			statusCode := errdefs.GetHTTPErrorStatusCode(err)
 			statusText := http.StatusText(statusCode)
 			fmt.Fprintf(conn, "HTTP/1.1 %d %s\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n%s\r\n", statusCode, statusText, err.Error())
 			httputils.CloseStreams(conn)

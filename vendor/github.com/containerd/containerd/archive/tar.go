@@ -194,7 +194,7 @@ func applyNaive(ctx context.Context, root string, tr *tar.Reader, options ApplyO
 				parentPath = filepath.Dir(path)
 			}
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = mkdirAll(parentPath, 0700)
+				err = mkdirAll(parentPath, 0755)
 				if err != nil {
 					return 0, err
 				}

@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# v0.3.0-alpha.2
-ROOTLESSKIT_COMMIT=7bbbc48a6f906633a9b12783b957f4c3aa037d33
+# v0.4.1
+ROOTLESSKIT_COMMIT=27a0c7a2483732b33d4192c1d178c83c6b9e202d
 
 install_rootlesskit() {
 	case "$1" in
@@ -30,5 +30,7 @@ _install_rootlesskit() {
 	git clone https://github.com/rootless-containers/rootlesskit.git "$GOPATH/src/github.com/rootless-containers/rootlesskit"
 	cd "$GOPATH/src/github.com/rootless-containers/rootlesskit"
 	git checkout -q "$ROOTLESSKIT_COMMIT"
-	go build $BUILD_MODE -ldflags="$ROOTLESSKIT_LDFLAGS" -o "${PREFIX}/rootlesskit" github.com/rootless-containers/rootlesskit/cmd/rootlesskit
+	for f in rootlesskit rootlesskit-docker-proxy; do
+		go build $BUILD_MODE -ldflags="$ROOTLESSKIT_LDFLAGS" -o "${PREFIX}/$f" github.com/rootless-containers/rootlesskit/cmd/$f
+	done
 }

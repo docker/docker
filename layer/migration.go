@@ -3,7 +3,6 @@ package layer // import "github.com/docker/docker/layer"
 import (
 	"compress/gzip"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 
@@ -12,64 +11,6 @@ import (
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
-
-// CreateRWLayerByGraphID creates a RWLayer in the layer store using
-// the provided name with the given graphID. To get the RWLayer
-// after migration the layer may be retrieved by the given name.
-func (ls *layerStore) CreateRWLayerByGraphID(name, graphID string, parent ChainID) (err error) {
-	ls.mountL.Lock()
-	defer ls.mountL.Unlock()
-	m, ok := ls.mounts[name]
-	if ok {
-		if m.parent.chainID != parent {
-			return errors.New("name conflict, mismatched parent")
-		}
-		if m.mountID != graphID {
-			return errors.New("mount already exists")
-		}
-
-		return nil
-	}
-
-	if !ls.driver.Exists(graphID) {
-		return fmt.Errorf("graph ID does not exist: %q", graphID)
-	}
-
-	var p *roLayer
-	if string(parent) != "" {
-		p = ls.get(parent)
-		if p == nil {
-			return ErrLayerDoesNotExist
-		}
-
-		// Release parent chain if error
-		defer func() {
-			if err != nil {
-				ls.layerL.Lock()
-				ls.releaseLayer(p)
-				ls.layerL.Unlock()
-			}
-		}()
-	}
-
-	// TODO: Ensure graphID has correct parent
-
-	m = &mountedLayer{
-		name:       name,
-		parent:     p,
-		mountID:    graphID,
-		layerStore: ls,
-		references: map[RWLayer]*referencedRWLayer{},
-	}
-
-	// Check for existing init layer
-	initID := fmt.Sprintf("%s-init", graphID)
-	if ls.driver.Exists(initID) {
-		m.initID = initID
-	}
-
-	return ls.saveMount(m)
-}
 
 func (ls *layerStore) ChecksumForGraphID(id, parent, oldTarDataPath, newTarDataPath string) (diffID DiffID, size int64, err error) {
 	defer func() {

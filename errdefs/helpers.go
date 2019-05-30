@@ -130,22 +130,6 @@ func NotModified(err error) error {
 	return errNotModified{err}
 }
 
-type errAlreadyExists struct{ error }
-
-func (errAlreadyExists) AlreadyExists() {}
-
-func (e errAlreadyExists) Cause() error {
-	return e.error
-}
-
-// AlreadyExists is a helper to create an error of the class with the same name from any error type
-func AlreadyExists(err error) error {
-	if err == nil || IsAlreadyExists(err) {
-		return err
-	}
-	return errAlreadyExists{err}
-}
-
 type errNotImplemented struct{ error }
 
 func (errNotImplemented) NotImplemented() {}

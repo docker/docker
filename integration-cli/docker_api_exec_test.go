@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 // Regression test for #9414
@@ -27,17 +28,15 @@ func (s *DockerSuite) TestExecAPICreateNoCmd(c *check.C) {
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
 	res, body, err := request.Post(fmt.Sprintf("/containers/%s/exec", name), request.JSONBody(map[string]interface{}{"Cmd": nil}))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+		assert.Equal(c, res.StatusCode, http.StatusInternalServerError)
 	} else {
-		c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
+		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	}
 	b, err := request.ReadBody(body)
-	c.Assert(err, checker.IsNil)
-
-	comment := check.Commentf("Expected message when creating exec command with no Cmd specified")
-	c.Assert(getErrorMessage(c, b), checker.Contains, "No exec command specified", comment)
+	assert.NilError(c, err)
+	assert.Assert(c, strings.Contains(getErrorMessage(c, b), "No exec command specified"), "Expected message when creating exec command with no Cmd specified")
 }
 
 func (s *DockerSuite) TestExecAPICreateNoValidContentType(c *check.C) {
@@ -50,17 +49,15 @@ func (s *DockerSuite) TestExecAPICreateNoValidContentType(c *check.C) {
 	}
 
 	res, body, err := request.Post(fmt.Sprintf("/containers/%s/exec", name), request.RawContent(ioutil.NopCloser(jsonData)), request.ContentType("test/plain"))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
-		c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+		assert.Equal(c, res.StatusCode, http.StatusInternalServerError)
 	} else {
-		c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
+		assert.Equal(c, res.StatusCode, http.StatusBadRequest)
 	}
 	b, err := request.ReadBody(body)
-	c.Assert(err, checker.IsNil)
-
-	comment := check.Commentf("Expected message when creating exec command with invalid Content-Type specified")
-	c.Assert(getErrorMessage(c, b), checker.Contains, "Content-Type specified", comment)
+	assert.NilError(c, err)
+	assert.Assert(c, strings.Contains(getErrorMessage(c, b), "Content-Type specified"), "Expected message when creating exec command with invalid Content-Type specified")
 }
 
 func (s *DockerSuite) TestExecAPICreateContainerPaused(c *check.C) {
@@ -72,16 +69,14 @@ func (s *DockerSuite) TestExecAPICreateContainerPaused(c *check.C) {
 	dockerCmd(c, "pause", name)
 
 	cli, err := client.NewClientWithOpts(client.FromEnv)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer cli.Close()
 
 	config := types.ExecConfig{
 		Cmd: []string{"true"},
 	}
 	_, err = cli.ContainerExecCreate(context.Background(), name, config)
-
-	comment := check.Commentf("Expected message when creating exec command with Container %s is paused", name)
-	c.Assert(err.Error(), checker.Contains, "Container "+name+" is paused, unpause the container before exec", comment)
+	assert.ErrorContains(c, err, "Container "+name+" is paused, unpause the container before exec", "Expected message when creating exec command with Container %s is paused", name)
 }
 
 func (s *DockerSuite) TestExecAPIStart(c *check.C) {
@@ -93,7 +88,7 @@ func (s *DockerSuite) TestExecAPIStart(c *check.C) {
 
 	var execJSON struct{ PID int }
 	inspectExec(c, id, &execJSON)
-	c.Assert(execJSON.PID, checker.GreaterThan, 1)
+	assert.Assert(c, execJSON.PID > 1)
 
 	id = createExec(c, "test")
 	dockerCmd(c, "stop", "test")
@@ -117,8 +112,8 @@ func (s *DockerSuite) TestExecAPIStartEnsureHeaders(c *check.C) {
 
 	id := createExec(c, "test")
 	resp, _, err := request.Post(fmt.Sprintf("/exec/%s/start", id), request.RawString(`{"Detach": true}`), request.JSON)
-	c.Assert(err, checker.IsNil)
-	c.Assert(resp.Header.Get("Server"), checker.Not(checker.Equals), "")
+	assert.NilError(c, err)
+	assert.Assert(c, resp.Header.Get("Server") != "")
 }
 
 func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *check.C) {
@@ -127,12 +122,12 @@ func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *check.C) {
 	id := createExec(c, "test")
 
 	resp, body, err := request.Post(fmt.Sprintf("/v1.20/exec/%s/start", id), request.RawString(`{"Detach": true}`), request.ContentType("text/plain"))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	b, err := request.ReadBody(body)
 	comment := check.Commentf("response body: %s", b)
-	c.Assert(err, checker.IsNil, comment)
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK, comment)
+	assert.NilError(c, err, comment)
+	assert.Equal(c, resp.StatusCode, http.StatusOK, comment)
 }
 
 // #19362
@@ -156,21 +151,21 @@ func (s *DockerSuite) TestExecAPIStartWithDetach(c *check.C) {
 	}
 
 	cli, err := client.NewClientWithOpts(client.FromEnv)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer cli.Close()
 
 	createResp, err := cli.ContainerExecCreate(context.Background(), name, config)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	_, body, err := request.Post(fmt.Sprintf("/exec/%s/start", createResp.ID), request.RawString(`{"Detach": true}`), request.JSON)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	b, err := request.ReadBody(body)
 	comment := check.Commentf("response body: %s", b)
-	c.Assert(err, checker.IsNil, comment)
+	assert.NilError(c, err, comment)
 
 	resp, _, err := request.Get("/_ping")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	if resp.StatusCode != http.StatusOK {
 		c.Fatal("daemon is down, it should alive")
 	}
@@ -189,7 +184,7 @@ func (s *DockerSuite) TestExecAPIStartValidCommand(c *check.C) {
 	var inspectJSON struct{ ExecIDs []string }
 	inspectContainer(c, name, &inspectJSON)
 
-	c.Assert(inspectJSON.ExecIDs, checker.IsNil)
+	assert.Assert(c, inspectJSON.ExecIDs == nil)
 }
 
 // #30311
@@ -208,7 +203,7 @@ func (s *DockerSuite) TestExecAPIStartInvalidCommand(c *check.C) {
 	var inspectJSON struct{ ExecIDs []string }
 	inspectContainer(c, name, &inspectJSON)
 
-	c.Assert(inspectJSON.ExecIDs, checker.IsNil)
+	assert.Assert(c, inspectJSON.ExecIDs == nil)
 }
 
 func (s *DockerSuite) TestExecStateCleanup(c *check.C) {
@@ -224,13 +219,13 @@ func (s *DockerSuite) TestExecStateCleanup(c *check.C) {
 
 	checkReadDir := func(c *check.C) (interface{}, check.CommentInterface) {
 		fi, err := ioutil.ReadDir(stateDir)
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 		return len(fi), nil
 	}
 
 	fi, err := ioutil.ReadDir(stateDir)
-	c.Assert(err, checker.IsNil)
-	c.Assert(len(fi), checker.GreaterThan, 1)
+	assert.NilError(c, err)
+	assert.Assert(c, len(fi) > 1)
 
 	id := createExecCmd(c, name, "ls")
 	startExec(c, id, http.StatusOK)
@@ -246,8 +241,8 @@ func (s *DockerSuite) TestExecStateCleanup(c *check.C) {
 
 	dockerCmd(c, "stop", name)
 	_, err = os.Stat(stateDir)
-	c.Assert(err, checker.NotNil)
-	c.Assert(os.IsNotExist(err), checker.True)
+	assert.ErrorContains(c, err, "")
+	assert.Assert(c, os.IsNotExist(err))
 }
 
 func createExec(c *check.C, name string) string {
@@ -256,34 +251,33 @@ func createExec(c *check.C, name string) string {
 
 func createExecCmd(c *check.C, name string, cmd string) string {
 	_, reader, err := request.Post(fmt.Sprintf("/containers/%s/exec", name), request.JSONBody(map[string]interface{}{"Cmd": []string{cmd}}))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	b, err := ioutil.ReadAll(reader)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer reader.Close()
 	createResp := struct {
 		ID string `json:"Id"`
 	}{}
-	c.Assert(json.Unmarshal(b, &createResp), checker.IsNil, check.Commentf(string(b)))
+	assert.NilError(c, json.Unmarshal(b, &createResp), string(b))
 	return createResp.ID
 }
 
 func startExec(c *check.C, id string, code int) {
 	resp, body, err := request.Post(fmt.Sprintf("/exec/%s/start", id), request.RawString(`{"Detach": true}`), request.JSON)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	b, err := request.ReadBody(body)
-	comment := check.Commentf("response body: %s", b)
-	c.Assert(err, checker.IsNil, comment)
-	c.Assert(resp.StatusCode, checker.Equals, code, comment)
+	assert.NilError(c, err, "response body: %s", b)
+	assert.Equal(c, resp.StatusCode, code, "response body: %s", b)
 }
 
 func inspectExec(c *check.C, id string, out interface{}) {
 	resp, body, err := request.Get(fmt.Sprintf("/exec/%s/json", id))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer body.Close()
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
+	assert.Equal(c, resp.StatusCode, http.StatusOK)
 	err = json.NewDecoder(body).Decode(out)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 }
 
 func waitForExec(c *check.C, id string) {
@@ -305,9 +299,9 @@ func waitForExec(c *check.C, id string) {
 
 func inspectContainer(c *check.C, id string, out interface{}) {
 	resp, body, err := request.Get(fmt.Sprintf("/containers/%s/json", id))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer body.Close()
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
+	assert.Equal(c, resp.StatusCode, http.StatusOK)
 	err = json.NewDecoder(body).Decode(out)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 }

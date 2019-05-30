@@ -1,6 +1,7 @@
 package cacheimport
 
 import (
+	"strings"
 	"time"
 
 	"github.com/containerd/containerd/content"
@@ -19,6 +20,9 @@ type CacheChains struct {
 }
 
 func (c *CacheChains) Add(dgst digest.Digest) solver.CacheExporterRecord {
+	if strings.HasPrefix(dgst.String(), "random:") {
+		return &nopRecord{}
+	}
 	it := &item{c: c, dgst: dgst}
 	c.items = append(c.items, it)
 	return it
@@ -122,6 +126,29 @@ func (c *item) LinkFrom(rec solver.CacheExporterRecord, index int, selector stri
 	}
 
 	c.links[index][link{src: src, selector: selector}] = struct{}{}
+}
+
+func (c *item) walkAllResults(fn func(i *item) error) error {
+	if err := fn(c); err != nil {
+		return err
+	}
+	for _, links := range c.links {
+		for l := range links {
+			if err := l.src.walkAllResults(fn); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+type nopRecord struct {
+}
+
+func (c *nopRecord) AddResult(createdAt time.Time, result *solver.Remote) {
+}
+
+func (c *nopRecord) LinkFrom(rec solver.CacheExporterRecord, index int, selector string) {
 }
 
 var _ solver.CacheExporterTarget = &CacheChains{}

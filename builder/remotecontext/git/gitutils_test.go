@@ -59,7 +59,7 @@ func TestCloneArgsSmartHttp(t *testing.T) {
 	})
 
 	args := fetchArgs(serverURL.String(), "master")
-	exp := []string{"fetch", "--depth", "1", "origin", "master"}
+	exp := []string{"fetch", "--depth", "1", "origin", "--", "master"}
 	assert.Check(t, is.DeepEqual(exp, args))
 }
 
@@ -75,13 +75,13 @@ func TestCloneArgsDumbHttp(t *testing.T) {
 	})
 
 	args := fetchArgs(serverURL.String(), "master")
-	exp := []string{"fetch", "origin", "master"}
+	exp := []string{"fetch", "origin", "--", "master"}
 	assert.Check(t, is.DeepEqual(exp, args))
 }
 
 func TestCloneArgsGit(t *testing.T) {
 	args := fetchArgs("git://github.com/docker/docker", "master")
-	exp := []string{"fetch", "--depth", "1", "origin", "master"}
+	exp := []string{"fetch", "--depth", "1", "origin", "--", "master"}
 	assert.Check(t, is.DeepEqual(exp, args))
 }
 
@@ -274,5 +274,20 @@ func TestValidGitTransport(t *testing.T) {
 		if isGitTransport(url) {
 			t.Fatalf("%q should not be detected as valid Git prefix", url)
 		}
+	}
+}
+
+func TestGitInvalidRef(t *testing.T) {
+	gitUrls := []string{
+		"git://github.com/moby/moby#--foo bar",
+		"git@github.com/moby/moby#--upload-pack=sleep;:",
+		"git@g.com:a/b.git#-B",
+		"git@g.com:a/b.git#with space",
+	}
+
+	for _, url := range gitUrls {
+		_, err := Clone(url)
+		assert.Assert(t, err != nil)
+		assert.Check(t, is.Contains(strings.ToLower(err.Error()), "invalid refspec"))
 	}
 }

@@ -15,9 +15,9 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 var expectedNetworkInterfaceStats = strings.Split("rx_bytes rx_dropped rx_errors rx_packets tx_bytes tx_dropped tx_errors tx_packets", " ")
@@ -26,15 +26,16 @@ func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;usleep 100; do echo 'Hello'; done")
 
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), checker.IsNil)
+	assert.NilError(c, waitRun(id))
 	resp, body, err := request.Get(fmt.Sprintf("/containers/%s/stats?stream=false", id))
-	c.Assert(err, checker.IsNil)
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
-	c.Assert(resp.Header.Get("Content-Type"), checker.Equals, "application/json")
+	assert.NilError(c, err)
+	assert.Equal(c, resp.StatusCode, http.StatusOK)
+	assert.Equal(c, resp.Header.Get("Content-Type"), "application/json")
+	assert.Equal(c, resp.Header.Get("Content-Type"), "application/json")
 
 	var v *types.Stats
 	err = json.NewDecoder(body).Decode(&v)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	body.Close()
 
 	var cpuPercent = 0.0
@@ -58,7 +59,7 @@ func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *check.C) {
 		}
 	}
 
-	c.Assert(cpuPercent, check.Not(checker.Equals), 0.0, check.Commentf("docker stats with no-stream get cpu usage failed: was %v", cpuPercent))
+	assert.Assert(c, cpuPercent != 0.0, "docker stats with no-stream get cpu usage failed: was %v", cpuPercent)
 }
 
 func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
@@ -67,10 +68,10 @@ func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
 
 	getGoRoutines := func() int {
 		_, body, err := request.Get(fmt.Sprintf("/info"))
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 		info := types.Info{}
 		err = json.NewDecoder(body).Decode(&info)
-		c.Assert(err, checker.IsNil)
+		assert.NilError(c, err)
 		body.Close()
 		return info.NGoroutines
 	}
@@ -78,14 +79,14 @@ func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
 	// When the HTTP connection is closed, the number of goroutines should not increase.
 	routines := getGoRoutines()
 	_, body, err := request.Get(fmt.Sprintf("/containers/%s/stats", id))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	body.Close()
 
 	t := time.After(30 * time.Second)
 	for {
 		select {
 		case <-t:
-			c.Assert(getGoRoutines(), checker.LessOrEqualThan, routines)
+			assert.Assert(c, getGoRoutines() <= routines)
 			return
 		default:
 			if n := getGoRoutines(); n <= routines {
@@ -101,7 +102,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 
 	out := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), checker.IsNil)
+	assert.NilError(c, waitRun(id))
 
 	// Retrieve the container address
 	net := "bridge"
@@ -141,7 +142,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 			err = err2
 		}
 	}
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	pingouts := string(pingout[:])
 	nwStatsPost := getNetworkStats(c, id)
 	for _, v := range nwStatsPost {
@@ -157,10 +158,8 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 		expRxPkts++
 		expTxPkts++
 	}
-	c.Assert(postTxPackets, checker.GreaterOrEqualThan, expTxPkts,
-		check.Commentf("Reported less TxPackets than expected. Expected >= %d. Found %d. %s", expTxPkts, postTxPackets, pingouts))
-	c.Assert(postRxPackets, checker.GreaterOrEqualThan, expRxPkts,
-		check.Commentf("Reported less RxPackets than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts))
+	assert.Assert(c, postTxPackets >= expTxPkts, "Reported less TxPackets than expected. Expected >= %d. Found %d. %s", expTxPkts, postTxPackets, pingouts)
+	assert.Assert(c, postRxPackets >= expRxPkts, "Reported less RxPackets than expected. Expected >= %d. Found %d. %s", expRxPkts, postRxPackets, pingouts)
 }
 
 func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
@@ -169,7 +168,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
 
 	out := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
-	c.Assert(waitRun(id), checker.IsNil)
+	assert.NilError(c, waitRun(id))
 	wg := sync.WaitGroup{}
 
 	for i := 17; i <= 21; i++ {
@@ -179,11 +178,9 @@ func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
 			apiVersion := fmt.Sprintf("v1.%d", i)
 			statsJSONBlob := getVersionedStats(c, id, apiVersion)
 			if versions.LessThan(apiVersion, "v1.21") {
-				c.Assert(jsonBlobHasLTv121NetworkStats(statsJSONBlob), checker.Equals, true,
-					check.Commentf("Stats JSON blob from API %s %#v does not look like a <v1.21 API stats structure", apiVersion, statsJSONBlob))
+				assert.Assert(c, jsonBlobHasLTv121NetworkStats(statsJSONBlob), "Stats JSON blob from API %s %#v does not look like a <v1.21 API stats structure", apiVersion, statsJSONBlob)
 			} else {
-				c.Assert(jsonBlobHasGTE121NetworkStats(statsJSONBlob), checker.Equals, true,
-					check.Commentf("Stats JSON blob from API %s %#v does not look like a >=v1.21 API stats structure", apiVersion, statsJSONBlob))
+				assert.Assert(c, jsonBlobHasGTE121NetworkStats(statsJSONBlob), "Stats JSON blob from API %s %#v does not look like a >=v1.21 API stats structure", apiVersion, statsJSONBlob)
 			}
 		}(i)
 	}
@@ -194,10 +191,10 @@ func getNetworkStats(c *check.C, id string) map[string]types.NetworkStats {
 	var st *types.StatsJSON
 
 	_, body, err := request.Get(fmt.Sprintf("/containers/%s/stats?stream=false", id))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	err = json.NewDecoder(body).Decode(&st)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	body.Close()
 
 	return st.Networks
@@ -211,11 +208,11 @@ func getVersionedStats(c *check.C, id string, apiVersion string) map[string]inte
 	stats := make(map[string]interface{})
 
 	_, body, err := request.Get(fmt.Sprintf("/%s/containers/%s/stats?stream=false", apiVersion, id))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer body.Close()
 
 	err = json.NewDecoder(body).Decode(&stats)
-	c.Assert(err, checker.IsNil, check.Commentf("failed to decode stat: %s", err))
+	assert.NilError(c, err, "failed to decode stat: %s", err)
 
 	return stats
 }
@@ -263,15 +260,15 @@ func jsonBlobHasGTE121NetworkStats(blob map[string]interface{}) bool {
 func (s *DockerSuite) TestAPIStatsContainerNotFound(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	cli, err := client.NewClientWithOpts(client.FromEnv)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer cli.Close()
 
 	expected := "No such container: nonexistent"
 
 	_, err = cli.ContainerStats(context.Background(), "nonexistent", true)
-	c.Assert(err.Error(), checker.Contains, expected)
+	assert.ErrorContains(c, err, expected)
 	_, err = cli.ContainerStats(context.Background(), "nonexistent", false)
-	c.Assert(err.Error(), checker.Contains, expected)
+	assert.ErrorContains(c, err, expected)
 }
 
 func (s *DockerSuite) TestAPIStatsNoStreamConnectedContainers(c *check.C) {
@@ -279,11 +276,11 @@ func (s *DockerSuite) TestAPIStatsNoStreamConnectedContainers(c *check.C) {
 
 	out1 := runSleepingContainer(c)
 	id1 := strings.TrimSpace(out1)
-	c.Assert(waitRun(id1), checker.IsNil)
+	assert.NilError(c, waitRun(id1))
 
 	out2 := runSleepingContainer(c, "--net", "container:"+id1)
 	id2 := strings.TrimSpace(out2)
-	c.Assert(waitRun(id2), checker.IsNil)
+	assert.NilError(c, waitRun(id2))
 
 	ch := make(chan error, 1)
 	go func() {
@@ -307,7 +304,7 @@ func (s *DockerSuite) TestAPIStatsNoStreamConnectedContainers(c *check.C) {
 
 	select {
 	case err := <-ch:
-		c.Assert(err, checker.IsNil, check.Commentf("Error in stats Engine API: %v", err))
+		assert.NilError(c, err, "Error in stats Engine API: %v", err)
 	case <-time.After(15 * time.Second):
 		c.Fatalf("Stats did not return after timeout")
 	}

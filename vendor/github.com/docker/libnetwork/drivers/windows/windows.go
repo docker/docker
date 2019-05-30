@@ -25,6 +25,7 @@ import (
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/portmapper"
 	"github.com/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 )
@@ -88,11 +89,12 @@ type hnsEndpoint struct {
 }
 
 type hnsNetwork struct {
-	id        string
-	created   bool
-	config    *networkConfiguration
-	endpoints map[string]*hnsEndpoint // key: endpoint id
-	driver    *driver                 // The network's driver
+	id         string
+	created    bool
+	config     *networkConfiguration
+	endpoints  map[string]*hnsEndpoint // key: endpoint id
+	driver     *driver                 // The network's driver
+	portMapper *portmapper.PortMapper
 	sync.Mutex
 }
 
@@ -252,10 +254,11 @@ func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (s
 
 func (d *driver) createNetwork(config *networkConfiguration) error {
 	network := &hnsNetwork{
-		id:        config.ID,
-		endpoints: make(map[string]*hnsEndpoint),
-		config:    config,
-		driver:    d,
+		id:         config.ID,
+		endpoints:  make(map[string]*hnsEndpoint),
+		config:     config,
+		driver:     d,
+		portMapper: portmapper.New(""),
 	}
 
 	d.Lock()
@@ -459,7 +462,7 @@ func ConvertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, e
 			return nil, fmt.Errorf("Windows does not support more than one host port in NAT settings")
 		}
 
-		if len(elem.HostIP) != 0 {
+		if len(elem.HostIP) != 0 && !elem.HostIP.IsUnspecified() {
 			return nil, fmt.Errorf("Windows does not support host IP addresses in NAT settings")
 		}
 
@@ -610,7 +613,27 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		endpointStruct.MacAddress = strings.Replace(macAddress.String(), ":", "-", -1)
 	}
 
-	endpointStruct.Policies, err = ConvertPortBindings(epConnectivity.PortBindings)
+	portMapping := epConnectivity.PortBindings
+
+	if n.config.Type == "l2bridge" || n.config.Type == "l2tunnel" {
+		ip := net.IPv4(0, 0, 0, 0)
+		if ifInfo.Address() != nil {
+			ip = ifInfo.Address().IP
+		}
+
+		portMapping, err = AllocatePorts(n.portMapper, portMapping, ip)
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			if err != nil {
+				ReleasePorts(n.portMapper, portMapping)
+			}
+		}()
+	}
+
+	endpointStruct.Policies, err = ConvertPortBindings(portMapping)
 	if err != nil {
 		return err
 	}
@@ -719,6 +742,10 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	ep, err := n.getEndpoint(eid)
 	if err != nil {
 		return err
+	}
+
+	if n.config.Type == "l2bridge" || n.config.Type == "l2tunnel" {
+		ReleasePorts(n.portMapper, ep.portMapping)
 	}
 
 	n.Lock()

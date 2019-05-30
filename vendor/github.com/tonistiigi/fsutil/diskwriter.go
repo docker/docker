@@ -26,7 +26,7 @@ type DiskWriterOpt struct {
 	Filter        FilterFunc
 }
 
-type FilterFunc func(*types.Stat) bool
+type FilterFunc func(string, *types.Stat) bool
 
 type DiskWriter struct {
 	opt  DiskWriterOpt
@@ -84,6 +84,12 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 	destPath := filepath.Join(dw.dest, filepath.FromSlash(p))
 
 	if kind == ChangeKindDelete {
+		if dw.filter != nil {
+			var empty types.Stat
+			if ok := dw.filter(p, &empty); !ok {
+				return nil
+			}
+		}
 		// todo: no need to validate if diff is trusted but is it always?
 		if err := os.RemoveAll(destPath); err != nil {
 			return errors.Wrapf(err, "failed to remove: %s", destPath)
@@ -104,7 +110,7 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 	statCopy := *stat
 
 	if dw.filter != nil {
-		if ok := dw.filter(&statCopy); !ok {
+		if ok := dw.filter(p, &statCopy); !ok {
 			return nil
 		}
 	}

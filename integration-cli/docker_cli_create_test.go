@@ -15,6 +15,8 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/nat"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 // Make sure we can create a simple container with some args
@@ -36,7 +38,7 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 
 	err := json.Unmarshal([]byte(out), &containers)
 	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
-	c.Assert(containers, checker.HasLen, 1)
+	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
 	c.Assert(string(cont.Path), checker.Equals, "command", check.Commentf("Unexpected container path. Expected command, received: %s", cont.Path))
@@ -75,7 +77,7 @@ func (s *DockerSuite) TestCreateShrinkRootfs(c *check.C) {
 
 	// Ensure this fails because of the defaultBaseFsSize is 10G
 	out, _, err := dockerCmdWithError("create", "--storage-opt", "size=5G", "busybox")
-	c.Assert(err, check.NotNil, check.Commentf("%s", out))
+	assert.ErrorContains(c, err, "", out)
 	c.Assert(out, checker.Contains, "Container size cannot be smaller than")
 }
 
@@ -95,7 +97,7 @@ func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 
 	err := json.Unmarshal([]byte(out), &containers)
 	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
-	c.Assert(containers, checker.HasLen, 1)
+	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
 	c.Assert(cont.HostConfig, check.NotNil, check.Commentf("Expected HostConfig, got none"))
@@ -116,7 +118,7 @@ func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 	}
 	err := json.Unmarshal([]byte(out), &containers)
 	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
-	c.Assert(containers, checker.HasLen, 1)
+	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
 
@@ -146,7 +148,7 @@ func (s *DockerSuite) TestCreateWithLargePortRange(c *check.C) {
 
 	err := json.Unmarshal([]byte(out), &containers)
 	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
-	c.Assert(containers, checker.HasLen, 1)
+	assert.Equal(c, len(containers), 1)
 
 	cont := containers[0]
 	c.Assert(cont.HostConfig, check.NotNil, check.Commentf("Expected HostConfig, got none"))
@@ -166,8 +168,7 @@ func (s *DockerSuite) TestCreateEchoStdout(c *check.C) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "start", "-ai", cleanedContainerID)
-	c.Assert(out, checker.Equals, "test123\n", check.Commentf("container should've printed 'test123', got %q", out))
-
+	assert.Equal(c, out, "test123\n", "container should've printed 'test123', got %q", out)
 }
 
 func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
@@ -226,8 +227,7 @@ func (s *DockerSuite) TestCreateHostnameWithNumber(c *check.C) {
 		image = testEnv.PlatformDefaults.BaseImage
 	}
 	out, _ := dockerCmd(c, "run", "-h", "web.0", image, "hostname")
-	c.Assert(strings.TrimSpace(out), checker.Equals, "web.0", check.Commentf("hostname not set, expected `web.0`, got: %s", out))
-
+	assert.Equal(c, strings.TrimSpace(out), "web.0", "hostname not set, expected `web.0`, got: %s", out)
 }
 
 func (s *DockerSuite) TestCreateRM(c *check.C) {
@@ -316,8 +316,9 @@ func (s *DockerSuite) TestCreateWithWorkdir(c *check.C) {
 func (s *DockerSuite) TestCreateWithInvalidLogOpts(c *check.C) {
 	name := "test-invalidate-log-opts"
 	out, _, err := dockerCmdWithError("create", "--name", name, "--log-opt", "invalid=true", "busybox")
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 	c.Assert(out, checker.Contains, "unknown log opt")
+	assert.Assert(c, is.Contains(out, "unknown log opt"))
 
 	out, _ = dockerCmd(c, "ps", "-a")
 	c.Assert(out, checker.Not(checker.Contains), name)

@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -42,6 +43,7 @@ import (
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/sirupsen/logrus"
+
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/stats"
@@ -50,6 +52,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -105,7 +108,7 @@ type Daemon struct {
 	pluginManager         *plugin.Manager
 	linkIndex             *linkIndex
 	containerdCli         *containerd.Client
-	containerd            libcontainerd.Client
+	containerd            libcontainerdtypes.Client
 	defaultIsolation      containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider       cluster.Provider
 	cluster               Cluster
@@ -157,15 +160,18 @@ func (daemon *Daemon) NewResolveOptionsFunc() resolver.ResolveOptionsFunc {
 		)
 		// must trim "https://" or "http://" prefix
 		for i, v := range daemon.configStore.Mirrors {
-			v = strings.TrimPrefix(v, "https://")
-			v = strings.TrimPrefix(v, "http://")
+			if uri, err := url.Parse(v); err == nil {
+				v = uri.Host
+			}
 			mirrors[i] = v
 		}
 		// set "registry-mirrors"
 		m[registryKey] = resolver.RegistryConf{Mirrors: mirrors}
 		// set "insecure-registries"
 		for _, v := range daemon.configStore.InsecureRegistries {
-			v = strings.TrimPrefix(v, "http://")
+			if uri, err := url.Parse(v); err == nil {
+				v = uri.Host
+			}
 			m[v] = resolver.RegistryConf{
 				PlainHTTP: true,
 			}
@@ -319,16 +325,17 @@ func (daemon *Daemon) restore() error {
 				alive    bool
 				ec       uint32
 				exitedAt time.Time
+				process  libcontainerdtypes.Process
 			)
 
-			alive, _, err = daemon.containerd.Restore(context.Background(), c.ID, c.InitializeStdio)
+			alive, _, process, err = daemon.containerd.Restore(context.Background(), c.ID, c.InitializeStdio)
 			if err != nil && !errdefs.IsNotFound(err) {
 				logrus.Errorf("Failed to restore container %s with containerd: %s", c.ID, err)
 				return
 			}
-			if !alive {
-				ec, exitedAt, err = daemon.containerd.DeleteTask(context.Background(), c.ID)
-				if err != nil && !errdefs.IsNotFound(err) {
+			if !alive && process != nil {
+				ec, exitedAt, err = process.Delete(context.Background())
+				if err != nil {
 					logrus.WithError(err).Errorf("Failed to delete container %s from containerd", c.ID)
 					return
 				}
@@ -351,11 +358,11 @@ func (daemon *Daemon) restore() error {
 						logrus.WithField("container", c.ID).WithField("state", s).
 							Info("restored container paused")
 						switch s {
-						case libcontainerd.StatusPaused, libcontainerd.StatusPausing:
+						case containerd.Paused, containerd.Pausing:
 							// nothing to do
-						case libcontainerd.StatusStopped:
+						case containerd.Stopped:
 							alive = false
-						case libcontainerd.StatusUnknown:
+						case containerd.Unknown:
 							logrus.WithField("container", c.ID).
 								Error("Unknown status for container during restore")
 						default:

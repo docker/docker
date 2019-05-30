@@ -45,7 +45,7 @@ var (
 // Validate return nil if the string s is a valid identifier.
 //
 // identifiers must be valid domain names according to RFC 1035, section 2.3.1.  To
-// enforce case insensitvity, all characters must be lower case.
+// enforce case insensitivity, all characters must be lower case.
 //
 // In general, identifiers that pass this validation, should be safe for use as
 // a domain names or filesystem path component.

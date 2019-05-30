@@ -20,9 +20,9 @@ type TestContainerConfig struct {
 	NetworkingConfig *network.NetworkingConfig
 }
 
-// Create creates a container with the specified options
+// create creates a container with the specified options
 // nolint: golint
-func Create(t *testing.T, ctx context.Context, client client.APIClient, ops ...func(*TestContainerConfig)) string { // nolint: golint
+func create(t *testing.T, ctx context.Context, client client.APIClient, ops ...func(*TestContainerConfig)) (container.ContainerCreateCreatedBody, error) { // nolint: golint
 	t.Helper()
 	config := &TestContainerConfig{
 		Config: &container.Config{
@@ -37,10 +37,21 @@ func Create(t *testing.T, ctx context.Context, client client.APIClient, ops ...f
 		op(config)
 	}
 
-	c, err := client.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Name)
+	return client.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Name)
+}
+
+// Create creates a container with the specified options, asserting that there was no error
+func Create(t *testing.T, ctx context.Context, client client.APIClient, ops ...func(*TestContainerConfig)) string { // nolint: golint
+	c, err := create(t, ctx, client, ops...)
 	assert.NilError(t, err)
 
 	return c.ID
+}
+
+// CreateExpectingErr creates a container, expecting an error with the specified message
+func CreateExpectingErr(t *testing.T, ctx context.Context, client client.APIClient, errMsg string, ops ...func(*TestContainerConfig)) { // nolint: golint
+	_, err := create(t, ctx, client, ops...)
+	assert.ErrorContains(t, err, errMsg)
 }
 
 // Run creates and start a container with the specified options

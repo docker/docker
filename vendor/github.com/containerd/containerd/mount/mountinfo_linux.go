@@ -25,6 +25,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // Self retrieves a list of mounts for the current running process.
@@ -41,13 +43,15 @@ func Self() ([]Info, error) {
 func parseInfoFile(r io.Reader) ([]Info, error) {
 	s := bufio.NewScanner(r)
 	out := []Info{}
-
+	var err error
 	for s.Scan() {
-		if err := s.Err(); err != nil {
+		if err = s.Err(); err != nil {
 			return nil, err
 		}
 
 		/*
+		   See http://man7.org/linux/man-pages/man5/proc.5.html
+
 		   36 35 98:0 /mnt1 /mnt2 rw,noatime master:1 - ext3 /dev/root rw,errors=continue
 		   (1)(2)(3)   (4)   (5)      (6)      (7)   (8) (9)   (10)         (11)
 		   (1) mount ID:  unique identifier of the mount (may be reused after umount)
@@ -68,7 +72,7 @@ func parseInfoFile(r io.Reader) ([]Info, error) {
 		numFields := len(fields)
 		if numFields < 10 {
 			// should be at least 10 fields
-			return nil, fmt.Errorf("parsing '%s' failed: not enough fields (%d)", text, numFields)
+			return nil, errors.Errorf("parsing '%s' failed: not enough fields (%d)", text, numFields)
 		}
 		p := Info{}
 		// ignore any numbers parsing errors, as there should not be any
@@ -76,13 +80,19 @@ func parseInfoFile(r io.Reader) ([]Info, error) {
 		p.Parent, _ = strconv.Atoi(fields[1])
 		mm := strings.Split(fields[2], ":")
 		if len(mm) != 2 {
-			return nil, fmt.Errorf("parsing '%s' failed: unexpected minor:major pair %s", text, mm)
+			return nil, errors.Errorf("parsing '%s' failed: unexpected minor:major pair %s", text, mm)
 		}
 		p.Major, _ = strconv.Atoi(mm[0])
 		p.Minor, _ = strconv.Atoi(mm[1])
 
-		p.Root = fields[3]
-		p.Mountpoint = fields[4]
+		p.Root, err = strconv.Unquote(`"` + fields[3] + `"`)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parsing '%s' failed: unable to unquote root field", fields[3])
+		}
+		p.Mountpoint, err = strconv.Unquote(`"` + fields[4] + `"`)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parsing '%s' failed: unable to unquote mount point field", fields[4])
+		}
 		p.Options = fields[5]
 
 		// one or more optional fields, when a separator (-)
@@ -101,11 +111,11 @@ func parseInfoFile(r io.Reader) ([]Info, error) {
 			}
 		}
 		if i == numFields {
-			return nil, fmt.Errorf("parsing '%s' failed: missing separator ('-')", text)
+			return nil, errors.Errorf("parsing '%s' failed: missing separator ('-')", text)
 		}
 		// There should be 3 fields after the separator...
 		if i+4 > numFields {
-			return nil, fmt.Errorf("parsing '%s' failed: not enough fields after a separator", text)
+			return nil, errors.Errorf("parsing '%s' failed: not enough fields after a separator", text)
 		}
 		// ... but in Linux <= 3.9 mounting a cifs with spaces in a share name
 		// (like "//serv/My Documents") _may_ end up having a space in the last field

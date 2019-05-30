@@ -304,3 +304,15 @@ func marshalItem(it *item, state *marshalState) error {
 	state.records = append(state.records, rec)
 	return nil
 }
+
+func isSubRemote(sub, main solver.Remote) bool {
+	if len(sub.Descriptors) > len(main.Descriptors) {
+		return false
+	}
+	for i := range sub.Descriptors {
+		if sub.Descriptors[i].Digest != main.Descriptors[i].Digest {
+			return false
+		}
+	}
+	return true
+}

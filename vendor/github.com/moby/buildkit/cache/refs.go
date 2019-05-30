@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/mount"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/snapshot"
@@ -20,6 +21,7 @@ type Ref interface {
 	Release(context.Context) error
 	Size(ctx context.Context) (int64, error)
 	Metadata() *metadata.StorageItem
+	IdentityMapping() *idtools.IdentityMapping
 }
 
 type ImmutableRef interface {
@@ -81,6 +83,10 @@ func (cr *cacheRecord) mref(triggerLastUsed bool) *mutableRef {
 // hold ref lock before calling
 func (cr *cacheRecord) isDead() bool {
 	return cr.dead || (cr.equalImmutable != nil && cr.equalImmutable.dead) || (cr.equalMutable != nil && cr.equalMutable.dead)
+}
+
+func (cr *cacheRecord) IdentityMapping() *idtools.IdentityMapping {
+	return cr.cm.IdentityMapping()
 }
 
 func (cr *cacheRecord) Size(ctx context.Context) (int64, error) {
@@ -311,7 +317,7 @@ func (sr *mutableRef) updateLastUsed() bool {
 
 func (sr *mutableRef) commit(ctx context.Context) (ImmutableRef, error) {
 	if !sr.mutable || len(sr.refs) == 0 {
-		return nil, errors.Wrapf(errInvalid, "invalid mutable ref")
+		return nil, errors.Wrapf(errInvalid, "invalid mutable ref %p", sr)
 	}
 
 	id := identity.NewID()

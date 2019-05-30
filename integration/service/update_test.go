@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -191,6 +192,59 @@ func TestServiceUpdateConfigs(t *testing.T) {
 	assert.Check(t, is.Equal(0, len(service.Spec.TaskTemplate.ContainerSpec.Configs)))
 
 	err = cli.ServiceRemove(context.Background(), serviceID)
+	assert.NilError(t, err)
+}
+
+func TestServiceUpdateNetwork(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	defer setupTest(t)()
+	d := swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
+	cli := d.NewClientT(t)
+	defer cli.Close()
+
+	ctx := context.Background()
+
+	// Create a overlay network
+	testNet := "testNet" + t.Name()
+	overlayID := network.CreateNoError(t, ctx, cli, testNet,
+		network.WithDriver("overlay"))
+
+	var instances uint64 = 1
+	// Create service with the overlay network
+	serviceName := "TestServiceUpdateNetworkRM_" + t.Name()
+	serviceID := swarm.CreateService(t, d,
+		swarm.ServiceWithReplicas(instances),
+		swarm.ServiceWithName(serviceName),
+		swarm.ServiceWithNetwork(testNet))
+
+	poll.WaitOn(t, swarm.RunningTasksCount(cli, serviceID, instances), swarm.ServicePoll)
+	service := getService(t, cli, serviceID)
+	netInfo, err := cli.NetworkInspect(ctx, testNet, types.NetworkInspectOptions{
+		Verbose: true,
+		Scope:   "swarm",
+	})
+	assert.NilError(t, err)
+	assert.Assert(t, len(netInfo.Containers) == 2, "Expected 2 endpoints, one for container and one for LB Sandbox")
+
+	//Remove network from service
+	service.Spec.TaskTemplate.Networks = []swarmtypes.NetworkAttachmentConfig{}
+	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
+	assert.NilError(t, err)
+	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
+
+	netInfo, err = cli.NetworkInspect(ctx, testNet, types.NetworkInspectOptions{
+		Verbose: true,
+		Scope:   "swarm",
+	})
+
+	assert.NilError(t, err)
+	assert.Assert(t, len(netInfo.Containers) == 0, "Load balancing endpoint still exists in network")
+
+	err = cli.NetworkRemove(ctx, overlayID)
+	assert.NilError(t, err)
+
+	err = cli.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
 }
 

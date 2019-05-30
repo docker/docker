@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )
 
@@ -24,13 +25,13 @@ func (s *DockerSuite) TestImportDisplay(c *check.C) {
 		exec.Command(dockerBinary, "export", cleanedContainerID),
 		exec.Command(dockerBinary, "import", "-"),
 	)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
-	c.Assert(out, checker.Count, "\n", 1, check.Commentf("display is expected 1 '\\n' but didn't"))
+	assert.Assert(c, strings.Count(out, "\n") == 1, "display is expected 1 '\\n' but didn't")
 
 	image := strings.TrimSpace(out)
 	out, _ = dockerCmd(c, "run", "--rm", image, "true")
-	c.Assert(out, checker.Equals, "", check.Commentf("command output should've been nothing."))
+	assert.Equal(c, out, "", "command output should've been nothing.")
 }
 
 func (s *DockerSuite) TestImportBadURL(c *check.C) {
@@ -58,11 +59,11 @@ func (s *DockerSuite) TestImportFile(c *check.C) {
 	}).Assert(c, icmd.Success)
 
 	out, _ := dockerCmd(c, "import", temporaryFile.Name())
-	c.Assert(out, checker.Count, "\n", 1, check.Commentf("display is expected 1 '\\n' but didn't"))
+	assert.Assert(c, strings.Count(out, "\n") == 1, "display is expected 1 '\\n' but didn't")
 	image := strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "run", "--rm", image, "true")
-	c.Assert(out, checker.Equals, "", check.Commentf("command output should've been nothing."))
+	assert.Equal(c, out, "", "command output should've been nothing.")
 }
 
 func (s *DockerSuite) TestImportGzipped(c *check.C) {
@@ -81,11 +82,11 @@ func (s *DockerSuite) TestImportGzipped(c *check.C) {
 	c.Assert(w.Close(), checker.IsNil, check.Commentf("failed to close gzip writer"))
 	temporaryFile.Close()
 	out, _ := dockerCmd(c, "import", temporaryFile.Name())
-	c.Assert(out, checker.Count, "\n", 1, check.Commentf("display is expected 1 '\\n' but didn't"))
+	assert.Assert(c, strings.Count(out, "\n") == 1, "display is expected 1 '\\n' but didn't")
 	image := strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "run", "--rm", image, "true")
-	c.Assert(out, checker.Equals, "", check.Commentf("command output should've been nothing."))
+	assert.Equal(c, out, "", "command output should've been nothing.")
 }
 
 func (s *DockerSuite) TestImportFileWithMessage(c *check.C) {
@@ -103,7 +104,7 @@ func (s *DockerSuite) TestImportFileWithMessage(c *check.C) {
 
 	message := "Testing commit message"
 	out, _ := dockerCmd(c, "import", "-m", message, temporaryFile.Name())
-	c.Assert(out, checker.Count, "\n", 1, check.Commentf("display is expected 1 '\\n' but didn't"))
+	assert.Assert(c, strings.Count(out, "\n") == 1, "display is expected 1 '\\n' but didn't")
 	image := strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "history", image)
@@ -116,7 +117,7 @@ func (s *DockerSuite) TestImportFileWithMessage(c *check.C) {
 	c.Assert(message, checker.Equals, split[3], check.Commentf("didn't get expected value in commit message"))
 
 	out, _ = dockerCmd(c, "run", "--rm", image, "true")
-	c.Assert(out, checker.Equals, "", check.Commentf("command output should've been nothing"))
+	assert.Equal(c, out, "", "command output should've been nothing")
 }
 
 func (s *DockerSuite) TestImportFileNonExistentFile(c *check.C) {

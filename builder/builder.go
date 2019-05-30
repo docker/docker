@@ -60,8 +60,8 @@ type ImageBackend interface {
 type ExecBackend interface {
 	// ContainerAttachRaw attaches to container.
 	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error
-	// ContainerCreate creates a new Docker container and returns potential warnings
-	ContainerCreate(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
+	// ContainerCreateIgnoreImagesArgsEscaped creates a new Docker container and returns potential warnings
+	ContainerCreateIgnoreImagesArgsEscaped(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
 	// ContainerRm removes a container specified by `id`.
 	ContainerRm(name string, config *types.ContainerRmConfig) error
 	// ContainerKill stops the container execution abruptly.
