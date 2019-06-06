@@ -121,6 +121,17 @@ type DiscreteGenericResource struct {
 type ResourceRequirements struct {
 	Limits       *Resources `json:",omitempty"`
 	Reservations *Resources `json:",omitempty"`
+
+	// Amount of swap in bytes - can only be used together with a memory limit
+	// -1 means unlimited
+	// a null pointer keeps the default behaviour of granting twice the memory
+	// amount in swap
+	SwapBytes *int64
+
+	// Tune container memory swappiness (0 to 100) - if not specified, defaults
+	// to the container OS's default - generally 60, or the value predefined in
+	// the image; set to -1 to unset a previously set value
+	MemorySwappiness *int64
 }
 
 // Placement represents orchestration parameters.

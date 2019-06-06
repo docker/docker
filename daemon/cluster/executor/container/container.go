@@ -443,6 +443,20 @@ func (c *containerConfig) resources() enginecontainer.Resources {
 
 	if r.Limits.MemoryBytes > 0 {
 		resources.Memory = r.Limits.MemoryBytes
+
+		if r.SwapBytes != nil {
+			if swapBytes := r.SwapBytes.Value; swapBytes == -1 {
+				// means unlimited
+				resources.MemorySwap = -1
+			} else if swapBytes >= 0 {
+				// resources.MemorySwap is actually the sum of the memory + the swap
+				resources.MemorySwap = resources.Memory + swapBytes
+			}
+		}
+	}
+
+	if r.MemorySwappiness != nil {
+		resources.MemorySwappiness = &r.MemorySwappiness.Value
 	}
 
 	if r.Limits.NanoCPUs > 0 {

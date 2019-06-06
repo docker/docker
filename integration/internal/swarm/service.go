@@ -93,42 +93,37 @@ func CreateServiceSpec(t *testing.T, opts ...ServiceSpecOpt) swarmtypes.ServiceS
 
 // ServiceWithInit sets whether the service should use init or not
 func ServiceWithInit(b *bool) func(*swarmtypes.ServiceSpec) {
-	return func(spec *swarmtypes.ServiceSpec) {
-		ensureContainerSpec(spec)
+	return withEnsureContainerSpec(func(spec *swarmtypes.ServiceSpec) {
 		spec.TaskTemplate.ContainerSpec.Init = b
-	}
+	})
 }
 
 // ServiceWithImage sets the image to use for the service
 func ServiceWithImage(image string) func(*swarmtypes.ServiceSpec) {
-	return func(spec *swarmtypes.ServiceSpec) {
-		ensureContainerSpec(spec)
+	return withEnsureContainerSpec(func(spec *swarmtypes.ServiceSpec) {
 		spec.TaskTemplate.ContainerSpec.Image = image
-	}
+	})
 }
 
 // ServiceWithCommand sets the command to use for the service
 func ServiceWithCommand(cmd []string) ServiceSpecOpt {
-	return func(spec *swarmtypes.ServiceSpec) {
-		ensureContainerSpec(spec)
+	return withEnsureContainerSpec(func(spec *swarmtypes.ServiceSpec) {
 		spec.TaskTemplate.ContainerSpec.Command = cmd
-	}
+	})
 }
 
 // ServiceWithConfig adds the config reference to the service
 func ServiceWithConfig(configRef *swarmtypes.ConfigReference) ServiceSpecOpt {
-	return func(spec *swarmtypes.ServiceSpec) {
-		ensureContainerSpec(spec)
+	return withEnsureContainerSpec(func(spec *swarmtypes.ServiceSpec) {
 		spec.TaskTemplate.ContainerSpec.Configs = append(spec.TaskTemplate.ContainerSpec.Configs, configRef)
-	}
+	})
 }
 
 // ServiceWithSecret adds the secret reference to the service
 func ServiceWithSecret(secretRef *swarmtypes.SecretReference) ServiceSpecOpt {
-	return func(spec *swarmtypes.ServiceSpec) {
-		ensureContainerSpec(spec)
+	return withEnsureContainerSpec(func(spec *swarmtypes.ServiceSpec) {
 		spec.TaskTemplate.ContainerSpec.Secrets = append(spec.TaskTemplate.ContainerSpec.Secrets, secretRef)
-	}
+	})
 }
 
 // ServiceWithReplicas sets the replicas for the service
@@ -174,10 +169,25 @@ func ServiceWithEndpoint(endpoint *swarmtypes.EndpointSpec) ServiceSpecOpt {
 
 // ServiceWithSysctls sets the Sysctls option of the service's ContainerSpec.
 func ServiceWithSysctls(sysctls map[string]string) ServiceSpecOpt {
-	return func(spec *swarmtypes.ServiceSpec) {
-		ensureContainerSpec(spec)
+	return withEnsureContainerSpec(func(spec *swarmtypes.ServiceSpec) {
 		spec.TaskTemplate.ContainerSpec.Sysctls = sysctls
-	}
+	})
+}
+
+// ServiceWithMemorySwap sets the memory swap value of the service's TaskSpec
+// it also requires setting a memory limit, since the engine enforces that
+func ServiceWithMemorySwap(swap *int64, memoryLimit int64) ServiceSpecOpt {
+	return withEnsureResourceLimits(func(spec *swarmtypes.ServiceSpec) {
+		spec.TaskTemplate.Resources.SwapBytes = swap
+		spec.TaskTemplate.Resources.Limits.MemoryBytes = memoryLimit
+	})
+}
+
+// ServiceWithMemorySwappiness sets the memory swappiness value of the service's ContainerSpec
+func ServiceWithMemorySwappiness(swappiness *int64) ServiceSpecOpt {
+	return withEnsureResourceLimits(func(spec *swarmtypes.ServiceSpec) {
+		spec.TaskTemplate.Resources.MemorySwappiness = swappiness
+	})
 }
 
 // GetRunningTasks gets the list of running tasks for a service
@@ -211,10 +221,31 @@ func ExecTask(t *testing.T, d *daemon.Daemon, task swarmtypes.Task, config types
 	return attach
 }
 
-func ensureContainerSpec(spec *swarmtypes.ServiceSpec) {
-	if spec.TaskTemplate.ContainerSpec == nil {
-		spec.TaskTemplate.ContainerSpec = &swarmtypes.ContainerSpec{}
+func withEnsureContainerSpec(modifier ServiceSpecOpt) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		if spec.TaskTemplate.ContainerSpec == nil {
+			spec.TaskTemplate.ContainerSpec = &swarmtypes.ContainerSpec{}
+		}
+		modifier(spec)
 	}
+}
+
+func withEnsureResources(modifier ServiceSpecOpt) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		if spec.TaskTemplate.Resources == nil {
+			spec.TaskTemplate.Resources = &swarmtypes.ResourceRequirements{}
+		}
+		modifier(spec)
+	}
+}
+
+func withEnsureResourceLimits(modifier ServiceSpecOpt) ServiceSpecOpt {
+	return withEnsureResources(func(spec *swarmtypes.ServiceSpec) {
+		if spec.TaskTemplate.Resources.Limits == nil {
+			spec.TaskTemplate.Resources.Limits = &swarmtypes.Resources{}
+		}
+		modifier(spec)
+	})
 }
 
 func ensurePlacement(spec *swarmtypes.ServiceSpec) {

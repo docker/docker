@@ -8,9 +8,10 @@ import (
 )
 
 func TestAdjustForAPIVersion(t *testing.T) {
-	var (
-		expectedSysctls = map[string]string{"foo": "bar"}
-	)
+	expectedSysctls := map[string]string{"foo": "bar"}
+	swapBytes := int64(12)
+	memorySwappiness := int64(28)
+
 	// testing the negative -- does this leave everything else alone? -- is
 	// prohibitively time-consuming to write, because it would need an object
 	// with literally every field filled in.
@@ -43,6 +44,10 @@ func TestAdjustForAPIVersion(t *testing.T) {
 			Placement: &swarm.Placement{
 				MaxReplicas: 222,
 			},
+			Resources: &swarm.ResourceRequirements{
+				SwapBytes:        &swapBytes,
+				MemorySwappiness: &memorySwappiness,
+			},
 		},
 	}
 
@@ -66,6 +71,14 @@ func TestAdjustForAPIVersion(t *testing.T) {
 		t.Error("MaxReplicas was stripped from spec")
 	}
 
+	if spec.TaskTemplate.Resources.MemorySwappiness == nil {
+		t.Error("SwapBytes was stripped from spec")
+	}
+
+	if spec.TaskTemplate.Resources.SwapBytes == nil {
+		t.Error("MemorySwappiness was stripped from spec")
+	}
+
 	// next, does calling this with an earlier version correctly strip fields?
 	adjustForAPIVersion("1.29", spec)
 	if spec.TaskTemplate.ContainerSpec.Sysctls != nil {
@@ -84,4 +97,11 @@ func TestAdjustForAPIVersion(t *testing.T) {
 		t.Error("MaxReplicas was not stripped from spec")
 	}
 
+	if spec.TaskTemplate.Resources.MemorySwappiness != nil {
+		t.Error("SwapBytes was not stripped from spec")
+	}
+
+	if spec.TaskTemplate.Resources.SwapBytes != nil {
+		t.Error("MemorySwappiness was not stripped from spec")
+	}
 }

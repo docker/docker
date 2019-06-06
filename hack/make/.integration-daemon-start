@@ -78,7 +78,8 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 	# "pwd" tricks to make sure $DEST is an absolute path, not a relative one
 	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock"
 	(
-		echo "Starting dockerd"
+		LOG_FILE="$DEST/docker.log"
+		echo "Starting dockerd - log file at $LOG_FILE"
 		[ -n "$TESTDEBUG" ] && set -x
 		exec \
 			dockerd --debug \
@@ -88,7 +89,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 			--userland-proxy="$DOCKER_USERLANDPROXY" \
 			${storage_params} \
 			${extra_params} \
-				&> "$DEST/docker.log"
+				&> "$LOG_FILE"
 	) &
 else
 	export DOCKER_HOST="$DOCKER_TEST_HOST"
