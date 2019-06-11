@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	mounttypes "github.com/docker/docker/api/types/mount"
@@ -68,10 +69,17 @@ type MountPoint struct {
 	// where a bind dir existed during validation was removed before reaching the setup code.
 	SkipMountpointCreation bool
 
+	// SubPath specifies the requested sub-directory of the volume to be mounted
+	// for volumes that allows mounting a sub-directory.
+	SubPath string
+
 	// Track usage of this mountpoint
 	// Specifically needed for containers which are running and calls to `docker cp`
 	// because both these actions require mounting the volumes.
 	active int
+
+	// For volumes mounted with a subpath, track the full mounted path.
+	mountedSubPath string
 }
 
 // Cleanup frees resources used by the mountpoint
@@ -87,6 +95,7 @@ func (m *MountPoint) Cleanup() error {
 	m.active--
 	if m.active == 0 {
 		m.ID = ""
+		m.mountedSubPath = ""
 	}
 	return nil
 }
@@ -123,18 +132,7 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 	}()
 
 	if m.Volume != nil {
-		id := m.ID
-		if id == "" {
-			id = stringid.GenerateNonCryptoID()
-		}
-		path, err := m.Volume.Mount(id)
-		if err != nil {
-			return "", errors.Wrapf(err, "error while mounting volume '%s'", m.Source)
-		}
-
-		m.ID = id
-		m.active++
-		return path, nil
+		return m.mountVolume()
 	}
 
 	if len(m.Source) == 0 {
@@ -164,9 +162,61 @@ func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun
 	return m.Source, nil
 }
 
+// mountVolume mounts a volume or a sub-path of it.
+func (m *MountPoint) mountVolume() (string, error) {
+	id := m.ID
+	if id == "" {
+		id = stringid.GenerateNonCryptoID()
+	}
+
+	path, err := m.Volume.Mount(id)
+	if err != nil {
+		return "", errors.Wrapf(err, "error while mounting volume '%s'", m.Source)
+	}
+
+	if m.SubPath != "" {
+		path, err = m.mountVolumeSubPath(path)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	m.ID = id
+	m.active++
+	return path, nil
+}
+
+func (m *MountPoint) mountVolumeSubPath(volumePath string) (string, error) {
+	realPath, err := filepath.EvalSymlinks(filepath.Join(volumePath, m.SubPath))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", errors.Wrapf(err, "directory %s does not exist under volume path: %s", m.SubPath, volumePath)
+		}
+		return "", errors.Wrapf(err, "error while parsing symlinks for volume path: %s, sub-path: %s", volumePath, m.SubPath)
+	}
+
+	fi, err := os.Stat(realPath)
+	if err != nil {
+		return "", err
+	}
+	if !fi.IsDir() {
+		return "", errors.Errorf("%s is not a directory", realPath)
+	}
+
+	if !strings.HasPrefix(realPath, volumePath) {
+		return "", errors.Errorf("directory %s outside of the volume root %s", realPath, volumePath)
+	}
+
+	m.mountedSubPath = realPath
+	return realPath, nil
+}
+
 // Path returns the path of a volume in a mount point.
 func (m *MountPoint) Path() string {
 	if m.Volume != nil {
+		if m.mountedSubPath != "" {
+			return m.mountedSubPath
+		}
 		return m.Volume.Path()
 	}
 	return m.Source

@@ -12,6 +12,7 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/mount"
@@ -264,4 +265,122 @@ func TestContainerBindMountNonRecursive(t *testing.T) {
 	for _, c := range containers {
 		poll.WaitOn(t, container.IsSuccessful(ctx, client, c), poll.WithDelay(100*time.Millisecond))
 	}
+}
+
+func TestMultipleMountsDifferentSubPaths(t *testing.T) {
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	volumeName := prepareVolume(t)
+
+	mnt1 := mounttypes.Mount{
+		Type:          mounttypes.TypeVolume,
+		Source:        volumeName,
+		Target:        "/foo",
+		VolumeOptions: &mounttypes.VolumeOptions{SubPath: "/bar"},
+	}
+	mnt2 := mounttypes.Mount{
+		Type:          mounttypes.TypeVolume,
+		Source:        volumeName,
+		Target:        "/x",
+		VolumeOptions: &mounttypes.VolumeOptions{SubPath: "/bar/baz"},
+	}
+
+	cID := container.Run(t, ctx, client,
+		container.WithMount(mnt1),
+		container.WithMount(mnt2),
+		container.WithCmd("sh", "-c", "cat /foo/file"),
+	)
+	poll.WaitOn(t, container.IsSuccessful(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
+
+	err := client.VolumeRemove(ctx, volumeName, false)
+	assert.Check(t, is.ErrorContains(err, "volume is in use"))
+
+	err = client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+	assert.NilError(t, err)
+
+	err = client.VolumeRemove(ctx, volumeName, false)
+	assert.NilError(t, err)
+}
+
+func TestSubPathMultipleNestedMounts(t *testing.T) {
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	volumeName := prepareVolume(t)
+
+	mnt1 := mounttypes.Mount{
+		Type:   mounttypes.TypeVolume,
+		Source: volumeName,
+		Target: "/foo",
+	}
+	mnt2 := mounttypes.Mount{
+		Type:          mounttypes.TypeVolume,
+		Source:        volumeName,
+		Target:        "/foo/bar",
+		VolumeOptions: &mounttypes.VolumeOptions{SubPath: "/bar"},
+	}
+
+	cID := container.Run(t, ctx, client,
+		container.WithMount(mnt1),
+		container.WithMount(mnt2),
+		container.WithCmd("sh", "-c", "cat /foo/bar/file && cd /foo/bar/baz"),
+	)
+	poll.WaitOn(t, container.IsSuccessful(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
+
+	err := client.VolumeRemove(ctx, volumeName, false)
+	assert.Check(t, is.ErrorContains(err, "volume is in use"))
+
+	err = client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+	assert.NilError(t, err)
+
+	err = client.VolumeRemove(ctx, volumeName, false)
+	assert.NilError(t, err)
+}
+
+func TestNonExistentSubPath(t *testing.T) {
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	volumeName := prepareVolume(t)
+
+	mnt := mounttypes.Mount{
+		Type:   mounttypes.TypeVolume,
+		Source: volumeName,
+		Target: "/bin",
+		VolumeOptions: &mounttypes.VolumeOptions{
+			NoCopy:  false,
+			SubPath: "bin",
+		},
+	}
+	cID := container.Create(t, ctx, client, container.WithMount(mnt))
+	err := client.ContainerStart(ctx, cID, types.ContainerStartOptions{})
+	assert.Check(t, is.ErrorContains(err, "directory bin does not exist under volume path"))
+}
+
+func prepareVolume(t *testing.T) string {
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	volumeName := t.Name() + "_vol_foo"
+	_, err := client.VolumeCreate(ctx, volumetypes.VolumeCreateBody{Name: volumeName})
+	assert.NilError(t, err)
+
+	mnt := mounttypes.Mount{
+		Type:   mounttypes.TypeVolume,
+		Source: volumeName,
+		Target: "/foo",
+	}
+
+	cID := container.Run(t, ctx, client, container.WithMount(mnt), container.WithCmd("sh", "-c", "mkdir -p /foo/bar/baz; echo xyz > /foo/bar/file"))
+	poll.WaitOn(t,
+		container.IsInState(ctx, client, cID, "exited"),
+		poll.WithDelay(100*time.Millisecond),
+	)
+	err = client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+	assert.NilError(t, err)
+	return volumeName
 }

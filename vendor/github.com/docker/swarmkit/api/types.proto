@@ -275,6 +275,9 @@ message Mount {
 		//
 		// If this is empty, no volume will be created if the volume is missing.
 		Driver driver_config = 3;
+
+		// SubPath specifies a sub-directory to be mounted from a volume.
+		string sub_path = 4;
 	}
 
 	message TmpfsOptions {

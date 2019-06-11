@@ -398,6 +398,9 @@ func (p *windowsParser) parseMountSpec(cfg mount.Mount, destRegex string, conver
 			if cfg.VolumeOptions.NoCopy {
 				mp.CopyData = false
 			}
+			if cfg.VolumeOptions.SubPath != "" {
+				mp.SubPath = strings.Replace(cfg.VolumeOptions.SubPath, `/`, `\`, -1)
+			}
 		}
 	case mount.TypeBind:
 		mp.Source = strings.Replace(cfg.Source, `/`, `\`, -1)

@@ -311,6 +311,9 @@ func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists b
 			if cfg.VolumeOptions.NoCopy {
 				mp.CopyData = false
 			}
+			if cfg.VolumeOptions.SubPath != "" {
+				mp.SubPath = path.Clean(filepath.ToSlash(cfg.VolumeOptions.SubPath))
+			}
 		}
 	case mount.TypeBind:
 		mp.Source = path.Clean(filepath.ToSlash(cfg.Source))
