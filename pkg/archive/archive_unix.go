@@ -30,18 +30,17 @@ func getWalkRoot(srcPath string, include string) string {
 	return strings.TrimSuffix(srcPath, string(filepath.Separator)) + string(filepath.Separator) + include
 }
 
+// chmodTarEntry is used to adjust the file permissions used in tar header based
+// on the platform the archival is done.
+func chmodTarEntry(perm os.FileMode) os.FileMode {
+       return perm // noop for unix as golang APIs provide perm bits correctly
+}
+
 // CanonicalTarNameForPath returns platform-specific filepath
 // to canonical posix-style path for tar archival. p is relative
 // path.
 func CanonicalTarNameForPath(p string) string {
 	return p // already unix-style
-}
-
-// chmodTarEntry is used to adjust the file permissions used in tar header based
-// on the platform the archival is done.
-
-func chmodTarEntry(perm os.FileMode) os.FileMode {
-	return perm // noop for unix as golang APIs provide perm bits correctly
 }
 
 func setHeaderForSpecialDevice(hdr *tar.Header, name string, stat interface{}) (err error) {
