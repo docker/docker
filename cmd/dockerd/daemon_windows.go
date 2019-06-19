@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/docker/docker/daemon/config"
@@ -21,10 +20,6 @@ func getDefaultDaemonConfigFile() (string, error) {
 // setDefaultUmask doesn't do anything on windows
 func setDefaultUmask() error {
 	return nil
-}
-
-func getDaemonConfDir(root string) (string, error) {
-	return filepath.Join(root, `\config`), nil
 }
 
 // preNotifyReady sends a message to the host when the API is active, but before the daemon is

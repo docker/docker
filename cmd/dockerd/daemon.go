@@ -402,14 +402,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		conf.CommonTLSOptions.KeyFile = opts.TLSOptions.KeyFile
 	}
 
-	if conf.TrustKeyPath == "" {
-		daemonConfDir, err := getDaemonConfDir(conf.Root)
-		if err != nil {
-			return nil, err
-		}
-		conf.TrustKeyPath = filepath.Join(daemonConfDir, defaultTrustKeyFile)
-	}
-
 	if flags.Changed("graph") && flags.Changed("data-root") {
 		return nil, errors.New(`cannot specify both "--graph" and "--data-root" option`)
 	}
