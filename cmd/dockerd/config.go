@@ -14,6 +14,8 @@ import (
 const (
 	// defaultShutdownTimeout is the default shutdown timeout for the daemon
 	defaultShutdownTimeout = 15
+	// defaultTrustKeyFile is the default filename for the trust key
+	defaultTrustKeyFile = "key.json"
 )
 
 // installCommonConfigFlags adds flags to the pflag.FlagSet to configure the daemon

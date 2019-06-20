@@ -57,6 +57,10 @@ func setDefaultUmask() error {
 	return nil
 }
 
+func getDaemonConfDir(_ string) (string, error) {
+	return getDefaultDaemonConfigDir()
+}
+
 func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
 	opts := []supervisor.DaemonOpt{
 		supervisor.WithOOMScore(cli.Config.OOMScoreAdjust),

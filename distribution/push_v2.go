@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
@@ -188,13 +187,13 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 	var canonicalManifest []byte
 
 	switch v := manifest.(type) {
-	case *schema1.SignedManifest:
-		canonicalManifest = v.Canonical
 	case *schema2.DeserializedManifest:
 		_, canonicalManifest, err = v.Payload()
 		if err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("unknown manifest type %T", v)
 	}
 
 	manifestDigest := digest.FromBytes(canonicalManifest)
