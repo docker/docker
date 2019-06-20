@@ -1035,12 +1035,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	trustDir := filepath.Join(config.Root, "trust")
-
-	if err := system.MkdirAll(trustDir, 0700); err != nil {
-		return nil, err
-	}
-
 	// We have a single tag/reference store for the daemon globally. However, it's
 	// stored under the graphdriver. On host platforms which only support a single
 	// container OS, but multiple selectable graphdrivers, this means depending on which
