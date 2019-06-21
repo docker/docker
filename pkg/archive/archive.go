@@ -19,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/containerfs"
+	"github.com/docker/docker/pkg/containerfs" // FIXME: remove this dependency by copying what's needed
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
