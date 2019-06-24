@@ -19,6 +19,19 @@ The following list of features are deprecated in Engine.
 To learn more about Docker Engine's deprecation policy,
 see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-deprecation-policy).
 
+### Pushing and pulling with image manifest v2 schema 1
+
+**Deprecated in Release: v19.03.0**
+
+**Target For Removal In Release: v19.09.0**
+
+The image manifest
+[v2 schema 1](https://github.com/docker/distribution/blob/fda42e5ef908bdba722d435ff1f330d40dfcd56c/docs/spec/manifest-v2-1.md)
+format is deprecated in favor of the
+[v2 schema 2](https://github.com/docker/distribution/blob/fda42e5ef908bdba722d435ff1f330d40dfcd56c/docs/spec/manifest-v2-2.md) format.
+
+If the registry you are using still supports v2 schema 1, urge their administrators to move to v2 schema 2.
+
 ### Legacy "overlay" storage driver
 
 **Deprecated in Release: v18.09.0**
