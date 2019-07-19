@@ -261,6 +261,10 @@ func (s *DockerDaemonSuite) TearDownTest(c *testing.T) {
 		s.d.Stop(c)
 	}
 	s.ds.TearDownTest(c)
+
+	// Some tests in this Suite make modifications to the "docker0" bridge.
+	// Remove the bridge afterwards to force the next test to re-create it
+	deleteInterface(c, "docker0")
 }
 
 func (s *DockerDaemonSuite) TearDownSuite(c *testing.T) {

@@ -633,20 +633,6 @@ func (s *DockerDaemonSuite) TestDaemonBridgeNone(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "No such network"))
 }
 
-func createInterface(c *testing.T, ifType string, ifName string, ipNet string) {
-	icmd.RunCommand("ip", "link", "add", "name", ifName, "type", ifType).Assert(c, icmd.Success)
-	icmd.RunCommand("ifconfig", ifName, ipNet, "up").Assert(c, icmd.Success)
-}
-
-func deleteInterface(c *testing.T, ifName string) {
-	if icmd.RunCommand("ip", "link", "show", ifName).ExitCode != 0 {
-		return
-	}
-	icmd.RunCommand("ip", "link", "delete", ifName).Assert(c, icmd.Success)
-	icmd.RunCommand("iptables", "-t", "nat", "--flush").Assert(c, icmd.Success)
-	icmd.RunCommand("iptables", "--flush").Assert(c, icmd.Success)
-}
-
 func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *testing.T) {
 	// TestDaemonBridgeIP Steps
 	// 1. Delete the existing docker0 Bridge
@@ -1771,11 +1757,16 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *testing.T) {
 	defer mount.Unmount(testDir)
 
 	// create a 3MiB image (with a 2MiB ext4 fs) and mount it as graph root
-	// Why in a container? Because `mount` sometimes behaves weirdly and often fails outright on this test in debian:jessie (which is what the test suite runs under if run from the Makefile)
-	dockerCmd(c, "run", "--rm", "-v", testDir+":/test", "busybox", "sh", "-c", "dd of=/test/testfs.img bs=1M seek=3 count=0")
+	// Why in a container? Because `mount` sometimes behaves weirdly and often
+	// fails outright on this test in debian:jessie (which is what the test suite
+	// runs under if run from the Makefile)
+	// We run these containers with `--network=host`, because the `DockerDaemonSuite`
+	// removes the "docker0" bridge before starting, and it's not re-created
+	// until the daemon is started below
+	dockerCmd(c, "run", "--rm", "--network", "host", "-v", testDir+":/test", "busybox", "sh", "-c", "dd of=/test/testfs.img bs=1M seek=3 count=0")
 	icmd.RunCommand("mkfs.ext4", "-F", filepath.Join(testDir, "testfs.img")).Assert(c, icmd.Success)
 
-	dockerCmd(c, "run", "--privileged", "--rm", "-v", testDir+":/test:shared", "busybox", "sh", "-c", "mkdir -p /test/test-mount/vfs && mount -n -t ext4 /test/testfs.img /test/test-mount/vfs")
+	dockerCmd(c, "run", "--privileged", "--rm", "--network", "host", "-v", testDir+":/test:shared", "busybox", "sh", "-c", "mkdir -p /test/test-mount/vfs && mount -n -t ext4 /test/testfs.img /test/test-mount/vfs")
 	defer mount.Unmount(filepath.Join(testDir, "test-mount"))
 
 	s.d.Start(c, "--storage-driver", "vfs", "--data-root", filepath.Join(testDir, "test-mount"))
