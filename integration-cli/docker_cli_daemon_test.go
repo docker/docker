@@ -639,6 +639,9 @@ func createInterface(c *testing.T, ifType string, ifName string, ipNet string) {
 }
 
 func deleteInterface(c *testing.T, ifName string) {
+	if icmd.RunCommand("ip", "link", "show", ifName).ExitCode != 0 {
+		return
+	}
 	icmd.RunCommand("ip", "link", "delete", ifName).Assert(c, icmd.Success)
 	icmd.RunCommand("iptables", "-t", "nat", "--flush").Assert(c, icmd.Success)
 	icmd.RunCommand("iptables", "--flush").Assert(c, icmd.Success)
