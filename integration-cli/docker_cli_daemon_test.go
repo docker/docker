@@ -877,6 +877,7 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 	ifName := "icc-dummy"
 
 	createInterface(c, "dummy", ifName, ipStr)
+	defer deleteInterface(c, ifName)
 
 	// But, Pinging external or a Host interface must succeed
 	pingCmd := fmt.Sprintf("ping -c 1 %s -W 1", ip.String())
