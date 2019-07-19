@@ -41,11 +41,15 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 
 func TestDaemonDefaultNetworkPools(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
-	// Remove docker0 bridge and the start daemon defining the predefined address pools
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
-	defaultNetworkBridge := "docker0"
-	DeleteInterface(t, defaultNetworkBridge)
+
+	// Remove docker0 bridge before running the test, as it will be modified
+	// when starting the daemon. Also cleanup the interface afterwards to not
+	// affect tests after this one.
+	DeleteInterface(t, "docker0")
+	defer DeleteInterface(t, "docker0")
+
 	d := daemon.New(t)
 	defer d.Stop(t)
 	d.Start(t,
@@ -78,15 +82,19 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 	out, err = c.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "175.33.1.0/24")
-	DeleteInterface(t, defaultNetworkBridge)
-
 }
 
 func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
-	defaultNetworkBridge := "docker0"
+
+	// Remove docker0 bridge before running the test, as it will be modified
+	// when starting the daemon. Also cleanup the interface afterwards to not
+	// affect tests after this one.
+	DeleteInterface(t, "docker0")
+	defer DeleteInterface(t, "docker0")
+
 	d := daemon.New(t)
 	d.Start(t)
 	defer d.Stop(t)
@@ -112,14 +120,19 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	out1, err := c.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, out1.IPAM.Config[0].Subnet, networkip)
-	DeleteInterface(t, defaultNetworkBridge)
 }
 
 func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
-	defaultNetworkBridge := "docker0"
+
+	// Remove docker0 bridge before running the test, as it will be modified
+	// when starting the daemon. Also cleanup the interface afterwards to not
+	// affect tests after this one.
+	DeleteInterface(t, "docker0")
+	defer DeleteInterface(t, "docker0")
+
 	d := daemon.New(t)
 	d.Start(t)
 	defer d.Stop(t)
@@ -162,14 +175,19 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 
 	assert.Check(t, out1.IPAM.Config[0].Subnet != networkip)
 	assert.Check(t, out1.IPAM.Config[0].Subnet != networkip2)
-	DeleteInterface(t, defaultNetworkBridge)
 }
 
 func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
-	defaultNetworkBridge := "docker0"
+
+	// Remove docker0 bridge before running the test, as it will be modified
+	// when starting the daemon. Also cleanup the interface afterwards to not
+	// affect tests after this one.
+	DeleteInterface(t, "docker0")
+	defer DeleteInterface(t, "docker0")
+
 	d := daemon.New(t)
 	defer d.Stop(t)
 	d.Start(t,
@@ -186,7 +204,6 @@ func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 	assert.NilError(t, err)
 	// Make sure BIP IP doesn't get override with new default address pool .
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "172.60.0.1/16")
-	DeleteInterface(t, defaultNetworkBridge)
 }
 
 func TestServiceWithPredefinedNetwork(t *testing.T) {
