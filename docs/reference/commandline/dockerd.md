@@ -38,6 +38,7 @@ Options:
       --cpu-rt-runtime int                    Limit the CPU real-time runtime in microseconds
       --data-root string                      Root directory of persistent Docker state (default "/var/lib/docker")
   -D, --debug                                 Enable debug mode
+      --default-cgroupns-mode string          Container default cgroup namespace mode (default "host")
       --default-gateway ip                    Container default gateway IPv4 address
       --default-gateway-v6 ip                 Container default gateway IPv6 address
       --default-address-pool                  Set the default address pool for local node networks
@@ -1299,6 +1300,7 @@ This is a full example of the allowed configuration options on Linux:
 {
 	"authorization-plugins": [],
 	"data-root": "",
+	"default-cgroupns-mode": "private",
 	"dns": [],
 	"dns-opts": [],
 	"dns-search": [],
