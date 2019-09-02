@@ -1203,6 +1203,11 @@ pipeline {
                         stage("Run tests") {
                             steps {
                                 powershell '''
+                                # Disable Windows Defender
+                                Write-Host  -ForegroundColor Green "INFO: Disable Windows Defender to avoid handles on container volume files"
+                                Set-MpPreference -DisableRealtimeMonitoring $true
+                                '''
+                                powershell '''
                                 $ErrorActionPreference = 'Stop'
                                 Invoke-WebRequest https://github.com/moby/docker-ci-zap/blob/master/docker-ci-zap.exe?raw=true -OutFile C:/Windows/System32/docker-ci-zap.exe
                                 ./hack/ci/windows.ps1
