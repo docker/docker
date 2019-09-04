@@ -1179,6 +1179,7 @@ pipeline {
                         DOCKER_BUILDKIT        = '0'
                         DOCKER_DUT_DEBUG       = '1'
                         DOCKER_DUT_HYPERV      = '1'
+                        DOCKER_STORAGE_OPTS    = 'size=40G'
                         SKIP_VALIDATION_TESTS  = '1'
                         SOURCES_DRIVE          = 'd'
                         SOURCES_SUBDIR         = 'gopath'
