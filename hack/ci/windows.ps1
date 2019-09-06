@@ -161,7 +161,7 @@ Function Nuke-Everything {
             }
 
             $allImages  = $(docker images --format "{{.Repository}}#{{.ID}}")
-            $toRemove   = ($allImages | Select-String -NotMatch "servercore","nanoserver","docker","busybox")
+            $toRemove   = ($allImages | Select-String -NotMatch "servercore","nanoserver","docker","busybox","golang")
             $imageCount = ($toRemove | Measure-Object -line).Lines
 
             if ($imageCount -gt 0) {
