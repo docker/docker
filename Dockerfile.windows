@@ -162,49 +162,6 @@ ADD https://raw.githubusercontent.com/moby/docker-tdmgcc/master/runtime.zip C:\
 ADD https://raw.githubusercontent.com/moby/docker-tdmgcc/master/binutils.zip C:\
 
 RUN `
-  Function Test-Nano() { `
-    $EditionId = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name 'EditionID').EditionId; `
-    return (($EditionId -eq 'ServerStandardNano') -or ($EditionId -eq 'ServerDataCenterNano') -or ($EditionId -eq 'NanoServer')); `
-  }`
-  `
-  Function Download-File([string] $source, [string] $target) { `
-    if (Test-Nano) { `
-      $handler = New-Object System.Net.Http.HttpClientHandler; `
-      $client = New-Object System.Net.Http.HttpClient($handler); `
-      $client.Timeout = New-Object System.TimeSpan(0, 30, 0); `
-      $cancelTokenSource = [System.Threading.CancellationTokenSource]::new(); `
-      $responseMsg = $client.GetAsync([System.Uri]::new($source), $cancelTokenSource.Token); `
-      $responseMsg.Wait(); `
-      if (!$responseMsg.IsCanceled) { `
-        $response = $responseMsg.Result; `
-        if ($response.IsSuccessStatusCode) { `
-          $downloadedFileStream = [System.IO.FileStream]::new($target, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write); `
-          $copyStreamOp = $response.Content.CopyToAsync($downloadedFileStream); `
-          $copyStreamOp.Wait(); `
-          $downloadedFileStream.Close(); `
-          if ($copyStreamOp.Exception -ne $null) { throw $copyStreamOp.Exception } `
-        } `
-      } else { `
-      Throw ("Failed to download " + $source) `
-      }`
-    } else { `
-      $webClient = New-Object System.Net.WebClient; `
-      $webClient.DownloadFile($source, $target); `
-    } `
-  } `
-  `
-  setx /M PATH $('C:\git\cmd;C:\git\usr\bin;'+$Env:PATH+';C:\gcc\bin;C:\go\bin'); `
-  `
-  Write-Host INFO: Downloading git...; `
-  $location='https://www.nuget.org/api/v2/package/GitForWindows/'+$Env:GIT_VERSION; `
-  Download-File $location C:\gitsetup.zip; `
-  `
-  Write-Host INFO: Extracting git...; `
-  Expand-Archive C:\gitsetup.zip C:\git-tmp; `
-  New-Item -Type Directory C:\git | Out-Null; `
-  Move-Item C:\git-tmp\tools\* C:\git\.; `
-  Remove-Item -Recurse -Force C:\git-tmp; `
-  `
   Write-Host INFO: Expanding compiler 1 of 3...; `
   Expand-Archive C:\gcc.zip -DestinationPath C:\gcc -Force; `
   Write-Host INFO: Expanding compiler 2 of 3...; `
