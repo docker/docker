@@ -120,6 +120,12 @@ var (
 	// Docker, starting from 0.7.x, generates names from notable scientists and hackers.
 	// Please, for any amazing man that you add to the list, consider adding an equally amazing woman to it, and vice versa.
 	right = [...]string{
+		// Ameyo Stella Shade Adadevoh - Nigerian physician whose expertise and heroic efforts curbed the spread of Ebola in Nigeria in 2014. https://en.wikipedia.org/wiki/Ameyo_Adadevoh
+		"adadevoh",
+
+		// Maria Gaetana Agnesi - Italian mathematician, philosopher, theologian and humanitarian. She was the first woman to write a mathematics handbook and the first woman appointed as a Mathematics Professor at a University. https://en.wikipedia.org/wiki/Maria_Gaetana_Agnesi
+		"agnesi",
+
 		// Muhammad ibn Jābir al-Ḥarrānī al-Battānī was a founding father of astronomy. https://en.wikipedia.org/wiki/Mu%E1%B8%A5ammad_ibn_J%C4%81bir_al-%E1%B8%A4arr%C4%81n%C4%AB_al-Batt%C4%81n%C4%AB
 		"albattani",
 
@@ -132,8 +138,8 @@ var (
 		// Kathleen Antonelli, American computer programmer and one of the six original programmers of the ENIAC - https://en.wikipedia.org/wiki/Kathleen_Antonelli
 		"antonelli",
 
-		// Maria Gaetana Agnesi - Italian mathematician, philosopher, theologian and humanitarian. She was the first woman to write a mathematics handbook and the first woman appointed as a Mathematics Professor at a University. https://en.wikipedia.org/wiki/Maria_Gaetana_Agnesi
-		"agnesi",
+		// Virginia Apgar - American obstetrical anesthesiologist best known as the inventor of the Apgar Score, a way to quickly assess the health of a newborn child immediately after birth. https://en.wikipedia.org/wiki/Virginia_Apgar
+		"apgar",
 
 		// Archimedes was a physicist, engineer and mathematician who invented too many things to list them here. https://en.wikipedia.org/wiki/Archimedes
 		"archimedes",
@@ -149,6 +155,9 @@ var (
 
 		// Charles Babbage invented the concept of a programmable computer. https://en.wikipedia.org/wiki/Charles_Babbage.
 		"babbage",
+
+		// Alice Augusta Ball - African American chemist who developed an injectable herbal extract (ethyl hydnocarpate) that was the most effective treatment for leprosy during the early 20th century. https://en.wikipedia.org/wiki/Alice_Ball
+		"ball",
 
 		// Stefan Banach - Polish mathematician, was one of the founders of modern functional analysis. https://en.wikipedia.org/wiki/Stefan_Banach
 		"banach",
@@ -275,6 +284,9 @@ var (
 		// Marie Curie discovered radioactivity. https://en.wikipedia.org/wiki/Marie_Curie.
 		"curie",
 
+		// Joan Daemen - Belgian cryptographer best known as the co-designer of Rijndael, which went on to be selected as the Advanced Encryption Standard (AES) and Keccak, which went on to be selected as the Secure Hash Algorithm 3 (SHA-3). https://en.wikipedia.org/wiki/Joan_Daemen
+		"daemen",
+
 		// Charles Darwin established the principles of natural evolution. https://en.wikipedia.org/wiki/Charles_Darwin.
 		"darwin",
 
@@ -334,6 +346,12 @@ var (
 
 		// Michael Faraday - British scientist who contributed to the study of electromagnetism and electrochemistry. https://en.wikipedia.org/wiki/Michael_Faraday
 		"faraday",
+
+		// Marga Faulstich - German glass chemist known for her research which forms the basis of techniques used in the manufacture of lightweight anti-reflective glasses; inventor of the SF 64 corrective lens (which was thinner, lighter and more aesthetically pleasing). https://en.wikipedia.org/wiki/Marga_Faulstich
+		"faulstich",
+
+		// Genevieve Grotjan Feinstein - American mathematician and cryptanalyst known for deciphering the Japanese World War II cipher machine, Purple and her later work on the Cold War-era Venona project. https://en.wikipedia.org/wiki/Genevieve_Grotjan_Feinstein
+		"feinstein",
 
 		// Horst Feistel - German-born American cryptographer who was one of the earliest non-government researchers to study the design and theory of block ciphers. Co-developer of DES and Lucifer. Feistel networks, a symmetric structure used in the construction of block ciphers are named after him. https://en.wikipedia.org/wiki/Horst_Feistel
 		"feistel",
@@ -524,6 +542,9 @@ var (
 		// Inge Lehmann - Danish seismologist and geophysicist. Known for discovering in 1936 that the Earth has a solid inner core inside a molten outer core. https://en.wikipedia.org/wiki/Inge_Lehmann
 		"lehmann",
 
+		// Vladimir Levenshtein - Russian scientist known for his work on combinatorial design, error-correcting codes and information theory; creator of the Levenshtein distance. https://en.wikipedia.org/wiki/Vladimir_Levenshtein
+		"levenshtein",
+
 		// Daniel Lewin - Mathematician, Akamai co-founder, soldier, 9/11 victim-- Developed optimization techniques for routing traffic on the internet. Died attempting to stop the 9-11 hijackers. https://en.wikipedia.org/wiki/Daniel_Lewin
 		"lewin",
 
@@ -538,6 +559,9 @@ var (
 
 		// Auguste and Louis Lumière - the first filmmakers in history - https://en.wikipedia.org/wiki/Auguste_and_Louis_Lumi%C3%A8re
 		"lumiere",
+
+		// Prasanta Chandra Mahalanobis - Indian applied statistician, best known for the Mahalanobis distance and for making ground-breaking contributions related to large-scale sample surveys. https://en.wikipedia.org/wiki/Prasanta_Chandra_Mahalanobis
+		"mahalanobis",
 
 		// Mahavira - Ancient Indian mathematician during 9th century AD who discovered basic algebraic identities - https://en.wikipedia.org/wiki/Mah%C4%81v%C4%ABra_(mathematician)
 		"mahavira",
@@ -593,6 +617,9 @@ var (
 		// Maryam Mirzakhani - an Iranian mathematician and the first woman to win the Fields Medal. https://en.wikipedia.org/wiki/Maryam_Mirzakhani
 		"mirzakhani",
 
+		// Rita Levi-Montalcini - Won Nobel Prize in Physiology or Medicine jointly with colleague Stanley Cohen for the discovery of nerve growth factor (https://en.wikipedia.org/wiki/Rita_Levi-Montalcini)
+		"montalcini",
+
 		// Gordon Earle Moore - American engineer, Silicon Valley founding father, author of Moore's law. https://en.wikipedia.org/wiki/Gordon_Moore
 		"moore",
 
@@ -623,6 +650,9 @@ var (
 		// Alfred Nobel - a Swedish chemist, engineer, innovator, and armaments manufacturer (inventor of dynamite) - https://en.wikipedia.org/wiki/Alfred_Nobel
 		"nobel",
 
+		// Ida Noddack - German chemist and physicist, best known for suggesting the idea of nuclear fission for the first time and for the discovery of rhenium. https://en.wikipedia.org/wiki/Ida_Noddack
+		"noddack",
+
 		// Emmy Noether, German mathematician. Noether's Theorem is named after her. https://en.wikipedia.org/wiki/Emmy_Noether
 		"noether",
 
@@ -632,8 +662,14 @@ var (
 		// Robert Noyce invented silicone integrated circuits and gave Silicon Valley its name. - https://en.wikipedia.org/wiki/Robert_Noyce
 		"noyce",
 
+		// Julius Robert Oppenheimer - American theoretical physicist best known for the Born–Oppenheimer approximation for molecular wave functions, his work on the theory of electrons and positrons, the Oppenheimer–Phillips process in nuclear fusion, the first prediction of quantum tunneling and as the leader of the Manhattan Project. https://en.wikipedia.org/wiki/J._Robert_Oppenheimer
+		"oppenheimer",
+
 		// Panini - Ancient Indian linguist and grammarian from 4th century CE who worked on the world's first formal system - https://en.wikipedia.org/wiki/P%C4%81%E1%B9%87ini#Comparison_with_modern_formal_systems
 		"panini",
+
+		// George Papanicolaou - Greek pioneer in cytopathology and early cancer detection; inventor of the Pap smear. https://en.wikipedia.org/wiki/Georgios_Papanikolaou
+		"papanicolaou",
 
 		// Ambroise Pare invented modern surgery. https://en.wikipedia.org/wiki/Ambroise_Par%C3%A9
 		"pare",
@@ -671,11 +707,11 @@ var (
 		// Srinivasa Ramanujan - Indian mathematician and autodidact who made extraordinary contributions to mathematical analysis, number theory, infinite series, and continued fractions. - https://en.wikipedia.org/wiki/Srinivasa_Ramanujan
 		"ramanujan",
 
+		// Marian Adam Rejewski - Polish mathematician and cryptologist who reconstructed the Nazi German Enigma cipher machine sight-unseen in 1932. https://en.wikipedia.org/wiki/Marian_Rejewski
+		"rejewski",
+
 		// Sally Kristen Ride was an American physicist and astronaut. She was the first American woman in space, and the youngest American astronaut. https://en.wikipedia.org/wiki/Sally_Ride
 		"ride",
-
-		// Rita Levi-Montalcini - Won Nobel Prize in Physiology or Medicine jointly with colleague Stanley Cohen for the discovery of nerve growth factor (https://en.wikipedia.org/wiki/Rita_Levi-Montalcini)
-		"montalcini",
 
 		// Dennis Ritchie - co-creator of UNIX and the C programming language. - https://en.wikipedia.org/wiki/Dennis_Ritchie
 		"ritchie",
@@ -703,6 +739,9 @@ var (
 
 		// Mildred Sanderson - American mathematician best known for Sanderson's theorem concerning modular invariants. https://en.wikipedia.org/wiki/Mildred_Sanderson
 		"sanderson",
+
+		// Katsuko Saruhashi - Japanese geochemist known for her creation of the first methods for measuring carbon dioxide levels in seawater. She also developed a technique to trace the travel of radioactive fallout across the oceans that led to restricting oceanic nuclear experimentation in 1963. https://en.wikipedia.org/wiki/Katsuko_Saruhashi
+		"saruhashi",
 
 		// Satoshi Nakamoto is the name used by the unknown person or group of people who developed bitcoin, authored the bitcoin white paper, and created and deployed bitcoin's original reference implementation. https://en.wikipedia.org/wiki/Satoshi_Nakamoto
 		"satoshi",
@@ -740,6 +779,9 @@ var (
 		// Richard Matthew Stallman - the founder of the Free Software movement, the GNU project, the Free Software Foundation, and the League for Programming Freedom. He also invented the concept of copyleft to protect the ideals of this movement, and enshrined this concept in the widely-used GPL (General Public License) for software. https://en.wikiquote.org/wiki/Richard_Stallman
 		"stallman",
 
+		// Nettie Maria Stevens - American geneticist credited with the discovery of sex chromosomes. https://en.wikipedia.org/wiki/Nettie_Stevens
+		"stevens",
+
 		// Michael Stonebraker is a database research pioneer and architect of Ingres, Postgres, VoltDB and SciDB. Winner of 2014 ACM Turing Award. https://en.wikipedia.org/wiki/Michael_Stonebraker
 		"stonebraker",
 
@@ -754,6 +796,9 @@ var (
 
 		// Bertha Swirles was a theoretical physicist who made a number of contributions to early quantum theory. https://en.wikipedia.org/wiki/Bertha_Swirles
 		"swirles",
+
+		// Robert Endre Tarjan - American computer scientist and mathematician. Inventor of several graph algorithms, including Tarjan's off-line lowest common ancestors algorithm, and co-inventor of Fibonacci heaps and splay trees. https://en.wikipedia.org/wiki/Robert_Tarjan
+		"tarjan",
 
 		// Helen Brooke Taussig - American cardiologist and founder of the field of paediatric cardiology. https://en.wikipedia.org/wiki/Helen_B._Taussig
 		"taussig",
@@ -809,6 +854,9 @@ var (
 		// Malcolm John Williamson - British mathematician and cryptographer employed by the GCHQ. Developed in 1974 what is now known as Diffie-Hellman key exchange (Diffie and Hellman first published the scheme in 1976). https://en.wikipedia.org/wiki/Malcolm_J._Williamson
 		"williamson",
 
+		// Lucy Wills - English haematologist whose analysis of prenatal anemia changed the face of preventive prenatal care for women everywhere. https://en.wikipedia.org/wiki/Lucy_Wills
+		"wills",
+
 		// Sophie Wilson designed the first Acorn Micro-Computer and the instruction set for ARM processors. https://en.wikipedia.org/wiki/Sophie_Wilson
 		"wilson",
 
@@ -829,6 +877,12 @@ var (
 
 		// Ada Yonath - an Israeli crystallographer, the first woman from the Middle East to win a Nobel prize in the sciences. https://en.wikipedia.org/wiki/Ada_Yonath
 		"yonath",
+
+		// Lotfi Aliasker Zadeh - Azerbaijani scientist best known for proposing fuzzy mathematics. https://en.wikipedia.org/wiki/Lotfi_A._Zadeh
+		"zadeh",
+
+		// Yaakov Ziv - Israeli electrical engineer who, along with Abraham Lempel, developed the LZ family of lossless data compression algorithms. https://en.wikipedia.org/wiki/Yaakov_Ziv
+		"ziv",
 
 		// Nikolay Yegorovich Zhukovsky (Russian: Никола́й Его́рович Жуко́вский, January 17 1847 – March 17, 1921) was a Russian scientist, mathematician and engineer, and a founding father of modern aero- and hydrodynamics. Whereas contemporary scientists scoffed at the idea of human flight, Zhukovsky was the first to undertake the study of airflow. He is often called the Father of Russian Aviation. https://en.wikipedia.org/wiki/Nikolay_Yegorovich_Zhukovsky
 		"zhukovsky",
