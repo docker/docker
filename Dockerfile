@@ -84,6 +84,11 @@ RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/go-swagger/go-swagger.git "$GOPATH/src/github.com/go-swagger/go-swagger" \
 	&& (cd "$GOPATH/src/github.com/go-swagger/go-swagger" && git checkout -q "$GO_SWAGGER_COMMIT") \
+# FIXME dirty hack to update the "header" template, which is not allowed by code ("Cannot overwrite protected template header")
+	&& sed -i 's#package {{.Package}}#package {{.Package}} // import "github.com/docker/docker/api/{{.Package}}"#' "$GOPATH/src/github.com/go-swagger/go-swagger/generator/templates/header.gotmpl" \
+	&& go get -d github.com/kevinburke/go-bindata/go-bindata \
+	&& go build -o /usr/local/bin/go-bindata github.com/kevinburke/go-bindata/go-bindata \
+	&& go generate $GOPATH/src/github.com/go-swagger/go-swagger/generator \
 	&& go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger \
 	&& rm -rf "$GOPATH"
 
