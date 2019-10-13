@@ -341,7 +341,7 @@ type LogMode string
 
 // Available logging modes
 const (
-	LogModeUnset            = ""
+	LogModeUnset    LogMode = ""
 	LogModeBlocking LogMode = "blocking"
 	LogModeNonBlock LogMode = "non-blocking"
 )
