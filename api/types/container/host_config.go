@@ -13,19 +13,26 @@ import (
 // CgroupnsMode represents the cgroup namespace mode of the container
 type CgroupnsMode string
 
+// cgroup namespace modes for containers
+const (
+	CgroupnsModeEmpty   CgroupnsMode = ""
+	CgroupnsModePrivate CgroupnsMode = "private"
+	CgroupnsModeHost    CgroupnsMode = "host"
+)
+
 // IsPrivate indicates whether the container uses its own private cgroup namespace
 func (c CgroupnsMode) IsPrivate() bool {
-	return c == "private"
+	return c == CgroupnsModePrivate
 }
 
 // IsHost indicates whether the container shares the host's cgroup namespace
 func (c CgroupnsMode) IsHost() bool {
-	return c == "host"
+	return c == CgroupnsModeHost
 }
 
 // IsEmpty indicates whether the container cgroup namespace mode is unset
 func (c CgroupnsMode) IsEmpty() bool {
-	return c == ""
+	return c == CgroupnsModeEmpty
 }
 
 // Valid indicates whether the cgroup namespace mode is valid

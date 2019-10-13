@@ -497,7 +497,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	if hostConfig != nil && versions.LessThan(version, "1.41") && !s.cgroup2 {
 		// Older clients expect the default to be "host" on cgroup v1 hosts
 		if hostConfig.CgroupnsMode.IsEmpty() {
-			hostConfig.CgroupnsMode = container.CgroupnsMode("host")
+			hostConfig.CgroupnsMode = container.CgroupnsModeHost
 		}
 	}
 
