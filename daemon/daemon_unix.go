@@ -347,9 +347,9 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	if hostConfig.IpcMode.IsEmpty() {
 		m := config.DefaultIpcMode
 		if daemon.configStore != nil {
-			m = daemon.configStore.IpcMode
+			m = containertypes.IpcMode(daemon.configStore.IpcMode)
 		}
-		hostConfig.IpcMode = containertypes.IpcMode(m)
+		hostConfig.IpcMode = m
 	}
 
 	// Set default cgroup namespace mode, if unset for container

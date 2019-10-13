@@ -12,7 +12,7 @@ import (
 
 const (
 	// DefaultIpcMode is default for container's IpcMode, if not set otherwise
-	DefaultIpcMode = "private"
+	DefaultIpcMode = containertypes.IPCModePrivate
 )
 
 // Config defines the configuration of a docker daemon.
