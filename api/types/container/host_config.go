@@ -44,32 +44,33 @@ func (c CgroupnsMode) Valid() bool {
 // values are platform specific
 type Isolation string
 
+// Isolation modes for containers
+const (
+	IsolationEmpty   Isolation = ""        // IsolationEmpty is unspecified (same behavior as default)
+	IsolationDefault Isolation = "default" // IsolationDefault is the default isolation mode on current daemon
+	IsolationProcess Isolation = "process" // IsolationProcess is process isolation mode
+	IsolationHyperV  Isolation = "hyperv"  // IsolationHyperV is HyperV isolation mode
+)
+
 // IsDefault indicates the default isolation technology of a container. On Linux this
 // is the native driver. On Windows, this is a Windows Server Container.
 func (i Isolation) IsDefault() bool {
-	return strings.ToLower(string(i)) == "default" || string(i) == ""
+	// TODO consider making isolation-mode strict (case-sensitive)
+	v := Isolation(strings.ToLower(string(i)))
+	return v == IsolationDefault || v == IsolationEmpty
 }
 
 // IsHyperV indicates the use of a Hyper-V partition for isolation
 func (i Isolation) IsHyperV() bool {
-	return strings.ToLower(string(i)) == "hyperv"
+	// TODO consider making isolation-mode strict (case-sensitive)
+	return Isolation(strings.ToLower(string(i))) == IsolationHyperV
 }
 
 // IsProcess indicates the use of process isolation
 func (i Isolation) IsProcess() bool {
-	return strings.ToLower(string(i)) == "process"
+	// TODO consider making isolation-mode strict (case-sensitive)
+	return Isolation(strings.ToLower(string(i))) == IsolationProcess
 }
-
-const (
-	// IsolationEmpty is unspecified (same behavior as default)
-	IsolationEmpty = Isolation("")
-	// IsolationDefault is the default isolation mode on current daemon
-	IsolationDefault = Isolation("default")
-	// IsolationProcess is process isolation mode
-	IsolationProcess = Isolation("process")
-	// IsolationHyperV is HyperV isolation mode
-	IsolationHyperV = Isolation("hyperv")
-)
 
 // IpcMode represents the container ipc stack.
 type IpcMode string
