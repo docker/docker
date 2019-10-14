@@ -70,6 +70,7 @@ Options:
       --log-opt map                           Default log driver options for containers (default map[])
       --max-concurrent-downloads int          Set the max concurrent downloads for each pull (default 3)
       --max-concurrent-uploads int            Set the max concurrent uploads for each push (default 5)
+      --max-download-attempts int             Set the max download attempts for each pull (default 5)
       --metrics-addr string                   Set default address and port to serve the metrics api on
       --mtu int                               Set the containers network MTU
       --node-generic-resources list           Advertise user-defined resource
@@ -1323,6 +1324,7 @@ This is a full example of the allowed configuration options on Linux:
 	"cluster-advertise": "",
 	"max-concurrent-downloads": 3,
 	"max-concurrent-uploads": 5,
+	"max-download-attempts": 5,
 	"default-shm-size": "64M",
 	"shutdown-timeout": 15,
 	"debug": true,
@@ -1424,6 +1426,7 @@ This is a full example of the allowed configuration options on Windows:
     "cluster-advertise": "",
     "max-concurrent-downloads": 3,
     "max-concurrent-uploads": 5,
+    "max-download-attempts": 5,
     "shutdown-timeout": 15,
     "debug": true,
     "hosts": [],
@@ -1473,6 +1476,7 @@ The list of currently supported options that can be reconfigured is this:
 - `live-restore`: Enables [keeping containers alive during daemon downtime](https://docs.docker.com/config/containers/live-restore/).
 - `max-concurrent-downloads`: it updates the max concurrent downloads for each pull.
 - `max-concurrent-uploads`: it updates the max concurrent uploads for each push.
+- `max-download-attempts`: it updates the max download attempts for each pull.
 - `default-runtime`: it updates the runtime to be used if not is
   specified at container creation. It defaults to "default" which is
   the runtime shipped with the official docker packages.
