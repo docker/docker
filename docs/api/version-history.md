@@ -31,6 +31,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /info` now  returns an `OSVersion` field, containing the operating system's
   version. This change is not versioned, and affects all API versions if the daemon
   has this patch.
+* `GET /containers/{id}/attach`, `GET /exec/{id}/start` and `GET /containers/{id}/logs` 
+  now return `stream=raw|multiplexed` media type parameter to distinguish mechanism being 
+  used to stream stdout+stderr.
+  
 
 ## v1.40 API changes
 

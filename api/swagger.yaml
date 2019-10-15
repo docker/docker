@@ -5833,7 +5833,7 @@ paths:
 
         ```
         HTTP/1.1 200 OK
-        Content-Type: application/vnd.docker.raw-stream
+        Content-Type: application/vnd.docker.raw-stream; stream=raw
 
         [STREAM]
         ```
@@ -5854,7 +5854,7 @@ paths:
 
         ```
         HTTP/1.1 101 UPGRADED
-        Content-Type: application/vnd.docker.raw-stream
+        Content-Type: application/vnd.docker.raw-stream; stream=raw
         Connection: Upgrade
         Upgrade: tcp
 
@@ -5864,6 +5864,7 @@ paths:
         ### Stream format
 
         When the TTY setting is disabled in [`POST /containers/create`](#operation/ContainerCreate), the stream over the hijacked connected is multiplexed to separate out `stdout` and `stderr`. The stream consists of a series of frames, each containing a header and a payload.
+        In such circumstances, the Content-Type may claim this specific mechanism by declaring Media-Type parameter `stream=multiplexed`, if it does not then assume multiplexed.
 
         The header contains the information which the stream writes (`stdout` or `stderr`). It also contains the size of the associated frame encoded in the last four bytes (`uint32`).
 

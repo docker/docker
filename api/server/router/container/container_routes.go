@@ -147,6 +147,12 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 		return err
 	}
 
+	stream := "raw"
+	if !tty {
+		stream = "multiplexed"
+	}
+	w.Header().Add("Content-Type", "application/vnd.docker.raw-stream; stream="+stream)
+
 	// if has a tty, we're not muxing streams. if it doesn't, we are. simple.
 	// this is the point of no return for writing a response. once we call
 	// WriteLogStream, the response has been started and errors will be
@@ -582,7 +588,11 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		conn.Write([]byte{})
 
 		if upgrade {
-			fmt.Fprintf(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
+			stream := "multiplexed"
+			if httputils.BoolValue(r, "tty") {
+				stream = "raw"
+			}
+			fmt.Fprintf(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream; stream="+stream+"\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
 		} else {
 			fmt.Fprintf(conn, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 		}
