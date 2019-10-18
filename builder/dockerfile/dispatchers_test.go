@@ -3,6 +3,7 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"runtime"
 	"strings"
 	"testing"
@@ -12,12 +13,13 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-connections/nat"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
+	digest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )
@@ -122,17 +124,17 @@ func TestFromScratch(t *testing.T) {
 
 	assert.NilError(t, err)
 	assert.Check(t, sb.state.hasFromImage())
-	assert.Check(t, is.Equal("", sb.state.imageID))
+	assert.Check(t, is.Nil(sb.state.image))
 	expected := "PATH=" + system.DefaultPathEnv(runtime.GOOS)
 	assert.Check(t, is.DeepEqual([]string{expected}, sb.state.runConfig.Env))
 }
 
 func TestFromWithArg(t *testing.T) {
-	tag, expected := ":sometag", "expectedthisid"
+	tag, expected := ":sometag", digest.Digest("expectedthisid")
 
-	getImage := func(name string) (builder.Image, builder.ROLayer, error) {
-		assert.Check(t, is.Equal("alpine"+tag, name))
-		return &mockImage{id: "expectedthisid"}, nil, nil
+	getImage := func(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (*ocispec.Descriptor, builder.ROLayer, error) {
+		assert.Check(t, is.Equal("alpine"+tag, refOrID))
+		return &ocispec.Descriptor{Digest: "expectedthisid"}, nil, nil
 	}
 	b := newBuilderWithMockBackend()
 	b.docker.(*MockBackend).getImageFunc = getImage
@@ -153,8 +155,8 @@ func TestFromWithArg(t *testing.T) {
 	err = initializeStage(sb, cmd)
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Equal(expected, sb.state.imageID))
-	assert.Check(t, is.Equal(expected, sb.state.baseImage.ImageID()))
+	assert.Check(t, is.Equal(expected, sb.state.image.Digest))
+	assert.Check(t, is.Equal(expected, sb.state.baseImage.Digest))
 	assert.Check(t, is.Len(sb.state.buildArgs.GetAllAllowed(), 0))
 	assert.Check(t, is.Len(sb.state.buildArgs.GetAllMeta(), 1))
 }
@@ -176,12 +178,13 @@ func TestFromWithArgButBuildArgsNotGiven(t *testing.T) {
 }
 
 func TestFromWithUndefinedArg(t *testing.T) {
-	tag, expected := "sometag", "expectedthisid"
+	tag, expected := "sometag", digest.Digest("expectedthisid")
 
-	getImage := func(name string) (builder.Image, builder.ROLayer, error) {
-		assert.Check(t, is.Equal("alpine", name))
-		return &mockImage{id: "expectedthisid"}, nil, nil
+	getImage := func(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (*ocispec.Descriptor, builder.ROLayer, error) {
+		assert.Check(t, is.Equal("alpine", refOrID))
+		return &ocispec.Descriptor{Digest: "expectedthisid"}, nil, nil
 	}
+
 	b := newBuilderWithMockBackend()
 	b.docker.(*MockBackend).getImageFunc = getImage
 	sb := newDispatchRequest(b, '\\', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
@@ -193,7 +196,7 @@ func TestFromWithUndefinedArg(t *testing.T) {
 	}
 	err := initializeStage(sb, cmd)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(expected, sb.state.imageID))
+	assert.Check(t, is.Equal(expected, sb.state.image.Digest))
 }
 
 func TestFromMultiStageWithNamedStage(t *testing.T) {
@@ -227,7 +230,7 @@ func TestOnbuild(t *testing.T) {
 func TestWorkdir(t *testing.T) {
 	b := newBuilderWithMockBackend()
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
-	sb.state.baseImage = &mockImage{}
+	sb.state.baseImage = &ocispec.Descriptor{}
 	workingDir := "/app"
 	if runtime.GOOS == "windows" {
 		workingDir = "C:\\app"
@@ -244,7 +247,7 @@ func TestWorkdir(t *testing.T) {
 func TestCmd(t *testing.T) {
 	b := newBuilderWithMockBackend()
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
-	sb.state.baseImage = &mockImage{}
+	sb.state.baseImage = &ocispec.Descriptor{}
 	command := "./executable"
 
 	cmd := &instructions.CmdCommand{
@@ -302,7 +305,7 @@ func TestHealthcheckCmd(t *testing.T) {
 func TestEntrypoint(t *testing.T) {
 	b := newBuilderWithMockBackend()
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
-	sb.state.baseImage = &mockImage{}
+	sb.state.baseImage = &ocispec.Descriptor{}
 	entrypointCmd := "/usr/sbin/nginx"
 
 	cmd := &instructions.EntrypointCommand{
@@ -378,7 +381,7 @@ func TestStopSignal(t *testing.T) {
 	}
 	b := newBuilderWithMockBackend()
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
-	sb.state.baseImage = &mockImage{}
+	sb.state.baseImage = &ocispec.Descriptor{}
 	signal := "SIGKILL"
 
 	cmd := &instructions.StopSignalCommand{
@@ -463,11 +466,15 @@ func TestRunWithBuildArgs(t *testing.T) {
 		return imageCache
 	}
 	b.imageProber = newImageProber(mockBackend, nil, false)
-	mockBackend.getImageFunc = func(_ string) (builder.Image, builder.ROLayer, error) {
-		return &mockImage{
-			id:     "abcdef",
-			config: &container.Config{Cmd: origCmd},
+	mockBackend.getImageFunc = func(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (*ocispec.Descriptor, builder.ROLayer, error) {
+		return &ocispec.Descriptor{
+			Digest: "abcdef",
 		}, nil, nil
+	}
+	mockBackend.resolveRuntimeConfigFunc = func(context.Context, ocispec.Descriptor) ([]byte, error) {
+		var img ocispec.Image
+		img.Config.Cmd = origCmd
+		return json.Marshal(&img)
 	}
 	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
 		// Check the runConfig.Cmd sent to create()
@@ -476,13 +483,14 @@ func TestRunWithBuildArgs(t *testing.T) {
 		assert.Check(t, is.DeepEqual(strslice.StrSlice{""}, config.Config.Entrypoint))
 		return container.ContainerCreateCreatedBody{ID: "12345"}, nil
 	}
-	mockBackend.commitFunc = func(cfg backend.CommitConfig) (image.ID, error) {
+	mockBackend.commitFunc = func(cfg backend.CommitConfig) (ocispec.Descriptor, error) {
 		// Check the runConfig.Cmd sent to commit()
 		assert.Check(t, is.DeepEqual(origCmd, cfg.Config.Cmd))
 		assert.Check(t, is.DeepEqual(cachedCmd, cfg.ContainerConfig.Cmd))
 		assert.Check(t, is.DeepEqual(strslice.StrSlice(nil), cfg.Config.Entrypoint))
-		return "", nil
+		return ocispec.Descriptor{}, nil
 	}
+
 	from := &instructions.Stage{BaseName: "abcdef"}
 	err := initializeStage(sb, from)
 	assert.NilError(t, err)
@@ -516,7 +524,7 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	sb := newDispatchRequest(b, '`', nil, args, newStagesBuildResults())
 	b.disableCommit = false
 
-	origCmd := strslice.StrSlice([]string{"cmd", "in", "from", "image"})
+	//origCmd := strslice.StrSlice([]string{"cmd", "in", "from", "image"})
 
 	imageCache := &mockImageCache{
 		getCacheFunc: func(parentID string, cfg *container.Config) (string, error) {
@@ -529,17 +537,16 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 		return imageCache
 	}
 	b.imageProber = newImageProber(mockBackend, nil, false)
-	mockBackend.getImageFunc = func(_ string) (builder.Image, builder.ROLayer, error) {
-		return &mockImage{
-			id:     "abcdef",
-			config: &container.Config{Cmd: origCmd},
+	mockBackend.getImageFunc = func(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (*ocispec.Descriptor, builder.ROLayer, error) {
+		return &ocispec.Descriptor{
+			Digest: "abcdef",
 		}, nil, nil
 	}
 	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
 		return container.ContainerCreateCreatedBody{ID: "12345"}, nil
 	}
-	mockBackend.commitFunc = func(cfg backend.CommitConfig) (image.ID, error) {
-		return "", nil
+	mockBackend.commitFunc = func(cfg backend.CommitConfig) (ocispec.Descriptor, error) {
+		return ocispec.Descriptor{}, nil
 	}
 	from := &instructions.Stage{BaseName: "abcdef"}
 	err := initializeStage(sb, from)

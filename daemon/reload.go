@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -23,7 +24,7 @@ import (
 // - Insecure registries
 // - Registry mirrors
 // - Daemon live restore
-func (daemon *Daemon) Reload(conf *config.Config) (err error) {
+func (daemon *Daemon) Reload(ctx context.Context, conf *config.Config) (err error) {
 	daemon.configStore.Lock()
 	attributes := map[string]string{}
 
@@ -36,7 +37,7 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 		daemon.configStore.Unlock()
 		if err == nil {
 			logrus.Infof("Reloaded configuration: %s", jsonString)
-			daemon.LogDaemonEventWithAttributes("reload", attributes)
+			daemon.LogDaemonEventWithAttributes(ctx, "reload", attributes)
 		}
 	}()
 

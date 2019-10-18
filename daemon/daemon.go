@@ -25,7 +25,9 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
+	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/dialer"
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -43,14 +45,13 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/stats"
-	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
@@ -62,7 +63,6 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/plugin"
 	pluginexec "github.com/docker/docker/plugin/executor/containerd"
-	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	volumesservice "github.com/docker/docker/volume/service"
@@ -852,29 +852,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}
 
-	// On Windows we don't support the environment variable, or a user supplied graphdriver
-	// as Windows has no choice in terms of which graphdrivers to use. It's a case of
-	// running Windows containers on Windows - windowsfilter, running Linux containers on Windows,
-	// lcow. Unix platforms however run a single graphdriver for all containers, and it can
-	// be set through an environment variable, a daemon start parameter, or chosen through
-	// initialization of the layerstore through driver priority order for example.
-	d.graphDrivers = make(map[string]string)
-	layerStores := make(map[string]layer.Store)
-	if runtime.GOOS == "windows" {
-		d.graphDrivers[runtime.GOOS] = "windowsfilter"
-		if system.LCOWSupported() {
-			d.graphDrivers["linux"] = "lcow"
-		}
-	} else {
-		driverName := os.Getenv("DOCKER_DRIVER")
-		if driverName == "" {
-			driverName = config.GraphDriver
-		} else {
-			logrus.Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
-		}
-		d.graphDrivers[runtime.GOOS] = driverName // May still be empty. Layerstore init determines instead.
-	}
-
 	d.RegistryService = registryService
 	logger.RegisterPluginGetter(d.PluginStore)
 
@@ -934,43 +911,68 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	for operatingSystem, gd := range d.graphDrivers {
-		layerStores[operatingSystem], err = layer.NewStoreFromOptions(layer.StoreOptions{
+	type storageDriver struct {
+		platform ocispec.Platform
+		name     string
+	}
+	var storageDrivers []storageDriver
+
+	if runtime.GOOS == "windows" {
+		// On Windows we don't support the environment variable, or a user supplied graphdriver
+		// as Windows has no choice in terms of which graphdrivers to use. It's a case of
+		// running Windows containers on Windows - windowsfilter, running Linux containers on Windows,
+		// lcow. Unix platforms however run a single graphdriver for all containers, and it can
+		// be set through an environment variable, a daemon start parameter, or chosen through
+		// initialization of the layerstore through driver priority order for example.
+		p := platforms.DefaultSpec()
+		storageDrivers = append(storageDrivers, storageDriver{p, "windowsfilter"})
+		if system.LCOWSupported() {
+			p.OS = "linux"
+			p.OSVersion = ""
+			p.OSFeatures = nil
+			storageDrivers = append([]storageDriver{{p, "lcow"}}, storageDrivers...)
+
+		}
+	} else {
+		driverName := os.Getenv("DOCKER_DRIVER")
+		if driverName == "" {
+			driverName = config.GraphDriver
+		} else {
+			logrus.Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
+		}
+		storageDrivers = append(storageDrivers, storageDriver{platforms.DefaultSpec(), driverName})
+
+		// TODO(containerd): probe system for additional configured graph drivers
+	}
+
+	var backends []images.LayerBackend
+	d.graphDrivers = make(map[string]string)
+	for _, driver := range storageDrivers {
+		ls, err := layer.NewStoreFromOptions(layer.StoreOptions{
 			Root:                      config.Root,
-			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
-			GraphDriver:               gd,
+			GraphDriver:               driver.name,
 			GraphDriverOptions:        config.GraphOptions,
+			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
 			IDMapping:                 idMapping,
 			PluginGetter:              d.PluginStore,
 			ExperimentalEnabled:       config.Experimental,
-			OS:                        operatingSystem,
+			OS:                        driver.platform.OS,
 		})
 		if err != nil {
 			return nil, err
 		}
 
 		// As layerstore initialization may set the driver
-		d.graphDrivers[operatingSystem] = layerStores[operatingSystem].DriverName()
+		d.graphDrivers[driver.platform.OS] = ls.DriverName()
+		backends = append(backends, images.LayerBackend{
+			Store:    ls,
+			Platform: platforms.Only(driver.platform),
+		})
 	}
 
 	// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
 	// operation only, so it is safe to pass *just* the runtime OS graphdriver.
 	if err := configureKernelSecuritySupport(config, d.graphDrivers[runtime.GOOS]); err != nil {
-		return nil, err
-	}
-
-	imageRoot := filepath.Join(config.Root, "image", d.graphDrivers[runtime.GOOS])
-	ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
-	if err != nil {
-		return nil, err
-	}
-
-	lgrMap := make(map[string]image.LayerGetReleaser)
-	for os, ls := range layerStores {
-		lgrMap[os] = ls
-	}
-	imageStore, err := image.NewImageStore(ifs, lgrMap)
-	if err != nil {
 		return nil, err
 	}
 
@@ -987,27 +989,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	trustDir := filepath.Join(config.Root, "trust")
 
 	if err := system.MkdirAll(trustDir, 0700); err != nil {
-		return nil, err
-	}
-
-	// We have a single tag/reference store for the daemon globally. However, it's
-	// stored under the graphdriver. On host platforms which only support a single
-	// container OS, but multiple selectable graphdrivers, this means depending on which
-	// graphdriver is chosen, the global reference store is under there. For
-	// platforms which support multiple container operating systems, this is slightly
-	// more problematic as where does the global ref store get located? Fortunately,
-	// for Windows, which is currently the only daemon supporting multiple container
-	// operating systems, the list of graphdrivers available isn't user configurable.
-	// For backwards compatibility, we just put it under the windowsfilter
-	// directory regardless.
-	refStoreLocation := filepath.Join(imageRoot, `repositories.json`)
-	rs, err := refstore.NewReferenceStore(refStoreLocation)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't create reference store repository: %s", err)
-	}
-
-	distributionMetadataStore, err := dmetadata.NewFSMetadataStore(filepath.Join(imageRoot, "distribution"))
-	if err != nil {
 		return nil, err
 	}
 
@@ -1042,22 +1023,28 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	d.linkIndex = newLinkIndex()
 
-	// TODO: imageStore, distributionMetadataStore, and ReferenceStore are only
-	// used above to run migration. They could be initialized in ImageService
-	// if migration is called from daemon/images. layerStore might move as well.
 	d.imageService = images.NewImageService(images.ImageServiceConfig{
-		ContainerStore:            d.containers,
-		DistributionMetadataStore: distributionMetadataStore,
-		EventsService:             d.EventsService,
-		ImageStore:                imageStore,
-		LayerStores:               layerStores,
-		MaxConcurrentDownloads:    *config.MaxConcurrentDownloads,
-		MaxConcurrentUploads:      *config.MaxConcurrentUploads,
-		MaxDownloadAttempts:       *config.MaxDownloadAttempts,
-		ReferenceStore:            rs,
-		RegistryService:           registryService,
-		TrustKey:                  trustKey,
+		DefaultNamespace:       ContainersNamespace,
+		DefaultPlatform:        storageDrivers[0].platform,
+		Client:                 d.containerdCli,
+		EventsService:          d.EventsService,
+		LayerBackends:          backends,
+		MaxConcurrentDownloads: *config.MaxConcurrentDownloads,
+		MaxConcurrentUploads:   *config.MaxConcurrentUploads,
+		MaxDownloadAttempts:    *config.MaxDownloadAttempts,
+
+		// TODO(containerd): Remove registry service from image service
+		RegistryService: registryService,
+
+		// TODO(containerd): Use containerd's container store after the
+		// containerd metadata is completely moved to containerd
+		ContainerStore: d.containers,
 	})
+
+	nctx := namespaces.WithNamespace(ctx, ContainersNamespace)
+	if err := d.imageService.Load(nctx, config.Root); err != nil {
+		return nil, errors.Wrap(err, "failed to load image service")
+	}
 
 	go d.execCommandGC()
 
@@ -1071,8 +1058,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}
 	close(d.startupDone)
 
-	// FIXME: this method never returns an error
-	info, _ := d.SystemInfo()
+	info, err := d.SystemInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	engineInfo.WithValues(
 		dockerversion.Version,
@@ -1105,11 +1094,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}).Info("Docker daemon")
 
 	return d, nil
-}
-
-// DistributionServices returns services controlling daemon storage
-func (daemon *Daemon) DistributionServices() images.DistributionServices {
-	return daemon.imageService.DistributionServices()
 }
 
 func (daemon *Daemon) waitForStartupDone() {
@@ -1167,7 +1151,7 @@ func (daemon *Daemon) Shutdown() error {
 
 	if daemon.configStore.LiveRestoreEnabled && daemon.containers != nil {
 		// check if there are any running containers, if none we should do some cleanup
-		if ls, err := daemon.Containers(&types.ContainerListOptions{}); len(ls) != 0 || err != nil {
+		if ls, err := daemon.Containers(context.TODO(), &types.ContainerListOptions{}); len(ls) != 0 || err != nil {
 			// metrics plugins still need some cleanup
 			daemon.cleanupMetricsPlugins()
 			return nil
@@ -1244,8 +1228,8 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 		// on non-Windows operating systems.
 		if runtime.GOOS != "windows" {
 			daemon.Unmount(container)
-			return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-				daemon.imageService.GraphDriverForOS(container.OS), container.ID, container.BaseFS, dir)
+			return fmt.Errorf("driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
+				container.Driver, container.ID, container.BaseFS, dir)
 		}
 	}
 	container.BaseFS = dir // TODO: combine these fields
@@ -1498,6 +1482,11 @@ func (daemon *Daemon) IdentityMapping() *idtools.IdentityMapping {
 // ImageService returns the Daemon's ImageService
 func (daemon *Daemon) ImageService() *images.ImageService {
 	return daemon.imageService
+}
+
+// ContainerdClient returns the containerd client used by the daemon
+func (daemon *Daemon) ContainerdClient() *containerd.Client {
+	return daemon.containerdCli
 }
 
 // BuilderBackend returns the backend used by builder

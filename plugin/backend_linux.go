@@ -226,7 +226,7 @@ func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHead
 			MetaHeaders:      metaHeader,
 			AuthConfig:       authConfig,
 			RegistryService:  pm.config.RegistryService,
-			ImageEventLogger: func(string, string, string) {},
+			ImageEventLogger: func(context.Context, string, string, string) {},
 			ImageStore:       cs,
 		},
 		Schema2Types: distribution.PluginTypes,
@@ -279,11 +279,13 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 
 	pluginPullConfig := &distribution.ImagePullConfig{
 		Config: distribution.Config{
-			MetaHeaders:      metaHeader,
-			AuthConfig:       authConfig,
-			RegistryService:  pm.config.RegistryService,
-			ImageEventLogger: pm.config.LogPluginEvent,
-			ImageStore:       dm,
+			MetaHeaders:     metaHeader,
+			AuthConfig:      authConfig,
+			RegistryService: pm.config.RegistryService,
+			ImageEventLogger: func(ctx context.Context, id, name, action string) {
+				pm.config.LogPluginEvent(id, name, action)
+			},
+			ImageStore: dm,
 		},
 		DownloadManager: dm, // todo: reevaluate if possible to substitute distribution/xfer dependencies instead
 		Schema2Types:    distribution.PluginTypes,
@@ -331,11 +333,13 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 
 	pluginPullConfig := &distribution.ImagePullConfig{
 		Config: distribution.Config{
-			MetaHeaders:      metaHeader,
-			AuthConfig:       authConfig,
-			RegistryService:  pm.config.RegistryService,
-			ImageEventLogger: pm.config.LogPluginEvent,
-			ImageStore:       dm,
+			MetaHeaders:     metaHeader,
+			AuthConfig:      authConfig,
+			RegistryService: pm.config.RegistryService,
+			ImageEventLogger: func(ctx context.Context, id, name, action string) {
+				pm.config.LogPluginEvent(id, name, action)
+			},
+			ImageStore: dm,
 		},
 		DownloadManager: dm, // todo: reevaluate if possible to substitute distribution/xfer dependencies instead
 		Schema2Types:    distribution.PluginTypes,
@@ -461,14 +465,16 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 
 	imagePushConfig := &distribution.ImagePushConfig{
 		Config: distribution.Config{
-			MetaHeaders:      metaHeader,
-			AuthConfig:       authConfig,
-			ProgressOutput:   po,
-			RegistryService:  pm.config.RegistryService,
-			ReferenceStore:   rs,
-			ImageEventLogger: pm.config.LogPluginEvent,
-			ImageStore:       is,
-			RequireSchema2:   true,
+			MetaHeaders:     metaHeader,
+			AuthConfig:      authConfig,
+			ProgressOutput:  po,
+			RegistryService: pm.config.RegistryService,
+			ReferenceStore:  rs,
+			ImageEventLogger: func(ctx context.Context, id, name, action string) {
+				pm.config.LogPluginEvent(id, name, action)
+			},
+			ImageStore:     is,
+			RequireSchema2: true,
 		},
 		ConfigMediaType: schema2.MediaTypePluginConfig,
 		LayerStores:     lss,

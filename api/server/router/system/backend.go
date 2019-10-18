@@ -13,7 +13,7 @@ import (
 // Backend is the methods that need to be implemented to provide
 // system specific functionality.
 type Backend interface {
-	SystemInfo() (*types.Info, error)
+	SystemInfo(context.Context) (*types.Info, error)
 	SystemVersion() types.Version
 	SystemDiskUsage(ctx context.Context) (*types.DiskUsage, error)
 	SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{})

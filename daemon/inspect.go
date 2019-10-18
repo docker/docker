@@ -78,9 +78,13 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 	container.Unlock()
 
 	if size {
-		sizeRw, sizeRootFs := daemon.imageService.GetContainerLayerSize(base.ID)
-		base.SizeRw = &sizeRw
-		base.SizeRootFs = &sizeRootFs
+
+		// TODO(containerd): context + id + layer backend must be provided
+		return nil, errdefs.NotImplemented(errors.New("containerd layer size not implemented"))
+
+		//sizeRw, sizeRootFs := daemon.imageService.GetContainerLayerSize(base.ID)
+		//base.SizeRw = &sizeRw
+		//base.SizeRootFs = &sizeRootFs
 	}
 
 	return &types.ContainerJSON{

@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/errdefs"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -18,7 +19,11 @@ func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostCon
 		return container.ContainerUpdateOKBody{Warnings: warnings}, err
 	}
 
-	warnings, err = daemon.verifyContainerSettings(c.OS, hostConfig, nil, true)
+	// TODO(containerd): get whole platform for container
+	platform := ocispec.Platform{
+		OS: c.OS,
+	}
+	warnings, err = daemon.verifyContainerSettings(platform, hostConfig, nil, true)
 	if err != nil {
 		return container.ContainerUpdateOKBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}

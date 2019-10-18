@@ -11,24 +11,25 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	containerpkg "github.com/docker/docker/container"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/containerfs"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MockBackend implements the builder.Backend interface for unit testing
 type MockBackend struct {
-	containerCreateFunc func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
-	commitFunc          func(backend.CommitConfig) (image.ID, error)
-	getImageFunc        func(string) (builder.Image, builder.ROLayer, error)
-	makeImageCacheFunc  func(cacheFrom []string) builder.ImageCache
+	containerCreateFunc      func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
+	commitFunc               func(backend.CommitConfig) (ocispec.Descriptor, error)
+	getImageFunc             func(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (*ocispec.Descriptor, builder.ROLayer, error)
+	makeImageCacheFunc       func(cacheFrom []string) builder.ImageCache
+	resolveRuntimeConfigFunc func(ctx context.Context, desc ocispec.Descriptor) ([]byte, error)
 }
 
 func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error {
 	return nil
 }
 
-func (m *MockBackend) ContainerCreateIgnoreImagesArgsEscaped(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
+func (m *MockBackend) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
 	if m.containerCreateFunc != nil {
 		return m.containerCreateFunc(config)
 	}
@@ -39,11 +40,11 @@ func (m *MockBackend) ContainerRm(name string, config *types.ContainerRmConfig) 
 	return nil
 }
 
-func (m *MockBackend) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
+func (m *MockBackend) CommitBuildStep(ctx context.Context, c backend.CommitConfig) (ocispec.Descriptor, error) {
 	if m.commitFunc != nil {
 		return m.commitFunc(c)
 	}
-	return "", nil
+	return ocispec.Descriptor{}, nil
 }
 
 func (m *MockBackend) ContainerKill(containerID string, sig uint64) error {
@@ -66,12 +67,24 @@ func (m *MockBackend) CopyOnBuild(containerID string, destPath string, srcRoot s
 	return nil
 }
 
-func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
+func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (*ocispec.Descriptor, builder.ROLayer, error) {
 	if m.getImageFunc != nil {
-		return m.getImageFunc(refOrID)
+		return m.getImageFunc(ctx, refOrID, opts)
 	}
 
-	return &mockImage{id: "theid"}, &mockLayer{}, nil
+	return &ocispec.Descriptor{Digest: "theid"}, &mockLayer{}, nil
+}
+
+func (m *MockBackend) ResolveImage(context.Context, string) (ocispec.Descriptor, error) {
+	return ocispec.Descriptor{Digest: "theid"}, nil
+}
+
+func (m *MockBackend) ResolveRuntimeConfig(ctx context.Context, desc ocispec.Descriptor) ([]byte, error) {
+	if m.resolveRuntimeConfigFunc != nil {
+		return m.resolveRuntimeConfigFunc(ctx, desc)
+	}
+
+	return []byte{}, nil
 }
 
 func (m *MockBackend) MakeImageCache(cacheFrom []string) builder.ImageCache {
@@ -81,8 +94,8 @@ func (m *MockBackend) MakeImageCache(cacheFrom []string) builder.ImageCache {
 	return nil
 }
 
-func (m *MockBackend) CreateImage(config []byte, parent string) (builder.Image, error) {
-	return &mockImage{id: "test"}, nil
+func (m *MockBackend) CreateImage(ctx context.Context, newImage backend.NewImageConfig, newROLayer builder.ROLayer) (ocispec.Descriptor, error) {
+	return ocispec.Descriptor{}, nil
 }
 
 type mockImage struct {

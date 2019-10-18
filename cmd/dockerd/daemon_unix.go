@@ -80,8 +80,9 @@ func (cli *DaemonCli) setupConfigReloadTrap() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, unix.SIGHUP)
 	go func() {
+		ctx := context.Background()
 		for range c {
-			cli.reloadConfig()
+			cli.reloadConfig(ctx)
 		}
 	}()
 }

@@ -36,6 +36,15 @@ type Store interface {
 	Get(ref reference.Named) (digest.Digest, error)
 }
 
+// RefWalkFunc is a callback function type used by WalkableStore.Walk
+type RefWalkFunc func(a reference.Named) error
+
+// WalkableStore represents a walkable reference store
+type WalkableStore interface {
+	Store
+	Walk(f RefWalkFunc) error
+}
+
 type store struct {
 	mu sync.RWMutex
 	// jsonPath is the path to the file where the serialized tag data is
@@ -70,7 +79,7 @@ func (a lexicalAssociations) Less(i, j int) bool {
 
 // NewReferenceStore creates a new reference store, tied to a file path where
 // the set of references are serialized in JSON format.
-func NewReferenceStore(jsonPath string) (Store, error) {
+func NewReferenceStore(jsonPath string) (WalkableStore, error) {
 	abspath, err := filepath.Abs(jsonPath)
 	if err != nil {
 		return nil, err
@@ -341,6 +350,23 @@ func (store *store) reload() error {
 				store.referencesByIDCache[refID] = make(map[string]reference.Named)
 			}
 			store.referencesByIDCache[refID][refStr] = ref
+		}
+	}
+
+	return nil
+}
+
+func (store *store) Walk(f RefWalkFunc) error {
+	for _, repo := range store.Repositories {
+		for refStr := range repo {
+			ref, err := reference.ParseNormalizedNamed(refStr)
+			if err != nil {
+				// Should never happen
+				continue
+			}
+			if err := f(ref); err != nil {
+				return err
+			}
 		}
 	}
 

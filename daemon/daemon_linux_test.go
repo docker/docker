@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/containerd/platforms"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/mount"
@@ -115,7 +116,7 @@ func TestNotCleanupMounts(t *testing.T) {
 func TestValidateContainerIsolationLinux(t *testing.T) {
 	d := Daemon{}
 
-	_, err := d.verifyContainerSettings("linux", &containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
+	_, err := d.verifyContainerSettings(platforms.DefaultSpec(), &containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
 	assert.Check(t, is.Error(err, "invalid isolation 'hyperv' on linux"))
 }
 

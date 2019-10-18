@@ -5,8 +5,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -33,7 +31,7 @@ type Backend interface {
 	FindNetwork(idName string) (libnetwork.Network, error)
 	SetupIngress(clustertypes.NetworkCreateRequest, string) (<-chan struct{}, error)
 	ReleaseIngress() (<-chan struct{}, error)
-	CreateManagedContainer(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
+	CreateManagedContainer(ctx context.Context, config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
 	ContainerStart(name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
 	ContainerStop(name string, seconds *int) error
 	ContainerLogs(context.Context, string, *types.ContainerLogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
@@ -48,8 +46,8 @@ type Backend interface {
 	SetContainerDependencyStore(name string, store exec.DependencyGetter) error
 	SetContainerSecretReferences(name string, refs []*swarmtypes.SecretReference) error
 	SetContainerConfigReferences(name string, refs []*swarmtypes.ConfigReference) error
-	SystemInfo() (*types.Info, error)
-	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
+	SystemInfo(context.Context) (*types.Info, error)
+	Containers(ctx context.Context, config *types.ContainerListOptions) ([]*types.Container, error)
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
 	DaemonJoinsCluster(provider cluster.Provider)
 	DaemonLeavesCluster()
@@ -72,6 +70,6 @@ type VolumeBackend interface {
 // ImageBackend is used by an executor to perform image operations
 type ImageBackend interface {
 	PullImage(ctx context.Context, image, tag string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
-	GetRepository(context.Context, reference.Named, *types.AuthConfig) (distribution.Repository, bool, error)
-	LookupImage(name string) (*types.ImageInspect, error)
+	// TODO: Provide interface to do shallow pull and get digest from Named and Auth
+	LookupImage(ctx context.Context, name string) (*types.ImageInspect, error)
 }

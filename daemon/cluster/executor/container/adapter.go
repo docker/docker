@@ -74,7 +74,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	named, err := reference.ParseNormalizedNamed(spec.Image)
 	if err == nil {
 		if _, ok := named.(reference.Canonical); ok {
-			_, err := c.imageBackend.LookupImage(spec.Image)
+			_, err := c.imageBackend.LookupImage(ctx, spec.Image)
 			if err == nil {
 				return nil
 			}
@@ -280,7 +280,7 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 func (c *containerAdapter) create(ctx context.Context) error {
 	var cr containertypes.ContainerCreateCreatedBody
 	var err error
-	if cr, err = c.backend.CreateManagedContainer(types.ContainerCreateConfig{
+	if cr, err = c.backend.CreateManagedContainer(ctx, types.ContainerCreateConfig{
 		Name:       c.container.name(),
 		Config:     c.container.config(),
 		HostConfig: c.container.hostConfig(),

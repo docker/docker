@@ -3,6 +3,7 @@ package types // import "github.com/docker/docker/api/types"
 import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // configs holds structs used for internal communication between the
@@ -11,7 +12,9 @@ import (
 
 // ContainerCreateConfig is the parameter set to ContainerCreate()
 type ContainerCreateConfig struct {
-	Name             string
+	Name string
+	// TODO(containerd): Add Platform (OS, Architecture, Variant)
+	Descriptor       *ocispec.Descriptor
 	Config           *container.Config
 	HostConfig       *container.HostConfig
 	NetworkingConfig *network.NetworkingConfig

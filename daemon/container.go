@@ -12,6 +12,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
@@ -23,6 +24,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/go-connections/nat"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -127,7 +129,7 @@ func (daemon *Daemon) Register(c *container.Container) error {
 	return c.CheckpointTo(daemon.containersReplica)
 }
 
-func (daemon *Daemon) newContainer(name string, operatingSystem string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
+func (daemon *Daemon) newContainer(name string, config *containertypes.Config, hostConfig *containertypes.HostConfig, img images.RuntimeImage, managed bool) (*container.Container, error) {
 	var (
 		id             string
 		err            error
@@ -157,11 +159,15 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	base.Args = args //FIXME: de-duplicate from config
 	base.Config = config
 	base.HostConfig = &containertypes.HostConfig{}
-	base.ImageID = imgID
+	// TODO(Containerd): Set image id and runtime image id
+	base.ImageID = image.ID(img.Config.Digest)
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
-	base.Driver = daemon.imageService.GraphDriverForOS(operatingSystem)
-	base.OS = operatingSystem
+	// TODO(containerd): set this after layer created based on the graph driver
+	base.Driver = daemon.imageService.DriverName(img.Platform)
+	base.OS = img.Platform.OS
+	// TODO(containerd): Set architecture
+	// TODO(containerd): Set variant
 	return base, err
 }
 
@@ -233,7 +239,7 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
+func (daemon *Daemon) verifyContainerSettings(platform ocispec.Platform, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
 	// First perform verification of settings common across all platforms.
 	if err = validateContainerConfig(config, platform); err != nil {
 		return warnings, err
@@ -250,7 +256,7 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 	return warnings, err
 }
 
-func validateContainerConfig(config *containertypes.Config, platform string) error {
+func validateContainerConfig(config *containertypes.Config, platform ocispec.Platform) error {
 	if config == nil {
 		return nil
 	}
@@ -271,7 +277,7 @@ func validateContainerConfig(config *containertypes.Config, platform string) err
 	return validateHealthCheck(config.Healthcheck)
 }
 
-func validateHostConfig(hostConfig *containertypes.HostConfig, platform string) error {
+func validateHostConfig(hostConfig *containertypes.HostConfig, platform ocispec.Platform) error {
 	if hostConfig == nil {
 		return nil
 	}
@@ -279,7 +285,7 @@ func validateHostConfig(hostConfig *containertypes.HostConfig, platform string) 
 		return errors.Errorf("can't create 'AutoRemove' container with restart policy")
 	}
 	// Validate mounts; check if host directories still exist
-	parser := volumemounts.NewParser(platform)
+	parser := volumemounts.NewParser(platform.OS)
 	for _, cfg := range hostConfig.Mounts {
 		if err := parser.ValidateMountConfig(&cfg); err != nil {
 			return err
@@ -382,13 +388,13 @@ func validateRestartPolicy(policy containertypes.RestartPolicy) error {
 
 // translateWorkingDir translates the working-dir for the target platform,
 // and returns an error if the given path is not an absolute path.
-func translateWorkingDir(config *containertypes.Config, platform string) error {
+func translateWorkingDir(config *containertypes.Config, platform ocispec.Platform) error {
 	if config.WorkingDir == "" {
 		return nil
 	}
 	wd := config.WorkingDir
 	switch {
-	case runtime.GOOS != platform:
+	case runtime.GOOS != platform.OS:
 		// LCOW. Force Unix semantics
 		wd = strings.Replace(wd, string(os.PathSeparator), "/", -1)
 		if !path.IsAbs(wd) {

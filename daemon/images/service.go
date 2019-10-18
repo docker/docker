@@ -3,19 +3,17 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"os"
-	"runtime"
+	"sync"
 
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
-	"github.com/docker/docker/distribution"
-	"github.com/docker/docker/distribution/metadata"
-	"github.com/docker/docker/distribution/xfer"
-	"github.com/docker/docker/image"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
-	dockerreference "github.com/docker/docker/reference"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
-	"github.com/docker/libtrust"
-	digest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -29,19 +27,30 @@ type containerStore interface {
 	Get(string) *container.Container
 }
 
+// LayerBackend represents a layer storage backend along with its platform
+type LayerBackend struct {
+	layer.Store
+	Platform platforms.Matcher
+}
+
 // ImageServiceConfig is the configuration used to create a new ImageService
 type ImageServiceConfig struct {
-	ContainerStore            containerStore
-	DistributionMetadataStore metadata.Store
-	EventsService             *daemonevents.Events
-	ImageStore                image.Store
-	LayerStores               map[string]layer.Store
-	MaxConcurrentDownloads    int
-	MaxConcurrentUploads      int
+	DefaultNamespace       string
+	DefaultPlatform        ocispec.Platform
+	Client                 *containerd.Client
+	EventsService          *daemonevents.Events
+	LayerBackends          []LayerBackend
+	MaxConcurrentDownloads int
+	MaxConcurrentUploads   int
 	MaxDownloadAttempts       int
-	ReferenceStore            dockerreference.Store
-	RegistryService           registry.Service
-	TrustKey                  libtrust.PrivateKey
+
+	// TODO(containerd): use containerd client after containers updated
+	// to store all metadata in containerd
+	ContainerStore containerStore
+
+	// TODO(containerd): deprecated, move functions which require this
+	// out of image service
+	RegistryService registry.Service
 }
 
 // NewImageService returns a new ImageService from a configuration
@@ -49,104 +58,141 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 	logrus.Debugf("Max Concurrent Downloads: %d", config.MaxConcurrentDownloads)
 	logrus.Debugf("Max Concurrent Uploads: %d", config.MaxConcurrentUploads)
 	logrus.Debugf("Max Download Attempts: %d", config.MaxDownloadAttempts)
-	return &ImageService{
-		containers:                config.ContainerStore,
-		distributionMetadataStore: config.DistributionMetadataStore,
-		downloadManager:           xfer.NewLayerDownloadManager(config.LayerStores, config.MaxConcurrentDownloads, xfer.WithMaxDownloadAttempts(config.MaxDownloadAttempts)),
-		eventsService:             config.EventsService,
-		imageStore:                config.ImageStore,
-		layerStores:               config.LayerStores,
-		referenceStore:            config.ReferenceStore,
-		registryService:           config.RegistryService,
-		trustKey:                  config.TrustKey,
-		uploadManager:             xfer.NewLayerUploadManager(config.MaxConcurrentUploads),
+
+	var pc orderedPlatformComparer
+	layerStores := map[string]layer.Store{}
+	for _, backend := range config.LayerBackends {
+		pc.matchers = append(pc.matchers, backend.Platform)
+		layerStores[backend.DriverName()] = backend.Store
 	}
+
+	return &ImageService{
+		namespace:       config.DefaultNamespace,
+		defaultPlatform: config.DefaultPlatform,
+		platforms:       pc,
+		client:          config.Client,
+		containers:      config.ContainerStore,
+		cache:           map[string]*cache{},
+		eventsService:   config.EventsService,
+		layerBackends:   config.LayerBackends,
+		layerStores:     layerStores,
+
+		registryService: config.RegistryService,
+	}
+}
+
+// TODO(containerd): add upstream constructor
+type orderedPlatformComparer struct {
+	matchers []platforms.Matcher
+}
+
+func (c orderedPlatformComparer) Match(platform ocispec.Platform) bool {
+	for _, m := range c.matchers {
+		if m.Match(platform) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c orderedPlatformComparer) Less(p1 ocispec.Platform, p2 ocispec.Platform) bool {
+	for _, m := range c.matchers {
+		p1m := m.Match(p1)
+		p2m := m.Match(p2)
+		if p1m && !p2m {
+			return true
+		}
+		if p1m || p2m {
+			return false
+		}
+	}
+	return false
 }
 
 // ImageService provides a backend for image management
 type ImageService struct {
-	containers                containerStore
-	distributionMetadataStore metadata.Store
-	downloadManager           *xfer.LayerDownloadManager
-	eventsService             *daemonevents.Events
-	imageStore                image.Store
-	layerStores               map[string]layer.Store // By operating system
-	pruneRunning              int32
-	referenceStore            dockerreference.Store
-	registryService           registry.Service
-	trustKey                  libtrust.PrivateKey
-	uploadManager             *xfer.LayerUploadManager
-}
+	namespace       string
+	defaultPlatform ocispec.Platform
+	client          *containerd.Client
+	containers      containerStore
+	eventsService   *daemonevents.Events
+	layerStores     map[string]layer.Store
+	layerBackends   []LayerBackend
+	platforms       platforms.MatchComparer
+	pruneRunning    int32
 
-// DistributionServices provides daemon image storage services
-type DistributionServices struct {
-	DownloadManager   distribution.RootFSDownloadManager
-	V2MetadataService metadata.V2MetadataService
-	LayerStore        layer.Store // TODO: lcow
-	ImageStore        image.Store
-	ReferenceStore    dockerreference.Store
-}
+	// namespaced cache
+	cache  map[string]*cache
+	cacheL sync.RWMutex
 
-// DistributionServices return services controlling daemon image storage
-func (i *ImageService) DistributionServices() DistributionServices {
-	return DistributionServices{
-		DownloadManager:   i.downloadManager,
-		V2MetadataService: metadata.NewV2MetadataService(i.distributionMetadataStore),
-		LayerStore:        i.layerStores[runtime.GOOS],
-		ImageStore:        i.imageStore,
-		ReferenceStore:    i.referenceStore,
-	}
+	// To be replaced by containerd client
+	registryService registry.Service
 }
 
 // CountImages returns the number of images stored by ImageService
 // called from info.go
-func (i *ImageService) CountImages() int {
-	return i.imageStore.Len()
+func (i *ImageService) CountImages(ctx context.Context) (int, error) {
+	is := i.client.ImageService()
+	imgs, err := is.List(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	return len(imgs), nil
 }
 
-// Children returns the children image.IDs for a parent image.
-// called from list.go to filter containers
-// TODO: refactor to expose an ancestry for image.ID?
-func (i *ImageService) Children(id image.ID) []image.ID {
-	return i.imageStore.Children(id)
-}
-
-// CreateLayer creates a filesystem layer for a container.
-// called from create.go
-// TODO: accept an opt struct instead of container?
-func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
-	var layerID layer.ChainID
-	if container.ImageID != "" {
-		img, err := i.imageStore.Get(container.ImageID)
-		if err != nil {
-			return nil, err
+// GetImageBackend returns the storage backend used by the given image
+// TODO(containerd): return more abstract interface to support snapshotters
+func (i *ImageService) GetImageBackend(image RuntimeImage) (layer.Store, error) {
+	if image.Config.Digest != "" {
+		// TODO(containerd): Get from content-store label
+		// TODO(containerd): Lookup by layer store names
+	}
+	if image.Platform.OS == "" {
+		image.Platform = i.defaultPlatform
+	}
+	for _, backend := range i.layerBackends {
+		if backend.Platform.Match(image.Platform) {
+			return backend.Store, nil
 		}
-		layerID = img.RootFS.ChainID()
 	}
 
-	rwLayerOpts := &layer.CreateRWLayerOpts{
-		MountLabel: container.MountLabel,
-		InitFunc:   initFunc,
-		StorageOpt: container.HostConfig.StorageOpt,
+	return nil, errdefs.System(errors.Wrapf(system.ErrNotSupportedOperatingSystem, "no layer storage backend configured for %s", image.Platform.OS))
+}
+
+// GetLayerStore returns the best layer store for the given platform
+// Deprecated: Do not access layer stores directly, snapshotters may be used
+func (i *ImageService) GetLayerStore(platform ocispec.Platform) (layer.Store, error) {
+	return i.getLayerStore(platform)
+}
+
+func (i *ImageService) getLayerStore(platform ocispec.Platform) (layer.Store, error) {
+	for _, backend := range i.layerBackends {
+		if backend.Platform.Match(platform) {
+			return backend.Store, nil
+		}
 	}
 
-	// Indexing by OS is safe here as validation of OS has already been performed in create() (the only
-	// caller), and guaranteed non-nil
-	return i.layerStores[container.OS].CreateRWLayer(container.ID, layerID, rwLayerOpts)
+	return nil, errdefs.Unavailable(errors.Errorf("no layer storage backend configured for %s", platform.OS))
 }
 
 // GetLayerByID returns a layer by ID and operating system
 // called from daemon.go Daemon.restore(), and Daemon.containerExport()
-func (i *ImageService) GetLayerByID(cid string, os string) (layer.RWLayer, error) {
-	return i.layerStores[os].GetRWLayer(cid)
+func (i *ImageService) GetLayerByID(cid string, driver string) (layer.RWLayer, error) {
+	ls, ok := i.layerStores[driver]
+	if !ok {
+		return nil, errdefs.NotFound(errors.Errorf("driver not found: %s", driver))
+	}
+
+	return ls.GetRWLayer(cid)
 }
 
 // LayerStoreStatus returns the status for each layer store
 // called from info.go
 func (i *ImageService) LayerStoreStatus() map[string][][2]string {
 	result := make(map[string][][2]string)
-	for os, store := range i.layerStores {
-		result[os] = store.DriverStatus()
+	for _, backend := range i.layerBackends {
+		result[backend.DriverName()] = backend.DriverStatus()
 	}
 	return result
 }
@@ -155,38 +201,45 @@ func (i *ImageService) LayerStoreStatus() map[string][][2]string {
 // called from daemon.go Daemon.Shutdown(), and Daemon.Cleanup() (cleanup is actually continerCleanup)
 // TODO: needs to be refactored to Unmount (see callers), or removed and replaced
 // with GetLayerByID
-func (i *ImageService) GetLayerMountID(cid string, os string) (string, error) {
-	return i.layerStores[os].GetMountID(cid)
+func (i *ImageService) GetLayerMountID(cid string, driver string) (string, error) {
+	ls, ok := i.layerStores[driver]
+	if !ok {
+		return "", errdefs.NotFound(errors.Errorf("driver not found: %s", driver))
+	}
+
+	return ls.GetMountID(cid)
 }
 
 // Cleanup resources before the process is shutdown.
 // called from daemon.go Daemon.Shutdown()
 func (i *ImageService) Cleanup() {
-	for os, ls := range i.layerStores {
-		if ls != nil {
-			if err := ls.Cleanup(); err != nil {
-				logrus.Errorf("Error during layer Store.Cleanup(): %v %s", err, os)
-			}
+	for _, backend := range i.layerBackends {
+		if err := backend.Cleanup(); err != nil {
+			logrus.Errorf("Error during layer Store.Cleanup(): %v %s", err, backend.DriverName())
 		}
 	}
 }
 
-// GraphDriverForOS returns the name of the graph drvier
-// moved from Daemon.GraphDriverName, used by:
-// - newContainer
-// - to report an error in Daemon.Mount(container)
-func (i *ImageService) GraphDriverForOS(os string) string {
-	return i.layerStores[os].DriverName()
+// DriverName returns the name of the graph driver for the given platform
+func (i *ImageService) DriverName(p ocispec.Platform) string {
+	ls, err := i.getLayerStore(p)
+	if err != nil {
+		return ""
+	}
+
+	return ls.DriverName()
 }
 
 // ReleaseLayer releases a layer allowing it to be removed
-// called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
-func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer, containerOS string) error {
-	metadata, err := i.layerStores[containerOS].ReleaseRWLayer(rwlayer)
+func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer, driver string) error {
+	ls, ok := i.layerStores[driver]
+	if !ok {
+		return errdefs.NotFound(errors.Errorf("driver not found: %s", driver))
+	}
+	metadata, err := ls.ReleaseRWLayer(rwlayer)
 	layer.LogReleaseMetadata(metadata)
 	if err != nil && err != layer.ErrMountDoesNotExist && !os.IsNotExist(errors.Cause(err)) {
-		return errors.Wrapf(err, "driver %q failed to remove root filesystem",
-			i.layerStores[containerOS].DriverName())
+		return errors.Wrapf(err, "driver %q failed to remove root filesystem", ls.DriverName())
 	}
 	return nil
 }
@@ -194,58 +247,42 @@ func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer, containerOS string) e
 // LayerDiskUsage returns the number of bytes used by layer stores
 // called from disk_usage.go
 func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
+	c, err := i.getCache(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	var layers []layer.Layer
+	c.m.RLock()
+	for _, lm := range c.layers {
+		for _, l := range lm {
+			layers = append(layers, l)
+		}
+	}
+	c.m.RUnlock()
+
+	// TODO(containerd): Get from containerd snapshotters also
+
 	var allLayersSize int64
-	layerRefs := i.getLayerRefs()
-	for _, ls := range i.layerStores {
-		allLayers := ls.Map()
-		for _, l := range allLayers {
-			select {
-			case <-ctx.Done():
-				return allLayersSize, ctx.Err()
-			default:
-				size, err := l.DiffSize()
-				if err == nil {
-					if _, ok := layerRefs[l.ChainID()]; ok {
-						allLayersSize += size
-					}
-				} else {
-					logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
-				}
+	for _, l := range layers {
+		select {
+		case <-ctx.Done():
+			return allLayersSize, ctx.Err()
+		default:
+			size, err := l.DiffSize()
+			if err == nil {
+				allLayersSize += size
+			} else {
+				logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
 			}
 		}
 	}
 	return allLayersSize, nil
 }
 
-func (i *ImageService) getLayerRefs() map[layer.ChainID]int {
-	tmpImages := i.imageStore.Map()
-	layerRefs := map[layer.ChainID]int{}
-	for id, img := range tmpImages {
-		dgst := digest.Digest(id)
-		if len(i.referenceStore.References(dgst)) == 0 && len(i.imageStore.Children(id)) != 0 {
-			continue
-		}
-
-		rootFS := *img.RootFS
-		rootFS.DiffIDs = nil
-		for _, id := range img.RootFS.DiffIDs {
-			rootFS.Append(id)
-			chid := rootFS.ChainID()
-			layerRefs[chid]++
-		}
-	}
-
-	return layerRefs
-}
-
 // UpdateConfig values
 //
 // called from reload.go
 func (i *ImageService) UpdateConfig(maxDownloads, maxUploads *int) {
-	if i.downloadManager != nil && maxDownloads != nil {
-		i.downloadManager.SetConcurrency(*maxDownloads)
-	}
-	if i.uploadManager != nil && maxUploads != nil {
-		i.uploadManager.SetConcurrency(*maxUploads)
-	}
+	// TODO(containerd): store these locally to configure download/upload
 }

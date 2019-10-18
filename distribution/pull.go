@@ -145,7 +145,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			return TranslatePullError(err, ref)
 		}
 
-		imagePullConfig.ImageEventLogger(reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), "pull")
+		imagePullConfig.ImageEventLogger(ctx, reference.FamiliarString(ref), reference.FamiliarName(repoInfo.Name), "pull")
 		return nil
 	}
 

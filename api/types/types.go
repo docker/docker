@@ -33,10 +33,10 @@ type ImageInspect struct {
 	Parent          string
 	Comment         string
 	Created         string
-	Container       string
-	ContainerConfig *container.Config
-	DockerVersion   string
-	Author          string
+	Container       string            `json:",omitempty"`
+	ContainerConfig *container.Config `json:",omitempty"`
+	DockerVersion   string            `json:",omitempty"`
+	Author          string            `json:",omitempty"`
 	Config          *container.Config
 	Architecture    string
 	Variant         string `json:",omitempty"`

@@ -30,6 +30,9 @@ func getCgroupFromBuildOutput(buildOutput io.Reader) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		if m.Error != nil {
+			return "", m.Error
+		}
 		if ix := strings.Index(m.Stream, prefix); ix == 0 {
 			return strings.TrimSpace(m.Stream), nil
 		}
@@ -88,5 +91,5 @@ func TestCgroupNamespacesBuildDaemonHostMode(t *testing.T) {
 	// When the daemon defaults to host cgroup namespaces, containers
 	// launched should not be inside their own cgroup namespaces
 	containerCgroup, daemonCgroup := testBuildWithCgroupNs(t, "host")
-	assert.Assert(t, daemonCgroup == containerCgroup)
+	assert.Assert(t, daemonCgroup == containerCgroup, "Different cgroups, daemon=%q, container=%q", daemonCgroup, containerCgroup)
 }

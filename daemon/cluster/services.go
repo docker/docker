@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/images"
 	"github.com/docker/distribution/reference"
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -623,21 +624,17 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 	if _, ok := namedRef.(reference.Canonical); !ok {
 		namedRef = reference.TagNameOnly(namedRef)
 
-		taggedRef, ok := namedRef.(reference.NamedTagged)
+		// TODO(containerd): use tagged ref to pull
+		//taggedRef, ok := namedRef.(reference.NamedTagged)
+		_, ok := namedRef.(reference.NamedTagged)
 		if !ok {
 			return "", errors.Errorf("image reference not tagged: %s", image)
 		}
 
-		repo, _, err := c.config.ImageBackend.GetRepository(ctx, taggedRef, authConfig)
-		if err != nil {
-			return "", err
-		}
-		dscrptr, err := repo.Tags(ctx).Get(ctx, taggedRef.Tag())
-		if err != nil {
-			return "", err
-		}
+		// TODO: just pull the image with no blobs and get the digest
+		var img images.Image
 
-		namedDigestedRef, err := reference.WithDigest(taggedRef, dscrptr.Digest)
+		namedDigestedRef, err := reference.WithDigest(namedRef, img.Target.Digest)
 		if err != nil {
 			return "", err
 		}

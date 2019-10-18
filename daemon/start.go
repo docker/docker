@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/mount"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -85,7 +86,11 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 
 	// check if hostConfig is in line with the current system settings.
 	// It may happen cgroups are umounted or the like.
-	if _, err = daemon.verifyContainerSettings(container.OS, container.HostConfig, nil, false); err != nil {
+	// TODO(containerd): Fill in from container configuration
+	platform := ocispec.Platform{
+		OS: container.OS,
+	}
+	if _, err = daemon.verifyContainerSettings(platform, container.HostConfig, nil, false); err != nil {
 		return errdefs.InvalidParameter(err)
 	}
 	// Adapt for old containers in case we have updates in this function and

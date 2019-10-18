@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/builder"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/stringid"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -28,8 +29,9 @@ func newContainerManager(docker builder.ExecBackend) *containerManager {
 }
 
 // Create a container
-func (c *containerManager) Create(runConfig *container.Config, hostConfig *container.HostConfig) (container.ContainerCreateCreatedBody, error) {
-	container, err := c.backend.ContainerCreateIgnoreImagesArgsEscaped(types.ContainerCreateConfig{
+func (c *containerManager) Create(ctx context.Context, img *ocispec.Descriptor, runConfig *container.Config, hostConfig *container.HostConfig) (container.ContainerCreateCreatedBody, error) {
+	container, err := c.backend.ContainerCreateIgnoreImagesArgsEscaped(ctx, types.ContainerCreateConfig{
+		Descriptor: img,
 		Config:     runConfig,
 		HostConfig: hostConfig,
 	})

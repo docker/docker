@@ -6,18 +6,18 @@ if ! docker image inspect emptyfs > /dev/null; then
 	# see https://github.com/docker/docker/pull/5262
 	# and also https://github.com/docker/docker/issues/4242
 	dir="$DEST/emptyfs"
-	uuid=511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158
-	mkdir -p "$dir/$uuid"
+	layerid=269cb3feb538d91d2c38c78063d287bdc9a11098e4266d141087d6c61f4f42ec
+	mkdir -p "$dir/$layerid"
 	(
-		echo '{"emptyfs":{"latest":"511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158"}}' > "$dir/repositories"
-		cd "$dir/$uuid"
-		echo '{"id":"511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158","comment":"Imported from -","created":"2013-06-13T14:03:50.821769-07:00","container_config":{"Hostname":"","Domainname":"","User":"","Memory":0,"MemorySwap":0,"CpuShares":0,"AttachStdin":false,"AttachStdout":false,"AttachStderr":false,"PortSpecs":null,"ExposedPorts":null,"Tty":false,"OpenStdin":false,"StdinOnce":false,"Env":null,"Cmd":null,"Image":"","Volumes":null,"WorkingDir":"","Entrypoint":null,"NetworkDisabled":false,"OnBuild":null},"docker_version":"0.4.0","architecture":"x86_64","Size":0}' > json
-		echo '1.0' > VERSION
-		tar -cf layer.tar --files-from /dev/null
+		config="11f64303f0f7ffdc71f001788132bca5346831939a956e3e975c93267d89a16d"
+		echo "[{\"Config\":\"$config.json\",\"RepoTags\":[\"emptyfs:latest\"],\"Layers\":[\"$layerid/layer.tar\"]}]" > "$dir/manifest.json"
+		echo '{"architecture":"x86_64","comment":"Imported from -","container_config":{"Hostname":"","Domainname":"","User":"","AttachStdin":false,"AttachStdout":false,"AttachStderr":false,"Tty":false,"OpenStdin":false,"StdinOnce":false,"Env":null,"Cmd":null,"Image":"","Volumes":null,"WorkingDir":"","Entrypoint":null,"OnBuild":null,"Labels":null},"created":"2013-06-13T14:03:50.821769-07:00","docker_version":"0.4.0","history":[{"created":"2013-06-13T14:03:50.821769-07:00","comment":"Imported from -"}],"rootfs":{"type":"layers","diff_ids":["sha256:84ff92691f909a05b224e1c56abb4864f01b4f8e3c854e4bb4c7baf1d3f6d652"]}}' > "$dir/$config.json"
+		tar -cf "$dir/$layerid/layer.tar" --files-from /dev/null
 	)
 	(
 		[ -n "$TESTDEBUG" ] && set -x
 		tar -cC "$dir" . | docker load
+		docker images
 	)
 	rm -rf "$dir"
 fi

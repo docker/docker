@@ -12,7 +12,7 @@ import (
 type Backend interface {
 	Init(req types.InitRequest) (string, error)
 	Join(req types.JoinRequest) error
-	Leave(force bool) error
+	Leave(ctx context.Context, force bool) error
 	Inspect() (types.Swarm, error)
 	Update(uint64, types.Spec, types.UpdateFlags) error
 	GetUnlockKey() (string, error)

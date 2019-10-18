@@ -17,7 +17,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 	defer atomic.StoreInt32(&daemon.diskUsageRunning, 0)
 
 	// Retrieve container list
-	allContainers, err := daemon.Containers(&types.ContainerListOptions{
+	allContainers, err := daemon.Containers(ctx, &types.ContainerListOptions{
 		Size: true,
 		All:  true,
 	})
@@ -26,7 +26,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 	}
 
 	// Get all top images with extra attributes
-	allImages, err := daemon.imageService.Images(filters.NewArgs(), false, true)
+	allImages, err := daemon.imageService.Images(ctx, filters.NewArgs(), false, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve image list: %v", err)
 	}

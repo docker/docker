@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -18,7 +19,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -48,17 +48,19 @@ const (
 
 // BuildManager is shared across all Builder objects
 type BuildManager struct {
-	idMapping *idtools.IdentityMapping
-	backend   builder.Backend
-	pathCache pathCache // TODO: make this persistent
+	idMapping     *idtools.IdentityMapping
+	backend       builder.Backend
+	pathCache     pathCache // TODO: make this persistent
+	containerdCli *containerd.Client
 }
 
 // NewBuildManager creates a BuildManager
-func NewBuildManager(b builder.Backend, identityMapping *idtools.IdentityMapping) (*BuildManager, error) {
+func NewBuildManager(b builder.Backend, identityMapping *idtools.IdentityMapping, containerdCli *containerd.Client) (*BuildManager, error) {
 	bm := &BuildManager{
-		backend:   b,
-		pathCache: &syncmap.Map{},
-		idMapping: identityMapping,
+		backend:       b,
+		pathCache:     &syncmap.Map{},
+		idMapping:     identityMapping,
+		containerdCli: containerdCli,
 	}
 	return bm, nil
 }
@@ -95,6 +97,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		Backend:        bm.backend,
 		PathCache:      bm.pathCache,
 		IDMapping:      bm.idMapping,
+		containerdCli:  bm.containerdCli,
 	}
 	b, err := newBuilder(ctx, builderOptions)
 	if err != nil {
@@ -110,6 +113,7 @@ type builderOptions struct {
 	ProgressWriter backend.ProgressWriter
 	PathCache      pathCache
 	IDMapping      *idtools.IdentityMapping
+	containerdCli  *containerd.Client
 }
 
 // Builder is a Dockerfile builder
@@ -122,8 +126,9 @@ type Builder struct {
 	Aux    *streamformatter.AuxFormatter
 	Output io.Writer
 
-	docker    builder.Backend
-	clientCtx context.Context
+	docker        builder.Backend
+	containerdCli *containerd.Client
+	clientCtx     context.Context
 
 	idMapping        *idtools.IdentityMapping
 	disableCommit    bool
@@ -149,6 +154,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, er
 		Aux:              options.ProgressWriter.AuxFormatter,
 		Output:           options.ProgressWriter.Output,
 		docker:           options.Backend,
+		containerdCli:    options.containerdCli,
 		idMapping:        options.IDMapping,
 		imageSources:     newImageSources(clientCtx, options),
 		pathCache:        options.PathCache,
@@ -216,18 +222,18 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 	if err != nil {
 		return nil, err
 	}
-	if dispatchState.imageID == "" {
+	if dispatchState.image == nil {
 		buildsFailed.WithValues(metricsDockerfileEmptyError).Inc()
 		return nil, errors.New("No image was generated. Is your Dockerfile empty?")
 	}
-	return &builder.Result{ImageID: dispatchState.imageID, FromImage: dispatchState.baseImage}, nil
+	return &builder.Result{Image: *dispatchState.image, FromImage: dispatchState.baseImage}, nil
 }
 
 func emitImageID(aux *streamformatter.AuxFormatter, state *dispatchState) error {
-	if aux == nil || state.imageID == "" {
+	if aux == nil || state.image == nil {
 		return nil
 	}
-	return aux.Emit("", types.BuildResult{ID: state.imageID})
+	return aux.Emit("", types.BuildResult{ID: state.image.Digest.String()})
 }
 
 func processMetaArg(meta instructions.ArgCommand, shlex *shell.Lex, args *BuildArgs) error {
@@ -280,7 +286,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 			return nil, err
 		}
 		dispatchRequest.state.updateRunConfig()
-		fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(dispatchRequest.state.imageID))
+		fmt.Fprintf(b.Stdout, " ---> %s\n", shortDispatchID(dispatchRequest.state))
 		for _, cmd := range stage.Commands {
 			select {
 			case <-b.clientCtx.Done():
@@ -298,7 +304,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 				return nil, err
 			}
 			dispatchRequest.state.updateRunConfig()
-			fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(dispatchRequest.state.imageID))
+			fmt.Fprintf(b.Stdout, " ---> %s\n", shortDispatchID(dispatchRequest.state))
 
 		}
 		if err := emitImageID(b.Aux, dispatchRequest.state); err != nil {
@@ -313,6 +319,13 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 	return dispatchRequest.state, nil
 }
 
+func shortDispatchID(state *dispatchState) string {
+	if state.image == nil {
+		return ""
+	}
+	return state.image.Digest.Encoded()[:12]
+}
+
 // BuildFromConfig builds directly from `changes`, treating it as if it were the contents of a Dockerfile
 // It will:
 // - Call parse.Parse() to get an AST root for the concatenated Dockerfile entries.
@@ -320,12 +333,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 //
 // BuildFromConfig is used by the /commit endpoint, with the changes
 // coming from the query parameter of the same name.
-//
-// TODO: Remove?
-func BuildFromConfig(config *container.Config, changes []string, os string) (*container.Config, error) {
-	if !system.IsOSSupported(os) {
-		return nil, errdefs.InvalidParameter(system.ErrNotSupportedOperatingSystem)
-	}
+func BuildFromConfig(ctx context.Context, config *container.Config, changes []string) (*container.Config, error) {
 	if len(changes) == 0 {
 		return config, nil
 	}
@@ -335,7 +343,7 @@ func BuildFromConfig(config *container.Config, changes []string, os string) (*co
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	b, err := newBuilder(context.Background(), builderOptions{
+	b, err := newBuilder(ctx, builderOptions{
 		Options: &types.ImageBuildOptions{NoCache: true},
 	})
 	if err != nil {
@@ -365,8 +373,6 @@ func BuildFromConfig(config *container.Config, changes []string, os string) (*co
 	dispatchRequest := newDispatchRequest(b, dockerfile.EscapeToken, nil, NewBuildArgs(b.options.BuildArgs), newStagesBuildResults())
 	// We make mutations to the configuration, ensure we have a copy
 	dispatchRequest.state.runConfig = copyRunConfig(config)
-	dispatchRequest.state.imageID = config.Image
-	dispatchRequest.state.operatingSystem = os
 	for _, cmd := range commands {
 		err := dispatch(dispatchRequest, cmd)
 		if err != nil {

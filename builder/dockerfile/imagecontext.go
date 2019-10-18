@@ -2,29 +2,27 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
 	"context"
-	"runtime"
 
-	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
-	dockerimage "github.com/docker/docker/image"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	digest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
-type getAndMountFunc func(string, bool, *specs.Platform) (builder.Image, builder.ROLayer, error)
+type getAndMountFunc func(string, bool, *ocispec.Platform) (*ocispec.Descriptor, builder.ROLayer, error)
 
 // imageSources mounts images and provides a cache for mounted images. It tracks
 // all images so they can be unmounted at the end of the build.
 type imageSources struct {
-	byImageID map[string]*imageMount
+	byImageID map[digest.Digest]*imageMount
 	mounts    []*imageMount
 	getImage  getAndMountFunc
 }
 
 func newImageSources(ctx context.Context, options builderOptions) *imageSources {
-	getAndMount := func(idOrRef string, localOnly bool, platform *specs.Platform) (builder.Image, builder.ROLayer, error) {
+	getAndMount := func(idOrRef string, localOnly bool, platform *ocispec.Platform) (*ocispec.Descriptor, builder.ROLayer, error) {
 		pullOption := backend.PullOptionNoPull
 		if !localOnly {
 			if options.Options.PullParent {
@@ -42,14 +40,16 @@ func newImageSources(ctx context.Context, options builderOptions) *imageSources 
 	}
 
 	return &imageSources{
-		byImageID: make(map[string]*imageMount),
+		byImageID: make(map[digest.Digest]*imageMount),
 		getImage:  getAndMount,
 	}
 }
 
-func (m *imageSources) Get(idOrRef string, localOnly bool, platform *specs.Platform) (*imageMount, error) {
-	if im, ok := m.byImageID[idOrRef]; ok {
-		return im, nil
+func (m *imageSources) Get(idOrRef string, localOnly bool, platform *ocispec.Platform) (*imageMount, error) {
+	if dgst, err := digest.Parse(idOrRef); err == nil {
+		if im, ok := m.byImageID[dgst]; ok {
+			return im, nil
+		}
 	}
 
 	image, layer, err := m.getImage(idOrRef, localOnly, platform)
@@ -57,7 +57,7 @@ func (m *imageSources) Get(idOrRef string, localOnly bool, platform *specs.Platf
 		return nil, err
 	}
 	im := newImageMount(image, layer)
-	m.Add(im, platform)
+	m.Add(im)
 	return im, nil
 }
 
@@ -71,39 +71,31 @@ func (m *imageSources) Unmount() (retErr error) {
 	return
 }
 
-func (m *imageSources) Add(im *imageMount, platform *specs.Platform) {
-	switch im.image {
-	case nil:
-		// Set the platform for scratch images
-		if platform == nil {
-			p := platforms.DefaultSpec()
-			platform = &p
-		}
+func (m *imageSources) Add(im *imageMount) {
+	if im.image != nil {
+		m.byImageID[im.image.Digest] = im
+	} else {
+		// TODO(containerd): Handle scratch images differently
 
-		// Windows does not support scratch except for LCOW
-		os := platform.OS
-		if runtime.GOOS == "windows" {
-			os = "linux"
-		}
-
-		im.image = &dockerimage.Image{V1Image: dockerimage.V1Image{
-			OS:           os,
-			Architecture: platform.Architecture,
-			Variant:      platform.Variant,
-		}}
-	default:
-		m.byImageID[im.image.ImageID()] = im
+		// TOD(containerd): Get build platform
+		//// set the OS for scratch images
+		//os := runtime.GOOS
+		//// Windows does not support scratch except for LCOW
+		//if runtime.GOOS == "windows" {
+		//	os = "linux"
+		//}
+		//im.image = &dockerimage.Image{V1Image: dockerimage.V1Image{OS: os}}
 	}
 	m.mounts = append(m.mounts, im)
 }
 
 // imageMount is a reference to an image that can be used as a builder.Source
 type imageMount struct {
-	image builder.Image
+	image *ocispec.Descriptor
 	layer builder.ROLayer
 }
 
-func newImageMount(image builder.Image, layer builder.ROLayer) *imageMount {
+func newImageMount(image *ocispec.Descriptor, layer builder.ROLayer) *imageMount {
 	im := &imageMount{image: image, layer: layer}
 	return im
 }
@@ -113,13 +105,14 @@ func (im *imageMount) unmount() error {
 		return nil
 	}
 	if err := im.layer.Release(); err != nil {
-		return errors.Wrapf(err, "failed to unmount previous build image %s", im.image.ImageID())
+		// TODO(containerd): cleaner output than %s
+		return errors.Wrapf(err, "failed to unmount previous build image %s", im.image.Digest.String())
 	}
 	im.layer = nil
 	return nil
 }
 
-func (im *imageMount) Image() builder.Image {
+func (im *imageMount) Image() *ocispec.Descriptor {
 	return im.image
 }
 
@@ -127,6 +120,11 @@ func (im *imageMount) NewRWLayer() (builder.RWLayer, error) {
 	return im.layer.NewRWLayer()
 }
 
+// TODO(containerd): Remove this function, always use digest
 func (im *imageMount) ImageID() string {
-	return im.image.ImageID()
+	var imageID string
+	if im.image != nil {
+		imageID = im.image.Digest.String()
+	}
+	return imageID
 }

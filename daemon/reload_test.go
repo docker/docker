@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"os"
 	"reflect"
 	"sort"
@@ -36,7 +37,7 @@ func TestDaemonReloadLabels(t *testing.T) {
 		},
 	}
 
-	if err := daemon.Reload(newConfig); err != nil {
+	if err := daemon.Reload(context.TODO(), newConfig); err != nil {
 		t.Fatal(err)
 	}
 
@@ -86,7 +87,7 @@ func TestDaemonReloadAllowNondistributableArtifacts(t *testing.T) {
 		},
 	}
 
-	if err := daemon.Reload(newConfig); err != nil {
+	if err := daemon.Reload(context.TODO(), newConfig); err != nil {
 		t.Fatal(err)
 	}
 
@@ -163,7 +164,7 @@ func TestDaemonReloadMirrors(t *testing.T) {
 			},
 		}
 
-		err := daemon.Reload(newConfig)
+		err := daemon.Reload(context.TODO(), newConfig)
 		if !value.valid && err == nil {
 			// mirrors should be invalid, should be a non-nil error
 			t.Fatalf("Expected daemon reload error with invalid mirrors: %s, while get nil", value.mirrors)
@@ -242,7 +243,7 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 		},
 	}
 
-	if err := daemon.Reload(newConfig); err != nil {
+	if err := daemon.Reload(context.TODO(), newConfig); err != nil {
 		t.Fatal(err)
 	}
 
@@ -313,7 +314,7 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 		},
 	}
 
-	if err := daemon.Reload(newConfig); err != nil {
+	if err := daemon.Reload(context.TODO(), newConfig); err != nil {
 		t.Fatal(err)
 	}
 
@@ -382,7 +383,7 @@ func TestDaemonDiscoveryReload(t *testing.T) {
 		&discovery.Entry{Host: "127.0.0.1", Port: "5555"},
 	}
 
-	if err := daemon.Reload(newConfig); err != nil {
+	if err := daemon.Reload(context.TODO(), newConfig); err != nil {
 		t.Fatal(err)
 	}
 
@@ -427,7 +428,7 @@ func TestDaemonDiscoveryReloadFromEmptyDiscovery(t *testing.T) {
 		&discovery.Entry{Host: "127.0.0.1", Port: "5555"},
 	}
 
-	if err := daemon.Reload(newConfig); err != nil {
+	if err := daemon.Reload(context.TODO(), newConfig); err != nil {
 		t.Fatal(err)
 	}
 
@@ -474,7 +475,7 @@ func TestDaemonDiscoveryReloadOnlyClusterAdvertise(t *testing.T) {
 		&discovery.Entry{Host: "127.0.0.1", Port: "5555"},
 	}
 
-	if err := daemon.Reload(newConfig); err != nil {
+	if err := daemon.Reload(context.TODO(), newConfig); err != nil {
 		t.Fatal(err)
 	}
 
@@ -533,7 +534,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	// Enable/Disable the server for some iterations
 	for i := 0; i < 10; i++ {
 		enableConfig.CommonConfig.NetworkDiagnosticPort++
-		if err := daemon.Reload(enableConfig); err != nil {
+		if err := daemon.Reload(context.TODO(), enableConfig); err != nil {
 			t.Fatal(err)
 		}
 		// Check that the diagnostic is enabled
@@ -542,7 +543,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 		}
 
 		// Reload
-		if err := daemon.Reload(disableConfig); err != nil {
+		if err := daemon.Reload(context.TODO(), disableConfig); err != nil {
 			t.Fatal(err)
 		}
 		// Check that the diagnostic is disabled
@@ -553,7 +554,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 
 	enableConfig.CommonConfig.NetworkDiagnosticPort++
 	// 2 times the enable should not create problems
-	if err := daemon.Reload(enableConfig); err != nil {
+	if err := daemon.Reload(context.TODO(), enableConfig); err != nil {
 		t.Fatal(err)
 	}
 	// Check that the diagnostic is enabled
@@ -562,7 +563,7 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	}
 
 	// Check that another reload does not cause issues
-	if err := daemon.Reload(enableConfig); err != nil {
+	if err := daemon.Reload(context.TODO(), enableConfig); err != nil {
 		t.Fatal(err)
 	}
 	// Check that the diagnostic is enable

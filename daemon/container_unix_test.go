@@ -5,6 +5,7 @@ package daemon
 import (
 	"testing"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/config"
@@ -37,7 +38,7 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 			},
 		}
 		d := &Daemon{configStore: cs}
-		wrns, err := d.verifyContainerSettings("", hostConfig, &containertypes.Config{}, false)
+		wrns, err := d.verifyContainerSettings(platforms.DefaultSpec(), hostConfig, &containertypes.Config{}, false)
 		assert.NilError(t, err)
 		assert.DeepEqual(t, tc.warnings, wrns)
 	}

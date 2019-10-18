@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ContainerAttachConfig holds the streams to use when connecting to a container to view logs.
@@ -124,5 +125,5 @@ type CommitConfig struct {
 	ContainerID         string
 	ContainerMountLabel string
 	ContainerOS         string
-	ParentImageID       string
+	ParentImage         *ocispec.Descriptor
 }

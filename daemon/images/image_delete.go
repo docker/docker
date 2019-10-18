@@ -1,28 +1,34 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/content"
+	cerrdefs "github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
+	creference "github.com/containerd/containerd/reference"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
+	digest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
 type conflictType int
 
 const (
-	conflictDependentChild conflictType = 1 << iota
-	conflictRunningContainer
+	conflictRunningContainer conflictType = 1 << iota
 	conflictActiveReference
 	conflictStoppedContainer
-	conflictHard = conflictDependentChild | conflictRunningContainer
+	conflictHard = conflictRunningContainer
 	conflictSoft = conflictActiveReference | conflictStoppedContainer
 )
 
@@ -52,6 +58,7 @@ const (
 // Soft Conflict:
 // 	- any stopped container using the image.
 // 	- any repository tag or digest references to the image.
+//      - TODO(containerd): has label "io.cri-containerd.image==managed"
 //
 // The image cannot be removed if there are any hard conflicts and can be
 // removed if there are soft conflicts only if force is true.
@@ -60,125 +67,261 @@ const (
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
 //
-func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
+func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
 	start := time.Now()
-	records := []types.ImageDeleteResponseItem{}
 
-	img, err := i.GetImage(imageRef)
+	img, err := i.ResolveImage(ctx, imageRef)
 	if err != nil {
 		return nil, err
 	}
-	if !system.IsOSSupported(img.OperatingSystem()) {
-		return nil, errors.Errorf("unable to delete image: %q", system.ErrNotSupportedOperatingSystem)
-	}
 
-	imgID := img.ID()
-	repoRefs := i.referenceStore.References(imgID.Digest())
+	imgID := img.Digest.String()
 
+	// TODO(containerd): Use containerd filter on list containers
 	using := func(c *container.Container) bool {
-		return c.ImageID == imgID
+		return digest.Digest(c.ImageID) == img.Digest
 	}
 
-	var removedRepositoryRef bool
-	if !isImageIDPrefix(imgID.String(), imageRef) {
+	is := i.client.ImageService()
+	imgs, err := is.List(ctx, fmt.Sprintf("target.digest==%s", img.Digest))
+	if err != nil {
+		return nil, err
+	}
+
+	if !isImageIDPrefix(imgID, imageRef) {
+		var deletedRefs []string
+
 		// A repository reference was given and should be removed
 		// first. We can only remove this reference if either force is
 		// true, there are multiple repository references to this
 		// image, or there are no containers using the given reference.
-		if !force && isSingleReference(repoRefs) {
+		if !force && isSingleReference(ctx, imgs) {
 			if container := i.containers.First(using); container != nil {
 				// If we removed the repository reference then
 				// this image would remain "dangling" and since
 				// we really want to avoid that the client must
 				// explicitly force its removal.
-				err := errors.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(container.ID), stringid.TruncateID(imgID.String()))
+				err := errors.Errorf("conflict: unable to remove repository reference %q (must force) - container %s is using its referenced image %s", imageRef, stringid.TruncateID(container.ID), stringid.TruncateID(imgID))
 				return nil, errdefs.Conflict(err)
 			}
 		}
 
+		// TODO(containerd): normalize ref then use containerd reference parsing
 		parsedRef, err := reference.ParseNormalizedNamed(imageRef)
 		if err != nil {
 			return nil, err
 		}
+		imageRef = parsedRef.String()
+		locator := parsedRef.Name()
 
-		parsedRef, err = i.removeImageRef(parsedRef)
-		if err != nil {
-			return nil, err
-		}
-
-		untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
-
-		i.LogImageEvent(imgID.String(), imgID.String(), "untag")
-		records = append(records, untaggedRecord)
-
-		repoRefs = i.referenceStore.References(imgID.Digest())
+		deletedRefs = append(deletedRefs, imageRef)
 
 		// If a tag reference was removed and the only remaining
 		// references to the same repository are digest references,
 		// then clean up those digest references.
-		if _, isCanonical := parsedRef.(reference.Canonical); !isCanonical {
+		if !isCanonicalReference(imageRef) {
 			foundRepoTagRef := false
-			for _, repoRef := range repoRefs {
-				if _, repoRefIsCanonical := repoRef.(reference.Canonical); !repoRefIsCanonical && parsedRef.Name() == repoRef.Name() {
-					foundRepoTagRef = true
-					break
+			canonicalRefs := []string{}
+			for _, img := range imgs {
+				if imageRef == img.Name {
+					continue
 				}
+
+				spec, err := creference.Parse(img.Name)
+				if err != nil {
+					log.G(ctx).WithError(err).WithField("name", img.Name).Warnf("ignoring bad name")
+					continue
+				}
+				if locator == spec.Locator {
+					if !isCanonicalReference(img.Name) {
+						foundRepoTagRef = true
+						break
+					}
+					canonicalRefs = append(canonicalRefs, img.Name)
+				}
+
 			}
 			if !foundRepoTagRef {
 				// Remove canonical references from same repository
-				var remainingRefs []reference.Named
-				for _, repoRef := range repoRefs {
-					if _, repoRefIsCanonical := repoRef.(reference.Canonical); repoRefIsCanonical && parsedRef.Name() == repoRef.Name() {
-						if _, err := i.removeImageRef(repoRef); err != nil {
-							return records, err
-						}
-
-						untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(repoRef)}
-						records = append(records, untaggedRecord)
-					} else {
-						remainingRefs = append(remainingRefs, repoRef)
-
-					}
-				}
-				repoRefs = remainingRefs
+				deletedRefs = append(deletedRefs, canonicalRefs...)
 			}
 		}
 
-		// If it has remaining references then the untag finished the remove
-		if len(repoRefs) > 0 {
+		// If it has remaining references then the untag finishes the remove
+		// and there is no need to check for parent reference removal
+		if len(imgs)-len(deletedRefs) > 0 {
+			records := []types.ImageDeleteResponseItem{}
+			for _, ref := range deletedRefs {
+				if err := is.Delete(ctx, ref); err != nil && !errdefs.IsNotFound(err) {
+					return records, errors.Wrapf(err, "failed to delete ref: %s", ref)
+				}
+				var fref string
+				if !strings.HasPrefix(ref, "<") {
+					pref, err := reference.ParseNormalizedNamed(ref)
+					if err != nil {
+						return records, errors.Wrapf(err, "failed to parse ref: %s", ref)
+					}
+					fref = reference.FamiliarString(pref)
+					i.LogImageEvent(ctx, imgID, fref, "untag")
+					records = append(records, types.ImageDeleteResponseItem{Untagged: fref})
+				}
+			}
 			return records, nil
 		}
 
-		removedRepositoryRef = true
+		c := conflictHard
+		if !force {
+			c |= conflictSoft
+		}
+		if conflict := i.checkImageDeleteConflict(img, c, false); conflict != nil {
+			log.G(ctx).Debugf("%s: ignoring conflict: %#v", img.Digest, conflict)
+			// TODO(containerd): Keep one reference to prevent deletion?
+		}
+
 	} else {
 		// If an ID reference was given AND there is at most one tag
 		// reference to the image AND all references are within one
 		// repository, then remove all references.
-		if isSingleReference(repoRefs) {
-			c := conflictHard
-			if !force {
-				c |= conflictSoft &^ conflictActiveReference
-			}
-			if conflict := i.checkImageDeleteConflict(imgID, c); conflict != nil {
-				return nil, conflict
-			}
 
-			for _, repoRef := range repoRefs {
-				parsedRef, err := i.removeImageRef(repoRef)
-				if err != nil {
-					return nil, err
-				}
+		c := conflictHard
+		active := false
+		if !force {
+			// If not forced, fail on soft conflicts
+			c |= conflictSoft
 
-				untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
+			active = !isSingleReference(ctx, imgs)
+		}
 
-				i.LogImageEvent(imgID.String(), imgID.String(), "untag")
-				records = append(records, untaggedRecord)
-			}
+		if conflict := i.checkImageDeleteConflict(img, c, active); conflict != nil {
+			return nil, conflict
 		}
 	}
 
-	if err := i.imageDeleteHelper(imgID, &records, force, prune, removedRepositoryRef); err != nil {
-		return nil, err
+	cs := i.client.ContentStore()
+
+	layers := map[string][]digest.Digest{}
+	seenParents := map[string]struct{}{}
+	var wh images.HandlerFunc = func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		switch desc.MediaType {
+		case images.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
+			info, err := cs.Info(ctx, desc.Digest)
+			if err != nil {
+				return nil, err
+			}
+
+			var parents []ocispec.Descriptor
+			for k, v := range info.Labels {
+				if k == LabelImageParent {
+					// Since parent relationship are client defined by labels rather
+					// than a hash tree, ensure parents do not mistakenly loop
+					if _, ok := seenParents[v]; !ok {
+						log.G(ctx).WithField("image", imgID).WithField("config", desc.Digest.String()).Debugf("deleted image has parent: %s", v)
+						parents = append(parents, ocispec.Descriptor{
+							MediaType: images.MediaTypeDockerSchema2Config,
+							Digest:    digest.Digest(v),
+							// Size can be safely ignored here
+						})
+						seenParents[v] = struct{}{}
+					}
+				} else if strings.HasPrefix(k, LabelLayerPrefix) {
+					driver := k[len(LabelLayerPrefix):]
+					layers[driver] = append(layers[driver], digest.Digest(v))
+				}
+			}
+			return parents, nil
+		}
+		return nil, nil
+	}
+
+	if err := images.Walk(ctx, images.Handlers(images.ChildrenHandler(cs), wh), img); err != nil {
+		if !cerrdefs.IsNotFound(err) {
+			return nil, err
+		}
+		log.G(ctx).WithError(err).Warnf("missing object, some layer removals may be excluded")
+	}
+
+	// Remove all references
+	records := []types.ImageDeleteResponseItem{}
+	for j, img := range imgs {
+		var opts []images.DeleteOpt
+		if j == len(imgs)-1 {
+			opts = append(opts, images.SynchronousDelete())
+		}
+		if err := is.Delete(ctx, img.Name, opts...); err != nil && !errdefs.IsNotFound(err) {
+			return records, errors.Wrapf(err, "failed to delete ref: %s", img.Name)
+		}
+		if !strings.HasPrefix(img.Name, "<") {
+			pref, err := reference.ParseNormalizedNamed(img.Name)
+			if err != nil {
+				return records, errors.Wrapf(err, "failed to parse ref: %s", img.Name)
+			}
+			fref := reference.FamiliarString(pref)
+			i.LogImageEvent(ctx, imgID, fref, "untag")
+			records = append(records, types.ImageDeleteResponseItem{Untagged: fref})
+		}
+	}
+
+	// Lookup image to see if it was deleted
+	if _, err := cs.Info(ctx, img.Digest); err != nil {
+		if !cerrdefs.IsNotFound(err) {
+			return records, errors.Wrap(err, "failed to lookup image in content store")
+		}
+		records = append(records, types.ImageDeleteResponseItem{Deleted: imgID})
+
+		if len(layers) > 0 {
+			c, err := i.getCache(ctx)
+			if err != nil {
+				log.G(ctx).WithError(err).Errorf("unable to get cache, skipping layer removal")
+			}
+
+			c.m.Lock()
+			for name, chainIDs := range layers {
+				ls, ok := i.layerStores[name]
+				if !ok {
+					log.G(ctx).WithField("driver", name).Warnf("layer store not configured for referenced layers, skipping removal")
+					continue
+				}
+				retained := c.layers[name]
+
+				key := LabelLayerPrefix + name
+				var filters []string
+				unmarked := map[digest.Digest]struct{}{}
+				for _, chainID := range chainIDs {
+					filters = append(filters, fmt.Sprintf("labels.%q==%s", key, chainID))
+					unmarked[chainID] = struct{}{}
+				}
+
+				// Mark referenced layers by removing from unmarked
+				err := cs.Walk(ctx, func(i content.Info) error {
+					v := i.Labels[key]
+					if v != "" {
+						log.G(ctx).WithField("key", key).Debugf("Still there after removal...")
+						delete(unmarked, digest.Digest(v))
+					}
+					return nil
+				}, filters...)
+				if err != nil {
+					log.G(ctx).WithError(err).WithField("driver", name).Errorf("mark failed, skipping layer removal")
+				}
+
+				for chainID := range unmarked {
+					l, ok := retained[chainID]
+					if ok {
+						metadata, err := ls.Release(l)
+						if err != nil {
+							log.G(ctx).WithError(err).WithField("driver", name).WithField("layer", chainID).Errorf("layer release failed")
+						}
+						for _, m := range metadata {
+							log.G(ctx).WithField("driver", name).WithField("layer", m.ChainID).Infof("layer removed")
+						}
+						delete(retained, chainID)
+					} else {
+						log.G(ctx).WithField("driver", name).WithField("id", chainID.String()).Warnf("referenced layer not retained")
+					}
+				}
+			}
+			c.m.Unlock()
+		}
 	}
 
 	imageActions.WithValues("delete").UpdateSince(start)
@@ -186,29 +329,47 @@ func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.
 	return records, nil
 }
 
+func isCanonicalReference(ref string) bool {
+	// TODO(containerd): Use a regex
+	return strings.ContainsAny(ref, "@")
+}
+
 // isSingleReference returns true when all references are from one repository
 // and there is at most one tag. Returns false for empty input.
-func isSingleReference(repoRefs []reference.Named) bool {
-	if len(repoRefs) <= 1 {
-		return len(repoRefs) == 1
+func isSingleReference(ctx context.Context, imgs []images.Image) bool {
+	if len(imgs) <= 1 {
+		return len(imgs) == 1
 	}
-	var singleRef reference.Named
+	var singleRef string
 	canonicalRefs := map[string]struct{}{}
-	for _, repoRef := range repoRefs {
-		if _, isCanonical := repoRef.(reference.Canonical); isCanonical {
-			canonicalRefs[repoRef.Name()] = struct{}{}
-		} else if singleRef == nil {
-			singleRef = repoRef
+	for _, img := range imgs {
+		if isCanonicalReference(img.Name) {
+			ref, err := creference.Parse(img.Name)
+			if err != nil {
+				log.G(ctx).WithField("name", img.Name).Warnf("ignoring unparseable reference")
+				continue
+			}
+			canonicalRefs[ref.Locator] = struct{}{}
+		} else if singleRef == "" {
+			singleRef = img.Name
 		} else {
 			return false
 		}
 	}
-	if singleRef == nil {
-		// Just use first canonical ref
-		singleRef = repoRefs[0]
+	if len(canonicalRefs) != 1 {
+		return false
 	}
-	_, ok := canonicalRefs[singleRef.Name()]
-	return len(canonicalRefs) == 1 && ok
+
+	if singleRef != "" {
+		ref, err := creference.Parse(singleRef)
+		if err == nil {
+			_, ok := canonicalRefs[ref.Locator]
+			return ok
+		}
+		log.G(ctx).WithField("name", singleRef).Warnf("ignoring unparseable reference")
+	}
+	return true
+
 }
 
 // isImageIDPrefix returns whether the given possiblePrefix is a prefix of the
@@ -225,50 +386,10 @@ func isImageIDPrefix(imageID, possiblePrefix string) bool {
 	return false
 }
 
-// removeImageRef attempts to parse and remove the given image reference from
-// this daemon's store of repository tag/digest references. The given
-// repositoryRef must not be an image ID but a repository name followed by an
-// optional tag or digest reference. If tag or digest is omitted, the default
-// tag is used. Returns the resolved image reference and an error.
-func (i *ImageService) removeImageRef(ref reference.Named) (reference.Named, error) {
-	ref = reference.TagNameOnly(ref)
-
-	// Ignore the boolean value returned, as far as we're concerned, this
-	// is an idempotent operation and it's okay if the reference didn't
-	// exist in the first place.
-	_, err := i.referenceStore.Delete(ref)
-
-	return ref, err
-}
-
-// removeAllReferencesToImageID attempts to remove every reference to the given
-// imgID from this daemon's store of repository tag/digest references. Returns
-// on the first encountered error. Removed references are logged to this
-// daemon's event service. An "Untagged" types.ImageDeleteResponseItem is added to the
-// given list of records.
-func (i *ImageService) removeAllReferencesToImageID(imgID image.ID, records *[]types.ImageDeleteResponseItem) error {
-	imageRefs := i.referenceStore.References(imgID.Digest())
-
-	for _, imageRef := range imageRefs {
-		parsedRef, err := i.removeImageRef(imageRef)
-		if err != nil {
-			return err
-		}
-
-		untaggedRecord := types.ImageDeleteResponseItem{Untagged: reference.FamiliarString(parsedRef)}
-
-		i.LogImageEvent(imgID.String(), imgID.String(), "untag")
-		*records = append(*records, untaggedRecord)
-	}
-
-	return nil
-}
-
 // ImageDeleteConflict holds a soft or hard conflict and an associated error.
 // Implements the error interface.
 type imageDeleteConflict struct {
 	hard    bool
-	used    bool
 	imgID   image.ID
 	message string
 }
@@ -286,105 +407,31 @@ func (idc *imageDeleteConflict) Error() string {
 
 func (idc *imageDeleteConflict) Conflict() {}
 
-// imageDeleteHelper attempts to delete the given image from this daemon. If
-// the image has any hard delete conflicts (child images or running containers
-// using the image) then it cannot be deleted. If the image has any soft delete
-// conflicts (any tags/digests referencing the image or any stopped container
-// using the image) then it can only be deleted if force is true. If the delete
-// succeeds and prune is true, the parent images are also deleted if they do
-// not have any soft or hard delete conflicts themselves. Any deleted images
-// and untagged references are appended to the given records. If any error or
-// conflict is encountered, it will be returned immediately without deleting
-// the image. If quiet is true, any encountered conflicts will be ignored and
-// the function will return nil immediately without deleting the image.
-func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageDeleteResponseItem, force, prune, quiet bool) error {
-	// First, determine if this image has any conflicts. Ignore soft conflicts
-	// if force is true.
-	c := conflictHard
-	if !force {
-		c |= conflictSoft
-	}
-	if conflict := i.checkImageDeleteConflict(imgID, c); conflict != nil {
-		if quiet && (!i.imageIsDangling(imgID) || conflict.used) {
-			// Ignore conflicts UNLESS the image is "dangling" or not being used in
-			// which case we want the user to know.
-			return nil
-		}
-
-		// There was a conflict and it's either a hard conflict OR we are not
-		// forcing deletion on soft conflicts.
-		return conflict
-	}
-
-	parent, err := i.imageStore.GetParent(imgID)
-	if err != nil {
-		// There may be no parent
-		parent = ""
-	}
-
-	// Delete all repository tag/digest references to this image.
-	if err := i.removeAllReferencesToImageID(imgID, records); err != nil {
-		return err
-	}
-
-	removedLayers, err := i.imageStore.Delete(imgID)
-	if err != nil {
-		return err
-	}
-
-	i.LogImageEvent(imgID.String(), imgID.String(), "delete")
-	*records = append(*records, types.ImageDeleteResponseItem{Deleted: imgID.String()})
-	for _, removedLayer := range removedLayers {
-		*records = append(*records, types.ImageDeleteResponseItem{Deleted: removedLayer.ChainID.String()})
-	}
-
-	if !prune || parent == "" {
-		return nil
-	}
-
-	// We need to prune the parent image. This means delete it if there are
-	// no tags/digests referencing it and there are no containers using it (
-	// either running or stopped).
-	// Do not force prunings, but do so quietly (stopping on any encountered
-	// conflicts).
-	return i.imageDeleteHelper(parent, records, false, true, true)
-}
-
 // checkImageDeleteConflict determines whether there are any conflicts
 // preventing deletion of the given image from this daemon. A hard conflict is
 // any image which has the given image as a parent or any running container
 // using the image. A soft conflict is any tags/digest referencing the given
 // image or any stopped container using the image. If ignoreSoftConflicts is
 // true, this function will not check for soft conflict conditions.
-func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictType) *imageDeleteConflict {
-	// Check if the image has any descendant images.
-	if mask&conflictDependentChild != 0 && len(i.imageStore.Children(imgID)) > 0 {
-		return &imageDeleteConflict{
-			hard:    true,
-			imgID:   imgID,
-			message: "image has dependent child images",
-		}
-	}
-
+func (i *ImageService) checkImageDeleteConflict(img ocispec.Descriptor, mask conflictType, active bool) *imageDeleteConflict {
 	if mask&conflictRunningContainer != 0 {
 		// Check if any running container is using the image.
 		running := func(c *container.Container) bool {
-			return c.ImageID == imgID && c.IsRunning()
+			return digest.Digest(c.ImageID) == img.Digest && c.IsRunning()
 		}
 		if container := i.containers.First(running); container != nil {
 			return &imageDeleteConflict{
-				imgID:   imgID,
+				imgID:   image.ID(img.Digest),
 				hard:    true,
-				used:    true,
 				message: fmt.Sprintf("image is being used by running container %s", stringid.TruncateID(container.ID)),
 			}
 		}
 	}
 
 	// Check if any repository tags/digest reference this image.
-	if mask&conflictActiveReference != 0 && len(i.referenceStore.References(imgID.Digest())) > 0 {
+	if mask&conflictActiveReference != 0 && active {
 		return &imageDeleteConflict{
-			imgID:   imgID,
+			imgID:   image.ID(img.Digest),
 			message: "image is referenced in multiple repositories",
 		}
 	}
@@ -392,23 +439,15 @@ func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictTyp
 	if mask&conflictStoppedContainer != 0 {
 		// Check if any stopped containers reference this image.
 		stopped := func(c *container.Container) bool {
-			return !c.IsRunning() && c.ImageID == imgID
+			return !c.IsRunning() && digest.Digest(c.ImageID) == img.Digest
 		}
 		if container := i.containers.First(stopped); container != nil {
 			return &imageDeleteConflict{
-				imgID:   imgID,
-				used:    true,
+				imgID:   image.ID(img.Digest),
 				message: fmt.Sprintf("image is being used by stopped container %s", stringid.TruncateID(container.ID)),
 			}
 		}
 	}
 
 	return nil
-}
-
-// imageIsDangling returns whether the given image is "dangling" which means
-// that there are no repository references to the given image and it has no
-// child images.
-func (i *ImageService) imageIsDangling(imgID image.ID) bool {
-	return !(len(i.referenceStore.References(imgID.Digest())) > 0 || len(i.imageStore.Children(imgID)) > 0)
 }

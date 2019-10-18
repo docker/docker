@@ -63,7 +63,7 @@ func (sr *swarmRouter) leaveCluster(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	force := httputils.BoolValue(r, "force")
-	return sr.backend.Leave(force)
+	return sr.backend.Leave(ctx, force)
 }
 
 func (sr *swarmRouter) inspectCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

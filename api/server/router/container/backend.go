@@ -32,7 +32,7 @@ type copyBackend interface {
 
 // stateBackend includes functions to implement to provide container state lifecycle functionality.
 type stateBackend interface {
-	ContainerCreate(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
+	ContainerCreate(ctx context.Context, config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
 	ContainerKill(name string, sig uint64) error
 	ContainerPause(name string) error
 	ContainerRename(oldName, newName string) error
@@ -54,7 +54,7 @@ type monitorBackend interface {
 	ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error
 	ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error)
 
-	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
+	Containers(ctx context.Context, config *types.ContainerListOptions) ([]*types.Container, error)
 }
 
 // attachBackend includes function to implement to provide container attaching functionality.
@@ -68,7 +68,7 @@ type systemBackend interface {
 }
 
 type commitBackend interface {
-	CreateImageFromContainer(name string, config *backend.CreateImageConfig) (imageID string, err error)
+	CreateImageFromContainer(ctx context.Context, name string, config *backend.CreateImageConfig) (imageID string, err error)
 }
 
 // Backend is all the methods that need to be implemented to provide container specific functionality.

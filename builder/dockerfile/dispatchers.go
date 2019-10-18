@@ -17,9 +17,7 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/builder"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
@@ -27,6 +25,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -176,9 +175,18 @@ func initializeStage(d dispatchRequest, cmd *instructions.Stage) error {
 	if err != nil {
 		return err
 	}
+	var imageBytes []byte
+	if image != nil {
+		imageBytes, err = d.builder.docker.ResolveRuntimeConfig(d.builder.clientCtx, *image)
+		if err != nil {
+			return err
+		}
+	} else {
+		d.state.noBaseImage = true
+	}
 	state := d.state
-	if err := state.beginStage(cmd.Name, image); err != nil {
-		return err
+	if err := state.beginStage(cmd.Name, image, imageBytes); err != nil {
+		return errors.Wrap(err, "failed to begin stage")
 	}
 	if len(state.runConfig.OnBuild) > 0 {
 		triggers := state.runConfig.OnBuild
@@ -231,7 +239,7 @@ func (d *dispatchRequest) getExpandedString(shlex *shell.Lex, str string) (strin
 	return name, nil
 }
 
-func (d *dispatchRequest) getImageOrStage(name string, platform *specs.Platform) (builder.Image, error) {
+func (d *dispatchRequest) getImageOrStage(name string, platform *specs.Platform) (*ocispec.Descriptor, error) {
 	var localOnly bool
 	if im, ok := d.stages.getByName(name); ok {
 		name = im.Image
@@ -248,11 +256,8 @@ func (d *dispatchRequest) getImageOrStage(name string, platform *specs.Platform)
 		if platform != nil {
 			p = *platform
 		}
-		imageImage := &image.Image{}
-		imageImage.OS = p.OS
 
 		// old windows scratch handling
-		// TODO: scratch should not have an os. It should be nil image.
 		// Windows supports scratch. What is not supported is running containers
 		// from it.
 		if runtime.GOOS == "windows" {
@@ -260,22 +265,24 @@ func (d *dispatchRequest) getImageOrStage(name string, platform *specs.Platform)
 				if !system.LCOWSupported() {
 					return nil, errors.New("Linux containers are not supported on this system")
 				}
-				imageImage.OS = "linux"
 			} else if platform.OS == "windows" {
 				return nil, errors.New("Windows does not support FROM scratch")
 			} else {
 				return nil, errors.Errorf("platform %s is not supported", platforms.Format(p))
 			}
 		}
-		return builder.Image(imageImage), nil
+
+		return nil, nil
 	}
+
 	imageMount, err := d.builder.imageSources.Get(name, localOnly, platform)
 	if err != nil {
 		return nil, err
 	}
+
 	return imageMount.Image(), nil
 }
-func (d *dispatchRequest) getFromImage(shlex *shell.Lex, basename string, platform *specs.Platform) (builder.Image, error) {
+func (d *dispatchRequest) getFromImage(shlex *shell.Lex, basename string, platform *specs.Platform) (*ocispec.Descriptor, error) {
 	name, err := d.getExpandedString(shlex, basename)
 	if err != nil {
 		return nil, err
@@ -342,9 +349,9 @@ func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
 // RUN [ "echo", "hi" ] # echo hi
 //
 func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
-	if !system.IsOSSupported(d.state.operatingSystem) {
-		return system.ErrNotSupportedOperatingSystem
-	}
+	//if !system.IsOSSupported(d.state.operatingSystem) {
+	//	return system.ErrNotSupportedOperatingSystem
+	//}
 	stateRunConfig := d.state.runConfig
 	cmdFromArgs, argsEscaped := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, d.state.operatingSystem, c.Name(), c.String())
 	buildArgs := d.state.buildArgs.FilterAllowed(stateRunConfig.Env)
@@ -362,6 +369,8 @@ func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 		return err
 	}
 
+	// TODO(containerd): extract runtime config
+	// add to runConfig for now
 	runConfig := copyRunConfig(stateRunConfig,
 		withCmd(cmdFromArgs),
 		withArgsEscaped(argsEscaped),
@@ -369,7 +378,7 @@ func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 		withEntrypointOverride(saveCmd, strslice.StrSlice{""}),
 		withoutHealthcheck())
 
-	cID, err := d.builder.create(runConfig)
+	cID, err := d.builder.create(d.state.image, runConfig)
 	if err != nil {
 		return err
 	}

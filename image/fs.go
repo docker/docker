@@ -1,14 +1,18 @@
 package image // import "github.com/docker/docker/image"
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/containerd/containerd/content"
 	"github.com/docker/docker/pkg/ioutils"
 	digest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -172,4 +176,44 @@ func (s *fs) DeleteMetadata(dgst digest.Digest, key string) error {
 	defer s.Unlock()
 
 	return os.RemoveAll(filepath.Join(s.metadataDir(dgst), key))
+}
+
+// MigrateImageStore migrates the given image store to containerd content store
+func MigrateImageStore(ctx context.Context, from StoreBackend, to content.Store, labelParent string) error {
+	print(`Migrating image store `)
+	num := 0
+	from.Walk(func(id digest.Digest) error {
+		contents, err := from.Get(id)
+		if err != nil {
+			logrus.WithError(err).Errorf("can't get %s", id)
+			return nil
+		}
+
+		desc := ocispec.Descriptor{
+			MediaType: ocispec.MediaTypeImageConfig,
+			Digest:    id,
+			Size:      int64(len(contents)),
+		}
+
+		labels := map[string]string{}
+		parent, err := from.GetMetadata(id, "parent")
+		if err == nil {
+			labels[labelParent] = string(parent)
+		}
+		opts := []content.Opt{content.WithLabels(labels)}
+
+		ref := "config-" + id.Algorithm().String() + "-" + id.Encoded()
+		if err := content.WriteBlob(ctx, to, ref, bytes.NewReader(contents), desc, opts...); err != nil {
+			logrus.WithError(err).Errorf("can't store config")
+		} else {
+			num++
+			// TODO
+			//from.Delete(id)
+		}
+
+		print(`.`)
+		return nil
+	})
+	println(" done,", num, "objects")
+	return nil
 }

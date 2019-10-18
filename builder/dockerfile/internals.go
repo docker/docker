@@ -14,11 +14,12 @@ import (
 	"runtime"
 	"strings"
 
+	cerrdefs "github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/images"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/containerfs"
@@ -26,7 +27,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-connections/nat"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -105,55 +106,52 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 		Config:          copyRunConfig(dispatchState.runConfig),
 		ContainerConfig: containerConfig,
 		ContainerID:     id,
+		ParentImage:     dispatchState.image,
 	}
 
-	imageID, err := b.docker.CommitBuildStep(commitCfg)
-	dispatchState.imageID = string(imageID)
-	return err
+	desc, err := b.docker.CommitBuildStep(dispatchState.ctx, commitCfg)
+	if err != nil {
+		return err
+	}
+
+	dispatchState.image = &desc
+	return nil
 }
 
-func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, parent builder.Image, runConfig *container.Config) error {
+func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, parent *ocispec.Descriptor, runConfig *container.Config) error {
 	newLayer, err := layer.Commit()
 	if err != nil {
 		return err
 	}
 
-	parentImage, ok := parent.(*image.Image)
-	if !ok {
-		return errors.Errorf("unexpected image type")
-	}
-
-	platform := &specs.Platform{
-		OS:           parentImage.OS,
-		Architecture: parentImage.Architecture,
-		Variant:      parentImage.Variant,
-	}
-
 	// add an image mount without an image so the layer is properly unmounted
 	// if there is an error before we can add the full mount with image
-	b.imageSources.Add(newImageMount(nil, newLayer), platform)
+	b.imageSources.Add(newImageMount(nil, newLayer))
 
-	newImage := image.NewChildImage(parentImage, image.ChildConfig{
+	// TODO(containerd): commit layer, create image content, add image, register
+	// Deprecate use of CreateImage function or merge with CommitBuildStep
+	config := backend.NewImageConfig{
+		ParentImage:     parent,
 		Author:          state.maintainer,
 		ContainerConfig: runConfig,
-		DiffID:          newLayer.DiffID(),
 		Config:          copyRunConfig(state.runConfig),
-	}, parentImage.OS)
-
-	// TODO: it seems strange to marshal this here instead of just passing in the
-	// image struct
-	config, err := newImage.MarshalJSON()
-	if err != nil {
-		return errors.Wrap(err, "failed to encode image config")
 	}
-
-	exportedImage, err := b.docker.CreateImage(config, state.imageID)
+	exportedImage, err := b.docker.CreateImage(state.ctx, config, newLayer)
 	if err != nil {
 		return errors.Wrapf(err, "failed to export image")
 	}
 
-	state.imageID = exportedImage.ImageID()
-	b.imageSources.Add(newImageMount(exportedImage, newLayer), platform)
+	// create a dangling image in the image service
+	_, err = b.containerdCli.ImageService().Create(state.ctx, images.Image{
+		Name:   "<build>@" + exportedImage.Digest.String(),
+		Target: exportedImage,
+	})
+	if err != nil && !cerrdefs.IsAlreadyExists(err) {
+		return errors.Wrapf(err, "failed to create image")
+	}
+
+	state.image = &exportedImage
+	b.imageSources.Add(newImageMount(&exportedImage, newLayer))
 	return nil
 }
 
@@ -176,9 +174,14 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 		return err
 	}
 
-	imageMount, err := b.imageSources.Get(state.imageID, true, req.builder.platform)
+	// TODO(containerd):get image mount by descriptor
+	var imageID string
+	if state.image != nil {
+		imageID = state.image.Digest.String()
+	}
+	imageMount, err := b.imageSources.Get(imageID, true, req.builder.platform)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get destination image %q", state.imageID)
+		return errors.Wrapf(err, "failed to get destination image %q", imageID)
 	}
 
 	rwLayer, err := imageMount.NewRWLayer()
@@ -426,14 +429,22 @@ func getShell(c *container.Config, os string) []string {
 }
 
 func (b *Builder) probeCache(dispatchState *dispatchState, runConfig *container.Config) (bool, error) {
-	cachedID, err := b.imageProber.Probe(dispatchState.imageID, runConfig)
+	// TODO(containerd): probe cache by descriptor
+	var imageID string
+	if dispatchState.image != nil {
+		imageID = dispatchState.image.Digest.String()
+	}
+	cachedID, err := b.imageProber.Probe(imageID, runConfig)
 	if cachedID == "" || err != nil {
 		return false, err
 	}
-	fmt.Fprint(b.Stdout, " ---> Using cache\n")
+	// TODO(containerd): cache must return descriptor, return false until fixed
+	return false, nil
 
-	dispatchState.imageID = cachedID
-	return true, nil
+	//fmt.Fprint(b.Stdout, " ---> Using cache\n")
+
+	//dispatchState.imageID = cachedID
+	//return true, nil
 }
 
 var defaultLogConfig = container.LogConfig{Type: "none"}
@@ -442,15 +453,15 @@ func (b *Builder) probeAndCreate(dispatchState *dispatchState, runConfig *contai
 	if hit, err := b.probeCache(dispatchState, runConfig); err != nil || hit {
 		return "", err
 	}
-	return b.create(runConfig)
+	return b.create(dispatchState.image, runConfig)
 }
 
-func (b *Builder) create(runConfig *container.Config) (string, error) {
+func (b *Builder) create(img *ocispec.Descriptor, runConfig *container.Config) (string, error) {
 	logrus.Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
 
 	isWCOW := runtime.GOOS == "windows" && b.platform != nil && b.platform.OS == "windows"
 	hostConfig := hostConfigFromOptions(b.options, isWCOW)
-	container, err := b.containerManager.Create(runConfig, hostConfig)
+	container, err := b.containerManager.Create(b.clientCtx, img, runConfig, hostConfig)
 	if err != nil {
 		return "", err
 	}

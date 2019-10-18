@@ -79,7 +79,12 @@ func (is *store) restore() error {
 				logrus.Errorf("not restoring image with unsupported operating system %v, %v, %s", dgst, chainID, img.OperatingSystem())
 				return nil
 			}
-			l, err = is.lss[img.OperatingSystem()].Get(chainID)
+			lss, exists := is.lss[img.OperatingSystem()]
+			if !exists {
+				// TODO warning?
+				return nil
+			}
+			l, err = lss.Get(chainID)
 			if err != nil {
 				if err == layer.ErrLayerDoesNotExist {
 					logrus.Errorf("layer does not exist, not restoring image %v, %v, %s", dgst, chainID, img.OperatingSystem())

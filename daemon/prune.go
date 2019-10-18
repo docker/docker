@@ -71,17 +71,21 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 			if !matchLabels(pruneFilters, c.Config.Labels) {
 				continue
 			}
-			cSize, _ := daemon.imageService.GetContainerLayerSize(c.ID)
-			// TODO: sets RmLink to true?
-			err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
-			if err != nil {
-				logrus.Warnf("failed to prune container %s: %v", c.ID, err)
-				continue
-			}
-			if cSize > 0 {
-				rep.SpaceReclaimed += uint64(cSize)
-			}
-			rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
+
+			// TODO(containerd): context + id + layer backend must be provided
+			return nil, errdefs.NotImplemented(errors.New("containerd layer size not implemented"))
+
+			//cSize, _ := daemon.imageService.GetContainerLayerSize(c.ID)
+			//// TODO: sets RmLink to true?
+			//err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
+			//if err != nil {
+			//	logrus.Warnf("failed to prune container %s: %v", c.ID, err)
+			//	continue
+			//}
+			//if cSize > 0 {
+			//	rep.SpaceReclaimed += uint64(cSize)
+			//}
+			//rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
 		}
 	}
 

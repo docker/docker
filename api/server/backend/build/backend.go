@@ -9,16 +9,16 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	buildkit "github.com/docker/docker/builder/builder-next"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
 
 // ImageComponent provides an interface for working with images
 type ImageComponent interface {
-	SquashImage(from string, to string) (string, error)
-	TagImageWithReference(image.ID, reference.Named) error
+	SquashImage(ctx context.Context, from ocispec.Descriptor, to *ocispec.Descriptor) (ocispec.Descriptor, error)
+	TagImageWithReference(context.Context, ocispec.Descriptor, reference.Reference) error
 }
 
 // Builder defines interface for running a build
@@ -72,13 +72,13 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 		return "", nil
 	}
 
-	var imageID = build.ImageID
+	var image = build.Image
 	if options.Squash {
-		if imageID, err = squashBuild(build, b.imageComponent); err != nil {
-			return "", err
+		if image, err = b.imageComponent.SquashImage(ctx, build.Image, build.FromImage); err != nil {
+			return "", errors.Wrap(err, "error squashing image")
 		}
 		if config.ProgressWriter.AuxFormatter != nil {
-			if err = config.ProgressWriter.AuxFormatter.Emit("moby.image.id", types.BuildResult{ID: imageID}); err != nil {
+			if err = config.ProgressWriter.AuxFormatter.Emit("moby.image.id", types.BuildResult{ID: image.Digest.String()}); err != nil {
 				return "", err
 			}
 		}
@@ -86,12 +86,12 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 
 	if !useBuildKit {
 		stdout := config.ProgressWriter.StdoutFormatter
-		fmt.Fprintf(stdout, "Successfully built %s\n", stringid.TruncateID(imageID))
+		fmt.Fprintf(stdout, "Successfully built %s\n", stringid.TruncateID(image.Digest.String()))
 	}
-	if imageID != "" {
-		err = tagger.TagImages(image.ID(imageID))
+	if image.Digest != "" {
+		err = tagger.TagImages(ctx, image)
 	}
-	return imageID, err
+	return image.Digest.String(), err
 }
 
 // PruneCache removes all cached build sources
@@ -106,16 +106,4 @@ func (b *Backend) PruneCache(ctx context.Context, opts types.BuildCachePruneOpti
 // Cancel cancels the build by ID
 func (b *Backend) Cancel(ctx context.Context, id string) error {
 	return b.buildkit.Cancel(ctx, id)
-}
-
-func squashBuild(build *builder.Result, imageComponent ImageComponent) (string, error) {
-	var fromID string
-	if build.FromImage != nil {
-		fromID = build.FromImage.ImageID()
-	}
-	imageID, err := imageComponent.SquashImage(build.ImageID, fromID)
-	if err != nil {
-		return "", errors.Wrap(err, "error squashing image")
-	}
-	return imageID, nil
 }

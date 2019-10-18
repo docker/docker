@@ -356,7 +356,7 @@ func (c *Cluster) UnlockSwarm(req types.UnlockRequest) error {
 }
 
 // Leave shuts down Cluster and removes current state.
-func (c *Cluster) Leave(force bool) error {
+func (c *Cluster) Leave(ctx context.Context, force bool) error {
 	c.controlMutex.Lock()
 	defer c.controlMutex.Unlock()
 
@@ -408,7 +408,7 @@ func (c *Cluster) Leave(force bool) error {
 	c.mu.Unlock()
 
 	if nodeID := state.NodeID(); nodeID != "" {
-		nodeContainers, err := c.listContainerForNode(nodeID)
+		nodeContainers, err := c.listContainerForNode(ctx, nodeID)
 		if err != nil {
 			return err
 		}
@@ -586,11 +586,11 @@ func initClusterSpec(node *swarmnode.Node, spec types.Spec) error {
 	return ctx.Err()
 }
 
-func (c *Cluster) listContainerForNode(nodeID string) ([]string, error) {
+func (c *Cluster) listContainerForNode(ctx context.Context, nodeID string) ([]string, error) {
 	var ids []string
 	filters := filters.NewArgs()
 	filters.Add("label", fmt.Sprintf("com.docker.swarm.node.id=%s", nodeID))
-	containers, err := c.config.Backend.Containers(&apitypes.ContainerListOptions{
+	containers, err := c.config.Backend.Containers(ctx, &apitypes.ContainerListOptions{
 		Filters: filters,
 	})
 	if err != nil {

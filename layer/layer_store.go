@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 	"github.com/vbatts/tar-split/tar/asm"
@@ -81,9 +80,6 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 // metadata store and graph driver. The metadata store will be used to restore
 // the Store.
 func newStoreFromGraphDriver(root string, driver graphdriver.Driver, os string) (Store, error) {
-	if !system.IsOSSupported(os) {
-		return nil, fmt.Errorf("failed to initialize layer store as operating system '%s' is not supported", os)
-	}
 	caps := graphdriver.Capabilities{}
 	if capDriver, ok := driver.(graphdriver.CapabilityDriver); ok {
 		caps = capDriver.Capabilities()

@@ -1,22 +1,25 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
+
 	"github.com/docker/docker/api/types/events"
 )
 
 // LogImageEvent generates an event related to an image with only the default attributes.
-func (i *ImageService) LogImageEvent(imageID, refName, action string) {
-	i.LogImageEventWithAttributes(imageID, refName, action, map[string]string{})
-}
-
-// LogImageEventWithAttributes generates an event related to an image with specific given attributes.
-func (i *ImageService) LogImageEventWithAttributes(imageID, refName, action string, attributes map[string]string) {
-	img, err := i.GetImage(imageID)
-	if err == nil && img.Config != nil {
-		// image has not been removed yet.
-		// it could be missing if the event is `delete`.
-		copyAttributes(attributes, img.Config.Labels)
+func (i *ImageService) LogImageEvent(ctx context.Context, imageID, refName, action string) {
+	if i.eventsService == nil {
+		return
 	}
+
+	// image has not been removed yet.
+	// it could be missing if the event is `delete`.
+	attributes, _ := i.getImageLabels(ctx, imageID)
+
+	if attributes == nil {
+		attributes = map[string]string{}
+	}
+
 	if refName != "" {
 		attributes["name"] = refName
 	}
@@ -28,12 +31,10 @@ func (i *ImageService) LogImageEventWithAttributes(imageID, refName, action stri
 	i.eventsService.Log(action, events.ImageEventType, actor)
 }
 
-// copyAttributes guarantees that labels are not mutated by event triggers.
-func copyAttributes(attributes, labels map[string]string) {
-	if labels == nil {
-		return
-	}
-	for k, v := range labels {
-		attributes[k] = v
-	}
+func (i *ImageService) getImageLabels(ctx context.Context, imageID string) (map[string]string, error) {
+	return nil, nil
+	// TODO(containerd): why is this expensive operation necessary
+	// would require resolving imageID to manifest, then reading
+	// and unmarshalling the config, this would also require
+	// resolving manifest list if imageID is a manifest list
 }
