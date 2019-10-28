@@ -134,8 +134,12 @@ func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResp
 
 		// Don't decorate context sentinel errors; users may be comparing to
 		// them directly.
-		switch err {
-		case context.Canceled, context.DeadlineExceeded:
+		if err == context.Canceled {
+			return serverResp, err
+		}
+
+		type timeoutError interface{ Timeout() bool }
+		if e, ok := err.(timeoutError); ok && e.Timeout() {
 			return serverResp, err
 		}
 
