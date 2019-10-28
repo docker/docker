@@ -357,8 +357,10 @@ func (n *nodeRunner) enableReconnectWatcher() {
 	n.cancelReconnect = cancel
 
 	go func() {
+		type timeoutError interface{ Timeout() bool }
+
 		<-delayCtx.Done()
-		if delayCtx.Err() != context.DeadlineExceeded {
+		if _, ok := delayCtx.Err().(timeoutError); !ok {
 			return
 		}
 		n.mu.Lock()

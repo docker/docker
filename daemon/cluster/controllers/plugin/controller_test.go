@@ -170,10 +170,12 @@ func TestWaitDisabled(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	type timeoutError interface{ Timeout() bool }
+
 	select {
 	case <-chEvent:
 		<-ctxWaitReady.Done()
-		if err := ctxWaitReady.Err(); err == context.DeadlineExceeded {
+		if err, ok := ctxWaitReady.Err().(timeoutError); ok && err.Timeout() {
 			t.Fatal(err)
 		}
 		select {
@@ -251,10 +253,12 @@ func TestWaitEnabled(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	type timeoutError interface{ Timeout() bool }
+
 	select {
 	case <-chEvent:
 		<-ctxWaitReady.Done()
-		if err := ctxWaitReady.Err(); err == context.DeadlineExceeded {
+		if err, ok := ctxWaitReady.Err().(timeoutError); ok && err.Timeout() {
 			t.Fatal(err)
 		}
 		select {
