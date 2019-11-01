@@ -250,6 +250,18 @@ pipeline {
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
 
                     stages {
+                        stage("Install deps") {
+                            steps {
+                                sh '''
+                                # todo: include ip_vs in base image
+                                sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q ipvsadm
+                                sudo modprobe ip_vs
+
+                                # restart the daemon to make it pick up the changes
+                                sudo systemctl restart docker.service
+                                '''
+                            }
+                        }
                         stage("Print info") {
                             steps {
                                 sh 'docker version'
@@ -264,9 +276,6 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh '''
-                                # todo: include ip_vs in base image
-                                sudo modprobe ip_vs
-                
                                 docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
                                 '''
                             }
