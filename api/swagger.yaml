@@ -4464,6 +4464,13 @@ definitions:
           IP address and ports at which this node can be reached.
         type: "string"
 
+  UnixTimestampWithNanos:
+    description: |
+      Represents a UNIX timestamp commonly refered to as epoch time with optional nanosecond precision.
+      This is the number of seconds that have elapsed since `1970-01-01T00:00:00Z`.  The `number` notation
+      recognizes up to 9 decimal places `.000000001` being one nanosecond.
+    type: number
+    format: double
 paths:
   /containers/json:
     get:
@@ -7440,12 +7447,12 @@ paths:
       parameters:
         - name: "since"
           in: "query"
-          description: "Show events created since this timestamp then stream new events."
-          type: "string"
+          description: "Show events created since this timestamp then stream new events. This is a UNIX timestamp with nanosecond precision."
+          $ref: "#/definitions/UnixTimestampWithNanos"
         - name: "until"
           in: "query"
-          description: "Show events created until this timestamp then stop streaming."
-          type: "string"
+          description: "Show events created until this timestamp then stop streaming. This is a UNIX timestamp with nanosecond precision."
+          $ref: "#/definitions/UnixTimestampWithNanos"
         - name: "filters"
           in: "query"
           description: |
