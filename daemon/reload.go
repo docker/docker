@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/discovery"
+	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/sirupsen/logrus"
 )
 
@@ -69,6 +70,7 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 	if err := daemon.reloadLiveRestore(conf, attributes); err != nil {
 		return err
 	}
+	daemon.reloadPublishedDynamicPortRange(conf, attributes)
 	return daemon.reloadNetworkDiagnosticPort(conf, attributes)
 }
 
@@ -211,6 +213,7 @@ func (daemon *Daemon) reloadClusterDiscovery(conf *config.Config, attributes map
 	if daemon.netController == nil {
 		return nil
 	}
+
 	netOptions, err := daemon.networkOptions(daemon.configStore, daemon.PluginStore, nil)
 	if err != nil {
 		logrus.WithError(err).Warn("failed to get options with network controller")
@@ -348,6 +351,22 @@ func (daemon *Daemon) reloadNetworkDiagnosticPort(conf *config.Config, attribute
 	daemon.netController.StartDiagnostic(conf.NetworkDiagnosticPort)
 
 	return nil
+}
+
+// reloadPublishedDynamicPortRange updates dynamic port range for host service
+func (daemon *Daemon) reloadPublishedDynamicPortRange(conf *config.Config, attributes map[string]string) error {
+	if conf == nil || daemon.netController == nil {
+		// Nothing to do
+		return nil
+	}
+
+	daemon.configStore.PublishedDynamicPortRange = conf.PublishedDynamicPortRange
+	err := daemon.netController.ReloadConfiguration(
+		nwconfig.OptionDynamicPortRange(daemon.configStore.PublishedDynamicPortRange))
+	if err != nil {
+		logrus.Warnf("Failed to reload configuration with network controller: %v", err)
+	}
+	return err
 }
 
 // reloadFeatures updates configuration with enabled/disabled features

@@ -2,7 +2,6 @@ package libnetwork
 
 import (
 	"github.com/docker/libnetwork/iptables"
-	"github.com/docker/libnetwork/netlabel"
 	"github.com/sirupsen/logrus"
 )
 
@@ -10,42 +9,13 @@ const userChain = "DOCKER-USER"
 
 func (c *controller) arrangeUserFilterRule() {
 	c.Lock()
-
-	if c.hasIPTablesEnabled() {
-		arrangeUserFilterRule()
-	}
-
+	arrangeUserFilterRule()
 	c.Unlock()
-
 	iptables.OnReloaded(func() {
 		c.Lock()
-
-		if c.hasIPTablesEnabled() {
-			arrangeUserFilterRule()
-		}
-
+		arrangeUserFilterRule()
 		c.Unlock()
 	})
-}
-
-func (c *controller) hasIPTablesEnabled() bool {
-	// Locking c should be handled in the calling method.
-	if c.cfg == nil || c.cfg.Daemon.DriverCfg[netlabel.GenericData] == nil {
-		return false
-	}
-
-	genericData, ok := c.cfg.Daemon.DriverCfg[netlabel.GenericData]
-	if !ok {
-		return false
-	}
-
-	optMap := genericData.(map[string]interface{})
-	enabled, ok := optMap["EnableIPTables"].(bool)
-	if !ok {
-		return false
-	}
-
-	return enabled
 }
 
 // This chain allow users to configure firewall policies in a way that persists

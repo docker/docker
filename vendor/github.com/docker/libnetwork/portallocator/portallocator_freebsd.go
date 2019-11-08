@@ -8,7 +8,7 @@ import (
 
 func getDynamicPortRange() (start int, end int, err error) {
 	portRangeKernelSysctl := []string{"net.inet.ip.portrange.hifirst", "net.ip.portrange.hilast"}
-	portRangeFallback := fmt.Sprintf("using fallback port range %d-%d", DefaultPortRangeStart, DefaultPortRangeEnd)
+	portRangeFallback := fmt.Sprintf("using fallback port range %d-%d", defaultPortRangeStart, defaultPortRangeEnd)
 	portRangeLowCmd := exec.Command("/sbin/sysctl", portRangeKernelSysctl[0])
 	var portRangeLowOut bytes.Buffer
 	portRangeLowCmd.Stdout = &portRangeLowOut

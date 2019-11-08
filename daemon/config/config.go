@@ -102,6 +102,8 @@ type NetworkConfig struct {
 	DefaultAddressPools opts.PoolsOpt `json:"default-address-pools,omitempty"`
 	// NetworkControlPlaneMTU allows to specify the control plane MTU, this will allow to optimize the network use in some components
 	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
+	// Port allocator range
+	PublishedDynamicPortRange string `json:"published-dynamic-port-range,omitempty"`
 }
 
 // CommonTLSOptions defines TLS configuration for the daemon server.

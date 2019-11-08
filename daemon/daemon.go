@@ -1417,6 +1417,10 @@ func (daemon *Daemon) networkOptions(dconfig *config.Config, pg plugingetter.Plu
 
 	options = append(options, nwconfig.OptionNetworkControlPlaneMTU(dconfig.NetworkControlPlaneMTU))
 
+	if len(dconfig.NetworkConfig.PublishedDynamicPortRange) > 0 {
+		options = append(options, nwconfig.OptionDynamicPortRange(dconfig.PublishedDynamicPortRange))
+	}
+
 	return options, nil
 }
 
