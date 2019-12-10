@@ -112,7 +112,7 @@ func (v *localVolume) mount() error {
 }
 
 func (v *localVolume) CreatedAt() (time.Time, error) {
-	fileInfo, err := os.Stat(v.path)
+	fileInfo, err := os.Stat(filepath.Dir(v.path))
 	if err != nil {
 		return time.Time{}, err
 	}

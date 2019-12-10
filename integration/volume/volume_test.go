@@ -3,6 +3,7 @@ package volume
 import (
 	"context"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -104,6 +105,19 @@ func TestVolumesInspect(t *testing.T) {
 	createdAt, err := time.Parse(time.RFC3339, strings.TrimSpace(inspected.CreatedAt))
 	assert.NilError(t, err)
 	assert.Check(t, createdAt.Truncate(time.Minute).Equal(now.Truncate(time.Minute)), "CreatedAt (%s) not equal to creation time (%s)", createdAt, now)
+
+	// update atime and mtime for the "_data" directory (which would happen during volume initialization)
+	modifiedAt := time.Now().Local().Add(5 * time.Hour)
+	err = os.Chtimes(inspected.Mountpoint, modifiedAt, modifiedAt)
+	assert.NilError(t, err)
+
+	inspected, err = client.VolumeInspect(ctx, vol.Name)
+	assert.NilError(t, err)
+
+	createdAt2, err := time.Parse(time.RFC3339, strings.TrimSpace(inspected.CreatedAt))
+	assert.NilError(t, err)
+
+	assert.Equal(t, createdAt, createdAt2)
 }
 
 func TestVolumesInvalidJSON(t *testing.T) {
