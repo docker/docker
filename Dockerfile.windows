@@ -180,6 +180,26 @@ RUN `
   Write-Host 'INFO: Setting up busybox symlinks ...'; `
   C:\busybox\busybox.exe --list ^|ForEach-Object {$nul = cmd /c mklink C:\busybox\$_.exe busybox.exe}
 
+FROM base AS gotestsum
+ARG GOTESTSUM_COMMIT
+
+RUN `
+  Function Build-GoTestSum() { `
+    Write-Host "INFO: Building gotestsum version $Env:GOTESTSUM_COMMIT in $Env:GOPATH"; `
+    $Env:GO111MODULE = 'on'; `
+    $tmpGobin = "${Env:GOBIN_TMP}"; `
+    $Env:GOBIN = """${Env:GOPATH}`\bin"""; `
+    &go get -buildmode=exe "gotest.tools/gotestsum@${Env:GOTESTSUM_COMMIT}"; `
+    $Env:GOBIN = "${tmpGobin}"; `
+    $Env:GO111MODULE = 'off'; `
+    if ($LASTEXITCODE -ne 0) {  `
+      Throw '"gotestsum build failed..."'; `
+    } `
+    Write-Host "INFO:     Build done for gotestsum..."; `
+  } `
+  `
+  Build-GoTestSum
+
 # The number of build steps below are explicitly minimised to improve performance.
 FROM base
 
@@ -204,26 +224,6 @@ RUN `
   `
   Write-Host INFO: Completed;
 
-ARG GOTESTSUM_COMMIT
-ENV GOTESTSUM_COMMIT=${GOTESTSUM_COMMIT}
-
-RUN `
-  Function Build-GoTestSum() { `
-    Write-Host "INFO: Building gotestsum version $Env:GOTESTSUM_COMMIT in $Env:GOPATH"; `
-    $Env:GO111MODULE = 'on'; `
-    $tmpGobin = "${Env:GOBIN_TMP}"; `
-    $Env:GOBIN = """${Env:GOPATH}`\bin"""; `
-    &go get -buildmode=exe "gotest.tools/gotestsum@${Env:GOTESTSUM_COMMIT}"; `
-    $Env:GOBIN = "${tmpGobin}"; `
-    $Env:GO111MODULE = 'off'; `
-    if ($LASTEXITCODE -ne 0) {  `
-      Throw '"gotestsum build failed..."'; `
-    } `
-    Write-Host "INFO:     Build done for gotestsum..."; `
-  } `
-  `
-  Build-GoTestSum
-
 # Make PowerShell the default entrypoint
 ENTRYPOINT ["powershell.exe"]
 
@@ -233,6 +233,7 @@ WORKDIR ${GOPATH}\src\github.com\docker\docker
 # Copy compiler and busybox
 COPY --from=compiler C:\gcc C:\gcc
 COPY --from=busybox C:\busybox C:\busybox
+COPY --from=gotestsum "${GOPATH}\bin\gotestsum.exe" "${GOPATH}\bin\gotestsum.exe"
 
 # Copy the sources into the container
 COPY . .
