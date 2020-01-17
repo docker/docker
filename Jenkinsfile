@@ -217,7 +217,7 @@ pipeline {
                             steps {
                                 sh '''
                                 echo "Building e2e image"
-                                docker build --build-arg DOCKER_GITCOMMIT=${GIT_COMMIT} -t moby-e2e-test -f Dockerfile.e2e .
+                                docker build -t moby-e2e-test --target=e2e-runner .
                                 '''
                             }
                         }

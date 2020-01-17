@@ -365,5 +365,68 @@ COPY --from=build-dynbinary /build/bundles/ /
 FROM scratch AS cross
 COPY --from=build-cross /build/bundles/ /
 
+FROM runtime-dev  AS integration-tests
+WORKDIR /go/src/github.com/docker/docker
+ENV PREFIX=/build
+
+# Copy test sources so that tests that use assert can print errors
+RUN --mount=type=bind,target=/go/src/github.com/docker/docker \
+        mkdir -p "${PREFIX}${PWD}" \
+        && find integration integration-cli -name \*_test.go -exec cp --parents '{}' "${PREFIX}${PWD}" \;
+
+# Build the integration tests and copy the resulting binaries to /build/tests
+ARG DOCKER_GITCOMMIT=HEAD
+
+# TODO allow overriding output directory for test.main binaries, so that we don't have to mount the source readwrite
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=bind,target=/go/src/github.com/docker/docker,readwrite \
+        hack/make.sh build-integration-test-binary \
+        && mkdir -p /build/tests \
+        && find . -name test.main -exec cp --parents '{}' /build/tests \;
+
+# Build DockerSuite.TestBuild* dependencies
+FROM runtime-dev AS contrib
+WORKDIR /go/src/github.com/docker/docker
+COPY contrib/syscall-test           /build/syscall-test
+COPY contrib/httpserver/Dockerfile  /build/httpserver/Dockerfile
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=bind,target=/go/src/github.com/docker/docker \
+        CGO_ENABLED=0 go build -buildmode=pie -o /build/httpserver/httpserver ./contrib/httpserver
+
+
+# Generate testing image for running the integration tests on a pre-installed
+# daemon on the host.
+FROM alpine:3.11 AS e2e-runner
+
+ENV DOCKER_REMOTE_DAEMON=1
+ENV DOCKER_INTEGRATION_DAEMON_DEST=/
+ENTRYPOINT ["/scripts/run.sh"]
+
+# Add an unprivileged user to be used for tests which need it
+RUN addgroup docker && adduser -D -G docker unprivilegeduser -s /bin/ash
+
+# GNU tar is used for generating the emptyfs image
+RUN apk --no-cache add \
+    bash \
+    ca-certificates \
+    g++ \
+    git \
+    iptables \
+    pigz \
+    tar \
+    xz
+
+COPY hack/test/e2e-run.sh       /scripts/run.sh
+COPY hack/make/.ensure-emptyfs  /scripts/ensure-emptyfs.sh
+
+COPY integration/testdata       /tests/integration/testdata
+COPY integration/build/testdata /tests/integration/build/testdata
+COPY integration-cli/fixtures   /tests/integration-cli/fixtures
+
+COPY --from=frozen-images       /build/ /docker-frozen-images
+COPY --from=dockercli           /build/ /usr/bin/
+COPY --from=contrib             /build/ /tests/contrib/
+COPY --from=integration-tests   /build/ /
+
 FROM dev AS final
 COPY . /go/src/github.com/docker/docker
