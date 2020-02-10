@@ -33,6 +33,22 @@ format is deprecated in favor of the
 If the registry you are using still supports v2 schema 1, urge their administrators to move to v2 schema 2.
 
 
+### `docker engine` subcommands
+
+**Deprecated in Release: v19.03.0**
+
+**Target For Removal In Release: v20.03.0**
+
+The `docker engine activate`, `docker engine check`, and `docker engine update`
+provided an alternative installation method to upgrade Docker Community engines
+to Docker Enterprise, using an image-based distribution of the Docker Engine.
+
+This feature was only available on Linux, and only when executed on a local node.
+Given the limitations of this feature, and the feature not getting widely adopted,
+the `docker engine` subcommands will be removed, in favor of installation through
+standard package  managers.
+
+
 ### Top-level `docker deploy` subcommand (experimental)
 
 **Deprecated in Release: v19.03.0**
