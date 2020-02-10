@@ -32,6 +32,26 @@ format is deprecated in favor of the
 
 If the registry you are using still supports v2 schema 1, urge their administrators to move to v2 schema 2.
 
+
+### AuFS storage driver
+
+**Deprecated in Release: v19.03.0**
+
+The `aufs` storage driver is deprecated in favor of `overlay2`, and will
+be removed in a future release. Users of the `aufs` storage driver are
+recommended to migrate to a different storage driver, such as `overlay2`, which
+is now the default storage driver.
+
+The `aufs` storage driver facilitates running Docker on distros that have no
+support for OverlayFS, such as Ubuntu 14.04 LTS, which originally shipped with
+a 3.14 kernel.
+
+Now that Ubuntu 14.04 is no longer a supported distro for Docker, and `overlay2`
+is available to all supported distros (as they are either on kernel 4.x, or have
+support for multiple lowerdirs backported), there is no reason to continue
+maintenance of the `aufs` storage driver.
+
+
 ### Legacy "overlay" storage driver
 
 **Deprecated in Release: v18.09.0**
@@ -63,23 +83,6 @@ Now that support for `overlay2` is added to all supported distros (as they are
 either on kernel 4.x, or have support for multiple lowerdirs backported), there
 is no reason to continue maintenance of the `devicemapper` storage driver.
 
-### AuFS storage driver
-
-**Deprecated in Release: v19.03.0**
-
-The `aufs` storage driver is deprecated in favor of `overlay2`, and will
-be removed in a future release. Users of the `aufs` storage driver are
-recommended to migrate to a different storage driver, such as `overlay2`, which
-is now the default storage driver.
-
-The `aufs` storage driver facilitates running Docker on distros that have no
-support for OverlayFS, such as Ubuntu 14.04 LTS, which originally shipped with
-a 3.14 kernel.
-
-Now that Ubuntu 14.04 is no longer a supported distro for Docker, and `overlay2`
-is available to all supported distros (as they are either on kernel 4.x, or have
-support for multiple lowerdirs backported), there is no reason to continue
-maintenance of the `aufs` storage driver.
 
 ### Reserved namespaces in engine labels
 
@@ -90,6 +93,38 @@ were always documented to be reserved, but there was never any enforcement.
 
 Usage of these namespaces will now cause a warning in the engine logs to discourage their
 use, and will error instead in v20.03.0 and above.
+
+
+### `--disable-legacy-registry` override daemon option
+
+**Disabled In Release: v17.12**
+
+**Target For Removal In Release: v18.03**
+
+The `--disable-legacy-registry` flag was disabled in Docker 17.12 and will print
+an error when used. For this error to be printed, the flag itself is still present,
+but hidden. The flag will be removed in Docker 18.03.
+
+
+### Interacting with V1 registries
+
+**Disabled By Default In Release: v17.06**
+
+**Removed In Release: v17.12**
+
+Version 1.8.3 added a flag (`--disable-legacy-registry=false`) which prevents the
+docker daemon from `pull`, `push`, and `login` operations against v1
+registries.  Though enabled by default, this signals the intent to deprecate
+the v1 protocol.
+
+Support for the v1 protocol to the public registry was removed in 1.13. Any
+mirror configurations using v1 should be updated to use a
+[v2 registry mirror](https://docs.docker.com/registry/recipes/mirror/).
+
+Starting with Docker 17.12, support for V1 registries has been removed, and the
+`--disable-legacy-registry` flag can no longer be used, and `dockerd` will fail to
+start when set.
+
 
 ### Asynchronous `service create` and `service update` as default
 
@@ -199,12 +234,16 @@ to 17.12, a warning will be printed.
 Please also refer to [#27358](https://github.com/docker/docker/issues/27358) for
 further information.
 
-### Three arguments form in `docker import`
-**Deprecated In Release: [v0.6.7](https://github.com/docker/docker/releases/tag/v0.6.7)**
 
-**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+### `--automated` and `--stars` flags on `docker search`
 
-The `docker import` command format `file|URL|- [REPOSITORY [TAG]]` is deprecated since November 2013. It's no more supported.
+**Deprecated in Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+
+**Target For Removal In Release: v17.09**
+
+The `docker search --automated` and `docker search --stars` options are deprecated.
+Use `docker search --filter=is-automated=...` and `docker search --filter=stars=...` instead.
+
 
 ### `-h` shorthand for `--help`
 
@@ -230,14 +269,6 @@ The docker login command is removing the ability to automatically register for a
 **Target For Removal In Release: v17.06**
 
 The flag `--security-opt` doesn't use the colon separator (`:`) anymore to divide keys and values, it uses the equal symbol (`=`) for consistency with other similar flags, like `--storage-opt`.
-
-### `/containers/(id or name)/copy` endpoint
-
-**Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
-
-**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
-
-The endpoint `/containers/(id or name)/copy` is deprecated in favor of `/containers/(id or name)/archive`.
 
 ### Ambiguous event fields in API
 **Deprecated In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
@@ -269,14 +300,6 @@ defining it at container creation (`POST /containers/create`).
 The `docker ps --before` and `docker ps --since` options are deprecated.
 Use `docker ps --filter=before=...` and `docker ps --filter=since=...` instead.
 
-### `--automated` and `--stars` flags on `docker search`
-
-**Deprecated in Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
-
-**Target For Removal In Release: v17.09**
-
-The `docker search --automated` and `docker search --stars` options are deprecated.
-Use `docker search --filter=is-automated=...` and `docker search --filter=stars=...` instead.
 
 ### Driver-specific log tags
 **Deprecated In Release: [v1.9.0](https://github.com/docker/docker/releases/tag/v1.9.0)**
@@ -293,12 +316,34 @@ docker --log-driver=syslog --log-opt tag="{{.ImageName}}/{{.Name}}/{{.ID}}"
 {% endraw %}
 ```
 
+
+### Docker Content Trust ENV passphrase variables name change
+**Deprecated In Release: [v1.9.0](https://github.com/docker/docker/releases/tag/v1.9.0)**
+
+**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+
+Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the Tagging key has been renamed to Repository key. Due to this renaming, we're also changing the corresponding environment variables
+
+- DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE is now named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
+- DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE is now named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE
+
+
+### `/containers/(id or name)/copy` endpoint
+
+**Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
+
+**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+
+The endpoint `/containers/(id or name)/copy` is deprecated in favor of `/containers/(id or name)/archive`.
+
+
 ### LXC built-in exec driver
 **Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
 
 **Removed In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
 The built-in LXC execution driver, the lxc-conf flag, and API fields have been removed.
+
 
 ### Old Command Line Options
 **Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
@@ -358,6 +403,16 @@ The single-dash (`-help`) was removed, in favor of the double-dash `--help`
     docker -help
     docker [COMMAND] -help
 
+
+### `--api-enable-cors` flag on dockerd
+
+**Deprecated In Release: [v1.6.0](https://github.com/docker/docker/releases/tag/v1.6.0)**
+
+**Removed In Release: [v17.09](https://github.com/docker/docker-ce/releases/tag/v17.09.0-ce)**
+
+The flag `--api-enable-cors` is deprecated since v1.6.0. Use the flag
+`--api-cors-header` instead.
+
 ### `--run` flag on docker commit
 
 **Deprecated In Release: [v0.10.0](https://github.com/docker/docker/releases/tag/v0.10.0)**
@@ -368,51 +423,10 @@ The flag `--run` of the docker commit (and its short version `-run`) were deprec
 of the `--changes` flag that allows to pass `Dockerfile` commands.
 
 
-### Interacting with V1 registries
-
-**Disabled By Default In Release: v17.06**
-
-**Removed In Release: v17.12**
-
-Version 1.8.3 added a flag (`--disable-legacy-registry=false`) which prevents the
-docker daemon from `pull`, `push`, and `login` operations against v1
-registries.  Though enabled by default, this signals the intent to deprecate
-the v1 protocol.
-
-Support for the v1 protocol to the public registry was removed in 1.13. Any
-mirror configurations using v1 should be updated to use a
-[v2 registry mirror](https://docs.docker.com/registry/recipes/mirror/).
-
-Starting with Docker 17.12, support for V1 registries has been removed, and the
-`--disable-legacy-registry` flag can no longer be used, and `dockerd` will fail to
-start when set.
-
-### `--disable-legacy-registry` override daemon option
-
-**Disabled In Release: v17.12**
-
-**Target For Removal In Release: v18.03**
-
-The `--disable-legacy-registry` flag was disabled in Docker 17.12 and will print
-an error when used. For this error to be printed, the flag itself is still present,
-but hidden. The flag will be removed in Docker 18.03.
-
-
-### Docker Content Trust ENV passphrase variables name change
-**Deprecated In Release: [v1.9.0](https://github.com/docker/docker/releases/tag/v1.9.0)**
+### Three arguments form in `docker import`
+**Deprecated In Release: [v0.6.7](https://github.com/docker/docker/releases/tag/v0.6.7)**
 
 **Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
-Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the Tagging key has been renamed to Repository key. Due to this renaming, we're also changing the corresponding environment variables
+The `docker import` command format `file|URL|- [REPOSITORY [TAG]]` is deprecated since November 2013. It's no more supported.
 
-- DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE is now named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
-- DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE is now named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE
-
-### `--api-enable-cors` flag on dockerd
-
-**Deprecated In Release: [v1.6.0](https://github.com/docker/docker/releases/tag/v1.6.0)**
-
-**Removed In Release: [v17.09](https://github.com/docker/docker-ce/releases/tag/v17.09.0-ce)**
-
-The flag `--api-enable-cors` is deprecated since v1.6.0. Use the flag
-`--api-cors-header` instead.
