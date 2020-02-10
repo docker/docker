@@ -42,7 +42,7 @@ Deprecated | [AuFS storage driver](#aufs-storage-driver)                        
 Deprecated | [Legacy "overlay" storage driver](#legacy-overlay-storage-driver)                                                                  | v18.09.0   | -
 Deprecated | [Device mapper storage driver](#device-mapper-storage-driver)                                                                      | v18.09.0   | -
 Deprecated | [Reserved namespaces in engine labels](#reserved-namespaces-in-engine-labels)                                                      | v18.06.0   | v20.03.0
-Deprecated | [`--disable-legacy-registry` override daemon option](#--disable-legacy-registry-override-daemon-option)                            | v17.12.0   | v18.03.0
+Removed    | [`--disable-legacy-registry` override daemon option](#--disable-legacy-registry-override-daemon-option)                            | v17.12.0   | v19.03.0
 Removed    | [Interacting with V1 registries](#interacting-with-v1-registries)                                                                  | v17.06.0   | v17.12.0
 Removed    | [Asynchronous `service create` and `service update` as default](#asynchronous-service-create-and-service-update-as-default)        | v17.05.0   | v17.10.0
 Removed    | [`-g` and `--graph` flags on `dockerd`](#-g-and---graph-flags-on-dockerd)                                                          | v17.05.0   | -
@@ -192,11 +192,11 @@ use, and will error instead in v20.03.0 and above.
 
 **Disabled In Release: v17.12**
 
-**Target For Removal In Release: v18.03**
+**Removed In Release: v19.03**
 
 The `--disable-legacy-registry` flag was disabled in Docker 17.12 and will print
 an error when used. For this error to be printed, the flag itself is still present,
-but hidden. The flag will be removed in Docker 18.03.
+but hidden. The flag has been removed in Docker 19.03.
 
 
 ### Interacting with V1 registries
