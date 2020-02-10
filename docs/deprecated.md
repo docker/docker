@@ -15,9 +15,62 @@ keywords: "docker, documentation, about, technology, deprecate"
 
 # Deprecated Engine Features
 
-The following list of features are deprecated in Engine.
-To learn more about Docker Engine's deprecation policy,
-see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-deprecation-policy).
+The following list of features are deprecated in Engine. To learn more about Docker
+Engine's deprecation policy, see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-deprecation-policy).
+
+The table below provides an overview of the current status of deprecated features:
+
+- **Deprecated**: the feature is marked "deprecated" and should no longer be used.
+  The feature may be removed, disabled, or change behavior in a future release.
+  The _"Deprecated"_ column contains the release in which the feature was marked 
+  deprecated, whereas the _"Remove"_ column contains a tentative release in which
+  the feature is to be removed. If no release is included in the _"Remove"_ column,
+  the release is yet to be decided on.
+- **Removed**: the feature was removed, disabled, or hidden. Refer to the linked
+  section for details. Some features are "soft" deprecated, which means that they
+  remain functional for backward compatibility, and to allow users to migrate to
+  alternatives. In such cases, a warning may be printed, and users should not rely
+  on this feature.
+
+Status     | Feature                                                                                                                            | Deprecated | Remove
+-----------|------------------------------------------------------------------------------------------------------------------------------------|------------|------------
+Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03.0   | v20.03.0
+Deprecated | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03.0   | v20.03.0
+Deprecated | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03.0   | v20.03.0
+Deprecated | [`docker stack deploy` using "dab" files (experimental)](#docker-stack-deploy-using-dab-files-experimental)                        | v19.03.0   | v20.03.0
+Deprecated | [AuFS storage driver](#aufs-storage-driver)                                                                                        | v19.03.0   | -
+Deprecated | [Legacy "overlay" storage driver](#legacy-overlay-storage-driver)                                                                  | v18.09.0   | -
+Deprecated | [Device mapper storage driver](#device-mapper-storage-driver)                                                                      | v18.09.0   | -
+Deprecated | [Reserved namespaces in engine labels](#reserved-namespaces-in-engine-labels)                                                      | v18.06.0   | v20.03.0
+Deprecated | [`--disable-legacy-registry` override daemon option](#--disable-legacy-registry-override-daemon-option)                            | v17.12.0   | v18.03.0
+Removed    | [Interacting with V1 registries](#interacting-with-v1-registries)                                                                  | v17.06.0   | v17.12.0
+Removed    | [Asynchronous `service create` and `service update` as default](#asynchronous-service-create-and-service-update-as-default)        | v17.05.0   | v17.10.0
+Removed    | [`-g` and `--graph` flags on `dockerd`](#-g-and---graph-flags-on-dockerd)                                                          | v17.05.0   | -
+Deprecated | [Top-level network properties in NetworkSettings](#top-level-network-properties-in-networksettings)                                | v1.13.0    | v17.12.0
+Deprecated | [`filter` param for `/images/json` endpoint](#filter-param-for-imagesjson-endpoint)                                                | v1.13.0    | v17.12.0
+Removed    | [`repository:shortid` image references](#repositoryshortid-image-references)                                                       | v1.13.0    | v17.12.0
+Removed    | [`docker daemon` subcommand](#docker-daemon-subcommand)                                                                            | v1.13.0    | v17.12.0
+Removed    | [Duplicate keys with conflicting values in engine labels](#duplicate-keys-with-conflicting-values-in-engine-labels)                | v1.13.0    | v17.12.0
+Deprecated | [`MAINTAINER` in Dockerfile](#maintainer-in-dockerfile)                                                                            | v1.13.0    | -
+Deprecated | [API calls without a version](#api-calls-without-a-version)                                                                        | v1.13.0    | v17.12.0
+Removed    | [Backing filesystem without `d_type` support for overlay/overlay2](#backing-filesystem-without-d_type-support-for-overlayoverlay2) | v1.13.0    | v17.12.0
+Deprecated | [`--automated` and `--stars` flags on `docker search`](#--automated-and---stars-flags-on-docker-search)                            | v1.12.0    | v17.09.0
+Deprecated | [`-h` shorthand for `--help`](#-h-shorthand-for---help)                                                                            | v1.12.0    | v17.09.0
+Removed    | [`-e` and `--email` flags on `docker login`](#-e-and---email-flags-on-docker-login)                                                | v1.11.0    | v17.06.0
+Deprecated | [Separator (`:`) of `--security-opt` flag on `docker run`](#separator--of---security-opt-flag-on-docker-run)                       | v1.11.0    | v17.06.0
+Deprecated | [Ambiguous event fields in API](#ambiguous-event-fields-in-api)                                                                    | v1.10.0    | -
+Removed    | [`-f` flag on `docker tag`](#-f-flag-on-docker-tag)                                                                                | v1.10.0    | v1.12.0
+Removed    | [HostConfig at API container start](#hostconfig-at-api-container-start)                                                            | v1.10.0    | v1.12.0
+Removed    | [`--before` and `--since` flags on `docker ps`](#--before-and---since-flags-on-docker-ps)                                          | v1.10.0    | v1.12.0
+Removed    | [Driver-specific log tags](#driver-specific-log-tags)                                                                              | v1.9.0     | v1.12.0
+Removed    | [Docker Content Trust `ENV` passphrase variables name change](#docker-content-trust-env-passphrase-variables-name-change)          | v1.9.0     | v1.12.0
+Removed    | [`/containers/(id or name)/copy` endpoint](#containersid-or-namecopy-endpoint)                                                     | v1.8.0     | v1.12.0
+Removed    | [LXC built-in exec driver](#lxc-built-in-exec-driver)                                                                              | v1.8.0     | v1.10.0
+Removed    | [Old Command Line Options](#old-command-line-options)                                                                              | v1.8.0     | v1.10.0
+Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6.0     | v17.09.0
+Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10.0    | v1.13.0
+Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12.0
+
 
 ### Pushing and pulling with image manifest v2 schema 1
 
