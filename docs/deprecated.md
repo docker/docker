@@ -35,9 +35,9 @@ The table below provides an overview of the current status of deprecated feature
 Status     | Feature                                                                                                                            | Deprecated | Remove
 -----------|------------------------------------------------------------------------------------------------------------------------------------|------------|------------
 Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03.0   | v20.03.0
-Deprecated | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03.0   | v20.03.0
-Deprecated | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03.0   | v20.03.0
-Deprecated | [`docker stack deploy` using "dab" files (experimental)](#docker-stack-deploy-using-dab-files-experimental)                        | v19.03.0   | v20.03.0
+Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03.0   | v20.03.0
+Removed    | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03.0   | v20.03.0
+Removed    | [`docker stack deploy` using "dab" files (experimental)](#docker-stack-deploy-using-dab-files-experimental)                        | v19.03.0   | v20.03.0
 Deprecated | [AuFS storage driver](#aufs-storage-driver)                                                                                        | v19.03.0   | -
 Deprecated | [Legacy "overlay" storage driver](#legacy-overlay-storage-driver)                                                                  | v18.09.0   | -
 Deprecated | [Device mapper storage driver](#device-mapper-storage-driver)                                                                      | v18.09.0   | -
@@ -90,7 +90,7 @@ If the registry you are using still supports v2 schema 1, urge their administrat
 
 **Deprecated in Release: v19.03.0**
 
-**Target For Removal In Release: v20.03.0**
+**Removed in Release: v20.03.0**
 
 The `docker engine activate`, `docker engine check`, and `docker engine update`
 provided an alternative installation method to upgrade Docker Community engines
@@ -106,7 +106,7 @@ standard package  managers.
 
 **Deprecated in Release: v19.03.0**
 
-**Target For Removal In Release: v20.03.0**
+**Removed in Release: v20.03.0**
 
 The top-level `docker deploy` command (using the "Docker Application Bundle"
 (.dab) file format was introduced as an experimental feature in Docker 1.13 /
@@ -118,7 +118,7 @@ subcommand.
 
 **Deprecated in Release: v19.03.0**
 
-**Target For Removal In Release: v20.03.0**
+**Removed in Release: v20.03.0**
 
 With no development being done on this feature, and no active use of the file
 format, support for the DAB file format and the top-level docker deploy command
