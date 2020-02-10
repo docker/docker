@@ -33,6 +33,30 @@ format is deprecated in favor of the
 If the registry you are using still supports v2 schema 1, urge their administrators to move to v2 schema 2.
 
 
+### Top-level `docker deploy` subcommand (experimental)
+
+**Deprecated in Release: v19.03.0**
+
+**Target For Removal In Release: v20.03.0**
+
+The top-level `docker deploy` command (using the "Docker Application Bundle"
+(.dab) file format was introduced as an experimental feature in Docker 1.13 /
+17.03, but superseded by support for Docker Compose files using the `docker stack deploy`
+subcommand.
+
+
+### `docker stack deploy` using "dab" files (experimental)
+
+**Deprecated in Release: v19.03.0**
+
+**Target For Removal In Release: v20.03.0**
+
+With no development being done on this feature, and no active use of the file
+format, support for the DAB file format and the top-level docker deploy command
+(hidden by default in 19.03), will be removed, in favour of `docker stack deploy`
+using compose files.
+
+
 ### AuFS storage driver
 
 **Deprecated in Release: v19.03.0**
