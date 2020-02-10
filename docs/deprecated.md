@@ -23,7 +23,7 @@ see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-depreca
 
 **Deprecated in Release: v19.03.0**
 
-**Target For Removal In Release: v19.09.0**
+**Target For Removal In Release: v20.03.0**
 
 The image manifest
 [v2 schema 1](https://github.com/docker/distribution/blob/fda42e5ef908bdba722d435ff1f330d40dfcd56c/docs/spec/manifest-v2-1.md)
@@ -89,7 +89,7 @@ The namespaces `com.docker.*`, `io.docker.*`, and `org.dockerproject.*` in engin
 were always documented to be reserved, but there was never any enforcement.
 
 Usage of these namespaces will now cause a warning in the engine logs to discourage their
-use, and will error instead in 18.12 and above.
+use, and will error instead in v20.03.0 and above.
 
 ### Asynchronous `service create` and `service update` as default
 
