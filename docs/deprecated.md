@@ -47,7 +47,7 @@ Removed    | [Interacting with V1 registries](#interacting-with-v1-registries)  
 Removed    | [Asynchronous `service create` and `service update` as default](#asynchronous-service-create-and-service-update-as-default)        | v17.05.0   | v17.10.0
 Removed    | [`-g` and `--graph` flags on `dockerd`](#-g-and---graph-flags-on-dockerd)                                                          | v17.05.0   | -
 Deprecated | [Top-level network properties in NetworkSettings](#top-level-network-properties-in-networksettings)                                | v1.13.0    | v17.12.0
-Deprecated | [`filter` param for `/images/json` endpoint](#filter-param-for-imagesjson-endpoint)                                                | v1.13.0    | v17.12.0
+Removed    | [`filter` param for `/images/json` endpoint](#filter-param-for-imagesjson-endpoint)                                                | v1.13.0    | v20.03.0
 Removed    | [`repository:shortid` image references](#repositoryshortid-image-references)                                                       | v1.13.0    | v17.12.0
 Removed    | [`docker daemon` subcommand](#docker-daemon-subcommand)                                                                            | v1.13.0    | v17.12.0
 Removed    | [Duplicate keys with conflicting values in engine labels](#duplicate-keys-with-conflicting-values-in-engine-labels)                | v1.13.0    | v17.12.0
@@ -267,9 +267,10 @@ information.
 ### `filter` param for `/images/json` endpoint
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Target For Removal In Release: v17.12**
+**Removed In Release: v20.03**
 
-The `filter` param to filter the list of image by reference (name or name:tag) is now implemented as a regular filter, named `reference`.
+The `filter` param to filter the list of image by reference (name or name:tag)
+is now implemented as a regular filter, named `reference`.
 
 ### `repository:shortid` image references
 **Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
