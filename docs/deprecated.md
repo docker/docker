@@ -47,7 +47,7 @@ on pre 4.x kernels. Now that all supported distributions are able to run `overla
 (as they are either on kernel 4.x, or have support for multiple lowerdirs
 backported), there is no reason to keep maintaining the `overlay` storage driver.
 
-### device mapper storage driver
+### Device mapper storage driver
 
 **Deprecated in Release: v18.09.0**
 
@@ -91,7 +91,7 @@ were always documented to be reserved, but there was never any enforcement.
 Usage of these namespaces will now cause a warning in the engine logs to discourage their
 use, and will error instead in 18.12 and above.
 
-### Asynchronous `service create` and `service update`
+### Asynchronous `service create` and `service update` as default
 
 **Deprecated In Release: v17.05.0**
 
@@ -278,7 +278,7 @@ Use `docker ps --filter=before=...` and `docker ps --filter=since=...` instead.
 The `docker search --automated` and `docker search --stars` options are deprecated.
 Use `docker search --filter=is-automated=...` and `docker search --filter=stars=...` instead.
 
-### Driver Specific Log Tags
+### Driver-specific log tags
 **Deprecated In Release: [v1.9.0](https://github.com/docker/docker/releases/tag/v1.9.0)**
 
 **Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
