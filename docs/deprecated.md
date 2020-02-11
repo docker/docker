@@ -41,7 +41,7 @@ Removed    | [`docker stack deploy` using "dab" files (experimental)](#docker-st
 Deprecated | [AuFS storage driver](#aufs-storage-driver)                                                                                        | v19.03.0   | -
 Deprecated | [Legacy "overlay" storage driver](#legacy-overlay-storage-driver)                                                                  | v18.09.0   | -
 Deprecated | [Device mapper storage driver](#device-mapper-storage-driver)                                                                      | v18.09.0   | -
-Deprecated | [Reserved namespaces in engine labels](#reserved-namespaces-in-engine-labels)                                                      | v18.06.0   | v20.03.0
+Removed    | [Use of reserved namespaces in engine labels](#use-of-reserved-namespaces-in-engine-labels)                                        | v18.06.0   | v20.03.0
 Removed    | [`--disable-legacy-registry` override daemon option](#--disable-legacy-registry-override-daemon-option)                            | v17.12.0   | v19.03.0
 Removed    | [Interacting with V1 registries](#interacting-with-v1-registries)                                                                  | v17.06.0   | v17.12.0
 Removed    | [Asynchronous `service create` and `service update` as default](#asynchronous-service-create-and-service-update-as-default)        | v17.05.0   | v17.10.0
@@ -177,9 +177,11 @@ either on kernel 4.x, or have support for multiple lowerdirs backported), there
 is no reason to continue maintenance of the `devicemapper` storage driver.
 
 
-### Reserved namespaces in engine labels
+### Use of reserved namespaces in engine labels
 
 **Deprecated in Release: v18.06.0**
+
+**Removed In Release: v20.03**
 
 The namespaces `com.docker.*`, `io.docker.*`, and `org.dockerproject.*` in engine labels
 were always documented to be reserved, but there was never any enforcement.
