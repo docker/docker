@@ -54,7 +54,7 @@ Removed    | [Duplicate keys with conflicting values in engine labels](#duplicat
 Deprecated | [`MAINTAINER` in Dockerfile](#maintainer-in-dockerfile)                                                                            | v1.13.0    | -
 Deprecated | [API calls without a version](#api-calls-without-a-version)                                                                        | v1.13.0    | v17.12.0
 Removed    | [Backing filesystem without `d_type` support for overlay/overlay2](#backing-filesystem-without-d_type-support-for-overlayoverlay2) | v1.13.0    | v17.12.0
-Deprecated | [`--automated` and `--stars` flags on `docker search`](#--automated-and---stars-flags-on-docker-search)                            | v1.12.0    | v17.09.0
+Removed    | [`--automated` and `--stars` flags on `docker search`](#--automated-and---stars-flags-on-docker-search)                            | v1.12.0    | v20.03.0
 Deprecated | [`-h` shorthand for `--help`](#-h-shorthand-for---help)                                                                            | v1.12.0    | v17.09.0
 Removed    | [`-e` and `--email` flags on `docker login`](#-e-and---email-flags-on-docker-login)                                                | v1.11.0    | v17.06.0
 Deprecated | [Separator (`:`) of `--security-opt` flag on `docker run`](#separator--of---security-opt-flag-on-docker-run)                       | v1.11.0    | v17.06.0
@@ -335,10 +335,10 @@ further information.
 
 **Deprecated in Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
-**Target For Removal In Release: v17.09**
+**Removed In Release: v20.03**
 
 The `docker search --automated` and `docker search --stars` options are deprecated.
-Use `docker search --filter=is-automated=...` and `docker search --filter=stars=...` instead.
+Use `docker search --filter=is-automated=<true|false>` and `docker search --filter=stars=...` instead.
 
 
 ### `-h` shorthand for `--help`
