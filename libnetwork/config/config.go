@@ -141,62 +141,6 @@ func OptionLabels(labels []string) Option {
 	}
 }
 
-// OptionKVProvider function returns an option setter for kvstore provider
-func OptionKVProvider(provider string) Option {
-	return func(c *Config) {
-		logrus.Debugf("Option OptionKVProvider: %s", provider)
-		if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
-			c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
-		}
-		c.Scopes[datastore.GlobalScope].Client.Provider = strings.TrimSpace(provider)
-	}
-}
-
-// OptionKVProviderURL function returns an option setter for kvstore url
-func OptionKVProviderURL(url string) Option {
-	return func(c *Config) {
-		logrus.Debugf("Option OptionKVProviderURL: %s", url)
-		if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
-			c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
-		}
-		c.Scopes[datastore.GlobalScope].Client.Address = strings.TrimSpace(url)
-	}
-}
-
-// OptionKVOpts function returns an option setter for kvstore options
-func OptionKVOpts(opts map[string]string) Option {
-	return func(c *Config) {
-		if opts["kv.cacertfile"] != "" && opts["kv.certfile"] != "" && opts["kv.keyfile"] != "" {
-			logrus.Info("Option Initializing KV with TLS")
-			tlsConfig, err := tlsconfig.Client(tlsconfig.Options{
-				CAFile:   opts["kv.cacertfile"],
-				CertFile: opts["kv.certfile"],
-				KeyFile:  opts["kv.keyfile"],
-			})
-			if err != nil {
-				logrus.Errorf("Unable to set up TLS: %s", err)
-				return
-			}
-			if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
-				c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
-			}
-			if c.Scopes[datastore.GlobalScope].Client.Config == nil {
-				c.Scopes[datastore.GlobalScope].Client.Config = &store.Config{TLS: tlsConfig}
-			} else {
-				c.Scopes[datastore.GlobalScope].Client.Config.TLS = tlsConfig
-			}
-			// Workaround libkv/etcd bug for https
-			c.Scopes[datastore.GlobalScope].Client.Config.ClientTLS = &store.ClientTLSConfig{
-				CACertFile: opts["kv.cacertfile"],
-				CertFile:   opts["kv.certfile"],
-				KeyFile:    opts["kv.keyfile"],
-			}
-		} else {
-			logrus.Info("Option Initializing KV without TLS")
-		}
-	}
-}
-
 // OptionDataDir function returns an option setter for data folder
 func OptionDataDir(dataDir string) Option {
 	return func(c *Config) {
