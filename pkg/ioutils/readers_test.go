@@ -83,10 +83,11 @@ func TestCancelReadCloser(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	cancelReadCloser := NewCancelReadCloser(ctx, ioutil.NopCloser(&perpetualReader{}))
+	type timeoutError interface{ Timeout() bool }
 	for {
 		var buf [128]byte
 		_, err := cancelReadCloser.Read(buf[:])
-		if err == context.DeadlineExceeded {
+		if e, ok := err.(timeoutError); ok && e.Timeout() {
 			break
 		} else if err != nil {
 			t.Fatalf("got unexpected error: %v", err)

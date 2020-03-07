@@ -212,16 +212,17 @@ func DataLoss(err error) error {
 
 // FromContext returns the error class from the passed in context
 func FromContext(ctx context.Context) error {
-	e := ctx.Err()
-	if e == nil {
+	err := ctx.Err()
+	if err == nil {
 		return nil
 	}
 
-	if e == context.Canceled {
-		return Cancelled(e)
+	if err == context.Canceled {
+		return Cancelled(err)
 	}
-	if e == context.DeadlineExceeded {
-		return Deadline(e)
+	type timeoutError interface{ Timeout() bool }
+	if e, ok := err.(timeoutError); ok && e.Timeout() {
+		return Deadline(err)
 	}
-	return Unknown(e)
+	return Unknown(err)
 }

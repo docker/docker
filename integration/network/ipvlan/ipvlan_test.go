@@ -177,7 +177,10 @@ func testIpvlanL2InternalMode(client dclient.APIClient) func(*testing.T) {
 		_, err := container.Exec(timeoutCtx, client, id1, []string{"ping", "-c", "1", "-w", "1", "8.8.8.8"})
 		// FIXME(vdemeester) check the time of error ?
 		assert.Check(t, err != nil)
-		assert.Check(t, timeoutCtx.Err() == context.DeadlineExceeded)
+
+		type timeoutError interface{ Timeout() bool }
+		assert.ErrorType(t, timeoutCtx.Err(), (*timeoutError)(nil))
+		assert.Equal(t, timeoutCtx.Err().(timeoutError).Timeout(), true)
 
 		_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
 		assert.NilError(t, err)
@@ -235,7 +238,10 @@ func testIpvlanL3InternalMode(client dclient.APIClient) func(*testing.T) {
 		_, err := container.Exec(timeoutCtx, client, id1, []string{"ping", "-c", "1", "-w", "1", "8.8.8.8"})
 		// FIXME(vdemeester) check the time of error ?
 		assert.Check(t, err != nil)
-		assert.Check(t, timeoutCtx.Err() == context.DeadlineExceeded)
+
+		type timeoutError interface{ Timeout() bool }
+		assert.ErrorType(t, timeoutCtx.Err(), (*timeoutError)(nil))
+		assert.Equal(t, timeoutCtx.Err().(timeoutError).Timeout(), true)
 
 		_, err = container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
 		assert.NilError(t, err)
