@@ -823,7 +823,7 @@ C:\> dockerd --storage-opt size=40G
 
 ##### `lcow.globalmode`
 
-Specifies whether the daemon instantiates utility VM instances as required 
+Specifies whether the daemon instantiates utility VM instances as required
 (recommended and default if omitted), or uses single global utility VM (better
 performance, but has security implications and not recommended for production
 deployments).
@@ -1073,7 +1073,7 @@ system's list of trusted CAs instead of enabling `--insecure-registry`.
 
 #### Legacy Registries
 
-Starting with Docker 17.12, operations against registries supporting only the 
+Starting with Docker 17.12, operations against registries supporting only the
 legacy v1 protocol are no longer supported. Specifically, the daemon will not
 attempt `push`, `pull` and `login` to v1 registries. The exception to this is
 `search` which can still be performed on v1 registries.
@@ -1451,8 +1451,8 @@ This is a full example of the allowed configuration options on Windows:
 ```
 
 #### Feature options
-The optional field `features` in `daemon.json` allows users to enable or disable specific 
-daemon features. For example, `{"features":{"buildkit": true}}` enables `buildkit` as the 
+The optional field `features` in `daemon.json` allows users to enable or disable specific
+daemon features. For example, `{"features":{"buildkit": true}}` enables `buildkit` as the
 default docker image builder.
 
 The list of currently supported feature options:
