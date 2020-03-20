@@ -15,8 +15,24 @@ keywords: "docker, documentation, about, technology, deprecate"
 
 # Deprecated Engine Features
 
-The following list of features are deprecated in Engine. To learn more about Docker
-Engine's deprecation policy, see [Feature Deprecation Policy](https://docs.docker.com/engine/#feature-deprecation-policy).
+This page provides an overview of features that are deprecated in Engine. Changes
+in packaging, and supported (Linux) distributions are not included. To learn
+about end of support for Linux distributions, refer to the
+[release notes](https://docs.docker.com/engine/release-notes/).
+
+## Feature Deprecation Policy
+
+As changes are made to Docker there may be times when existing features need to
+be removed or replaced with newer features. Before an existing feature is removed
+it is labeled as "deprecated" within the documentation and remains in Docker for
+at least 3 stable releases unless specified explicitly otherwise. After that time
+it may be removed.
+
+Users are expected to take note of the list of deprecated features each release
+and plan their migration away from those features, and (if applicable) towards
+the replacement features as soon as possible.
+
+## Deprecated Engine Features
 
 The table below provides an overview of the current status of deprecated features:
 
@@ -525,4 +541,3 @@ of the `--changes` flag that allows to pass `Dockerfile` commands.
 **Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 The `docker import` command format `file|URL|- [REPOSITORY [TAG]]` is deprecated since November 2013. It's no more supported.
-
