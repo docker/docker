@@ -25,7 +25,7 @@ about end of support for Linux distributions, refer to the
 As changes are made to Docker there may be times when existing features need to
 be removed or replaced with newer features. Before an existing feature is removed
 it is labeled as "deprecated" within the documentation and remains in Docker for
-at least 3 stable releases unless specified explicitly otherwise. After that time
+at least one stable release unless specified explicitly otherwise. After that time
 it may be removed.
 
 Users are expected to take note of the list of deprecated features each release
