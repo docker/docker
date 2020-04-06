@@ -34,7 +34,7 @@ func (s *DockerSwarmSuite) TestServiceLogs(c *testing.T) {
 
 	for name, message := range services {
 		out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox",
-			"sh", "-c", fmt.Sprintf("echo %s; tail -f /dev/null", message))
+			"sh", "-c", fmt.Sprintf("echo %s; exec tail -f /dev/null", message))
 		assert.NilError(c, err)
 		assert.Assert(c, strings.TrimSpace(out) != "")
 	}
@@ -75,7 +75,7 @@ func (s *DockerSwarmSuite) TestServiceLogsCompleteness(c *testing.T) {
 	name := "TestServiceLogsCompleteness"
 
 	// make a service that prints 6 lines
-	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for line in $(seq 0 5); do echo log test $line; done; sleep 100000")
+	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for line in $(seq 0 5); do echo log test $line; done; exec tail /dev/null")
 	assert.NilError(c, err)
 	assert.Assert(c, strings.TrimSpace(out) != "")
 
@@ -126,7 +126,7 @@ func (s *DockerSwarmSuite) TestServiceLogsSince(c *testing.T) {
 
 	name := "TestServiceLogsSince"
 
-	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for i in $(seq 1 3); do sleep .1; echo log$i; done; sleep 10000000")
+	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "for i in $(seq 1 3); do usleep 100000; echo log$i; done; exec tail /dev/null")
 	assert.NilError(c, err)
 	assert.Assert(c, strings.TrimSpace(out) != "")
 	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount, checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
@@ -160,7 +160,7 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *testing.T) {
 
 	name := "TestServiceLogsFollow"
 
-	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "while true; do echo log test; sleep 0.1; done")
+	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", "trap 'exit 0' TERM; while true; do echo log test; usleep 100000; done")
 	assert.NilError(c, err)
 	assert.Assert(c, strings.TrimSpace(out) != "")
 
@@ -215,7 +215,7 @@ func (s *DockerSwarmSuite) TestServiceLogsTaskLogs(c *testing.T) {
 		// which has this the task id as an environment variable templated in
 		"--env", "TASK={{.Task.ID}}",
 		// and runs this command to print exactly 6 logs lines
-		"busybox", "sh", "-c", "for line in $(seq 0 5); do echo $TASK log test $line; done; sleep 100000",
+		"busybox", "sh", "-c", "trap 'exit 0' TERM; for line in $(seq 0 5); do echo $TASK log test $line; done; sleep 100000",
 	))
 	result.Assert(c, icmd.Expected{})
 	// ^^ verify that we get no error
@@ -323,9 +323,7 @@ func (s *DockerSwarmSuite) TestServiceLogsNoHangDeletedContainer(c *testing.T) {
 	result = icmd.RunCmd(d.Command("ps", "-q"))
 	containerID := strings.TrimSpace(result.Stdout())
 	assert.Assert(c, containerID != "")
-	result = icmd.RunCmd(d.Command("stop", containerID))
-	result.Assert(c, icmd.Expected{Out: containerID})
-	result = icmd.RunCmd(d.Command("rm", containerID))
+	result = icmd.RunCmd(d.Command("rm", "-f", containerID))
 	result.Assert(c, icmd.Expected{Out: containerID})
 
 	// run logs. use tail 2 to make sure we don't try to get a bunch of logs
@@ -360,7 +358,7 @@ func (s *DockerSwarmSuite) TestServiceLogsDetails(c *testing.T) {
 		// busybox image, shell string
 		"busybox", "sh", "-c",
 		// make a log line
-		"echo LogLine; while true; do sleep 1; done;",
+		"trap 'exit 0' TERM; echo LogLine; while true; do sleep 1; done;",
 	))
 
 	result.Assert(c, icmd.Expected{})

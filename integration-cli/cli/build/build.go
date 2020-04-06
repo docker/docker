@@ -4,7 +4,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/docker/docker/internal/test/fakecontext"
+	"github.com/docker/docker/testutil/fakecontext"
 	"gotest.tools/icmd"
 )
 

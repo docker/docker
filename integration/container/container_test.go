@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/docker/docker/internal/test/request"
+	"github.com/docker/docker/testutil/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )

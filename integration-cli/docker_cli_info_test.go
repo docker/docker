@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/integration-cli/daemon"
-	testdaemon "github.com/docker/docker/internal/test/daemon"
+	testdaemon "github.com/docker/docker/testutil/daemon"
 	"gotest.tools/assert"
 )
 

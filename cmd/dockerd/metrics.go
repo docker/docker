@@ -5,10 +5,19 @@ import (
 	"net/http"
 
 	"github.com/docker/go-metrics"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
-func startMetricsServer(addr string) error {
+func (cli *DaemonCli) startMetricsServer(addr string) error {
+	if addr == "" {
+		return nil
+	}
+
+	if !cli.d.HasExperimental() {
+		return errors.New("metrics-addr is only supported when experimental is enabled")
+	}
+
 	if err := allocateDaemonPort(addr); err != nil {
 		return err
 	}

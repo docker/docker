@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/internal/test/fixtures/plugin"
+	"github.com/docker/docker/testutil/fixtures/plugin"
 	"gotest.tools/assert"
 )
 

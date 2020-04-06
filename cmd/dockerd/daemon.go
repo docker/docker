@@ -208,14 +208,10 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return errors.Wrap(err, "failed to validate authorization plugin")
 	}
 
-	// TODO: move into startMetricsServer()
-	if cli.Config.MetricsAddress != "" {
-		if !d.HasExperimental() {
-			return errors.Wrap(err, "metrics-addr is only supported when experimental is enabled")
-		}
-		if err := startMetricsServer(cli.Config.MetricsAddress); err != nil {
-			return err
-		}
+	cli.d = d
+
+	if err := cli.startMetricsServer(cli.Config.MetricsAddress); err != nil {
+		return err
 	}
 
 	c, err := createAndStartCluster(cli, d)
@@ -229,8 +225,6 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	d.RestartSwarmContainers()
 
 	logrus.Info("Daemon has completed initialization")
-
-	cli.d = d
 
 	routerOptions, err := newRouterOptions(cli.Config, d)
 	if err != nil {

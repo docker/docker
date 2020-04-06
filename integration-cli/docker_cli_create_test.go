@@ -11,8 +11,8 @@ import (
 
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/testutil/fakecontext"
 	"github.com/docker/go-connections/nat"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"

@@ -362,7 +362,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *testing
 
 func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *testing.T) {
 	d := s.AddDaemon(c, true, true)
-	out, err := d.Cmd("service", "create", "--no-resolve-image", "--detach=true", "--mount", "type=tmpfs,target=/foo,tmpfs-size=1MB", "busybox", "sh", "-c", "mount | grep foo; tail -f /dev/null")
+	out, err := d.Cmd("service", "create", "--no-resolve-image", "--detach=true", "--mount", "type=tmpfs,target=/foo,tmpfs-size=1MB", "busybox", "sh", "-c", "mount | grep foo; exec tail -f /dev/null")
 	assert.NilError(c, err, out)
 	id := strings.TrimSpace(out)
 

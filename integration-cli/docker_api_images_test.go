@@ -14,8 +14,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/testutil/request"
 	"gotest.tools/assert"
 )
 

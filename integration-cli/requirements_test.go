@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/requirement"
-	"github.com/docker/docker/internal/test/registry"
+	"github.com/docker/docker/testutil/registry"
 )
 
 func ArchitectureIsNot(arch string) bool {

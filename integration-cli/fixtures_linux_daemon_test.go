@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/internal/test/fixtures/load"
+	"github.com/docker/docker/testutil/fixtures/load"
 	"gotest.tools/assert"
 )
 

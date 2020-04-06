@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
-	"github.com/docker/docker/internal/test/daemon"
+	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/poll"
@@ -30,7 +30,7 @@ func TestServiceCreateInit(t *testing.T) {
 
 func testServiceCreateInit(daemonEnabled bool) func(t *testing.T) {
 	return func(t *testing.T) {
-		var ops = []func(*daemon.Daemon){}
+		var ops = []daemon.Option{}
 
 		if daemonEnabled {
 			ops = append(ops, daemon.WithInit)

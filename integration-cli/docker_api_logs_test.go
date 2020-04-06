@@ -15,8 +15,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/docker/testutil/request"
 	"gotest.tools/assert"
 )
 

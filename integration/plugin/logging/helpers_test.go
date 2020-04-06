@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/internal/test/fixtures/plugin"
 	"github.com/docker/docker/pkg/locker"
+	"github.com/docker/docker/testutil/fixtures/plugin"
 	"github.com/pkg/errors"
 )
 
