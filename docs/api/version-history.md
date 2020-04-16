@@ -61,6 +61,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   service.
 * `GET /tasks/{id}` now includes `JobIteration` on the task if spawned from a
   job-mode service.
+* `POST /containers/create` now sets `HostConfig.Init=true` by default. If your container already
+  runs an init process, you should set this to false. You can also change this default in the daemon config.
 
 ## v1.40 API changes
 

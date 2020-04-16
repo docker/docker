@@ -747,7 +747,7 @@ func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// host namespace or another container's pid namespace where we already have an init
 		if c.HostConfig.PidMode.IsPrivate() {
 			if (c.HostConfig.Init != nil && *c.HostConfig.Init) ||
-				(c.HostConfig.Init == nil && daemon.configStore.Init) {
+				(c.HostConfig.Init == nil && (daemon.configStore.Init != nil && *daemon.configStore.Init)) {
 				s.Process.Args = append([]string{inContainerInitPath, "--", c.Path}, c.Args...)
 				path := daemon.configStore.InitPath
 				if path == "" {

@@ -31,7 +31,7 @@ type Config struct {
 	CPURealtimePeriod    int64                    `json:"cpu-rt-period,omitempty"`
 	CPURealtimeRuntime   int64                    `json:"cpu-rt-runtime,omitempty"`
 	OOMScoreAdjust       int                      `json:"oom-score-adjust,omitempty"`
-	Init                 bool                     `json:"init,omitempty"`
+	Init                 *bool                    `json:"init,omitempty"`
 	InitPath             string                   `json:"init-path,omitempty"`
 	SeccompProfile       string                   `json:"seccomp-profile,omitempty"`
 	ShmSize              opts.MemBytes            `json:"default-shm-size,omitempty"`

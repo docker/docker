@@ -10,13 +10,25 @@ type containerRouter struct {
 	backend Backend
 	decoder httputils.ContainerDecoder
 	routes  []router.Route
+	opts    RouteOptions
+}
+
+// RouteOptions is used to allow configuration of default values
+type RouteOptions struct {
+	Create CreateOptions
+}
+
+// CreateOptions are used by the container create route to change certain default values
+type CreateOptions struct {
+	EnableContainerInit *bool
 }
 
 // NewRouter initializes a new container router
-func NewRouter(b Backend, decoder httputils.ContainerDecoder) router.Router {
+func NewRouter(b Backend, decoder httputils.ContainerDecoder, opts RouteOptions) router.Router {
 	r := &containerRouter{
 		backend: b,
 		decoder: decoder,
+		opts:    opts,
 	}
 	r.initRoutes()
 	return r

@@ -265,13 +265,18 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 }
 
 type routerOptions struct {
-	sessionManager *session.Manager
-	buildBackend   *buildbackend.Backend
-	features       *map[string]bool
-	buildkit       *buildkit.Builder
-	daemon         *daemon.Daemon
-	api            *apiserver.Server
-	cluster        *cluster.Cluster
+	sessionManager  *session.Manager
+	buildBackend    *buildbackend.Backend
+	features        *map[string]bool
+	buildkit        *buildkit.Builder
+	daemon          *daemon.Daemon
+	api             *apiserver.Server
+	cluster         *cluster.Cluster
+	containerConfig *containerConfig
+}
+
+type containerConfig struct {
+	init *bool
 }
 
 func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, error) {
@@ -307,11 +312,12 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		return opts, errors.Wrap(err, "failed to create buildmanager")
 	}
 	return routerOptions{
-		sessionManager: sm,
-		buildBackend:   bb,
-		buildkit:       bk,
-		features:       d.Features(),
-		daemon:         d,
+		sessionManager:  sm,
+		buildBackend:    bb,
+		buildkit:        bk,
+		features:        d.Features(),
+		daemon:          d,
+		containerConfig: &containerConfig{init: config.Init},
 	}, nil
 }
 
@@ -461,7 +467,7 @@ func initRouter(opts routerOptions) {
 	routers := []router.Router{
 		// we need to add the checkpoint router before the container router or the DELETE gets masked
 		checkpointrouter.NewRouter(opts.daemon, decoder),
-		container.NewRouter(opts.daemon, decoder),
+		container.NewRouter(opts.daemon, decoder, container.RouteOptions{Create: container.CreateOptions{EnableContainerInit: opts.containerConfig.init}}),
 		image.NewRouter(opts.daemon.ImageService()),
 		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildkit, opts.features),
 		volume.NewRouter(opts.daemon.VolumesService()),

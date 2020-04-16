@@ -497,6 +497,14 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 	}
 
+	if hostConfig != nil && versions.GreaterThanOrEqualTo(version, "1.41") && hostConfig.Init == nil {
+		v := true
+		if s.opts.Create.EnableContainerInit != nil {
+			v = *s.opts.Create.EnableContainerInit
+		}
+		hostConfig.Init = &v
+	}
+
 	if hostConfig != nil && hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
 		// Don't set a limit if either no limit was specified, or "unlimited" was
 		// explicitly set.

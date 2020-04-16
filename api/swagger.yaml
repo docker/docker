@@ -497,6 +497,7 @@ definitions:
         description: "Run an init inside the container that forwards signals and reaps processes. This field is omitted if empty, and the default (as configured on the daemon) is used."
         type: "boolean"
         x-nullable: true
+        default: true
       PidsLimit:
         description: |
           Tune a container's PIDs limit. Set `0` or `-1` for unlimited, or `null` to not change.
