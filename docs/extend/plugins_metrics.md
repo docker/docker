@@ -18,9 +18,11 @@ Docker exposes internal metrics based on the prometheus format. Metrics plugins
 enable accessing these metrics in a consistent way by providing a Unix
 socket at a predefined path where the plugin can scrape the metrics.
 
-> **Note**: that while the plugin interface for metrics is non-experimental, the naming
-of the metrics and metric labels is still considered experimental and may change
-in a future version.
+> **Note**
+>
+> While the plugin interface for metrics is non-experimental, the naming of the
+> metrics and metric labels is still considered experimental and may change in a
+> future version.
 
 ## Creating a metrics plugin
 

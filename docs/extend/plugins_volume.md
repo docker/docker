@@ -90,9 +90,11 @@ provide the Docker Daemon with writeable paths on the host filesystem. The Docke
 daemon provides these paths to containers to consume. The Docker daemon makes
 the volumes available by bind-mounting the provided paths into the containers.
 
-> **Note**: Volume plugins should *not* write data to the `/var/lib/docker/`
-> directory, including `/var/lib/docker/volumes`. The `/var/lib/docker/`
-> directory is reserved for Docker.
+> **Note**
+>
+> Volume plugins should *not* write data to the `/var/lib/docker/` directory,
+> including `/var/lib/docker/volumes`. The `/var/lib/docker/` directory is
+> reserved for Docker.
 
 ### `/VolumeDriver.Create`
 

@@ -53,8 +53,10 @@ Authorization plugins must follow the rules described in [Docker Plugin API](plu
 Each plugin must reside within directories described under the
 [Plugin discovery](plugin_api.md#plugin-discovery) section.
 
-**Note**: the abbreviations `AuthZ` and `AuthN` mean authorization and authentication
-respectively.
+> **Note**
+>
+> The abbreviations `AuthZ` and `AuthN` mean authorization and authentication
+> respectively.
 
 ## Default user authorization mechanism
 
