@@ -109,10 +109,10 @@ type `dockerd`.
 To run the daemon with debug output, use `dockerd -D` or add `"debug": true` to
 the `daemon.json` file.
 
-> **Note**: In Docker 1.13 and higher, enable experimental features by starting
-> `dockerd` with the `--experimental` flag or adding `"experimental": true` to the
-> `daemon.json` file. In earlier Docker versions, a different build was required
-> to enable experimental features.
+> **Enabling experimental features**
+> 
+> Enable experimental features by starting `dockerd` with the `--experimental`
+> flag or adding `"experimental": true` to the `daemon.json` file.
 
 ## Examples
 
@@ -135,7 +135,9 @@ interface using its IP address: `-H tcp://192.168.59.103:2375`. It is
 conventional to use port `2375` for un-encrypted, and port `2376` for encrypted
 communication with the daemon.
 
-> **Note**: If you're using an HTTPS encrypted socket, keep in mind that only
+> **Note**
+>
+> If you're using an HTTPS encrypted socket, keep in mind that only
 > TLS1.0 and greater are supported. Protocols SSLv3 and under are not
 > supported anymore for security reasons.
 
@@ -300,20 +302,24 @@ The `overlay` is a very fast union filesystem. It is now merged in the main
 Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). `overlay`
 also supports page cache sharing, this means multiple containers accessing
 the same file can share a single page cache entry (or entries), it makes
-`overlay` as efficient with memory as `aufs` driver. Call
-`dockerd -s overlay` to use it.
-
-> **Note**: As promising as `overlay` is, the feature is still quite young and
-> should not be used in production. Most notably, using `overlay` can cause
-> excessive inode consumption (especially as the number of images grows), as
-> well as being incompatible with the use of RPMs.
+`overlay` as efficient with memory as `aufs` driver. Call `dockerd -s overlay`
+to use it.
 
 The `overlay2` uses the same fast union filesystem but takes advantage of
 [additional features](https://lkml.org/lkml/2015/2/11/106) added in Linux
 kernel 4.0 to avoid excessive inode consumption. Call `dockerd -s overlay2`
 to use it.
 
-> **Note**: Both `overlay` and `overlay2` are currently unsupported on `btrfs`
+> **Note**
+>
+> The `overlay` storage driver can cause excessive inode consumption (especially
+> as the number of images grows). We recommend using the `overlay2` storage
+> driver instead.
+
+
+> **Note**
+>
+> Both `overlay` and `overlay2` are currently unsupported on `btrfs`
 > or any Copy on Write filesystem and should only be used over `ext4` partitions.
 
 On Windows, the Docker daemon supports a single image layer storage driver
@@ -460,7 +466,9 @@ $ sudo service docker start
 
 ##### `dm.loopdatasize`
 
-> **Note**: This option configures devicemapper loopback, which should not
+> **Note**
+>
+> This option configures devicemapper loopback, which should not
 > be used in production.
 
 Specifies the size to use when creating the loopback file for the
@@ -476,7 +484,9 @@ $ sudo dockerd --storage-opt dm.loopdatasize=200G
 
 ##### `dm.loopmetadatasize`
 
-> **Note**: This option configures devicemapper loopback, which should not
+> **Note**
+>
+> This option configures devicemapper loopback, which should not
 > be used in production.
 
 Specifies the size to use when creating the loopback file for the
@@ -623,7 +633,9 @@ $ sudo dockerd --storage-opt dm.override_udev_sync_check=true
 When this value is `true`, the  `devicemapper` continues and simply warns
 you the errors are happening.
 
-> **Note**: The ideal is to pursue a `docker` daemon and environment that does
+> **Note**
+>
+> The ideal is to pursue a `docker` daemon and environment that does
 > support synchronizing with `udev`. For further discussion on this
 > topic, see [docker#4036](https://github.com/docker/docker/issues/4036).
 > Otherwise, set this flag for migrating existing Docker daemons to
@@ -955,7 +967,9 @@ This is the same example via the command line:
 $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-runc-replacement
 ```
 
-> **Note**: Defining runtime arguments via the command line is not supported.
+> **Note**
+>
+> Defining runtime arguments via the command line is not supported.
 
 #### Options for the runtime
 
