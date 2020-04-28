@@ -392,7 +392,13 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         hack/make.sh cross
 
 FROM scratch AS binary
-COPY --from=build-binary /build/bundles/ /
+COPY --from=containerd  /build/ /
+COPY --from=runc        /build/ /
+COPY --from=rootlesskit /build/ /
+COPY --from=proxy       /build/ /
+COPY --from=vpnkit      /vpnkit /
+COPY --from=dockercli   /build/ /
+COPY --from=build-binary /build/bundles/binary-daemon/dockerd /build/bundles/binary-daemon/docker-init /
 
 FROM scratch AS dynbinary
 COPY --from=build-dynbinary /build/bundles/ /

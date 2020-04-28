@@ -1,14 +1,14 @@
 #!/bin/sh
 
 : ${DOCKERCLI_CHANNEL:=stable}
-: ${DOCKERCLI_VERSION:=17.06.2-ce}
+: ${DOCKERCLI_VERSION:=19.03.6}
 
 install_dockercli() {
 	echo "Install docker/cli version $DOCKERCLI_VERSION from $DOCKERCLI_CHANNEL"
 
 	arch=$(uname -m)
 	# No official release of these platforms
-	if [ "$arch" != "x86_64" ] && [ "$arch" != "s390x" ] && [ "$arch" != "armhf" ]; then
+	if [ "$arch" != "x86_64" ] && [ "$arch" != "armhf" ]; then
 		build_dockercli
 		return
 	fi
@@ -21,10 +21,8 @@ install_dockercli() {
 }
 
 build_dockercli() {
-	git clone https://github.com/docker/docker-ce "$GOPATH/tmp/docker-ce"
-	cd "$GOPATH/tmp/docker-ce"
-	git checkout -q "v$DOCKERCLI_VERSION"
 	mkdir -p "$GOPATH/src/github.com/docker"
-	mv components/cli "$GOPATH/src/github.com/docker/cli"
+	git clone -b "v$DOCKERCLI_VERSION" https://github.com/docker/cli "$GOPATH/src/github.com/docker/cli"
+	cd "$GOPATH/src/github.com/docker/cli"
 	go build -buildmode=pie -o "${PREFIX}/docker" "github.com/docker/cli/cmd/docker"
 }
