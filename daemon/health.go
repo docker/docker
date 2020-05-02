@@ -186,12 +186,27 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe) {
 	probeTimeout := timeoutWithDefault(c.Config.Healthcheck.Timeout, defaultProbeTimeout)
 	probeInterval := timeoutWithDefault(c.Config.Healthcheck.Interval, defaultProbeInterval)
+	startInterval := timeoutWithDefault(c.Config.Healthcheck.StartInterval, defaultProbeInterval)
 
 	intervalTimer := time.NewTimer(probeInterval)
 	defer intervalTimer.Stop()
 
+	startPeriod := timeoutWithDefault(c.Config.Healthcheck.StartPeriod, defaultStartPeriod)
+
 	for {
-		intervalTimer.Reset(probeInterval)
+		c.Lock()
+		started := c.State.StartedAt
+		var status string
+		if c.State.Health != nil {
+			status = c.State.Health.Health.Status
+		}
+		c.Unlock()
+
+		if time.Now().Sub(started) < startPeriod && status != types.Healthy {
+			intervalTimer.Reset(startInterval)
+		} else {
+			intervalTimer.Reset(probeInterval)
+		}
 
 		select {
 		case <-stop:

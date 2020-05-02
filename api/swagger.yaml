@@ -617,6 +617,9 @@ definitions:
       StartPeriod:
         description: "Start period for the container to initialize before starting health-retries countdown in nanoseconds. It should be 0 or at least 1000000 (1 ms). 0 means inherit."
         type: "integer"
+      StartInterval:
+        description: "The time to wait between checks in nanoseconds during the start period. It should be 0 or at least 1000000 (1 ms). 0 means inherit."
+        type: "integer"
 
   Health:
     description: |
