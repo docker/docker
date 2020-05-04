@@ -18,7 +18,7 @@ redirect_from:
 # daemon
 
 ```markdown
-Usage:	dockerd COMMAND
+Usage: dockerd COMMAND
 
 A self-sufficient runtime for containers.
 
@@ -39,10 +39,10 @@ Options:
       --cpu-rt-runtime int                    Limit the CPU real-time runtime in microseconds
       --data-root string                      Root directory of persistent Docker state (default "/var/lib/docker")
   -D, --debug                                 Enable debug mode
+      --default-address-pool                  Set the default address pool for local node networks
       --default-cgroupns-mode string          Container default cgroup namespace mode (default "host")
       --default-gateway ip                    Container default gateway IPv4 address
       --default-gateway-v6 ip                 Container default gateway IPv6 address
-      --default-address-pool                  Set the default address pool for local node networks
       --default-runtime string                Default OCI runtime for containers (default "runc")
       --default-ulimit ulimit                 Default ulimits for containers (default [])
       --dns list                              DNS server to use (default [])
@@ -75,8 +75,8 @@ Options:
       --max-download-attempts int             Set the max download attempts for each pull (default 5)
       --metrics-addr string                   Set default address and port to serve the metrics api on
       --mtu int                               Set the containers network MTU
-      --node-generic-resources list           Advertise user-defined resource
       --no-new-privileges                     Set no-new-privileges by default for new containers
+      --node-generic-resources list           Advertise user-defined resource
       --oom-score-adjust int                  Set the oom_score_adj for the daemon (default -500)
   -p, --pidfile string                        Path to use for daemon PID file (default "/var/run/docker.pid")
       --raw-logs                              Full timestamps without ANSI coloring
@@ -90,7 +90,7 @@ Options:
       --tls                                   Use TLS; implied by --tlsverify
       --tlscacert string                      Trust certs signed only by this CA (default "~/.docker/ca.pem")
       --tlscert string                        Path to TLS certificate file (default "~/.docker/cert.pem")
-      --tlskey string                         Path to TLS key file (default ~/.docker/key.pem")
+      --tlskey string                         Path to TLS key file (default "~/.docker/key.pem")
       --tlsverify                             Use TLS and verify the remote
       --userland-proxy                        Use userland proxy for loopback traffic (default true)
       --userland-proxy-path string            Path to the userland proxy binary
