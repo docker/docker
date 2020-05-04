@@ -30,18 +30,17 @@ Options:
       --bip string                            Specify network bridge IP
   -b, --bridge string                         Attach containers to a network bridge
       --cgroup-parent string                  Set parent cgroup for all containers
-      --cluster-advertise string              Address or interface name to advertise
-      --cluster-store string                  URL of the distributed storage backend
-      --cluster-store-opt map                 Set cluster store options (default map[])
       --config-file string                    Daemon configuration file (default "/etc/docker/daemon.json")
       --containerd string                     containerd grpc address
-      --cpu-rt-period int                     Limit the CPU real-time period in microseconds
-      --cpu-rt-runtime int                    Limit the CPU real-time runtime in microseconds
+      --cpu-rt-period int                     Limit the CPU real-time period in microseconds for the
+                                              parent cgroup for all containers
+      --cpu-rt-runtime int                    Limit the CPU real-time runtime in microseconds for the
+                                              parent cgroup for all containers
       --cri-containerd                        start containerd with cri
       --data-root string                      Root directory of persistent Docker state (default "/var/lib/docker")
   -D, --debug                                 Enable debug mode
       --default-address-pool pool-options     Default address pools for node specific local networks
-      --default-cgroupns-mode string          Container default cgroup namespace mode (default "host")
+      --default-cgroupns-mode string          Default mode for containers cgroup namespace ("host" | "private") (default "host")
       --default-gateway ip                    Container default gateway IPv4 address
       --default-gateway-v6 ip                 Container default gateway IPv6 address
       --default-ipc-mode string               Default mode for containers ipc ("shareable" | "private") (default "private")
@@ -59,6 +58,8 @@ Options:
   -G, --group string                          Group for the unix socket (default "docker")
       --help                                  Print usage
   -H, --host list                             Daemon socket(s) to connect to
+      --host-gateway-ip ip                    IP address that the special 'host-gateway' string in --add-host resolves to.
+                                              Defaults to the IP address of the default bridge
       --icc                                   Enable inter-container communication (default true)
       --init                                  Run an init in the container to forward signals and reap processes
       --init-path string                      Path to the docker-init binary
@@ -85,7 +86,7 @@ Options:
   -p, --pidfile string                        Path to use for daemon PID file (default "/var/run/docker.pid")
       --raw-logs                              Full timestamps without ANSI coloring
       --registry-mirror list                  Preferred Docker registry mirror
-      --rootless                              Enable rootless mode; typically used with RootlessKit (experimental)
+      --rootless                              Enable rootless mode; typically used with RootlessKit
       --seccomp-profile string                Path to seccomp profile
       --selinux-enabled                       Enable selinux support
       --shutdown-timeout int                  Set the default shutdown timeout (default 15)
