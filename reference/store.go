@@ -8,7 +8,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/docker/pkg/ioutils"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"

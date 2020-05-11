@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"

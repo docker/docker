@@ -12,8 +12,8 @@ import (
 	"runtime"
 
 	"github.com/containerd/containerd/platforms"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
 	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"

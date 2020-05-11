@@ -1,7 +1,7 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/docker/image"
 )
 

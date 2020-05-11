@@ -3,8 +3,8 @@ package distribution // import "github.com/docker/docker/api/server/router/distr
 import (
 	"context"
 
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 )
 

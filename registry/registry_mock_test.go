@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/gorilla/mux"
 

@@ -3,7 +3,7 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"time"
 
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
