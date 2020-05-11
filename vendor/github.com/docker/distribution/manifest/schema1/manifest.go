@@ -108,7 +108,7 @@ type SignedManifest struct {
 
 // UnmarshalJSON populates a new SignedManifest struct from JSON data.
 func (sm *SignedManifest) UnmarshalJSON(b []byte) error {
-	sm.all = make([]byte, len(b))
+	sm.all = make([]byte, len(b), len(b))
 	// store manifest and signatures in all
 	copy(sm.all, b)
 
@@ -124,7 +124,7 @@ func (sm *SignedManifest) UnmarshalJSON(b []byte) error {
 	}
 
 	// sm.Canonical stores the canonical manifest JSON
-	sm.Canonical = make([]byte, len(bytes))
+	sm.Canonical = make([]byte, len(bytes), len(bytes))
 	copy(sm.Canonical, bytes)
 
 	// Unmarshal canonical JSON into Manifest object
