@@ -676,7 +676,7 @@ thin pool device deletion is synchronous. Before a container is deleted,
 the Docker daemon removes any associated devices. If the storage driver
 can not remove a device, the container deletion fails and daemon returns.
 
-```none
+```console
 Error deleting container: Error response from daemon: Cannot destroy container
 ```
 
@@ -1264,9 +1264,9 @@ to avoid collisions with other prometheus exporters and services.
 
 If you are running a prometheus server you can add this address to your scrape configs
 to have prometheus collect metrics on Docker.  For more information
-on prometheus you can view the website [here](https://prometheus.io/).
+on prometheus refer to the [prometheus website](https://prometheus.io/).
 
-```none
+```yaml
 scrape_configs:
   - job_name: 'docker'
     static_configs:
@@ -1290,7 +1290,7 @@ the task to run.
 Example of usage:
 ```json
 {
-	"node-generic-resources": ["NVIDIA-GPU=UUID1", "NVIDIA-GPU=UUID2"]
+  "node-generic-resources": ["NVIDIA-GPU=UUID1", "NVIDIA-GPU=UUID2"]
 }
 ```
 
@@ -1319,102 +1319,104 @@ This is a full example of the allowed configuration options on Linux:
 
 ```json
 {
-	"authorization-plugins": [],
-	"data-root": "",
-	"default-cgroupns-mode": "private",
-	"dns": [],
-	"dns-opts": [],
-	"dns-search": [],
-	"exec-opts": [],
-	"exec-root": "",
-	"experimental": false,
-	"features": {},
-	"storage-driver": "",
-	"storage-opts": [],
-	"labels": [],
-	"live-restore": true,
-	"log-driver": "json-file",
-	"log-opts": {
-		"max-size": "10m",
-		"max-file":"5",
-		"labels": "somelabel",
-		"env": "os,customer"
-	},
-	"mtu": 0,
-	"pidfile": "",
-	"cluster-store": "",
-	"cluster-store-opts": {},
-	"cluster-advertise": "",
-	"max-concurrent-downloads": 3,
-	"max-concurrent-uploads": 5,
-	"max-download-attempts": 5,
-	"default-shm-size": "64M",
-	"shutdown-timeout": 15,
-	"debug": true,
-	"hosts": [],
-	"log-level": "",
-	"tls": true,
-	"tlsverify": true,
-	"tlscacert": "",
-	"tlscert": "",
-	"tlskey": "",
-	"swarm-default-advertise-addr": "",
-	"api-cors-header": "",
-	"selinux-enabled": false,
-	"userns-remap": "",
-	"group": "",
-	"cgroup-parent": "",
-	"default-ulimits": {
-		"nofile": {
-			"Name": "nofile",
-			"Hard": 64000,
-			"Soft": 64000
-		}
-	},
-	"init": false,
-	"init-path": "/usr/libexec/docker-init",
-	"ipv6": false,
-	"iptables": false,
-	"ip-forward": false,
-	"ip-masq": false,
-	"userland-proxy": false,
-	"userland-proxy-path": "/usr/libexec/docker-proxy",
-	"ip": "0.0.0.0",
-	"bridge": "",
-	"bip": "",
-	"fixed-cidr": "",
-	"fixed-cidr-v6": "",
-	"default-gateway": "",
-	"default-gateway-v6": "",
-	"icc": false,
-	"raw-logs": false,
-	"allow-nondistributable-artifacts": [],
-	"registry-mirrors": [],
-	"seccomp-profile": "",
-	"insecure-registries": [],
-	"no-new-privileges": false,
-	"default-runtime": "runc",
-	"oom-score-adjust": -500,
-	"node-generic-resources": ["NVIDIA-GPU=UUID1", "NVIDIA-GPU=UUID2"],
-	"runtimes": {
-		"cc-runtime": {
-			"path": "/usr/bin/cc-runtime"
-		},
-		"custom": {
-			"path": "/usr/local/bin/my-runc-replacement",
-			"runtimeArgs": [
-				"--debug"
-			]
-		}
-	},
-	"default-address-pools":[
-		{"base":"172.80.0.0/16","size":24},
-		{"base":"172.90.0.0/16","size":24}
-	]
+  "authorization-plugins": [],
+  "data-root": "",
+  "default-cgroupns-mode": "private",
+  "dns": [],
+  "dns-opts": [],
+  "dns-search": [],
+  "exec-opts": [],
+  "exec-root": "",
+  "experimental": false,
+  "features": {},
+  "storage-driver": "",
+  "storage-opts": [],
+  "labels": [],
+  "live-restore": true,
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file":"5",
+    "labels": "somelabel",
+    "env": "os,customer"
+  },
+  "mtu": 0,
+  "pidfile": "",
+  "cluster-store": "",
+  "cluster-store-opts": {},
+  "cluster-advertise": "",
+  "max-concurrent-downloads": 3,
+  "max-concurrent-uploads": 5,
+  "max-download-attempts": 5,
+  "default-shm-size": "64M",
+  "shutdown-timeout": 15,
+  "debug": true,
+  "hosts": [],
+  "log-level": "",
+  "tls": true,
+  "tlsverify": true,
+  "tlscacert": "",
+  "tlscert": "",
+  "tlskey": "",
+  "swarm-default-advertise-addr": "",
+  "api-cors-header": "",
+  "selinux-enabled": false,
+  "userns-remap": "",
+  "group": "",
+  "cgroup-parent": "",
+  "default-ulimits": {
+    "nofile": {
+      "Name": "nofile",
+      "Hard": 64000,
+      "Soft": 64000
+    }
+  },
+  "init": false,
+  "init-path": "/usr/libexec/docker-init",
+  "ipv6": false,
+  "iptables": false,
+  "ip-forward": false,
+  "ip-masq": false,
+  "userland-proxy": false,
+  "userland-proxy-path": "/usr/libexec/docker-proxy",
+  "ip": "0.0.0.0",
+  "bridge": "",
+  "bip": "",
+  "fixed-cidr": "",
+  "fixed-cidr-v6": "",
+  "default-gateway": "",
+  "default-gateway-v6": "",
+  "icc": false,
+  "raw-logs": false,
+  "allow-nondistributable-artifacts": [],
+  "registry-mirrors": [],
+  "seccomp-profile": "",
+  "insecure-registries": [],
+  "no-new-privileges": false,
+  "default-runtime": "runc",
+  "oom-score-adjust": -500,
+  "node-generic-resources": ["NVIDIA-GPU=UUID1", "NVIDIA-GPU=UUID2"],
+  "runtimes": {
+    "cc-runtime": {
+      "path": "/usr/bin/cc-runtime"
+    },
+    "custom": {
+      "path": "/usr/local/bin/my-runc-replacement",
+      "runtimeArgs": [
+        "--debug"
+      ]
+    }
+  },
+  "default-address-pools":[
+    {"base":"172.80.0.0/16","size":24},
+    {"base":"172.90.0.0/16","size":24}
+  ]
 }
 ```
 
-> **Note:** You cannot set options in `daemon.json` that have already been set on
+> **Note:**
+>
+> You cannot set options in `daemon.json` that have already been set on
 > daemon startup as a flag.
 > On systems that use `systemd` to start the Docker daemon, `-H` is already set, so
 > you cannot use the `hosts` key in `daemon.json` to add listening addresses.
@@ -1431,42 +1433,42 @@ This is a full example of the allowed configuration options on Windows:
 
 ```json
 {
-    "authorization-plugins": [],
-    "data-root": "",
-    "dns": [],
-    "dns-opts": [],
-    "dns-search": [],
-    "exec-opts": [],
-    "experimental": false,
-    "features":{},
-    "storage-driver": "",
-    "storage-opts": [],
-    "labels": [],
-    "log-driver": "",
-    "mtu": 0,
-    "pidfile": "",
-    "cluster-store": "",
-    "cluster-advertise": "",
-    "max-concurrent-downloads": 3,
-    "max-concurrent-uploads": 5,
-    "max-download-attempts": 5,
-    "shutdown-timeout": 15,
-    "debug": true,
-    "hosts": [],
-    "log-level": "",
-    "tlsverify": true,
-    "tlscacert": "",
-    "tlscert": "",
-    "tlskey": "",
-    "swarm-default-advertise-addr": "",
-    "group": "",
-    "default-ulimits": {},
-    "bridge": "",
-    "fixed-cidr": "",
-    "raw-logs": false,
-    "allow-nondistributable-artifacts": [],
-    "registry-mirrors": [],
-    "insecure-registries": []
+  "authorization-plugins": [],
+  "data-root": "",
+  "dns": [],
+  "dns-opts": [],
+  "dns-search": [],
+  "exec-opts": [],
+  "experimental": false,
+  "features":{},
+  "storage-driver": "",
+  "storage-opts": [],
+  "labels": [],
+  "log-driver": "",
+  "mtu": 0,
+  "pidfile": "",
+  "cluster-store": "",
+  "cluster-advertise": "",
+  "max-concurrent-downloads": 3,
+  "max-concurrent-uploads": 5,
+  "max-download-attempts": 5,
+  "shutdown-timeout": 15,
+  "debug": true,
+  "hosts": [],
+  "log-level": "",
+  "tlsverify": true,
+  "tlscacert": "",
+  "tlscert": "",
+  "tlskey": "",
+  "swarm-default-advertise-addr": "",
+  "group": "",
+  "default-ulimits": {},
+  "bridge": "",
+  "fixed-cidr": "",
+  "raw-logs": false,
+  "allow-nondistributable-artifacts": [],
+  "registry-mirrors": [],
+  "insecure-registries": []
 }
 ```
 
@@ -1534,7 +1536,7 @@ by providing them as flags, or by using a [daemon configuration file](#daemon-co
 
 The following daemon options must be configured for each daemon:
 
-```none
+```console
 -b, --bridge=                          Attach containers to a network bridge
 --exec-root=/var/run/docker            Root of the Docker execdriver
 --data-root=/var/lib/docker            Root of persisted Docker data
