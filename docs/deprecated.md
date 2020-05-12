@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 Status     | Feature                                                                                                                            | Deprecated | Remove
 -----------|------------------------------------------------------------------------------------------------------------------------------------|------------|------------
+Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.03.0   | -
 Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03.0   | v20.03.0
 Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03.0   | v20.03.0
 Removed    | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03.0   | v20.03.0
@@ -87,6 +88,11 @@ Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-
 Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10.0    | v1.13.0
 Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12.0
 
+### CLI plugins support
+
+**Deprecated in Release: v20.03.0**
+
+CLI Plugin API is now marked as deprecated.
 
 ### Pushing and pulling with image manifest v2 schema 1
 
