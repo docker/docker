@@ -52,6 +52,7 @@ Status     | Feature                                                            
 -----------|------------------------------------------------------------------------------------------------------------------------------------|------------|------------
 Deprecated | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.03.0   | -
 Deprecated | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.03.0   | -
+Deprecated | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.03.0   | -
 Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.03.0   | -
 Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03.0   | v20.03.0
 Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03.0   | v20.03.0
@@ -105,6 +106,22 @@ Standalone ("classic") Swarm has been deprecated, and with that the use of overl
 networks using an external key/value store. The corresponding`--cluster-advertise`,
 `--cluster-store`, and `--cluster-store-opt` daemon options have been marked
 deprecated, and will be disabled or removed in a future release.
+
+
+### Support for legacy `~/.dockercfg` configuration files
+
+**Deprecated in Release: v20.03.0**
+
+The docker CLI up until v1.7.0 used the `~/.dockercfg` file to store credentials
+after authenticating to a registry (`docker login`). Docker v1.7.0 replaced this
+file with a new CLI configuration file, located in `~/.docker/config.json`. When
+implementing the new configuration file, the old file (and file-format) was kept
+as a fall-back, to assist existing users with migrating to the new file.
+
+Given that the old file format encourages insecure storage of credentials
+(credentials are stored unencrypted), and that no version of the CLI since
+Docker v1.7.0 has created this file, the file is marked deprecated, and support
+for this file will be removed in a future release.
 
 ### CLI plugins support
 
