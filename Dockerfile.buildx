@@ -1,5 +1,5 @@
 ARG GO_VERSION=1.13.10
-ARG BUILDX_COMMIT=v0.3.1
+ARG BUILDX_COMMIT=v0.4.1
 ARG BUILDX_REPO=https://github.com/docker/buildx.git
 
 FROM golang:${GO_VERSION}-stretch AS build
