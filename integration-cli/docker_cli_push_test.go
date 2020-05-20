@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/icmd"

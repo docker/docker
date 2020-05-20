@@ -87,7 +87,7 @@ func ManifestMediaTypes() (mediaTypes []string) {
 // UnmarshalFunc implements manifest unmarshalling a given MediaType
 type UnmarshalFunc func([]byte) (Manifest, Descriptor, error)
 
-var mappings = make(map[string]UnmarshalFunc)
+var mappings = make(map[string]UnmarshalFunc, 0)
 
 // UnmarshalManifest looks up manifest unmarshal functions based on
 // MediaType

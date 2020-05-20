@@ -1,7 +1,7 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	registrytypes "github.com/docker/docker/api/types/registry"
 )
 

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	reference "github.com/containerd/containerd/reference/docker"
 	dist "github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"

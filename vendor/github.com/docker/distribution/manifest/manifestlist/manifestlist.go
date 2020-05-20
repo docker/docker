@@ -163,7 +163,7 @@ func FromDescriptorsWithMediaType(descriptors []ManifestDescriptor, mediaType st
 		},
 	}
 
-	m.Manifests = make([]ManifestDescriptor, len(descriptors))
+	m.Manifests = make([]ManifestDescriptor, len(descriptors), len(descriptors))
 	copy(m.Manifests, descriptors)
 
 	deserialized := DeserializedManifestList{
@@ -177,7 +177,7 @@ func FromDescriptorsWithMediaType(descriptors []ManifestDescriptor, mediaType st
 
 // UnmarshalJSON populates a new ManifestList struct from JSON data.
 func (m *DeserializedManifestList) UnmarshalJSON(b []byte) error {
-	m.canonical = make([]byte, len(b))
+	m.canonical = make([]byte, len(b), len(b))
 	// store manifest list in canonical
 	copy(m.canonical, b)
 

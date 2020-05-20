@@ -6,8 +6,8 @@ import (
 	"strings"
 	"syscall"
 
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
 	v2 "github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client"

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	digest "github.com/opencontainers/go-digest"

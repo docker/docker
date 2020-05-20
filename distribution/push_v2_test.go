@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"testing"
 
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution/metadata"

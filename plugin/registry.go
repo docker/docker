@@ -7,16 +7,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
-	"github.com/docker/docker/dockerversion"
-
-	"github.com/pkg/errors"
-
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/dockerversion"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // scope builds the correct auth scope for the registry client to authorize against

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/distribution/manifest/schema1"
-	"github.com/docker/distribution/reference"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/distribution/reference"
+	reference "github.com/containerd/containerd/reference/docker"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/system"
