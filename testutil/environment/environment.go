@@ -36,7 +36,7 @@ type PlatformDefaults struct {
 // New creates a new Execution struct
 // This is configured using the env client (see client.FromEnv)
 func New() (*Execution, error) {
-	c, err := client.NewClientWithOpts(client.FromEnv)
+	c, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create client")
 	}
