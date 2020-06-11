@@ -124,7 +124,7 @@ the `daemon.json` file.
 
 ### Daemon socket option
 
-The Docker daemon can listen for [Docker Engine API](../api/)
+The Docker daemon can listen for [Docker Engine API](https://docs.docker.com/engine/api/)
 requests via three different types of Socket: `unix`, `tcp`, and `fd`.
 
 By default, a `unix` domain socket (or IPC socket) is created at
