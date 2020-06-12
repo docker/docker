@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/quota"
@@ -35,7 +36,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}
 
 	if err := d.parseOptions(options); err != nil {
-		return nil, err
+		return nil, errdefs.InvalidParameter(err)
 	}
 
 	rootIDs := d.idMapping.RootPair()
@@ -58,8 +59,9 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 // Driver must be wrapped in NaiveDiffDriver to be used as a graphdriver.Driver
 type Driver struct {
 	driverQuota
-	home      string
-	idMapping *idtools.IdentityMapping
+	home            string
+	idMapping       *idtools.IdentityMapping
+	copyConcurrency int
 }
 
 func (d *Driver) String() string {
@@ -85,19 +87,27 @@ func (d *Driver) parseOptions(options []string) error {
 	for _, option := range options {
 		key, val, err := parsers.ParseKeyValueOpt(option)
 		if err != nil {
-			return errdefs.InvalidParameter(err)
+			return err
 		}
 		switch key {
 		case "size":
 			size, err := units.RAMInBytes(val)
 			if err != nil {
-				return errdefs.InvalidParameter(err)
+				return err
 			}
 			if err = d.setQuotaOpt(uint64(size)); err != nil {
-				return errdefs.InvalidParameter(errors.Wrap(err, "failed to set option size for vfs"))
+				return errors.Wrap(err, "failed to set option size for vfs")
+			}
+		case "copy.concurrency":
+			d.copyConcurrency, err = strconv.Atoi(val)
+			if err != nil {
+				return errors.Wrap(err, "cannot parse copy.concurrency")
+			}
+			if d.copyConcurrency < 0 {
+				return errors.Errorf("copy concurrency '%d' is less than 0", d.copyConcurrency)
 			}
 		default:
-			return errdefs.InvalidParameter(errors.Errorf("unknown option %s for vfs", key))
+			return errors.Errorf("unknown option %s for vfs", key)
 		}
 	}
 	return nil
@@ -165,7 +175,7 @@ func (d *Driver) create(id, parent string, size uint64) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
-	return CopyDir(parentDir.Path(), dir)
+	return dirCopy(parentDir.Path(), dir, d.copyConcurrency)
 }
 
 func (d *Driver) dir(id string) string {

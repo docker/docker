@@ -12,18 +12,18 @@ import (
 
 	"github.com/containerd/continuity/driver"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/graphdriver/vfs"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	digest "github.com/opencontainers/go-digest"
+
+	// This is to load the VFS driver, so it doesn't get treated as a plugin
+	_ "github.com/docker/docker/daemon/graphdriver/vfs"
 )
 
 func init() {
 	graphdriver.ApplyUncompressedLayer = archive.UnpackLayer
-	defaultArchiver := archive.NewDefaultArchiver()
-	vfs.CopyDir = defaultArchiver.CopyWithTar
 }
 
 func newVFSGraphDriver(td string) (graphdriver.Driver, error) {

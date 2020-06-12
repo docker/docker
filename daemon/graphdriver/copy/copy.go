@@ -3,18 +3,31 @@
 package copy // import "github.com/docker/docker/daemon/graphdriver/copy"
 
 import (
-	"container/list"
+	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
+)
+
+const (
+	// Docker sets this earlier on in initialization to 0022
+	// Unfortunately, sometimes the special bits are not respected
+	// and we have to force-set them.
+	desiredUmask = 7022
+	// This is based on some empirical testing on EXT4 filesystems
+	fileCopyInfoChannelDepth = 100
+	defaultWorkerCount       = 8
 )
 
 // Mode indicates whether to use hardlink or copy content
@@ -99,14 +112,302 @@ func copyXattr(srcPath, dstPath, attr string) error {
 	return nil
 }
 
+type fileCopyInfoMode int
+
+const (
+	fileMode fileCopyInfoMode = iota
+	dirMode
+	updateDirTimeMode
+)
+
+type fileCopyInfo struct {
+	mode        fileCopyInfoMode
+	dstPath     string
+	srcPath     string
+	stat        *syscall.Stat_t
+	fileInfo    os.FileInfo
+	sharedInode *sharedInode
+}
+
 type fileID struct {
 	dev uint64
 	ino uint64
 }
 
-type dirMtimeInfo struct {
-	dstPath *string
-	stat    *syscall.Stat_t
+// This represents an inode on the destination side with a unique identity
+type sharedInode struct {
+	lock                      sync.Mutex
+	initialized               bool
+	successfullyCopiedDstPath string
+	err                       error
+}
+
+func doRegularFileCopy(srcPath, dstPath string, f os.FileInfo, sInode *sharedInode, copyWithFileRange, copyWithFileClone *bool) error {
+	if sInode == nil {
+		return copyRegular(srcPath, dstPath, f, copyWithFileRange, copyWithFileClone)
+	}
+
+	sInode.lock.Lock()
+	defer sInode.lock.Unlock()
+	if sInode.err != nil {
+		return sInode.err
+	}
+	// the inode has been copied without error
+	if sInode.initialized {
+		return os.Link(sInode.successfullyCopiedDstPath, dstPath)
+	}
+	// We don't actually have to wait for all of copyRegular to finish, in fact
+	// all we need is to wait for the inode creation, but there's all sorts of
+	// terrible things that might happen between inode creation and writing the file,
+	// and hardlinks are relatively rare in the primary use case (VFS)
+	sInode.err = copyRegular(srcPath, dstPath, f, copyWithFileRange, copyWithFileClone)
+	sInode.successfullyCopiedDstPath = dstPath
+	sInode.initialized = true
+	return sInode.err
+}
+func doFileCopy(srcPath, dstPath string, f os.FileInfo, stat *syscall.Stat_t, sInode *sharedInode, copyWithFileRange, copyWithFileClone *bool, copyXattrs bool, copyMode Mode) error {
+	mode := f.Mode()
+	switch {
+	case mode.IsRegular(): // Regular file
+		if copyMode == Hardlink {
+			if err := os.Link(srcPath, dstPath); err != nil {
+				return err
+			}
+			// Don't copy metadata for hard links
+			return nil
+		}
+		if err := doRegularFileCopy(srcPath, dstPath, f, sInode, copyWithFileRange, copyWithFileClone); err != nil {
+			return err
+		}
+
+	case mode&os.ModeSymlink != 0:
+		link, err := os.Readlink(srcPath)
+		if err != nil {
+			return err
+		}
+
+		if err := os.Symlink(link, dstPath); err != nil {
+			return err
+		}
+
+	case mode&os.ModeNamedPipe != 0:
+		fallthrough
+	case mode&os.ModeSocket != 0:
+		if err := unix.Mkfifo(dstPath, stat.Mode); err != nil {
+			return err
+		}
+
+	case mode&os.ModeDevice != 0:
+		if rsystem.RunningInUserNS() {
+			// cannot create a device if running in user namespace
+			return nil
+		}
+		if err := unix.Mknod(dstPath, stat.Mode, int(stat.Rdev)); err != nil {
+			return err
+		}
+
+	default:
+		return fmt.Errorf("unknown file type for %s", srcPath)
+	}
+
+	return copyMetadata(dstPath, srcPath, f, stat, copyXattrs)
+}
+
+func fileCopyWorker(ctx context.Context, fileCopyInfoChan chan *fileCopyInfo, copyMode Mode, copyXattrs bool) error {
+	copyWithFileRange := true
+	copyWithFileClone := true
+
+	// Just a dumb wrapper around the above function which does the heavy lifting
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case fci, ok := <-fileCopyInfoChan:
+			if !ok {
+				return nil
+			}
+			switch fci.mode {
+			case dirMode:
+				if err := copyMetadataShared(fci.dstPath, fci.srcPath, fci.fileInfo, fci.stat, copyXattrs); err != nil {
+					return err
+				}
+			case fileMode:
+				if err := doFileCopy(fci.srcPath, fci.dstPath, fci.fileInfo, fci.stat, fci.sharedInode, &copyWithFileRange, &copyWithFileClone, copyXattrs, copyMode); err != nil {
+					return err
+				}
+			case updateDirTimeMode:
+				ts := []syscall.Timespec{fci.stat.Atim, fci.stat.Mtim}
+				if err := system.LUtimesNano(fci.dstPath, ts); err != nil {
+					return err
+				}
+			}
+		}
+	}
+}
+
+// readDirNames reads the directory named by dirname and returns
+// a sorted list of directory entries.
+func readDirNames(dirname string) ([]string, error) {
+	f, err := os.Open(dirname)
+	if err != nil {
+		return nil, err
+	}
+	names, err := f.Readdirnames(-1)
+	f.Close()
+	if err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+type walkFn struct {
+	srcDir         string
+	dstDir         string
+	workers        []chan *fileCopyInfo
+	rand           *rand.Rand
+	sharedInodeMap map[fileID]*sharedInode
+}
+
+func (w *walkFn) rebasePath(srcPath string) (string, error) {
+	// Rebase path
+	relPath, err := filepath.Rel(w.srcDir, srcPath)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(w.dstDir, relPath), nil
+}
+
+func (w *walkFn) walkFunc(ctx context.Context, srcPath string, f os.FileInfo, c chan *fileCopyInfo, err error) error {
+	var sInode *sharedInode
+	mode := fileMode
+	if err != nil {
+		return err
+	}
+	// Check if the errgroup has gotten canceled / shutdown
+	err = ctx.Err()
+	if err != nil {
+		return ctx.Err()
+	}
+
+	dstPath, err := w.rebasePath(srcPath)
+	if err != nil {
+		return err
+	}
+
+	stat, ok := f.Sys().(*syscall.Stat_t)
+	if !ok {
+		return fmt.Errorf("Unable to get raw syscall.Stat_t data for %s", srcPath)
+	}
+	if f.IsDir() {
+		mode = dirMode
+		if err := os.Mkdir(dstPath, f.Mode()); err != nil && !os.IsExist(err) {
+			return err
+		}
+		if f.Mode()&desiredUmask > 0 {
+			if err := os.Chmod(dstPath, f.Mode()); err != nil {
+				return err
+			}
+		}
+	}
+	if stat.Nlink > 1 {
+		id := fileID{dev: stat.Dev, ino: stat.Ino}
+		if val, ok := w.sharedInodeMap[id]; ok {
+			sInode = val
+		} else {
+			sInode = &sharedInode{}
+			w.sharedInodeMap[id] = sInode
+		}
+	}
+	select {
+	case c <- &fileCopyInfo{
+		mode:        mode,
+		dstPath:     dstPath,
+		srcPath:     srcPath,
+		stat:        stat,
+		fileInfo:    f,
+		sharedInode: sInode,
+	}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return nil
+}
+
+func (w *walkFn) updateDirTime(ctx context.Context, srcPath string, f os.FileInfo, c chan *fileCopyInfo) error {
+	dstPath, err := w.rebasePath(srcPath)
+	if err != nil {
+		return err
+	}
+	stat, ok := f.Sys().(*syscall.Stat_t)
+	if !ok {
+		return fmt.Errorf("Unable to get raw syscall.Stat_t data for %s", srcPath)
+	}
+	select {
+	case c <- &fileCopyInfo{
+		mode:     updateDirTimeMode,
+		dstPath:  dstPath,
+		srcPath:  srcPath,
+		stat:     stat,
+		fileInfo: f,
+	}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return nil
+}
+
+// walk and walk2 are borrowed from filepath.WalkDir, but adapted for our purposes
+// we have a special field for the channel that's used for this given directory
+// the reason why is to serialize writes for that dirent, and then we can simply
+// rely on delivery ordering to make sure our message to update mtimes gets there
+// last
+func (w *walkFn) walk2(ctx context.Context, path string, info os.FileInfo) error {
+	c := w.workers[w.rand.Intn(len(w.workers))]
+
+	names, err := readDirNames(path)
+	err1 := w.walkFunc(ctx, path, info, c, err)
+	// If err != nil, walk can't walk into this directory.
+	// err1 != nil means walkFn want walk to skip this directory or stop walking.
+	// Therefore, if one of err and err1 isn't nil, walk will return.
+	if err != nil || err1 != nil {
+		// The caller's behavior is controlled by the return value, which is decided
+		// by walkFn. walkFn may ignore err and return nil.
+		// If walkFn returns SkipDir, it will be handled by the caller.
+		// So walk should return whatever walkFn returns.
+		return err1
+	}
+
+	for _, name := range names {
+		filename := filepath.Join(path, name)
+		fileInfo, err := os.Lstat(filename)
+		if err != nil {
+			if err := w.walkFunc(ctx, filename, fileInfo, c, err); err != nil {
+				return err
+			}
+		} else if fileInfo.IsDir() {
+			err = w.walk2(ctx, filename, fileInfo)
+			if err != nil {
+				return err
+			}
+		} else {
+			if err := w.walkFunc(ctx, filename, fileInfo, c, err); err != nil {
+				return err
+			}
+		}
+	}
+	return w.updateDirTime(ctx, path, info, c)
+}
+
+func (w *walkFn) walk(ctx context.Context, root string) error {
+	c := w.workers[w.rand.Intn(len(w.workers))]
+	info, err := os.Lstat(root)
+	if err != nil {
+		err = w.walkFunc(ctx, root, nil, c, err)
+	} else {
+		err = w.walk2(ctx, root, info)
+	}
+	return err
 }
 
 // DirCopy copies or hardlinks the contents of one directory to another,
@@ -114,139 +415,90 @@ type dirMtimeInfo struct {
 //
 // Copying xattrs can be opted out of by passing false for copyXattrs.
 func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
-	copyWithFileRange := true
-	copyWithFileClone := true
+	return DirCopyWithConcurrency(srcDir, dstDir, copyMode, copyXattrs, 0)
+}
 
-	// This is a map of source file inodes to dst file paths
-	copiedFiles := make(map[fileID]string)
+// DirCopyWithConcurrency performs the same work as DirCopy, but allows you to specify the
+// concurrency level. Specifying workerCount as 0 will make it use the default worker
+// count
+func DirCopyWithConcurrency(srcDir, dstDir string, copyMode Mode, copyXattrs bool, workerCount int) error {
+	if workerCount < 0 {
+		return fmt.Errorf("Copy concurrency '%d' is less than 0", workerCount)
+	}
+	if workerCount == 0 {
+		workerCount = defaultWorkerCount
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	dirsToSetMtimes := list.New()
-	err := filepath.Walk(srcDir, func(srcPath string, f os.FileInfo, err error) error {
-		if err != nil {
+	errGroup, errGroupCtx := errgroup.WithContext(ctx)
+	workers := make([]chan *fileCopyInfo, workerCount)
+	for i := 0; i < len(workers); i++ {
+		c := make(chan *fileCopyInfo, fileCopyInfoChannelDepth)
+		workers[i] = c
+		errGroup.Go(func() error {
+			return fileCopyWorker(errGroupCtx, c, copyMode, copyXattrs)
+		})
+	}
+
+	w := &walkFn{
+		srcDir:         srcDir,
+		dstDir:         dstDir,
+		workers:        workers,
+		rand:           rand.New(rand.NewSource(3)),
+		sharedInodeMap: make(map[fileID]*sharedInode),
+	}
+
+	err := w.walk(errGroupCtx, srcDir)
+	for i := 0; i < len(workers); i++ {
+		close(workers[i])
+	}
+	if err != nil {
+		cancel()
+		return err
+	}
+
+	return errGroup.Wait()
+}
+
+// copyMetadataShared copies the metadata for directories and files, but doesn't
+// set atimes / mtimes because those have to happen after all file modifications
+// are complete
+func copyMetadataShared(dstPath, srcPath string, f os.FileInfo, stat *syscall.Stat_t, copyXattrs bool) error {
+	if err := os.Lchown(dstPath, int(stat.Uid), int(stat.Gid)); err != nil {
+		return err
+	}
+
+	if copyXattrs {
+		if err := doCopyXattrs(srcPath, dstPath); err != nil {
 			return err
 		}
+	}
 
-		// Rebase path
-		relPath, err := filepath.Rel(srcDir, srcPath)
-		if err != nil {
-			return err
-		}
+	return nil
+}
 
-		dstPath := filepath.Join(dstDir, relPath)
-
-		stat, ok := f.Sys().(*syscall.Stat_t)
-		if !ok {
-			return fmt.Errorf("Unable to get raw syscall.Stat_t data for %s", srcPath)
-		}
-
-		isHardlink := false
-
-		switch mode := f.Mode(); {
-		case mode.IsRegular():
-			// the type is 32bit on mips
-			id := fileID{dev: uint64(stat.Dev), ino: stat.Ino} // nolint: unconvert
-			if copyMode == Hardlink {
-				isHardlink = true
-				if err2 := os.Link(srcPath, dstPath); err2 != nil {
-					return err2
-				}
-			} else if hardLinkDstPath, ok := copiedFiles[id]; ok {
-				if err2 := os.Link(hardLinkDstPath, dstPath); err2 != nil {
-					return err2
-				}
-			} else {
-				if err2 := copyRegular(srcPath, dstPath, f, &copyWithFileRange, &copyWithFileClone); err2 != nil {
-					return err2
-				}
-				copiedFiles[id] = dstPath
-			}
-
-		case mode.IsDir():
-			if err := os.Mkdir(dstPath, f.Mode()); err != nil && !os.IsExist(err) {
-				return err
-			}
-
-		case mode&os.ModeSymlink != 0:
-			link, err := os.Readlink(srcPath)
-			if err != nil {
-				return err
-			}
-
-			if err := os.Symlink(link, dstPath); err != nil {
-				return err
-			}
-
-		case mode&os.ModeNamedPipe != 0:
-			fallthrough
-		case mode&os.ModeSocket != 0:
-			if err := unix.Mkfifo(dstPath, stat.Mode); err != nil {
-				return err
-			}
-
-		case mode&os.ModeDevice != 0:
-			if rsystem.RunningInUserNS() {
-				// cannot create a device if running in user namespace
-				return nil
-			}
-			if err := unix.Mknod(dstPath, stat.Mode, int(stat.Rdev)); err != nil {
-				return err
-			}
-
-		default:
-			return fmt.Errorf("unknown file type (%d / %s) for %s", f.Mode(), f.Mode().String(), srcPath)
-		}
-
-		// Everything below is copying metadata from src to dst. All this metadata
-		// already shares an inode for hardlinks.
-		if isHardlink {
-			return nil
-		}
-
-		if err := os.Lchown(dstPath, int(stat.Uid), int(stat.Gid)); err != nil {
-			return err
-		}
-
-		if copyXattrs {
-			if err := doCopyXattrs(srcPath, dstPath); err != nil {
-				return err
-			}
-		}
-
-		isSymlink := f.Mode()&os.ModeSymlink != 0
-
+func copyMetadata(dstPath, srcPath string, f os.FileInfo, stat *syscall.Stat_t, copyXattrs bool) error {
+	if err := copyMetadataShared(dstPath, srcPath, f, stat, copyXattrs); err != nil {
+		return err
+	}
+	isSymlink := f.Mode()&os.ModeSymlink != 0
+	if isSymlink {
 		// There is no LChmod, so ignore mode for symlink. Also, this
 		// must happen after chown, as that can modify the file mode
-		if !isSymlink {
+		ts := []syscall.Timespec{stat.Atim, stat.Mtim}
+		if err := system.LUtimesNano(dstPath, ts); err != nil {
+			return err
+		}
+	} else {
+		if f.Mode()&desiredUmask > 0 {
 			if err := os.Chmod(dstPath, f.Mode()); err != nil {
 				return err
 			}
 		}
-
-		// system.Chtimes doesn't support a NOFOLLOW flag atm
-		// nolint: unconvert
-		if f.IsDir() {
-			dirsToSetMtimes.PushFront(&dirMtimeInfo{dstPath: &dstPath, stat: stat})
-		} else if !isSymlink {
-			aTime := time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
-			mTime := time.Unix(int64(stat.Mtim.Sec), int64(stat.Mtim.Nsec))
-			if err := system.Chtimes(dstPath, aTime, mTime); err != nil {
-				return err
-			}
-		} else {
-			ts := []syscall.Timespec{stat.Atim, stat.Mtim}
-			if err := system.LUtimesNano(dstPath, ts); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	for e := dirsToSetMtimes.Front(); e != nil; e = e.Next() {
-		mtimeInfo := e.Value.(*dirMtimeInfo)
-		ts := []syscall.Timespec{mtimeInfo.stat.Atim, mtimeInfo.stat.Mtim}
-		if err := system.LUtimesNano(*mtimeInfo.dstPath, ts); err != nil {
+		aTime := time.Unix(stat.Atim.Sec, stat.Atim.Nsec)
+		mTime := time.Unix(stat.Mtim.Sec, stat.Mtim.Nsec)
+		if err := system.Chtimes(dstPath, aTime, mTime); err != nil {
 			return err
 		}
 	}
