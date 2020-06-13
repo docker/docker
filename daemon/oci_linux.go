@@ -856,8 +856,10 @@ func WithDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		// Build lists of devices allowed and created within the container.
 		var devs []specs.LinuxDevice
 		devPermissions := s.Linux.Resources.Devices
-
-		if c.HostConfig.Privileged && !rsystem.RunningInUserNS() {
+		if c.PrivilegedWithoutHostDevices && !c.HostConfig.Privileged {
+			return errors.New("privileged-without-host-devices requires privileged mode to be enabled")
+		}
+		if c.HostConfig.Privileged && !rsystem.RunningInUserNS() && !c.PrivilegedWithoutHostDevices {
 			hostDevices, err := devices.HostDevices()
 			if err != nil {
 				return err

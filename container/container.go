@@ -96,13 +96,14 @@ type Container struct {
 	attachContext  *attachContext
 
 	// Fields here are specific to Unix platforms
-	AppArmorProfile string
-	HostnamePath    string
-	HostsPath       string
-	ShmPath         string
-	ResolvConfPath  string
-	SeccompProfile  string
-	NoNewPrivileges bool
+	AppArmorProfile              string
+	HostnamePath                 string
+	HostsPath                    string
+	ShmPath                      string
+	ResolvConfPath               string
+	SeccompProfile               string
+	NoNewPrivileges              bool
+	PrivilegedWithoutHostDevices bool
 
 	// Fields here are specific to Windows
 	NetworkSharedContainerID string            `json:"-"`

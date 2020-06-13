@@ -221,6 +221,10 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 			container.NoNewPrivileges = true
 			continue
 		}
+		if opt == "privileged-without-host-devices" {
+			container.PrivilegedWithoutHostDevices = true
+			continue
+		}
 		if opt == "disable" {
 			labelOpts = append(labelOpts, "disable")
 			continue
@@ -250,6 +254,12 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 				return fmt.Errorf("invalid --security-opt 2: %q", opt)
 			}
 			container.NoNewPrivileges = noNewPrivileges
+		case "privileged-without-host-devices":
+			pwohd, err := strconv.ParseBool(con[1])
+			if err != nil {
+				return fmt.Errorf("invalid --security-opt 2: %q", opt)
+			}
+			container.PrivilegedWithoutHostDevices = pwohd
 		default:
 			return fmt.Errorf("invalid --security-opt 2: %q", opt)
 		}
