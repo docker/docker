@@ -120,6 +120,19 @@ the `daemon.json` file.
 > Enable experimental features by starting `dockerd` with the `--experimental`
 > flag or adding `"experimental": true` to the `daemon.json` file.
 
+### Environment variables
+
+For easy reference, the following list of environment variables are supported
+by the `dockerd` command line:
+
+* `DOCKER_DRIVER` The graph driver to use.
+* `DOCKER_NOWARN_KERNEL_VERSION` Prevent warnings that your Linux kernel is
+  unsuitable for Docker.
+* `DOCKER_RAMDISK` If set this will disable 'pivot_root'.
+* `DOCKER_TMPDIR` Location for temporary Docker files.
+* `MOBY_DISABLE_PIGZ` Do not use [`unpigz`](https://linux.die.net/man/1/pigz) to
+  decompress layers in parallel when pulling images, even if it is installed.
+
 ## Examples
 
 ### Daemon socket option
