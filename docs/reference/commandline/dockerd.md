@@ -290,7 +290,7 @@ $ docker -H tcp://127.0.0.1:2375 pull ubuntu
 ### Daemon storage-driver
 
 On Linux, the Docker daemon has support for several different image layer storage
-drivers: `aufs`, `devicemapper`, `btrfs`, `zfs`, `overlay` and `overlay2`.
+drivers: `aufs`, `devicemapper`, `btrfs`, `zfs`, `overlay`, `overlay2`, and `fuse-overlayfs`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause
@@ -340,6 +340,9 @@ to use it.
 >
 > Both `overlay` and `overlay2` are currently unsupported on `btrfs`
 > or any Copy on Write filesystem and should only be used over `ext4` partitions.
+
+The `fuse-overlayfs` driver is similar to `overlay2` but works in userspace.
+The `fuse-overlayfs` driver is expected to be used for [Rootless mode](https://docs.docker.com/engine/security/rootless/).
 
 On Windows, the Docker daemon supports a single image layer storage driver
 depending on the image platform: `windowsfilter` for Windows images, and
@@ -999,7 +1002,8 @@ single `native.cgroupdriver` option is available.
 The `native.cgroupdriver` option specifies the management of the container's
 cgroups. You can only specify `cgroupfs` or `systemd`. If you specify
 `systemd` and it is not available, the system errors out. If you omit the
-`native.cgroupdriver` option,` cgroupfs` is used.
+`native.cgroupdriver` option,` cgroupfs` is used on cgroup v1 hosts, `systemd`
+is used on cgroup v2 hosts with systemd available.
 
 This example sets the `cgroupdriver` to `systemd`:
 
