@@ -34,11 +34,11 @@ Config provides the base accessible fields for working with V0 plugin format
 
 - **`description`** *string*
 
-	description of the plugin
+    description of the plugin
 
 - **`documentation`** *string*
 
-  	link to the documentation about the plugin
+    link to the documentation about the plugin
 
 - **`interface`** *PluginInterface*
 
@@ -96,7 +96,7 @@ Config provides the base accessible fields for working with V0 plugin format
 
     - **`name`** *string*
 
-	  name of the mount.
+      name of the mount.
 
     - **`description`** *string*
 
@@ -104,11 +104,11 @@ Config provides the base accessible fields for working with V0 plugin format
 
     - **`source`** *string*
 
-	  source of the mount.
+      source of the mount.
 
     - **`destination`** *string*
 
-	  destination of the mount.
+      destination of the mount.
 
     - **`type`** *string*
 
@@ -116,7 +116,7 @@ Config provides the base accessible fields for working with V0 plugin format
 
     - **`options`** *string array*
 
-	  options of the mount.
+      options of the mount.
 
 - **`ipchost`** *boolean*
    Access to host ipc namespace.
@@ -135,7 +135,7 @@ Config provides the base accessible fields for working with V0 plugin format
 
     - **`name`** *string*
 
-	  name of the env.
+      name of the env.
 
     - **`description`** *string*
 
@@ -143,7 +143,7 @@ Config provides the base accessible fields for working with V0 plugin format
 
     - **`value`** *string*
 
-	  value of the env.
+      value of the env.
 
 - **`args`** *PluginArgs*
 
@@ -151,7 +151,7 @@ Config provides the base accessible fields for working with V0 plugin format
 
     - **`name`** *string*
 
-	  name of the args.
+      name of the args.
 
     - **`description`** *string*
 
@@ -159,7 +159,7 @@ Config provides the base accessible fields for working with V0 plugin format
 
     - **`value`** *string array*
 
-	  values of the args.
+      values of the args.
 
 - **`linux`** *PluginLinux*
 
@@ -169,7 +169,7 @@ Config provides the base accessible fields for working with V0 plugin format
 
     - **`allowAllDevices`** *boolean*
 
-	   If `/dev` is bind mounted from the host, and allowAllDevices is set to true, the plugin will have `rwm` access to all devices on the host.
+       If `/dev` is bind mounted from the host, and allowAllDevices is set to true, the plugin will have `rwm` access to all devices on the host.
 
     - **`devices`** *PluginDevice array*
 
@@ -177,7 +177,7 @@ Config provides the base accessible fields for working with V0 plugin format
 
          - **`name`** *string*
 
-	       name of the device.
+           name of the device.
 
          - **`description`** *string*
 
@@ -193,45 +193,45 @@ Config provides the base accessible fields for working with V0 plugin format
 
 ```json
 {
-            "Args": {
-                "Description": "",
-                "Name": "",
-                "Settable": null,
-                "Value": null
-            },
-            "Description": "A sample volume plugin for Docker",
-            "Documentation": "https://docs.docker.com/engine/extend/plugins/",
-            "Entrypoint": [
-                "/usr/bin/sample-volume-plugin",
-                "/data"
-            ],
-            "Env": [
-                {
-                    "Description": "",
-                    "Name": "DEBUG",
-                    "Settable": [
-                        "value"
-                    ],
-                    "Value": "0"
-                }
-            ],
-            "Interface": {
-                "Socket": "plugin.sock",
-                "Types": [
-                    "docker.volumedriver/1.0"
-                ]
-            },
-            "Linux": {
-                "Capabilities": null,
-                "AllowAllDevices": false,
-                "Devices": null
-            },
-            "Mounts": null,
-            "Network": {
-                "Type": ""
-            },
-            "PropagatedMount": "/data",
-            "User": {},
-            "Workdir": ""
+  "Args": {
+    "Description": "",
+    "Name": "",
+    "Settable": null,
+    "Value": null
+  },
+  "Description": "A sample volume plugin for Docker",
+  "Documentation": "https://docs.docker.com/engine/extend/plugins/",
+  "Entrypoint": [
+    "/usr/bin/sample-volume-plugin",
+    "/data"
+  ],
+  "Env": [
+    {
+      "Description": "",
+      "Name": "DEBUG",
+      "Settable": [
+        "value"
+      ],
+      "Value": "0"
+    }
+  ],
+  "Interface": {
+    "Socket": "plugin.sock",
+    "Types": [
+      "docker.volumedriver/1.0"
+    ]
+  },
+  "Linux": {
+    "Capabilities": null,
+    "AllowAllDevices": false,
+    "Devices": null
+  },
+  "Mounts": null,
+  "Network": {
+    "Type": ""
+  },
+  "PropagatedMount": "/data",
+  "User": {},
+  "Workdir": ""
 }
 ```

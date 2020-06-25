@@ -42,14 +42,18 @@ Once running however, network driver plugins are used just like the built-in
 network drivers: by being mentioned as a driver in network-oriented Docker
 commands. For example,
 
-    $ docker network create --driver weave mynet
+```bash
+$ docker network create --driver weave mynet
+```
 
 Some network driver plugins are listed in [plugins](legacy_plugins.md)
 
 The `mynet` network is now owned by `weave`, so subsequent commands
 referring to that network will be sent to the plugin,
 
-    $ docker run --network=mynet busybox top
+```bash
+$ docker run --network=mynet busybox top
+```
 
 
 ## Find network plugins
@@ -61,8 +65,8 @@ or on the third party's site.
 
 ## Write a network plugin
 
-Network plugins implement the [Docker plugin
-API](plugin_api.md) and the network plugin protocol
+Network plugins implement the [Docker plugin API](plugin_api.md) and the network
+plugin protocol
 
 ## Network plugin protocol
 
@@ -74,5 +78,5 @@ documented as part of libnetwork:
 
 To interact with the Docker maintainers and other interested users, see the IRC channel `#docker-network`.
 
--  [Docker networks feature overview](https://docs.docker.com/engine/userguide/networking/)
--  The [LibNetwork](https://github.com/docker/libnetwork) project
+- [Docker networks feature overview](https://docs.docker.com/engine/userguide/networking/)
+- The [LibNetwork](https://github.com/docker/libnetwork) project
