@@ -152,9 +152,7 @@ func DetectCompression(source []byte) Compression {
 }
 
 func xzDecompress(ctx context.Context, archive io.Reader) (io.ReadCloser, error) {
-	args := []string{"xz", "-d", "-c", "-q"}
-
-	return cmdStream(exec.CommandContext(ctx, args[0], args[1:]...), archive)
+	return cmdStream(ctx, []string{"xz", "-d", "-c", "-q"}, archive)
 }
 
 func gzDecompress(ctx context.Context, buf io.Reader) (io.ReadCloser, error) {
@@ -171,7 +169,7 @@ func gzDecompress(ctx context.Context, buf io.Reader) (io.ReadCloser, error) {
 		}
 	}
 
-	return cmdStream(exec.CommandContext(ctx, unpigzPath, "-d", "-c"), buf)
+	return cmdStream(ctx, []string{unpigzPath, "-d", "-c"}, buf)
 }
 
 func wrapReadCloser(readBuf io.ReadCloser, cancel context.CancelFunc) io.ReadCloser {
@@ -1206,36 +1204,28 @@ func remapIDs(idMapping *idtools.IdentityMapping, hdr *tar.Header) error {
 // cmdStream executes a command, and returns its stdout as a stream.
 // If the command fails to run or doesn't complete successfully, an error
 // will be returned, including anything written on stderr.
-func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
+func cmdStream(ctx context.Context, args []string, input io.Reader) (io.ReadCloser, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Stdin = input
-	pipeR, pipeW := io.Pipe()
-	cmd.Stdout = pipeW
 	var errBuf bytes.Buffer
 	cmd.Stderr = &errBuf
-
-	// Run the command and return the pipe
-	if err := cmd.Start(); err != nil {
+	outrc, err := cmd.StdoutPipe()
+	if err != nil {
 		return nil, err
 	}
-
-	// Ensure the command has exited before we clean anything up
-	done := make(chan struct{})
-
-	// Copy stdout to the returned pipe
+	errCh := make(chan error)
 	go func() {
-		if err := cmd.Wait(); err != nil {
-			pipeW.CloseWithError(fmt.Errorf("%s: %s", err, errBuf.String()))
-		} else {
-			pipeW.Close()
+		err := cmd.Run()
+		if err != nil {
+			err = fmt.Errorf("%s: %s", err, errBuf.String())
 		}
-		close(done)
+		errCh <- err
 	}()
-
-	return ioutils.NewReadCloserWrapper(pipeR, func() error {
-		// Close pipeR, and then wait for the command to complete before returning. We have to close pipeR first, as
-		// cmd.Wait waits for any non-file stdout/stderr/stdin to close.
-		err := pipeR.Close()
-		<-done
+	return ioutils.NewReadCloserWrapper(outrc, func() error {
+		cancel()
+		err := <-errCh
+		outrc.Close()
 		return err
 	}), nil
 }
