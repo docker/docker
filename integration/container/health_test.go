@@ -62,6 +62,62 @@ func TestHealthKillContainer(t *testing.T) {
 	poll.WaitOn(t, pollForHealthStatus(ctxPoll, client, id, "healthy"), poll.WithDelay(100*time.Millisecond))
 }
 
+func TestHealthStartInterval(t *testing.T) {
+	defer setupTest(t)()
+	ctx := context.Background()
+	client := testEnv.APIClient()
+
+	id := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
+		c.Config.Healthcheck = &containertypes.HealthConfig{
+			Test:          []string{"CMD-SHELL", `count="$(cat /tmp/health)"; if [ -z "${count}" ]; then let count=0; fi; let count=${count}+1; echo -n ${count} | tee /tmp/health; if [ ${count} -lt 3 ]; then exit 1; fi`},
+			Interval:      30 * time.Second,
+			StartInterval: time.Second,
+			StartPeriod:   time.Minute,
+		}
+	})
+
+	ctxPoll, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	poll.WaitOn(t, func(log poll.LogT) poll.Result {
+		if ctxPoll.Err() != nil {
+			return poll.Error(ctxPoll.Err())
+		}
+		inspect, err := client.ContainerInspect(ctxPoll, id)
+		if err != nil {
+			return poll.Error(err)
+		}
+		if inspect.State.Health.Status != "healthy" {
+			return poll.Continue("waiting on container to be ready")
+		}
+		return poll.Success()
+	}, poll.WithDelay(100*time.Millisecond))
+	cancel()
+
+	ctxPoll, cancel = context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	dl, _ := ctxPoll.Deadline()
+
+	poll.WaitOn(t, func(log poll.LogT) poll.Result {
+		inspect, err := client.ContainerInspect(ctxPoll, id)
+		if err != nil {
+			return poll.Error(err)
+		}
+
+		hLen := len(inspect.State.Health.Log)
+		if hLen < 2 {
+			return poll.Continue("waiting for more healthcheck results")
+		}
+
+		h1 := inspect.State.Health.Log[hLen-1]
+		h2 := inspect.State.Health.Log[hLen-2]
+		if h1.Start.Sub(h2.Start) >= inspect.Config.Healthcheck.Interval {
+			return poll.Success()
+		}
+		return poll.Continue("waiting for health check interval to switch from the start interval")
+	}, poll.WithDelay(time.Second), poll.WithTimeout(dl.Sub(time.Now())))
+}
+
 func pollForHealthStatus(ctx context.Context, client client.APIClient, containerID string, healthStatus string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		inspect, err := client.ContainerInspect(ctx, containerID)
