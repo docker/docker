@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 Status     | Feature                                                                                                                            | Deprecated | Remove
 -----------|------------------------------------------------------------------------------------------------------------------------------------|------------|------------
+Deprecated | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.03.0   | -
 Deprecated | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.03.0   | -
 Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.03.0   | -
 Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03.0   | v20.03.0
@@ -88,6 +89,13 @@ Removed    | [Old Command Line Options](#old-command-line-options)              
 Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6.0     | v17.09.0
 Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10.0    | v1.13.0
 Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12.0
+
+### Kernel memory limit
+
+**Deprecated in Release: v20.03.0**
+
+Specifying kernel memory limit (`docker run --kernel-memory`) is now marked as deprecated,
+as [Linux kernel deprecated `kmem.limit_in_bytes` in v5.4](https://github.com/torvalds/linux/commit/0158115f702b0ba208ab0b5adf44cae99b3ebcc7).
 
 ### Classic Swarm and overlay networks using cluster store
 
