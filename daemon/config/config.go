@@ -159,11 +159,11 @@ type CommonConfig struct {
 	SocketGroup           string                    `json:"group,omitempty"`
 	CorsHeaders           string                    `json:"api-cors-header,omitempty"`
 
-	// TrustKeyPath is used to generate the daemon ID and for signing schema 1 manifests
+	// DeprecatedTrustKeyPath was used to generate the daemon ID and for signing schema 1 manifests
 	// when pushing to a registry which does not support schema 2. This field is marked as
 	// deprecated because schema 1 manifests are deprecated in favor of schema 2 and the
 	// daemon ID will use a dedicated identifier not shared with exported signatures.
-	TrustKeyPath string `json:"deprecated-key-path,omitempty"`
+	DeprecatedTrustKeyPath string `json:"deprecated-key-path,omitempty"`
 
 	// LiveRestoreEnabled determines whether we should keep containers
 	// alive upon daemon shutdown/start

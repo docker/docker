@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/layer"
 	dockerreference "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/libtrust"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -41,7 +40,6 @@ type ImageServiceConfig struct {
 	MaxDownloadAttempts       int
 	ReferenceStore            dockerreference.Store
 	RegistryService           registry.Service
-	TrustKey                  libtrust.PrivateKey
 }
 
 // NewImageService returns a new ImageService from a configuration
@@ -58,7 +56,6 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 		layerStores:               config.LayerStores,
 		referenceStore:            config.ReferenceStore,
 		registryService:           config.RegistryService,
-		trustKey:                  config.TrustKey,
 		uploadManager:             xfer.NewLayerUploadManager(config.MaxConcurrentUploads),
 	}
 }
@@ -74,7 +71,6 @@ type ImageService struct {
 	pruneRunning              int32
 	referenceStore            dockerreference.Store
 	registryService           registry.Service
-	trustKey                  libtrust.PrivateKey
 	uploadManager             *xfer.LayerUploadManager
 }
 

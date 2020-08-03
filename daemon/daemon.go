@@ -1003,14 +1003,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	trustKey, err := loadOrCreateTrustKey(config.TrustKeyPath)
+	id, err := loadOrCreateID(filepath.Join(config.Root, "engine_id"), config.DeprecatedTrustKeyPath)
 	if err != nil {
-		return nil, err
-	}
-
-	trustDir := filepath.Join(config.Root, "trust")
-
-	if err := system.MkdirAll(trustDir, 0700); err != nil {
 		return nil, err
 	}
 
@@ -1048,7 +1042,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, errors.New("Devices cgroup isn't mounted")
 	}
 
-	d.ID = trustKey.PublicKey().KeyID()
+	d.ID = id
 	d.repository = daemonRepo
 	d.containers = container.NewMemoryStore()
 	if d.containersReplica, err = container.NewViewDB(); err != nil {
@@ -1080,7 +1074,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		MaxDownloadAttempts:       *config.MaxDownloadAttempts,
 		ReferenceStore:            rs,
 		RegistryService:           registryService,
-		TrustKey:                  trustKey,
 	})
 
 	go d.execCommandGC()

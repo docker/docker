@@ -5,13 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
 
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
@@ -181,44 +179,20 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 
 	putOptions := []distribution.ManifestServiceOption{distribution.WithTag(ref.Tag())}
 	if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
-		if runtime.GOOS == "windows" || p.config.TrustKey == nil || p.config.RequireSchema2 {
-			logrus.Warnf("failed to upload schema2 manifest: %v", err)
-			return err
-		}
-
-		logrus.Warnf("failed to upload schema2 manifest: %v - falling back to schema1", err)
-
-		// Note: this fallback is deprecated, see log messages below
-		manifestRef, err := reference.WithTag(p.repo.Named(), ref.Tag())
-		if err != nil {
-			return err
-		}
-		builder = schema1.NewConfigManifestBuilder(p.repo.Blobs(ctx), p.config.TrustKey, manifestRef, imgConfig)
-		manifest, err = manifestFromBuilder(ctx, builder, descriptors)
-		if err != nil {
-			return err
-		}
-
-		if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
-			return err
-		}
-
-		// schema2 failed but schema1 succeeded
-		msg := fmt.Sprintf("[DEPRECATION NOTICE] registry v2 schema1 support will be removed in an upcoming release. Please contact admins of the %s registry NOW to avoid future disruption. More information at https://docs.docker.com/registry/spec/deprecated-schema-v1/", reference.Domain(ref))
-		logrus.Warn(msg)
-		progress.Message(p.config.ProgressOutput, "", msg)
+		logrus.Warnf("failed to upload schema2 manifest: %v", err)
+		return err
 	}
 
 	var canonicalManifest []byte
 
 	switch v := manifest.(type) {
-	case *schema1.SignedManifest:
-		canonicalManifest = v.Canonical
 	case *schema2.DeserializedManifest:
 		_, canonicalManifest, err = v.Payload()
 		if err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("unknown manifest type %T", v)
 	}
 
 	manifestDigest := digest.FromBytes(canonicalManifest)
