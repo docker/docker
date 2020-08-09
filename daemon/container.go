@@ -233,7 +233,12 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 // structures.
 func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
 	// First perform verification of settings common across all platforms.
-	if err = validateContainerConfig(config, platform); err != nil {
+	w, err := validateContainerConfig(config, platform)
+
+	// no matter err is nil or not, w could have data in itself.
+	warnings = append(warnings, w...)
+
+	if err != nil {
 		return warnings, err
 	}
 	if err := validateHostConfig(hostConfig, platform); err != nil {
@@ -241,32 +246,41 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 	}
 
 	// Now do platform-specific verification
-	warnings, err = verifyPlatformContainerSettings(daemon, hostConfig, update)
+	w, err = verifyPlatformContainerSettings(daemon, hostConfig, update)
+	warnings = append(warnings, w...)
+
 	for _, w := range warnings {
 		logrus.Warn(w)
 	}
 	return warnings, err
 }
 
-func validateContainerConfig(config *containertypes.Config, platform string) error {
+// validateContainerConfig performs validation of the config
+// structures, and removes empty environment variables
+func validateContainerConfig(config *containertypes.Config, platform string) (warnings []string, err error) {
 	if config == nil {
-		return nil
+		return warnings, nil
 	}
 	if err := translateWorkingDir(config, platform); err != nil {
-		return err
+		return warnings, err
 	}
 	if len(config.StopSignal) > 0 {
 		if _, err := signal.ParseSignal(config.StopSignal); err != nil {
-			return err
+			return warnings, err
 		}
 	}
-	// Validate if Env contains empty variable or not (e.g., ``, `=foo`)
+	// Validate if Env contains empty variable or not (e.g., ``, `=foo`, `  =   `)
+	var newEnvs []string
 	for _, env := range config.Env {
 		if _, err := opts.ValidateEnv(env); err != nil {
-			return err
+			warnings = append(warnings, err.Error())
+			continue
 		}
+		newEnvs = append(newEnvs, env)
 	}
-	return validateHealthCheck(config.Healthcheck)
+	config.Env = newEnvs
+	err = validateHealthCheck(config.Healthcheck)
+	return warnings, err
 }
 
 func validateHostConfig(hostConfig *containertypes.HostConfig, platform string) error {
