@@ -161,7 +161,7 @@ Function Nuke-Everything {
             }
 
             $allImages  = $(docker images --format "{{.Repository}}#{{.ID}}")
-            $toRemove   = ($allImages | Select-String -NotMatch "servercore","nanoserver","docker","busybox")
+            $toRemove   = ($allImages | Select-String -NotMatch "servercore","nanoserver","docker","busybox","golang")
             $imageCount = ($toRemove | Measure-Object -line).Lines
 
             if ($imageCount -gt 0) {
@@ -336,62 +336,6 @@ Try {
     $ErrorActionPreference = "SilentlyContinue"
     $ControlDaemonBaseImage="windowsservercore"
 
-    $readBaseFrom="c"
-    if ($((docker images --format "{{.Repository}}:{{.Tag}}" | Select-String $("microsoft/"+$ControlDaemonBaseImage+":latest") | Measure-Object -Line).Lines) -eq 0) {
-        # Try the internal azure CI image version or Microsoft internal corpnet where the base image is already pre-prepared on the disk,
-        # either through Invoke-DockerCI or, in the case of Azure CI servers, baked into the VHD at the same location.
-        if (Test-Path $("$env:SOURCES_DRIVE`:\baseimages\"+$ControlDaemonBaseImage+".tar")) {
-            # An optimization for CI servers to copy it to the D: drive which is an SSD.
-            if ($env:SOURCES_DRIVE -ne $env:TESTRUN_DRIVE) {
-                $readBaseFrom=$env:TESTRUN_DRIVE
-                if (!(Test-Path "$env:TESTRUN_DRIVE`:\baseimages")) {
-                    New-Item "$env:TESTRUN_DRIVE`:\baseimages" -type directory | Out-Null
-                }
-                if (!(Test-Path "$env:TESTRUN_DRIVE`:\baseimages\windowsservercore.tar")) {
-                    if (Test-Path "$env:SOURCES_DRIVE`:\baseimages\windowsservercore.tar") {
-                        Write-Host -ForegroundColor Green "INFO: Optimisation - copying $env:SOURCES_DRIVE`:\baseimages\windowsservercore.tar to $env:TESTRUN_DRIVE`:\baseimages"
-                        Copy-Item "$env:SOURCES_DRIVE`:\baseimages\windowsservercore.tar" "$env:TESTRUN_DRIVE`:\baseimages"
-                    }
-                }
-                if (!(Test-Path "$env:TESTRUN_DRIVE`:\baseimages\nanoserver.tar")) {
-                    if (Test-Path "$env:SOURCES_DRIVE`:\baseimages\nanoserver.tar") {
-                        Write-Host -ForegroundColor Green "INFO: Optimisation - copying $env:SOURCES_DRIVE`:\baseimages\nanoserver.tar to $env:TESTRUN_DRIVE`:\baseimages"
-                        Copy-Item "$env:SOURCES_DRIVE`:\baseimages\nanoserver.tar" "$env:TESTRUN_DRIVE`:\baseimages"
-                    }
-                }
-                $readBaseFrom=$env:TESTRUN_DRIVE
-            }
-            Write-Host  -ForegroundColor Green "INFO: Loading"$ControlDaemonBaseImage".tar from disk. This may take some time..."
-            $ErrorActionPreference = "SilentlyContinue"
-            docker load -i $("$readBaseFrom`:\baseimages\"+$ControlDaemonBaseImage+".tar")
-            $ErrorActionPreference = "Stop"
-            if (-not $LastExitCode -eq 0) {
-                Throw $("ERROR: Failed to load $readBaseFrom`:\baseimages\"+$ControlDaemonBaseImage+".tar")
-            }
-            Write-Host -ForegroundColor Green "INFO: docker load of"$ControlDaemonBaseImage" completed successfully"
-        } else {
-            # We need to docker pull it instead. It will come in directly as microsoft/imagename:latest
-            Write-Host -ForegroundColor Green $("INFO: Pulling $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG from docker hub. This may take some time...")
-            $ErrorActionPreference = "SilentlyContinue"
-            docker pull "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG"
-            $ErrorActionPreference = "Stop"
-            if (-not $LastExitCode -eq 0) {
-                Throw $("ERROR: Failed to docker pull $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG.")
-            }
-            Write-Host -ForegroundColor Green $("INFO: docker pull of $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG completed successfully")
-            Write-Host -ForegroundColor Green $("INFO: Tagging $($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG as microsoft/$ControlDaemonBaseImage")
-            docker tag "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" microsoft/$ControlDaemonBaseImage
-        }
-    } else {
-        Write-Host -ForegroundColor Green "INFO: Image"$("microsoft/"+$ControlDaemonBaseImage+":latest")"is already loaded in the control daemon"
-    }
-
-    # Inspect the pulled image to get the version directly
-    $ErrorActionPreference = "SilentlyContinue"
-    $imgVersion = $(docker inspect  $("microsoft/"+$ControlDaemonBaseImage) --format "{{.OsVersion}}")
-    $ErrorActionPreference = "Stop"
-    Write-Host -ForegroundColor Green $("INFO: Version of microsoft/"+$ControlDaemonBaseImage+":latest is '"+$imgVersion+"'")
-
     # Provide the docker version for debugging purposes.
     Write-Host  -ForegroundColor Green "INFO: Docker version of control daemon"
     Write-Host
@@ -558,17 +502,12 @@ Try {
     # Grab the golang installer out of the built image. That way, we know we are consistent once extracted and paths set,
     # so there's no need to re-deploy on account of an upgrade to the version of GO being used in docker.
     if ($null -eq $env:SKIP_COPY_GO) {
-        Write-Host -ForegroundColor Green "INFO: Copying the golang package from the container to $env:TEMP\installer\go.zip..."
-        docker cp "$COMMITHASH`:c`:\go.zip" $env:TEMP\installer\
+        Write-Host -ForegroundColor Green "INFO: Copying the golang package from the container to $env:TEMP\go..."
+        docker cp "$COMMITHASH`:c`:\go" $env:TEMP
         if (-not($LastExitCode -eq 0)) {
-            Throw "ERROR: Failed to docker cp the golang installer 'go.zip' from container:c:\go.zip to $env:TEMP\installer"
+            Throw "ERROR: Failed to docker cp golang from container:c:\go to $env:TEMP\go"
         }
         $ErrorActionPreference = "Stop"
-
-        # Extract the golang installer
-        Write-Host -ForegroundColor Green "INFO: Extracting go.zip to $env:TEMP\go"
-        $Duration=$(Measure-Command { Expand-Archive $env:TEMP\installer\go.zip $env:TEMP -Force | Out-Null})
-        Write-Host  -ForegroundColor Green "INFO: Extraction ended at $(Get-Date). Duration`:$Duration"    
     } else {
         Write-Host -ForegroundColor Magenta "WARN: Skipping copying and extracting golang from the image"
     }
@@ -727,6 +666,7 @@ Try {
         Write-Host -ForegroundColor Green "INFO: Base image for tests is $env:WINDOWS_BASE_IMAGE"
 
         $ErrorActionPreference = "SilentlyContinue"
+        $readBaseFrom="c"
         if ($((& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" images --format "{{.Repository}}:{{.Tag}}" | Select-String "$($env:WINDOWS_BASE_IMAGE):$env:WINDOWS_BASE_IMAGE_TAG" | Measure-Object -Line).Lines) -eq 0) {
             # Try the internal azure CI image version or Microsoft internal corpnet where the base image is already pre-prepared on the disk,
             # either through Invoke-DockerCI or, in the case of Azure CI servers, baked into the VHD at the same location.
