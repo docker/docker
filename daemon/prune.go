@@ -26,6 +26,7 @@ var (
 		"label":  true,
 		"label!": true,
 		"until":  true,
+		"dryRun": true,
 	}
 
 	networksAcceptedFilters = map[string]bool{
@@ -55,6 +56,8 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 		return nil, err
 	}
 
+	dryRunMode := isDryRun(pruneFilters)
+
 	allContainers := daemon.List()
 	for _, c := range allContainers {
 		select {
@@ -73,15 +76,24 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 			}
 			cSize, _ := daemon.imageService.GetContainerLayerSize(c.ID)
 			// TODO: sets RmLink to true?
-			err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
-			if err != nil {
-				logrus.Warnf("failed to prune container %s: %v", c.ID, err)
-				continue
+			if (!dryRunMode) {
+				err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
+				if err != nil {
+					logrus.Warnf("failed to prune container %s: %v", c.ID, err)
+					continue
+				}
+				if cSize > 0 {
+					rep.SpaceReclaimed += uint64(cSize)
+				}
+				rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
+			} else {
+				// dry run mode
+				if cSize > 0 {
+					rep.SpaceReclaimed += uint64(cSize)
+				}
+				rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
 			}
-			if cSize > 0 {
-				rep.SpaceReclaimed += uint64(cSize)
-			}
-			rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
+
 		}
 	}
 
@@ -247,4 +259,9 @@ func matchLabels(pruneFilters filters.Args, labels map[string]string) bool {
 		}
 	}
 	return true
+}
+
+func isDryRun(args filters.Args) bool {
+	return args.Contains("dryRun") &&
+		(args.ExactMatch("dryRun", "true") || args.ExactMatch("dryRun", "0"))
 }
