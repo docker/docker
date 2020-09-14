@@ -8,6 +8,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_VERSION=0.4.0
 ARG DOCKER_BUILDTAGS="apparmor seccomp selinux"
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-buster"
+ARG DOCKERCLI_IMG=dockercli-build
 
 FROM ${GOLANG_IMAGE} AS base
 RUN echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
@@ -198,13 +199,15 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
         PREFIX=/build /tmp/install/install.sh shfmt
 
-FROM dev-base AS dockercli
+FROM dev-base AS dockercli-build
 ARG DOCKERCLI_CHANNEL
 ARG DOCKERCLI_VERSION
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=bind,src=hack/dockerfile/install,target=/tmp/install \
         PREFIX=/build /tmp/install/install.sh dockercli
+
+FROM $DOCKERCLI_IMG AS dockercli
 
 FROM runtime-dev AS runc
 ARG RUNC_COMMIT
