@@ -28,17 +28,24 @@ func init() {
 		//       (which ships with runc v1.0.0-rc92)
 		last = capability.CAP_AUDIT_READ
 	}
-	for _, c := range capability.List() {
+	rawCaps := capability.List()
+	capabilityList = make(Capabilities, min(int(last+1), len(rawCaps)))
+	for i, c := range rawCaps {
 		if c > last {
 			continue
 		}
-		capabilityList = append(capabilityList,
-			&CapabilityMapping{
-				Key:   "CAP_" + strings.ToUpper(c.String()),
-				Value: c,
-			},
-		)
+		capabilityList[i] = &CapabilityMapping{
+			Key:   "CAP_" + strings.ToUpper(c.String()),
+			Value: c,
+		}
 	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 type (
