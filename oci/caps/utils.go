@@ -35,10 +35,11 @@ func init() {
 	allCaps = make([]string, min(int(last+1), len(rawCaps)))
 	capabilityList = make(Capabilities, min(int(last+1), len(rawCaps)))
 	for i, c := range rawCaps {
+		capName := "CAP_" + strings.ToUpper(c.String())
 		if c > last {
+			capabilityList[capName] = nil
 			continue
 		}
-		capName := "CAP_" + strings.ToUpper(c.String())
 		allCaps[i] = capName
 		capabilityList[capName] = &CapabilityMapping{
 			Key:   capName,
@@ -105,8 +106,10 @@ func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
 		if !strings.HasPrefix(c, "CAP_") {
 			c = "CAP_" + c
 		}
-		if _, ok := capabilityList[c]; !ok {
+		if v, ok := capabilityList[c]; !ok {
 			return nil, errdefs.InvalidParameter(fmt.Errorf("unknown capability: %q", c))
+		} else if v == nil {
+			return nil, errdefs.InvalidParameter(fmt.Errorf("capability not supported by your kernel: %q", c))
 		}
 		normalized = append(normalized, c)
 	}
