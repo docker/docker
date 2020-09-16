@@ -28,14 +28,14 @@ func init() {
 		//       (which ships with runc v1.0.0-rc92)
 		last = capability.CAP_AUDIT_READ
 	}
-	for _, cap := range capability.List() {
-		if cap > last {
+	for _, c := range capability.List() {
+		if c > last {
 			continue
 		}
 		capabilityList = append(capabilityList,
 			&CapabilityMapping{
-				Key:   "CAP_" + strings.ToUpper(cap.String()),
-				Value: cap,
+				Key:   "CAP_" + strings.ToUpper(c.String()),
+				Value: c,
 			},
 		)
 	}
@@ -62,8 +62,8 @@ func (c *CapabilityMapping) String() string {
 // GetAllCapabilities returns all of the capabilities
 func GetAllCapabilities() []string {
 	output := make([]string, len(capabilityList))
-	for i, capability := range capabilityList {
-		output[i] = capability.String()
+	for i, c := range capabilityList {
+		output[i] = c.String()
 	}
 	return output
 }
