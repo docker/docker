@@ -9,8 +9,15 @@ import (
 )
 
 var (
-	allCaps        []string
-	capabilityList Capabilities
+	allCaps []string
+
+	// capabilityList maps linux capability name to its value of capability.Cap
+	// type. This list contains nil entries for capabilities that are known, but
+	// not supported by the current kernel.
+	// Capabilities is one of the security systems in Linux Security Module (LSM)
+	// framework provided by the kernel.
+	// For more details on capabilities, see http://man7.org/linux/man-pages/man7/capabilities.7.html
+	capabilityList map[string]*capability.Cap
 )
 
 func init() {
@@ -33,7 +40,7 @@ func init() {
 	}
 	rawCaps := capability.List()
 	allCaps = make([]string, min(int(last+1), len(rawCaps)))
-	capabilityList = make(Capabilities, min(int(last+1), len(rawCaps)))
+	capabilityList = make(map[string]*capability.Cap, len(rawCaps))
 	for i, c := range rawCaps {
 		capName := "CAP_" + strings.ToUpper(c.String())
 		if c > last {
@@ -41,10 +48,7 @@ func init() {
 			continue
 		}
 		allCaps[i] = capName
-		capabilityList[capName] = &CapabilityMapping{
-			Key:   capName,
-			Value: c,
-		}
+		capabilityList[capName] = &c
 	}
 }
 
@@ -53,24 +57,6 @@ func min(a, b int) int {
 		return a
 	}
 	return b
-}
-
-type (
-	// CapabilityMapping maps linux capability name to its value of capability.Cap type
-	// Capabilities is one of the security systems in Linux Security Module (LSM)
-	// framework provided by the kernel.
-	// For more details on capabilities, see http://man7.org/linux/man-pages/man7/capabilities.7.html
-	CapabilityMapping struct {
-		Key   string         `json:"key,omitempty"`
-		Value capability.Cap `json:"value,omitempty"`
-	}
-	// Capabilities contains all CapabilityMapping
-	Capabilities map[string]*CapabilityMapping
-)
-
-// String returns <key> of CapabilityMapping
-func (c *CapabilityMapping) String() string {
-	return c.Key
 }
 
 // GetAllCapabilities returns all of the capabilities
