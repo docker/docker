@@ -40,7 +40,7 @@ func init() {
 		}
 		capName := "CAP_" + strings.ToUpper(c.String())
 		allCaps[i] = capName
-		capabilityList[i] = &CapabilityMapping{
+		capabilityList[capName] = &CapabilityMapping{
 			Key:   capName,
 			Value: c,
 		}
@@ -64,7 +64,7 @@ type (
 		Value capability.Cap `json:"value,omitempty"`
 	}
 	// Capabilities contains all CapabilityMapping
-	Capabilities []*CapabilityMapping
+	Capabilities map[string]*CapabilityMapping
 )
 
 // String returns <key> of CapabilityMapping
@@ -105,7 +105,7 @@ func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
 		if !strings.HasPrefix(c, "CAP_") {
 			c = "CAP_" + c
 		}
-		if !inSlice(allCaps, c) {
+		if _, ok := capabilityList[c]; !ok {
 			return nil, errdefs.InvalidParameter(fmt.Errorf("unknown capability: %q", c))
 		}
 		normalized = append(normalized, c)
