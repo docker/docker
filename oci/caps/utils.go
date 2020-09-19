@@ -22,10 +22,6 @@ var (
 
 func init() {
 	last := capability.CAP_LAST_CAP
-	// hack for RHEL6 which has no /proc/sys/kernel/cap_last_cap
-	if last == capability.Cap(63) {
-		last = capability.CAP_BLOCK_SUSPEND
-	}
 	if last > capability.CAP_AUDIT_READ {
 		// Prevents docker from setting CAP_PERFMON, CAP_BPF, and CAP_CHECKPOINT_RESTORE
 		// capabilities on privileged (or CAP_ALL) containers on Kernel 5.8 and up.
