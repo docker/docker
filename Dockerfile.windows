@@ -166,12 +166,15 @@ FROM microsoft/windowsservercore
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 ARG GO_VERSION=1.13.15
+ARG CONTAINERD_VERSION=1.5.1
 ARG GOTESTSUM_COMMIT=v0.5.3
 
 # Environment variable notes:
 #  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
+#  - CONTAINERD_VERSION must be consistent with 'hack/dockerfile/install/containerd.installer' used by Linux.
 #  - FROM_DOCKERFILE is used for detection of building within a container.
 ENV GO_VERSION=${GO_VERSION} `
+    CONTAINERD_VERSION=${CONTAINERD_VERSION} `
     GIT_VERSION=2.11.1 `
     GOPATH=C:\gopath `
     GO111MODULE=off `
@@ -211,7 +214,7 @@ RUN `
     } `
   } `
   `
-  setx /M PATH $('C:\git\cmd;C:\git\usr\bin;'+$Env:PATH+';C:\gcc\bin;C:\go\bin'); `
+  setx /M PATH $('C:\git\cmd;C:\git\usr\bin;'+$Env:PATH+';C:\gcc\bin;C:\go\bin;C:\containerd\bin'); `
   `
   Write-Host INFO: Downloading git...; `
   $location='https://www.nuget.org/api/v2/package/GitForWindows/'+$Env:GIT_VERSION; `
@@ -251,6 +254,16 @@ RUN `
   Remove-Item C:\runtime.zip; `
   Remove-Item C:\binutils.zip; `
   Remove-Item C:\gitsetup.zip; `
+  `
+  Write-Host INFO: Downloading containerd; `
+  Install-Package -Force 7Zip4PowerShell; `
+  $location='https://github.com/containerd/containerd/releases/download/v'+$Env:CONTAINERD_VERSION+'/containerd-'+$Env:CONTAINERD_VERSION+'-windows-amd64.tar.gz'; `
+  Download-File $location C:\containerd.tar.gz; `
+  New-Item -Path C:\containerd -ItemType Directory; `
+  Expand-7Zip C:\containerd.tar.gz C:\; `
+  Expand-7Zip C:\containerd.tar C:\containerd; `
+  Remove-Item C:\containerd.tar.gz; `
+  Remove-Item C:\containerd.tar; `
   `
   # Ensure all directories exist that we will require below....
   $srcDir = """$Env:GOPATH`\src\github.com\docker\docker\bundles"""; `

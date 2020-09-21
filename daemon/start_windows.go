@@ -8,8 +8,8 @@ import (
 
 func (daemon *Daemon) getLibcontainerdCreateOptions(_ *container.Container) (string, interface{}, error) {
 	if system.ContainerdRuntimeSupported() {
-		// Set the runtime options to debug regardless of current logging level.
-		return "", &options.Options{Debug: true}, nil
+		opts := &options.Options{}
+		return "io.containerd.runhcs.v1", opts, nil
 	}
 	return "", nil, nil
 }
