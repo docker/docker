@@ -54,6 +54,7 @@ Deprecated | [Kernel memory limit](#kernel-memory-limit)                        
 Deprecated | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.03.0   | -
 Deprecated | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.03.0   | -
 Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.03.0   | -
+Deprecated | [Dockerfile legacy `ENV name value` syntax](#dockerfile-legacy-env-name-value-syntax)                                                                                        | v20.03.0   | -
 Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03.0   | v20.03.0
 Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03.0   | v20.03.0
 Removed    | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03.0   | v20.03.0
@@ -128,6 +129,30 @@ for this file will be removed in a future release.
 **Deprecated in Release: v20.03.0**
 
 CLI Plugin API is now marked as deprecated.
+
+### Dockerfile legacy `ENV name value` syntax
+
+**Deprecated in Release: v20.03.0**
+
+The Dockerfile `ENV` instruction allows values to be set using either `ENV name=value`
+or `ENV name value`. The latter (`ENV name value`) form can be ambiguous, for example,
+the following defines a single env-variable (`ONE`) with value `"TWO= THREE=world"`,
+but may have intended to be setting three env-vars:
+
+```dockerfile
+ENV ONE TWO= THREE=world
+```
+
+This format also does not allow setting multiple environment-variables in a single
+`ENV` line in the Dockerfile.
+
+Use of the `ENV name value` syntax is discouraged, and may be removed in a future
+release. Users are encouraged to update their Dockerfiles to use the `ENV name=value`
+syntax, for example:
+
+```dockerfile
+ENV ONE="" TWO="" THREE="world"
+```
 
 ### Pushing and pulling with image manifest v2 schema 1
 
