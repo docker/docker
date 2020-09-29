@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -e -o pipefail
 
+
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"${SCRIPTDIR}/install/shfmt.sh"
+
 shfmtflags="-bn -ci -sr"
 # NOTE: `git grep '^#!'` may also pick up non-shell script files.
 # Add exceptional files to `egrep -v` if any false-positive is detected.

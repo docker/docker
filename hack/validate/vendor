@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+"${SCRIPTDIR}/install/vndr.sh"
+
 source "${SCRIPTDIR}/.validate"
 
 validate_vendor_diff(){

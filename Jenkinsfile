@@ -8,8 +8,7 @@ pipeline {
         timestamps()
     }
     parameters {
-        booleanParam(name: 'unit_validate', defaultValue: true, description: 'amd64 (x86_64) unit tests and vendor check')
-        booleanParam(name: 'validate_force', defaultValue: false, description: 'force validation steps to be run, even if no changes were detected')
+        booleanParam(name: 'unit_validate', defaultValue: true, description: 'amd64 (x86_64) unit tests')
         booleanParam(name: 'amd64', defaultValue: true, description: 'amd64 (x86_64) Build/Test')
         booleanParam(name: 'rootless', defaultValue: true, description: 'amd64 (x86_64) Build/Test (Rootless mode)')
         booleanParam(name: 'arm64', defaultValue: true, description: 'ARM (arm64) Build/Test')
@@ -86,24 +85,6 @@ pipeline {
                         stage("Build dev image") {
                             steps {
                                 sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .'
-                            }
-                        }
-                        stage("Validate") {
-                            steps {
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_EXPERIMENTAL \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  -e TEST_FORCE_VALIDATE \
-                                  -e VALIDATE_REPO=${GIT_URL} \
-                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
-                                  docker:${GIT_COMMIT} \
-                                  hack/validate/default
-                                '''
                             }
                         }
                         stage("Docker-py") {
@@ -195,23 +176,6 @@ pipeline {
                                 always {
                                     junit testResults: 'bundles/junit-report.xml', allowEmptyResults: true
                                 }
-                            }
-                        }
-                        stage("Validate vendor") {
-                            steps {
-                                sh '''
-                                docker run --rm -t --privileged \
-                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                                  --name docker-pr$BUILD_NUMBER \
-                                  -e DOCKER_EXPERIMENTAL \
-                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                  -e DOCKER_GRAPHDRIVER \
-                                  -e TEST_FORCE_VALIDATE \
-                                  -e VALIDATE_REPO=${GIT_URL} \
-                                  -e VALIDATE_BRANCH=${CHANGE_TARGET} \
-                                  docker:${GIT_COMMIT} \
-                                  hack/validate/vendor
-                                '''
                             }
                         }
                         stage("Build e2e image") {

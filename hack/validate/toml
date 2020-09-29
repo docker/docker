@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
 export SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+"${SCRIPTDIR}/install/tomlv.sh"
+
 source "${SCRIPTDIR}/.validate"
 
 IFS=$'\n'

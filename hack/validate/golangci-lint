@@ -3,6 +3,8 @@ set -e -o pipefail
 
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+"${SCRIPTDIR}/install/golangci_lint.sh"
+
 # CI platforms differ, so per-platform GOLANGCI_LINT_OPTS can be set
 # from a platform-specific Dockerfile, otherwise let's just set
 # (somewhat pessimistic) default of 10 minutes.
