@@ -54,7 +54,8 @@ Deprecated | [Kernel memory limit](#kernel-memory-limit)                        
 Deprecated | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.03.0   | -
 Deprecated | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.03.0   | -
 Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.03.0   | -
-Deprecated | [Dockerfile legacy `ENV name value` syntax](#dockerfile-legacy-env-name-value-syntax)                                                                                        | v20.03.0   | -
+Deprecated | [Dockerfile legacy `ENV name value` syntax](#dockerfile-legacy-env-name-value-syntax)                                              | v20.03.0   | -
+Deprecated | [Configuration options for experimental CLI features](#configuration-options-for-experimental-cli-features)                        | v19.03.0   | v20.03.0
 Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03.0   | v20.03.0
 Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03.0   | v20.03.0
 Removed    | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03.0   | v20.03.0
@@ -123,6 +124,12 @@ Given that the old file format encourages insecure storage of credentials
 (credentials are stored unencrypted), and that no version of the CLI since
 Docker v1.7.0 has created this file, the file is marked deprecated, and support
 for this file will be removed in a future release.
+
+### Configuration options for experimental CLI features
+
+The `DOCKER_CLI_EXPERIMENTAL` environment variable and the corresponding `experimental`
+field in the CLI configuration file are deprecated. Experimental features will be
+enabled by default, and these configuration options will no longer be functional.
 
 ### CLI plugins support
 
