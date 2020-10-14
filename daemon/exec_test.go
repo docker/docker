@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/skip"
 )
 
 type mockContainerd struct {
