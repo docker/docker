@@ -13,6 +13,10 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
+// borrowed from daemon/util_test.go
+type MockContainerdClient struct {
+}
+
 type mockContainerd struct {
 	MockContainerdClient
 	calledCtx         *context.Context

@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/pkg/signal"
 	"gotest.tools/v3/assert"
@@ -143,6 +142,10 @@ func TestExecUser(t *testing.T) {
 	assert.Assert(t, is.Contains(result.Stdout(), "uid=1(daemon) gid=1(daemon)"), "exec command not running as uid/gid 1")
 }
 
+// borrowed from daemon/util_test.go
+type MockContainerdClient struct {
+}
+
 type mockContainerd struct {
 	MockContainerdClient
 	calledCtx         *context.Context
@@ -157,6 +160,7 @@ func (cd *mockContainerd) SignalProcess(ctx context.Context, containerID, id str
 	cd.calledID = &id
 	cd.calledSig = &sig
 	return nil
+}
 
 func TestContainerExecKillNoSuchExec(t *testing.T) {
 	mock := mockContainerd{}
