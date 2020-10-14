@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -142,9 +143,13 @@ func TestExecUser(t *testing.T) {
 	assert.Assert(t, is.Contains(result.Stdout(), "uid=1(daemon) gid=1(daemon)"), "exec command not running as uid/gid 1")
 }
 
-// borrowed from daemon/util_test.go
+// Borrowed from daemon/util_test.go
 type MockContainerdClient struct {
 }
+func (c *MockContainerdClient) CloseStdin(ctx context.Context, containerID, processID string) error {
+	return nil
+}
+
 
 type mockContainerd struct {
 	MockContainerdClient
@@ -165,10 +170,11 @@ func (cd *mockContainerd) SignalProcess(ctx context.Context, containerID, id str
 func TestContainerExecKillNoSuchExec(t *testing.T) {
 	mock := mockContainerd{}
 	ctx := context.Background()
-	d := &Daemon{
-		execCommands: exec.NewStore(),
-		containerd:   &mock,
-	}
+	// d := &Daemon{
+	// 	execCommands: exec.NewStore(),
+	// 	containerd:   &mock,
+	// }
+	d := daemon.New(t)
 
 	err := d.ContainerExecKill(ctx, "nil", uint64(signal.SignalMap["TERM"]))
 	assert.ErrorContains(t, err, "No such exec instance")
@@ -190,11 +196,12 @@ func TestContainerExecKill(t *testing.T) {
 		ContainerID: "container",
 		Started:     make(chan struct{}),
 	}
-	d := &Daemon{
-		execCommands: exec.NewStore(),
-		containers:   container.NewMemoryStore(),
-		containerd:   &mock,
-	}
+	// d := &Daemon{
+	// 	execCommands: exec.NewStore(),
+	// 	containers:   container.NewMemoryStore(),
+	// 	containerd:   &mock,
+	// }
+	d := daemon.New(t)
 	d.containers.Add("container", c)
 	d.registerExecCommand(c, ec)
 
