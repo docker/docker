@@ -279,7 +279,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 		logrus.Debugf("Sending TERM signal to process %v in container %v", name, c.ID)
 		daemon.ContainerExecKill(ctx, name, uint64(signal.SignalMap["TERM"]))
 		select {
-		case <-time.After(termProcessTimeout * time.Second):
+		case <-time.After(termProcessTimeout):
 			logrus.Infof("Container %v, process %v failed to exit within %d seconds of signal TERM - using the force", c.ID, name, termProcessTimeout)
 			daemon.ContainerExecKill(ctx, name, uint64(signal.SignalMap["KILL"]))
 		case <-attachErr:
