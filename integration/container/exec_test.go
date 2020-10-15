@@ -167,6 +167,7 @@ func TestContainerExecKill(t *testing.T) {
 		Detach: true,
 		Tty:    false,
 	})
+	assert.NilError(t, err)
 
 	err = client.ContainerExecKill(ctx, id.ID, "TERM")
 	assert.NilError(t, err)
