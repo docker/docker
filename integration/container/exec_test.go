@@ -10,9 +10,6 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/daemon/exec"
-	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -143,72 +140,35 @@ func TestExecUser(t *testing.T) {
 	assert.Assert(t, is.Contains(result.Stdout(), "uid=1(daemon) gid=1(daemon)"), "exec command not running as uid/gid 1")
 }
 
-// Borrowed from daemon/util_test.go
-type MockContainerdClient struct {
-}
-func (c *MockContainerdClient) CloseStdin(ctx context.Context, containerID, processID string) error {
-	return nil
-}
-
-
-type mockContainerd struct {
-	MockContainerdClient
-	calledCtx         *context.Context
-	calledContainerID *string
-	calledID          *string
-	calledSig         *int
-}
-
-func (cd *mockContainerd) SignalProcess(ctx context.Context, containerID, id string, sig int) error {
-	cd.calledCtx = &ctx
-	cd.calledContainerID = &containerID
-	cd.calledID = &id
-	cd.calledSig = &sig
-	return nil
-}
-
 func TestContainerExecKillNoSuchExec(t *testing.T) {
-	mock := mockContainerd{}
 	ctx := context.Background()
-	// d := &Daemon{
-	// 	execCommands: exec.NewStore(),
-	// 	containerd:   &mock,
-	// }
-	d := daemon.New(t)
-
-	err := d.ContainerExecKill(ctx, "nil", uint64(signal.SignalMap["TERM"]))
+	client := testEnv.APIClient()
+	err := client.ContainerExecKill(ctx, "nil", "TERM")
 	assert.ErrorContains(t, err, "No such exec instance")
-	assert.Assert(t, is.Nil(mock.calledCtx))
-	assert.Assert(t, is.Nil(mock.calledContainerID))
-	assert.Assert(t, is.Nil(mock.calledID))
-	assert.Assert(t, is.Nil(mock.calledSig))
 }
 
 func TestContainerExecKill(t *testing.T) {
-	mock := mockContainerd{}
+	defer setupTest(t)()
 	ctx := context.Background()
-	c := &container.Container{
-		ExecCommands: exec.NewStore(),
-		State:        &container.State{Running: true},
-	}
-	ec := &exec.Config{
-		ID:          "exec",
-		ContainerID: "container",
-		Started:     make(chan struct{}),
-	}
-	// d := &Daemon{
-	// 	execCommands: exec.NewStore(),
-	// 	containers:   container.NewMemoryStore(),
-	// 	containerd:   &mock,
-	// }
-	d := daemon.New(t)
-	d.containers.Add("container", c)
-	d.registerExecCommand(c, ec)
+	client := testEnv.APIClient()
 
-	err := d.ContainerExecKill(ctx, "exec", uint64(signal.SignalMap["TERM"]))
+	cID := container.Run(ctx, t, client)
+	id, err := client.ContainerExecCreate(ctx, cID,
+		types.ExecConfig{
+			WorkingDir:   "/tmp",
+			Env:          strslice.StrSlice([]string{"FOO=BAR"}),
+			AttachStdout: true,
+			Cmd:          strslice.StrSlice([]string{"sleep", "999"}),
+		},
+	)
 	assert.NilError(t, err)
-	assert.Equal(t, *mock.calledCtx, ctx)
-	assert.Equal(t, *mock.calledContainerID, "container")
-	assert.Equal(t, *mock.calledID, "exec")
-	assert.Equal(t, *mock.calledSig, int(signal.SignalMap["TERM"]))
+
+	err = client.ContainerExecStart(context.Background(), id.ID, types.ExecStartCheck{
+		Detach: true,
+		Tty:    false,
+	})
+
+	err = client.ContainerExecKill(ctx, id.ID, "TERM")
+	assert.NilError(t, err)
+
 }
