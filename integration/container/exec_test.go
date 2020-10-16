@@ -163,7 +163,7 @@ func TestContainerExecKill(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	err = client.ContainerExecStart(context.Background(), id.ID, types.ExecStartCheck{
+	_ = client.ContainerExecStart(context.Background(), id.ID, types.ExecStartCheck{
 		Detach: true,
 		Tty:    false,
 	})
