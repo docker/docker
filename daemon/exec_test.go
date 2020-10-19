@@ -6,17 +6,15 @@ import (
 	"context"
 	"testing"
 
+	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/testutil/environment"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
-
-var testEnv *environment.Execution
 
 type mockContainerd struct {
 	MockContainerdClient
@@ -35,9 +33,11 @@ func (cd *mockContainerd) SignalProcess(ctx context.Context, containerID, id str
 }
 
 func TestContainerExecKillNoSuchExec(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "skip test from new feature")
-	mock := mockContainerd{}
 	ctx := context.Background()
+	version := httputils.VersionFromContext(ctx)
+	skip.If(t, versions.LessThan(version, "1.42"), "skip test from new feature")
+
+	mock := mockContainerd{}
 	d := &Daemon{
 		execCommands: exec.NewStore(),
 		containerd:   &mock,
@@ -52,9 +52,11 @@ func TestContainerExecKillNoSuchExec(t *testing.T) {
 }
 
 func TestContainerExecKill(t *testing.T) {
-	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "skip test from new feature")
-	mock := mockContainerd{}
 	ctx := context.Background()
+	version := httputils.VersionFromContext(ctx)
+	skip.If(t, versions.LessThan(version, "1.42"), "skip test from new feature")
+
+	mock := mockContainerd{}
 	c := &container.Container{
 		ExecCommands: exec.NewStore(),
 		State:        &container.State{Running: true},
