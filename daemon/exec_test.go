@@ -6,11 +6,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/pkg/signal"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 type mockContainerd struct {
@@ -30,6 +32,7 @@ func (cd *mockContainerd) SignalProcess(ctx context.Context, containerID, id str
 }
 
 func TestContainerExecKillNoSuchExec(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "skip test from new feature")
 	mock := mockContainerd{}
 	ctx := context.Background()
 	d := &Daemon{
@@ -46,6 +49,7 @@ func TestContainerExecKillNoSuchExec(t *testing.T) {
 }
 
 func TestContainerExecKill(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "skip test from new feature")
 	mock := mockContainerd{}
 	ctx := context.Background()
 	c := &container.Container{

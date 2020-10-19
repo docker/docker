@@ -141,6 +141,7 @@ func TestExecUser(t *testing.T) {
 }
 
 func TestContainerExecKillNoSuchExec(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "skip test from new feature")
 	ctx := context.Background()
 	client := testEnv.APIClient()
 	err := client.ContainerExecKill(ctx, "nil", "TERM")
@@ -148,6 +149,7 @@ func TestContainerExecKillNoSuchExec(t *testing.T) {
 }
 
 func TestContainerExecKill(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "skip test from new feature")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := testEnv.APIClient()
