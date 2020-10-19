@@ -10,10 +10,13 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/testutil/environment"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
+
+var testEnv *environment.Execution
 
 type mockContainerd struct {
 	MockContainerdClient
