@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 Status     | Feature                                                                                                                            | Deprecated | Remove
 -----------|------------------------------------------------------------------------------------------------------------------------------------|------------|------------
+Deprecated | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | -
 Deprecated | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | -
 Deprecated | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.10     | -
 Deprecated | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | -
@@ -92,6 +93,18 @@ Removed    | [Old Command Line Options](#old-command-line-options)              
 Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09
 Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13
 Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12
+
+### Linux containers on Windows (LCOW) (experimental)
+
+**Deprecated in Release: v20.10**
+
+The experimental feature to run Linux containers on Windows (LCOW) was introduced
+as a technical preview in Docker 17.09. While many enhancements were made after
+its introduction, the feature never reached completeness, and development has
+now stopped in favor of running docker natively on Linux in WSL2.
+
+Developers who want to run Linux workloads on a Windows host are encouraged to use
+[Docker Desktop with WSL2](https://docs.docker.com/docker-for-windows/wsl/) instead.
 
 ### Kernel memory limit
 
