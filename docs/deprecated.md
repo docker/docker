@@ -56,6 +56,7 @@ Deprecated | [Classic Swarm and overlay networks using external key/value stores
 Deprecated | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | -
 Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.10     | -
 Deprecated | [Dockerfile legacy `ENV name value` syntax](#dockerfile-legacy-env-name-value-syntax)                                              | v20.10     | -
+Removed    | [`docker build --stream` flag (experimental)](#docker-build---stream-flag-experimental)                                            | v20.10     | v20.10
 Deprecated | [Configuration options for experimental CLI features](#configuration-options-for-experimental-cli-features)                        | v19.03     | v20.10
 Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03     | v20.10
 Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03     | v20.10
@@ -173,6 +174,23 @@ syntax, for example:
 ```dockerfile
 ENV ONE="" TWO="" THREE="world"
 ```
+
+### `docker build --stream` flag (experimental)
+
+**Deprecated in Release: v20.10**
+**Removed in Release: v20.10**
+
+Docker v17.07 introduced an experimental `--stream` flag on `docker build` which
+allowed the build-context to be incrementally sent to the daemon, instead of
+unconditionally sending the whole build-context.
+
+This functionality has been reimplemented as part of BuildKit, which uses streaming
+by default and the `--stream` option will be ignored when using the classic builder,
+printing a deprecation warning instead.
+
+Users that want to use this feature are encouraged to enable BuildKit by setting
+the `DOCKER_BUILDKIT=1` environment variable or through the daemon or CLI configuration
+files.
 
 ### Pushing and pulling with image manifest v2 schema 1
 
