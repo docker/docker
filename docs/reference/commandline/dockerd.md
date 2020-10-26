@@ -205,8 +205,7 @@ The Docker client will honor the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
 environment variables (or the lowercase versions thereof). `HTTPS_PROXY` takes
 precedence over `HTTP_PROXY`.
 
-Starting with Docker 18.09, the Docker client supports connecting to a remote
-daemon via SSH:
+The Docker client supports connecting to a remote daemon via SSH:
 
 ```
 $ docker -H ssh://me@example.com:22 ps
@@ -219,17 +218,17 @@ remote host with public key authentication. Password authentication is not
 supported. If your key is protected with passphrase, you need to set up
 `ssh-agent`.
 
-Also, you need to have `docker` binary 18.09 or later on the daemon host.
-
 #### Bind Docker to another host/port or a Unix socket
 
-> **Warning**:
+> **Warning**
+>
 > Changing the default `docker` daemon binding to a
 > TCP port or Unix *docker* user group will increase your security risks
 > by allowing non-root users to gain *root* access on the host. Make sure
 > you control access to `docker`. If you are binding
 > to a TCP port, anyone with access to that port has full Docker access;
 > so it is not advisable on an open network.
+{: .warning :}
 
 With `-H` it is possible to make the Docker daemon to listen on a
 specific IP and port. By default, it will listen on
@@ -1110,13 +1109,10 @@ system's list of trusted CAs instead of enabling `--insecure-registry`.
 
 #### Legacy Registries
 
-Starting with Docker 17.12, operations against registries supporting only the
-legacy v1 protocol are no longer supported. Specifically, the daemon will not
-attempt `push`, `pull` and `login` to v1 registries. The exception to this is
-`search` which can still be performed on v1 registries.
-
-The `disable-legacy-registry` configuration option has been removed and, when
-used, will produce an error on daemon startup.
+Operations against registries supporting only the legacy v1 protocol are no longer
+supported. Specifically, the daemon will not attempt `push`, `pull` and `login`
+to v1 registries. The exception to this is `search` which can still be performed
+on v1 registries.
 
 
 ### Running a Docker daemon behind an HTTPS_PROXY

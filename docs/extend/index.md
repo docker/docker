@@ -21,8 +21,8 @@ keywords: "API, Usage, plugins, documentation, developer"
 Docker Engine's plugin system allows you to install, start, stop, and remove
 plugins using Docker Engine.
 
-For information about the legacy plugin system available in Docker Engine 1.12
-and earlier, see [Understand legacy Docker Engine plugins](legacy_plugins.md).
+For information about legacy (non-managed) plugins, refer to
+[Understand legacy Docker Engine plugins](legacy_plugins.md).
 
 > **Note**
 >
