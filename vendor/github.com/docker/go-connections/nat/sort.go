@@ -58,7 +58,7 @@ func (s portMapSorter) Less(i, j int) bool {
 func SortPortMap(ports []Port, bindings PortMap) {
 	s := portMapSorter{}
 	for _, p := range ports {
-		if binding, ok := bindings[p]; ok {
+		if binding, ok := bindings[p]; ok && len(binding) > 0 {
 			for _, b := range binding {
 				s = append(s, portMapEntry{port: p, binding: b})
 			}
