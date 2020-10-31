@@ -8,6 +8,9 @@ import (
 )
 
 var (
+	// initDefaults makes sure we initialize the defaults only once
+	initDefaults sync.Once
+
 	// predefinedLocalScopeDefaultNetworks contains a list of 31 IPv4 private
 	// networks with host size 16 and 12 (172.17-31.x.x/16, 192.168.x.x/20)
 	// which do not overlap with the networks in predefinedGlobalScopeDefaultNetworks
@@ -45,16 +48,22 @@ type NetworkToSplit struct {
 	Size int    `json:"size"`
 }
 
-func init() {
+// initDefaultNetworks initializes the default address pools
+func initDefaultNetworks() {
 	var err error
-	if predefinedGlobalScopeDefaultNetworks, err = splitNetworks(globalScopeDefaultNetworks); err != nil {
-		// we are going to panic in case of error as we should never get into this state
-		panic("InitAddressPools failed to initialize the global scope default address pool")
+	if len(predefinedLocalScopeDefaultNetworks) == 0 {
+		predefinedLocalScopeDefaultNetworks, err = splitNetworks(localScopeDefaultNetworks)
+		if err != nil {
+			// we are going to panic in case of error as we should never get into this state
+			panic("initDefaultNetworks failed to initialize the local scope default address pool")
+		}
 	}
-
-	if predefinedLocalScopeDefaultNetworks, err = splitNetworks(localScopeDefaultNetworks); err != nil {
-		// we are going to panic in case of error as we should never get into this state
-		panic("InitAddressPools failed to initialize the local scope default address pool")
+	if len(predefinedGlobalScopeDefaultNetworks) == 0 {
+		predefinedGlobalScopeDefaultNetworks, err = splitNetworks(globalScopeDefaultNetworks)
+		if err != nil {
+			// we are going to panic in case of error as we should never get into this state
+			panic("initDefaultNetworks failed to initialize the global scope default address pool")
+		}
 	}
 }
 
@@ -76,6 +85,8 @@ func configDefaultNetworks(defaultAddressPool []*NetworkToSplit, result *[]*net.
 func GetGlobalScopeDefaultNetworks() []*net.IPNet {
 	mutex.RLock()
 	defer mutex.RUnlock()
+	initDefaults.Do(initDefaultNetworks)
+
 	return predefinedGlobalScopeDefaultNetworks
 }
 
@@ -85,6 +96,8 @@ func GetGlobalScopeDefaultNetworks() []*net.IPNet {
 func GetLocalScopeDefaultNetworks() []*net.IPNet {
 	mutex.RLock()
 	defer mutex.RUnlock()
+	initDefaults.Do(initDefaultNetworks)
+
 	return predefinedLocalScopeDefaultNetworks
 }
 
@@ -94,6 +107,10 @@ func ConfigGlobalScopeDefaultNetworks(defaultAddressPool []*NetworkToSplit) erro
 	if defaultAddressPool == nil {
 		defaultAddressPool = globalScopeDefaultNetworks
 	}
+
+	// Prevent potential race conditions; first trigger setting the defaults
+	// if it was not run yet
+	initDefaults.Do(initDefaultNetworks)
 	return configDefaultNetworks(defaultAddressPool, &predefinedGlobalScopeDefaultNetworks)
 }
 
@@ -103,6 +120,9 @@ func ConfigLocalScopeDefaultNetworks(defaultAddressPool []*NetworkToSplit) error
 	if defaultAddressPool == nil {
 		return nil
 	}
+	// Prevent potential race conditions; first trigger setting the defaults
+	// if it was not run yet
+	initDefaults.Do(initDefaultNetworks)
 	return configDefaultNetworks(defaultAddressPool, &predefinedLocalScopeDefaultNetworks)
 }
 
