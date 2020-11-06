@@ -967,18 +967,18 @@ The following is an example adding 2 runtimes via the configuration:
 
 ```json
 {
-	"default-runtime": "runc",
-	"runtimes": {
-		"runc": {
-			"path": "runc"
-		},
-		"custom": {
-			"path": "/usr/local/bin/my-runc-replacement",
-			"runtimeArgs": [
-				"--debug"
-			]
-		}
-	}
+  "default-runtime": "runc",
+  "runtimes": {
+    "custom": {
+      "path": "/usr/local/bin/my-runc-replacement",
+      "runtimeArgs": [
+        "--debug"
+      ]
+    },
+    "runc": {
+      "path": "runc"
+    }
+  }
 }
 ```
 
@@ -1303,7 +1303,10 @@ the task to run.
 Example of usage:
 ```json
 {
-  "node-generic-resources": ["NVIDIA-GPU=UUID1", "NVIDIA-GPU=UUID2"]
+  "node-generic-resources": [
+    "NVIDIA-GPU=UUID1",
+    "NVIDIA-GPU=UUID2"
+  ]
 }
 ```
 
@@ -1332,9 +1335,39 @@ This is a full example of the allowed configuration options on Linux:
 
 ```json
 {
+  "allow-nondistributable-artifacts": [],
+  "api-cors-header": "",
   "authorization-plugins": [],
+  "bip": "",
+  "bridge": "",
+  "cgroup-parent": "",
+  "cluster-advertise": "",
+  "cluster-store": "",
+  "cluster-store-opts": {},
   "data-root": "",
+  "debug": true,
+  "default-address-pools": [
+    {
+      "base": "172.80.0.0/16",
+      "size": 24
+    },
+    {
+      "base": "172.90.0.0/16",
+      "size": 24
+    }
+  ],
   "default-cgroupns-mode": "private",
+  "default-gateway": "",
+  "default-gateway-v6": "",
+  "default-runtime": "runc",
+  "default-shm-size": "64M",
+  "default-ulimits": {
+    "nofile": {
+      "Hard": 64000,
+      "Name": "nofile",
+      "Soft": 64000
+    }
+  },
   "dns": [],
   "dns-opts": [],
   "dns-search": [],
@@ -1342,73 +1375,42 @@ This is a full example of the allowed configuration options on Linux:
   "exec-root": "",
   "experimental": false,
   "features": {},
-  "storage-driver": "",
-  "storage-opts": [],
+  "fixed-cidr": "",
+  "fixed-cidr-v6": "",
+  "group": "",
+  "hosts": [],
+  "icc": false,
+  "init": false,
+  "init-path": "/usr/libexec/docker-init",
+  "insecure-registries": [],
+  "ip": "0.0.0.0",
+  "ip-forward": false,
+  "ip-masq": false,
+  "iptables": false,
+  "ipv6": false,
   "labels": [],
   "live-restore": true,
   "log-driver": "json-file",
+  "log-level": "",
   "log-opts": {
-    "max-size": "10m",
-    "max-file":"5",
+    "env": "os,customer",
     "labels": "somelabel",
-    "env": "os,customer"
+    "max-file": "5",
+    "max-size": "10m"
   },
-  "mtu": 0,
-  "pidfile": "",
-  "cluster-store": "",
-  "cluster-store-opts": {},
-  "cluster-advertise": "",
   "max-concurrent-downloads": 3,
   "max-concurrent-uploads": 5,
   "max-download-attempts": 5,
-  "default-shm-size": "64M",
-  "shutdown-timeout": 15,
-  "debug": true,
-  "hosts": [],
-  "log-level": "",
-  "tls": true,
-  "tlsverify": true,
-  "tlscacert": "",
-  "tlscert": "",
-  "tlskey": "",
-  "swarm-default-advertise-addr": "",
-  "api-cors-header": "",
-  "selinux-enabled": false,
-  "userns-remap": "",
-  "group": "",
-  "cgroup-parent": "",
-  "default-ulimits": {
-    "nofile": {
-      "Name": "nofile",
-      "Hard": 64000,
-      "Soft": 64000
-    }
-  },
-  "init": false,
-  "init-path": "/usr/libexec/docker-init",
-  "ipv6": false,
-  "iptables": false,
-  "ip-forward": false,
-  "ip-masq": false,
-  "userland-proxy": false,
-  "userland-proxy-path": "/usr/libexec/docker-proxy",
-  "ip": "0.0.0.0",
-  "bridge": "",
-  "bip": "",
-  "fixed-cidr": "",
-  "fixed-cidr-v6": "",
-  "default-gateway": "",
-  "default-gateway-v6": "",
-  "icc": false,
-  "raw-logs": false,
-  "allow-nondistributable-artifacts": [],
-  "registry-mirrors": [],
-  "seccomp-profile": "",
-  "insecure-registries": [],
+  "mtu": 0,
   "no-new-privileges": false,
-  "default-runtime": "runc",
+  "node-generic-resources": [
+    "NVIDIA-GPU=UUID1",
+    "NVIDIA-GPU=UUID2"
+  ],
   "oom-score-adjust": -500,
-  "node-generic-resources": ["NVIDIA-GPU=UUID1", "NVIDIA-GPU=UUID2"],
+  "pidfile": "",
+  "raw-logs": false,
+  "registry-mirrors": [],
   "runtimes": {
     "cc-runtime": {
       "path": "/usr/bin/cc-runtime"
@@ -1420,10 +1422,20 @@ This is a full example of the allowed configuration options on Linux:
       ]
     }
   },
-  "default-address-pools":[
-    {"base":"172.80.0.0/16","size":24},
-    {"base":"172.90.0.0/16","size":24}
-  ]
+  "seccomp-profile": "",
+  "selinux-enabled": false,
+  "shutdown-timeout": 15,
+  "storage-driver": "",
+  "storage-opts": [],
+  "swarm-default-advertise-addr": "",
+  "tls": true,
+  "tlscacert": "",
+  "tlscert": "",
+  "tlskey": "",
+  "tlsverify": true,
+  "userland-proxy": false,
+  "userland-proxy-path": "/usr/libexec/docker-proxy",
+  "userns-remap": ""
 }
 ```
 
@@ -1446,42 +1458,42 @@ This is a full example of the allowed configuration options on Windows:
 
 ```json
 {
+  "allow-nondistributable-artifacts": [],
   "authorization-plugins": [],
+  "bridge": "",
+  "cluster-advertise": "",
+  "cluster-store": "",
   "data-root": "",
+  "debug": true,
+  "default-ulimits": {},
   "dns": [],
   "dns-opts": [],
   "dns-search": [],
   "exec-opts": [],
   "experimental": false,
-  "features":{},
-  "storage-driver": "",
-  "storage-opts": [],
+  "features": {},
+  "fixed-cidr": "",
+  "group": "",
+  "hosts": [],
+  "insecure-registries": [],
   "labels": [],
   "log-driver": "",
-  "mtu": 0,
-  "pidfile": "",
-  "cluster-store": "",
-  "cluster-advertise": "",
+  "log-level": "",
   "max-concurrent-downloads": 3,
   "max-concurrent-uploads": 5,
   "max-download-attempts": 5,
+  "mtu": 0,
+  "pidfile": "",
+  "raw-logs": false,
+  "registry-mirrors": [],
   "shutdown-timeout": 15,
-  "debug": true,
-  "hosts": [],
-  "log-level": "",
-  "tlsverify": true,
+  "storage-driver": "",
+  "storage-opts": [],
+  "swarm-default-advertise-addr": "",
   "tlscacert": "",
   "tlscert": "",
   "tlskey": "",
-  "swarm-default-advertise-addr": "",
-  "group": "",
-  "default-ulimits": {},
-  "bridge": "",
-  "fixed-cidr": "",
-  "raw-logs": false,
-  "allow-nondistributable-artifacts": [],
-  "registry-mirrors": [],
-  "insecure-registries": []
+  "tlsverify": true
 }
 ```
 
