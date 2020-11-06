@@ -32,6 +32,8 @@ Options:
       --cgroup-parent string                  Set parent cgroup for all containers
       --config-file string                    Daemon configuration file (default "/etc/docker/daemon.json")
       --containerd string                     containerd grpc address
+      --containerd-namespace string           Containerd namespace to use (default "moby")
+      --containerd-plugins-namespace string   Containerd namespace to use for plugins (default "plugins.moby")
       --cpu-rt-period int                     Limit the CPU real-time period in microseconds for the
                                               parent cgroup for all containers
       --cpu-rt-runtime int                    Limit the CPU real-time runtime in microseconds for the
@@ -1344,6 +1346,9 @@ This is a full example of the allowed configuration options on Linux:
   "cluster-advertise": "",
   "cluster-store": "",
   "cluster-store-opts": {},
+  "containerd": "/run/containerd/containerd.sock",
+  "containerd-namespace": "docker",
+  "containerd-plugin-namespace": "docker-plugins",
   "data-root": "",
   "debug": true,
   "default-address-pools": [
@@ -1463,6 +1468,9 @@ This is a full example of the allowed configuration options on Windows:
   "bridge": "",
   "cluster-advertise": "",
   "cluster-store": "",
+  "containerd": "\\\\.\\pipe\\containerd-containerd",
+  "containerd-namespace": "docker",
+  "containerd-plugin-namespace": "docker-plugins",
   "data-root": "",
   "debug": true,
   "default-ulimits": {},
