@@ -70,6 +70,7 @@ Options:
       --ip-forward                            Enable net.ipv4.ip_forward (default true)
       --ip-masq                               Enable IP masquerading (default true)
       --iptables                              Enable addition of iptables rules (default true)
+      --ip6tables                             Enable addition of ip6tables rules (default false)
       --ipv6                                  Enable IPv6 networking
       --label list                            Set key=value labels to the daemon
       --live-restore                          Enable live restore of docker when containers are still running
@@ -1392,6 +1393,7 @@ This is a full example of the allowed configuration options on Linux:
   "ip-forward": false,
   "ip-masq": false,
   "iptables": false,
+  "ip6tables": false,
   "ipv6": false,
   "labels": [],
   "live-restore": true,
