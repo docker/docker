@@ -95,6 +95,38 @@ Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-
 Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13
 Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12
 
+### Pulling images from non-compliant image registries
+
+**Deprecated in Release: v20.10**
+
+Docker Engine v20.10 and up includes optimizations to verify if images in the
+local image cache need updating before pulling, preventing the Docker Engine
+from making unnecessary API requests. These optimizations require the container
+image registry to conform to the [Open Container Initiative Distribution Specification](https://github.com/opencontainers/distribution-spec).
+
+While most registries conform to the specification, we encountered some registries
+to be non-compliant, resulting in `docker pull` to fail.
+
+As a temporary solution, Docker Engine v20.10 includes a fallback mechanism to
+allow `docker pull` to be functional when using a non-compliant registry. A
+warning message is printed in this situation:
+
+    WARNING Failed to pull manifest by the resolved digest. This registry does not
+            appear to conform to the distribution registry specification; falling back to
+            pull by tag. This fallback is DEPRECATED, and will be removed in a future
+            release.
+
+The fallback is added to allow users to either migrate their images to a compliant
+registry, or for these registries to become compliant.
+
+Note that this fallback only addresses failures on `docker pull`. Other commands,
+such as `docker stack deploy`, or pulling images with `containerd` will continue
+to fail.
+
+Given that other functionality is still broken with these registries, we consider
+this fallback a _temporary_ solution, and will remove the fallback in an upcoming
+major release.
+
 ### Linux containers on Windows (LCOW) (experimental)
 
 **Deprecated in Release: v20.10**
