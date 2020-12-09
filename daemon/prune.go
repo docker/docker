@@ -76,23 +76,17 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 			}
 			cSize, _ := daemon.imageService.GetContainerLayerSize(c.ID)
 			// TODO: sets RmLink to true?
-			if (!dryRunMode) {
+			if !dryRunMode {
 				err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
 				if err != nil {
 					logrus.Warnf("failed to prune container %s: %v", c.ID, err)
 					continue
 				}
-				if cSize > 0 {
-					rep.SpaceReclaimed += uint64(cSize)
-				}
-				rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
-			} else {
-				// dry run mode
-				if cSize > 0 {
-					rep.SpaceReclaimed += uint64(cSize)
-				}
-				rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
 			}
+			if cSize > 0 {
+				rep.SpaceReclaimed += uint64(cSize)
+			}
+			rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
 
 		}
 	}
