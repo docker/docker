@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 Status     | Feature                                                                                                                            | Deprecated | Remove
 -----------|------------------------------------------------------------------------------------------------------------------------------------|------------|------------
+Deprecated | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | -
 Deprecated | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | -
 Deprecated | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | -
 Deprecated | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.10     | -
