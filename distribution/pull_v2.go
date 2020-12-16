@@ -144,12 +144,26 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named, pl
 type v2LayerDescriptor struct {
 	digest            digest.Digest
 	diffID            layer.DiffID
+	configDiffID      layer.DiffID
 	repoInfo          *registry.RepositoryInfo
 	repo              distribution.Repository
 	V2MetadataService metadata.V2MetadataService
 	tmpFile           *os.File
 	verifier          digest.Verifier
 	src               distribution.Descriptor
+}
+
+func (ld *v2LayerDescriptor) Repository() distribution.Repository {
+	return ld.repo
+}
+
+func (ld *v2LayerDescriptor) Digest() digest.Digest {
+	return ld.digest
+}
+
+func (ld *v2LayerDescriptor) ConfigDiffID() layer.DiffID {
+	// TODO: verification
+	return ld.configDiffID
 }
 
 func (ld *v2LayerDescriptor) Key() string {
@@ -709,11 +723,18 @@ func (p *v2Puller) pullSchema2Layers(ctx context.Context, target distribution.De
 	}
 
 	if p.config.DownloadManager != nil {
+		configJSON, configRootFS, _, err = receiveConfig(p.config.ImageStore, configChan, configErrChan)
+		if err != nil {
+			return "", err
+		}
 		go func() {
 			var (
 				err    error
 				rootFS image.RootFS
 			)
+			for i := range descriptors {
+				descriptors[i].(*v2LayerDescriptor).configDiffID = configRootFS.DiffIDs[i]
+			}
 			downloadRootFS := *image.NewRootFS()
 			rootFS, release, err = p.config.DownloadManager.Download(ctx, downloadRootFS, layerStoreOS, descriptors, p.config.ProgressOutput)
 			if err != nil {

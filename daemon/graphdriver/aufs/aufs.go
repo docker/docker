@@ -84,7 +84,7 @@ type Driver struct {
 
 // Init returns a new AUFS driver.
 // An error is returned if AUFS is not supported.
-func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap, _ *graphdriver.InitOptions) (graphdriver.Driver, error) {
 	// Try to load the aufs kernel module
 	if err := supportsAufs(); err != nil {
 		logger.Error(err)

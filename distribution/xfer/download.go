@@ -9,12 +9,14 @@ import (
 	"time"
 
 	"github.com/docker/distribution"
+	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/system"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )
 
@@ -89,6 +91,12 @@ type DownloadDescriptor interface {
 	Close()
 }
 
+type DownloadAddressableDescriptor interface {
+	Repository() distribution.Repository
+	Digest() digest.Digest
+	ConfigDiffID() layer.DiffID
+}
+
 // DownloadDescriptorWithRegistered is a DownloadDescriptor that has an
 // additional Registered method which gets called after a downloaded layer is
 // registered. This allows the user of the download manager to know the DiffID
@@ -125,6 +133,15 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		return image.RootFS{}, nil, system.ErrNotSupportedOperatingSystem
 	}
 
+	var pullingLayers []digest.Digest
+	for _, descriptor := range layers {
+		desc, ok := descriptor.(DownloadAddressableDescriptor)
+		if !ok {
+			continue
+		}
+		pullingLayers = append(pullingLayers, desc.Digest())
+	}
+
 	rootFS := initialRootFS
 	for _, descriptor := range layers {
 		key := descriptor.Key()
@@ -132,28 +149,70 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 
 		if !missingLayer {
 			missingLayer = true
-			diffID, err := descriptor.DiffID()
-			if err == nil {
+			var (
+				skipLayer layer.Layer
+				diffID    layer.DiffID
+				err       error
+			)
+
+			cs, sOK := ldm.layerStores[os].(layer.CheckableLayerStore)
+			ad, rOK := descriptor.(DownloadAddressableDescriptor)
+			if configDiffID := ad.ConfigDiffID(); configDiffID.String() != "" && sOK && rOK {
+				// Check if this layer already exists in the layer store
 				getRootFS := rootFS
-				getRootFS.Append(diffID)
-				l, err := ldm.layerStores[os].Get(getRootFS.ChainID())
-				if err == nil {
-					// Layer already exists.
-					logrus.Debugf("Layer already exists: %s", descriptor.ID())
-					progress.Update(progressOutput, descriptor.ID(), "Already exists")
-					if topLayer != nil {
-						layer.ReleaseAndLog(ldm.layerStores[os], topLayer)
-					}
-					topLayer = l
-					missingLayer = false
-					rootFS.Append(diffID)
-					// Register this repository as a source of this layer.
-					withRegistered, hasRegistered := descriptor.(DownloadDescriptorWithRegistered)
-					if hasRegistered { // As layerstore may set the driver
-						withRegistered.Registered(diffID)
-					}
-					continue
+				getRootFS.Append(configDiffID)
+
+				logrus.Debugf("Trying to crete remote layer: %s (ref=%q,digest=%q,layers=%q)",
+					descriptor.ID(),
+					ad.Repository().Named().Name(),
+					ad.Digest().String(),
+					pullingLayers)
+
+				if l, err := cs.CheckIfLayerExists(&graphdriver.TargetOpts{
+					MountChainID:  digest.Digest(getRootFS.ChainID()),
+					ContentDiffID: digest.Digest(configDiffID),
+					ImageRef:      ad.Repository().Named().Name(),
+					LayerDigest:   ad.Digest(),
+					ImageLayers:   pullingLayers,
+				}, rootFS.ChainID()); err == nil {
+					logrus.Debugf("Layer %s(digest=%q) exists",
+						descriptor.ID(), configDiffID.String())
+					skipLayer = l
+					diffID = configDiffID
+				} else {
+					logrus.Debugf("Layer %s(digest=%q) doesn't exist: %v",
+						descriptor.ID(), configDiffID.String(), err)
 				}
+			}
+
+			if skipLayer == nil {
+				if diffID, err = descriptor.DiffID(); err == nil {
+					// Check if the targetting layer already exists.
+					getRootFS := rootFS
+					getRootFS.Append(diffID)
+					l, err := ldm.layerStores[os].Get(getRootFS.ChainID())
+					if err == nil {
+						skipLayer = l
+					}
+				}
+			}
+
+			if skipLayer != nil {
+				// Layer already exists.
+				logrus.Debugf("Layer already exists: %s", descriptor.ID())
+				progress.Update(progressOutput, descriptor.ID(), "Already exists")
+				if topLayer != nil {
+					layer.ReleaseAndLog(ldm.layerStores[os], topLayer)
+				}
+				topLayer = skipLayer
+				missingLayer = false
+				rootFS.Append(diffID)
+				// Register this repository as a source of this layer.
+				withRegistered, hasRegistered := descriptor.(DownloadDescriptorWithRegistered)
+				if hasRegistered { // As layerstore may set the driver
+					withRegistered.Registered(diffID)
+				}
+				continue
 			}
 		}
 

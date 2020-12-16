@@ -1,7 +1,6 @@
 package layer // import "github.com/docker/docker/layer"
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/containerd/containerd"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/idtools"
@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/locker"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
@@ -56,6 +57,7 @@ type StoreOptions struct {
 	PluginGetter              plugingetter.PluginGetter
 	ExperimentalEnabled       bool
 	OS                        string
+	ContainerdClient          *containerd.Client
 }
 
 // NewStoreFromOptions creates a new Store instance
@@ -66,6 +68,9 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 		UIDMaps:             options.IDMapping.UIDs(),
 		GIDMaps:             options.IDMapping.GIDs(),
 		ExperimentalEnabled: options.ExperimentalEnabled,
+		InitOptions: &graphdriver.InitOptions{
+			ContainerdClient: options.ContainerdClient,
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
@@ -279,11 +284,17 @@ func (ls *layerStore) applyTar(tx *fileMetadataTransaction, ts io.Reader, parent
 	return nil
 }
 
-func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
-	return ls.registerWithDescriptor(ts, parent, distribution.Descriptor{})
+func (ls *layerStore) CheckIfLayerExists(target *graphdriver.TargetOpts, parent ChainID) (Layer, error) {
+	return ls.registerWithDescriptor(nil, parent, distribution.Descriptor{
+		Digest: target.LayerDigest,
+	}, target)
 }
 
-func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descriptor distribution.Descriptor) (Layer, error) {
+func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
+	return ls.registerWithDescriptor(ts, parent, distribution.Descriptor{}, nil)
+}
+
+func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descriptor distribution.Descriptor, target *graphdriver.TargetOpts) (Layer, error) {
 	// err is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned
 	// to the caller (already exists).
@@ -321,13 +332,22 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		descriptor:     descriptor,
 	}
 
-	if err = ls.driver.Create(layer.cacheID, pid, nil); err != nil {
+	// TODO: retry on ID conflict
+	if err = ls.driver.Create(layer.cacheID, pid, &graphdriver.CreateOpts{
+		TargetInfo: target,
+	}); ts != nil && err != nil {
 		return nil, err
-	}
-
-	tx, err := ls.store.StartTransaction()
-	if err != nil {
-		return nil, err
+	} else if ts == nil && (err == nil || errors.Cause(err) != ErrAlreadyExists) {
+		// Layer doesn't exists in the graphdriver. Let's fail here because we don't
+		// have the reader and cannot proceed create operation.
+		if err == nil {
+			// Clean up because we've created dummy layer.
+			if err := ls.driver.Remove(layer.cacheID); err != nil {
+				logrus.Errorf("Error cleaning up cache layer %s: %v",
+					layer.cacheID, err)
+			}
+		}
+		return nil, fmt.Errorf("layer cannot be created without reader: %v", err)
 	}
 
 	defer func() {
@@ -336,13 +356,31 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 			if err := ls.driver.Remove(layer.cacheID); err != nil {
 				logrus.Errorf("Error cleaning up cache layer %s: %v", layer.cacheID, err)
 			}
+		}
+	}()
+
+	tx, err := ls.store.StartTransaction()
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if err != nil {
 			if err := tx.Cancel(); err != nil {
 				logrus.Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
 			}
 		}
 	}()
 
-	if err = ls.applyTar(tx, ts, pid, layer); err != nil {
+	if ts != nil {
+		if err = ls.applyTar(tx, ts, pid, layer); err != nil {
+			return nil, err
+		}
+	} else if target != nil && target.ContentDiffID != "" && !ls.useTarSplit {
+		layer.diffID = DiffID(target.ContentDiffID)
+		layer.size = 0 // TODO: how to determine the size of "remote" layers?
+	} else {
+		err = fmt.Errorf("DiffID must be provided and graphdriver must support exact diff")
 		return nil, err
 	}
 
@@ -361,7 +399,7 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 
 	if existingLayer := ls.getWithoutLock(layer.chainID); existingLayer != nil {
 		// Set error for cleanup, but do not return the error
-		err = errors.New("layer already exists")
+		err = ErrAlreadyExists
 		return existingLayer.getReference(), nil
 	}
 

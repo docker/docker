@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/containerd/containerd"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 	"github.com/vbatts/tar-split/tar/storage"
 
@@ -34,10 +36,23 @@ var (
 type CreateOpts struct {
 	MountLabel string
 	StorageOpt map[string]string
+	TargetInfo *TargetOpts
+}
+
+type TargetOpts struct {
+	MountChainID  digest.Digest
+	ContentDiffID digest.Digest
+	ImageRef      string
+	LayerDigest   digest.Digest
+	ImageLayers   []digest.Digest
 }
 
 // InitFunc initializes the storage driver.
-type InitFunc func(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error)
+type InitFunc func(root string, options []string, uidMaps, gidMaps []idtools.IDMap, opt *InitOptions) (Driver, error)
+
+type InitOptions struct {
+	ContainerdClient *containerd.Client
+}
 
 // ProtoDriver defines the basic capabilities of a driver.
 // This interface exists solely to be a minimum set of methods
@@ -162,7 +177,7 @@ func Register(name string, initFunc InitFunc) error {
 // GetDriver initializes and returns the registered driver
 func GetDriver(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
-		return initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
+		return initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.UIDMaps, config.GIDMaps, config.InitOptions)
 	}
 
 	pluginDriver, err := lookupPlugin(name, pg, config)
@@ -174,9 +189,9 @@ func GetDriver(name string, pg plugingetter.PluginGetter, config Options) (Drive
 }
 
 // getBuiltinDriver initializes and returns the registered driver, but does not try to load from plugins
-func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error) {
+func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap, initOpts *InitOptions) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
-		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps)
+		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps, initOpts)
 	}
 	logrus.Errorf("Failed to built-in GetDriver graph %s %s", name, home)
 	return nil, ErrNotSupported
@@ -189,6 +204,7 @@ type Options struct {
 	UIDMaps             []idtools.IDMap
 	GIDMaps             []idtools.IDMap
 	ExperimentalEnabled bool
+	InitOptions         *InitOptions
 }
 
 // New creates the driver and initializes it at the specified root.
@@ -211,7 +227,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 		if _, prior := driversMap[name]; prior {
 			// of the state found from prior drivers, check in order of our priority
 			// which we would prefer
-			driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.UIDMaps, config.GIDMaps)
+			driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.UIDMaps, config.GIDMaps, config.InitOptions)
 			if err != nil {
 				// unlike below, we will return error here, because there is prior
 				// state, and now it is no longer supported/prereq/compatible, so
@@ -240,7 +256,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 
 	// Check for priority drivers first
 	for _, name := range list {
-		driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.UIDMaps, config.GIDMaps)
+		driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.UIDMaps, config.GIDMaps, config.InitOptions)
 		if err != nil {
 			if IsDriverNotSupported(err) {
 				continue
@@ -258,7 +274,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 			// can be selected through configuration.
 			continue
 		}
-		driver, err := initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
+		driver, err := initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.UIDMaps, config.GIDMaps, config.InitOptions)
 		if err != nil {
 			if IsDriverNotSupported(err) {
 				continue

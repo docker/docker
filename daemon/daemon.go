@@ -982,6 +982,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			PluginGetter:              d.PluginStore,
 			ExperimentalEnabled:       config.Experimental,
 			OS:                        operatingSystem,
+			ContainerdClient:          d.containerdCli,
 		})
 		if err != nil {
 			return nil, err

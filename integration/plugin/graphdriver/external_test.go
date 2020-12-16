@@ -147,7 +147,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 
 	base, err := ioutil.TempDir("", name)
 	assert.NilError(t, err)
-	vfsProto, err := vfs.Init(base, []string{}, nil, nil)
+	vfsProto, err := vfs.Init(base, []string{}, nil, nil, nil)
 	assert.NilError(t, err, "error initializing graph driver")
 	driver := graphdriver.NewNaiveDiffDriver(vfsProto, nil, nil)
 

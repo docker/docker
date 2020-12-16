@@ -45,7 +45,7 @@ func (*Logger) Log(cmd []string) {
 // Init returns a new ZFS driver.
 // It takes base mount path and an array of options which are represented as key value pairs.
 // Each option is in the for key=value. 'zfs.fsname' is expected to be a valid key in the options.
-func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap, _ *graphdriver.InitOptions) (graphdriver.Driver, error) {
 	var err error
 
 	logger := logrus.WithField("storage-driver", "zfs")

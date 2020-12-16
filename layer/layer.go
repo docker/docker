@@ -14,6 +14,7 @@ import (
 	"io"
 
 	"github.com/docker/distribution"
+	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
 	digest "github.com/opencontainers/go-digest"
@@ -55,6 +56,10 @@ var (
 	// ErrNotSupported is used when the action is not supported
 	// on the current host operating system.
 	ErrNotSupported = errors.New("not support on this host operating system")
+
+	// ErrAlreadyExists is used when the targetting layer is already
+	// exists.
+	ErrAlreadyExists = errors.New("layer already exists")
 )
 
 // ChainID is the content-addressable ID of a layer.
@@ -202,6 +207,10 @@ type Store interface {
 // descriptors for layers.
 type DescribableStore interface {
 	RegisterWithDescriptor(io.Reader, ChainID, distribution.Descriptor) (Layer, error)
+}
+
+type CheckableLayerStore interface {
+	CheckIfLayerExists(target *graphdriver.TargetOpts, parent ChainID) (Layer, error)
 }
 
 // CreateChainID returns ID for a layerDigest slice

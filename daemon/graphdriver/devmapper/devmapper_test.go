@@ -114,7 +114,7 @@ func testChangeLoopBackSize(t *testing.T, delta, expectDataSize, expectMetaDataS
 	d, err := Init(driver.home, []string{
 		fmt.Sprintf("dm.loopdatasize=%d", defaultDataLoopbackSize+delta),
 		fmt.Sprintf("dm.loopmetadatasize=%d", defaultMetaDataLoopbackSize+delta),
-	}, nil, nil)
+	}, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("error creating devicemapper driver: %v", err)
 	}
