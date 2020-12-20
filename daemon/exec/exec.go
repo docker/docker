@@ -55,7 +55,7 @@ type rio struct {
 func (i *rio) Close() error {
 	i.IO.Close()
 
-	return i.sc.CloseStreams()
+	return i.sc.CloseStreams(context.Background())
 }
 
 func (i *rio) Wait() {
@@ -81,7 +81,7 @@ func (c *Config) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
 
 // CloseStreams closes the stdio streams for the exec
 func (c *Config) CloseStreams() error {
-	return c.StreamConfig.CloseStreams()
+	return c.StreamConfig.CloseStreams(context.Background())
 }
 
 // SetExitCode sets the exec config's exit code

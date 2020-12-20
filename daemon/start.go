@@ -128,7 +128,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 			if err := container.CheckpointTo(daemon.containersReplica); err != nil {
 				logrus.Errorf("%s: failed saving state on start failure: %v", container.ID, err)
 			}
-			container.Reset(false)
+			container.Reset(context.Background(), false)
 
 			daemon.Cleanup(container)
 			// if containers AutoRemove flag is set, remove it after clean up

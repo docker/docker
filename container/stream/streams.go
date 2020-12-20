@@ -91,7 +91,7 @@ func (c *Config) NewNopInputPipe() {
 }
 
 // CloseStreams ensures that the configured streams are properly closed.
-func (c *Config) CloseStreams() error {
+func (c *Config) CloseStreams(ctx context.Context) error {
 	var errors []string
 
 	if c.stdin != nil {
@@ -100,11 +100,11 @@ func (c *Config) CloseStreams() error {
 		}
 	}
 
-	if err := c.stdout.Clean(); err != nil {
+	if err := c.stdout.CleanContext(ctx); err != nil {
 		errors = append(errors, fmt.Sprintf("error close stdout: %s", err))
 	}
 
-	if err := c.stderr.Clean(); err != nil {
+	if err := c.stderr.CleanContext(ctx); err != nil {
 		errors = append(errors, fmt.Sprintf("error close stderr: %s", err))
 	}
 
