@@ -52,6 +52,7 @@ Status     | Feature                                                            
 -----------|------------------------------------------------------------------------------------------------------------------------------------|------------|------------
 Deprecated | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | -
 Deprecated | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | -
+Deprecated | [BLKIO weight options with cgroups v1](#blkio-weight-options–with-cgroups-v1)                                                      | v20.10     | -
 Deprecated | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | -
 Deprecated | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.10     | -
 Deprecated | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | -
@@ -139,6 +140,16 @@ now stopped in favor of running docker natively on Linux in WSL2.
 
 Developers who want to run Linux workloads on a Windows host are encouraged to use
 [Docker Desktop with WSL2](https://docs.docker.com/docker-for-windows/wsl/) instead.
+
+### BLKIO weight options with cgroups v1
+
+**Deprecated in Release: v20.10**
+
+Specifying blkio weight (`docker run --blkio-weight` and `docker run --blkio-weight-device`)
+is now marked as deprecated when using cgrous v1 because the corresponding features
+were [removed in Linux kernel v5.0 and up](https://github.com/torvalds/linux/commit/f382fb0bcef4c37dc049e9f6963e3baf204d815c).
+When using cgroups v2, the `--blkio-weight` options are implemented using
+[`io.weight](https://github.com/torvalds/linux/blob/v5.0/Documentation/admin-guide/cgroup-v2.rst#io).
 
 ### Kernel memory limit
 
