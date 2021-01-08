@@ -146,7 +146,7 @@ Developers who want to run Linux workloads on a Windows host are encouraged to u
 **Deprecated in Release: v20.10**
 
 Specifying blkio weight (`docker run --blkio-weight` and `docker run --blkio-weight-device`)
-is now marked as deprecated when using cgrous v1 because the corresponding features
+is now marked as deprecated when using cgroups v1 because the corresponding features
 were [removed in Linux kernel v5.0 and up](https://github.com/torvalds/linux/commit/f382fb0bcef4c37dc049e9f6963e3baf204d815c).
 When using cgroups v2, the `--blkio-weight` options are implemented using
 [`io.weight](https://github.com/torvalds/linux/blob/v5.0/Documentation/admin-guide/cgroup-v2.rst#io).
