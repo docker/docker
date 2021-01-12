@@ -3,6 +3,7 @@ package container // import "github.com/docker/docker/container"
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -169,7 +170,8 @@ func (db *memDB) Delete(c *Container) error {
 
 		// Ignore error - the container may not actually exist in the
 		// db, but we still need to clean up associated names.
-		txn.Delete(memdbContainersTable, NewBaseContainer(c.ID, c.Root))
+		c := NewBaseContainer(c.ID, c.Root, filepath.Join(c.Root, "run"))
+		txn.Delete(memdbContainersTable, c)
 		return nil
 	})
 }

@@ -2,27 +2,53 @@
 package backend // import "github.com/docker/docker/api/types/backend"
 
 import (
+	"crypto/tls"
 	"io"
+	"net/http"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
 )
 
-// ContainerAttachConfig holds the streams to use when connecting to a container to view logs.
+// ContainerAttachConfig is used to configure a container attach request
+// The stdio streams of the container are written to the stream returned by the `GetStream` function.
+// Reads/Writes will be performed using the defined framing.
 type ContainerAttachConfig struct {
-	GetStreams func() (io.ReadCloser, io.Writer, io.Writer, error)
-	UseStdin   bool
-	UseStdout  bool
-	UseStderr  bool
+	GetStream  func() (io.ReadWriteCloser, error)
 	Logs       bool
 	Stream     bool
 	DetachKeys string
+	// The reason for this is so the process that's actually handling the attachment knows how to setup the framing.
+	Framing AttachFraming
+	// The API falls back to no framing when a TTY is used since there is only stdout anyway.
+	// Since the API router doesn't have knowledge of the TTY, this is handled within the daemon object.
+	AllowTTYNoFraming bool
+	IncludeStdin      bool
+	IncludeStdout     bool
+	IncludeStderr     bool
+}
 
-	// Used to signify that streams are multiplexed and therefore need a StdWriter to encode stdout/stderr messages accordingly.
-	// TODO @cpuguy83: This shouldn't be needed. It was only added so that http and websocket endpoints can use the same function, and the websocket function was not using a stdwriter prior to this change...
-	// HOWEVER, the websocket endpoint is using a single stream and SHOULD be encoded with stdout/stderr as is done for HTTP since it is still just a single stream.
-	// Since such a change is an API change unrelated to the current changeset we'll keep it as is here and change separately.
-	MuxStreams bool
+// AttachFraming is used to define protocols used for a container stdio attachment request.
+type AttachFraming int
+
+// Framing protocols for container attachments
+const (
+	// No framing, this means that the underlying reader/writers are defined in such a way that it can receive the raw
+	AttachFramingNone AttachFraming = 0
+	// Defined in github.com/docker/docker/pkg/stdcopy
+	AttachFramingStdcopy AttachFraming = 1
+	// Websocket text framing (before API version 1.28)
+	AttachFramingWebsocket AttachFraming = 2
+	// Websocket binary framing
+	AttachFramingWebsocketBinary AttachFraming = 3
+)
+
+type AttachWebsocketData struct {
+	Header    http.Header
+	Host      string
+	Scheme    string
+	URI       string
+	TLSConfig *tls.Config
 }
 
 // PartialLogMetaData provides meta data for a partial log message. Messages

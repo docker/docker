@@ -34,7 +34,7 @@ func newContainer(t *testing.T) *Container {
 	if err := os.MkdirAll(cRoot, 0755); err != nil {
 		t.Fatal(err)
 	}
-	c := NewBaseContainer(id, cRoot)
+	c := NewBaseContainer(id, cRoot, filepath.Join(root, "exec", id))
 	c.HostConfig = &containertypes.HostConfig{}
 	return c
 }

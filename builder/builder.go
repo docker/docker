@@ -59,7 +59,7 @@ type ImageBackend interface {
 // ExecBackend contains the interface methods required for executing containers
 type ExecBackend interface {
 	// ContainerAttachRaw attaches to container.
-	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error
+	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer) error
 	// ContainerCreateIgnoreImagesArgsEscaped creates a new Docker container and returns potential warnings
 	ContainerCreateIgnoreImagesArgsEscaped(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
 	// ContainerRm removes a container specified by `id`.

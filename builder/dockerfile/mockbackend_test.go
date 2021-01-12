@@ -24,7 +24,7 @@ type MockBackend struct {
 	makeImageCacheFunc  func(cacheFrom []string) builder.ImageCache
 }
 
-func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool, attached chan struct{}) error {
+func (m *MockBackend) ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer) error {
 	return nil
 }
 

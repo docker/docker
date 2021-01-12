@@ -18,7 +18,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/container/stream"
+	"github.com/docker/docker/container/stream/streamv2"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
@@ -59,7 +59,7 @@ type ExitStatus struct {
 
 // Container holds the structure defining a container object.
 type Container struct {
-	StreamConfig *stream.Config
+	StreamConfig *streamv2.Streams
 	// embed for Container to support states directly.
 	*State          `json:"State"`          // Needed for Engine API version <= 1.11
 	Root            string                  `json:"-"` // Path to the "home" of the container, including metadata.
@@ -116,15 +116,15 @@ type localLogCacheMeta struct {
 
 // NewBaseContainer creates a new container with its
 // basic configuration.
-func NewBaseContainer(id, root string) *Container {
+func NewBaseContainer(id, root, execRoot string) *Container {
 	return &Container{
 		ID:            id,
 		State:         NewState(),
 		ExecCommands:  exec.NewStore(),
 		Root:          root,
 		MountPoints:   make(map[string]*volumemounts.MountPoint),
-		StreamConfig:  stream.NewConfig(),
 		attachContext: &attachContext{},
+		StreamConfig:  streamv2.New(filepath.Join(execRoot)),
 	}
 }
 
@@ -641,7 +641,12 @@ func (container *Container) startLogging() error {
 		return fmt.Errorf("failed to initialize logging driver: %v", err)
 	}
 
-	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
+	stdout, stderr, err := container.LogPipes(context.TODO())
+	if err != nil {
+		return err
+	}
+
+	copier := logger.NewCopier(map[string]io.Reader{"stdout": stdout, "stderr": stderr}, l)
 	container.LogCopier = copier
 	copier.Run()
 	container.LogDriver = l
@@ -649,36 +654,22 @@ func (container *Container) startLogging() error {
 	return nil
 }
 
-// StdinPipe gets the stdin stream of the container
-func (container *Container) StdinPipe() io.WriteCloser {
-	return container.StreamConfig.StdinPipe()
-}
-
-// StdoutPipe gets the stdout stream of the container
-func (container *Container) StdoutPipe() io.ReadCloser {
-	return container.StreamConfig.StdoutPipe()
-}
-
-// StderrPipe gets the stderr stream of the container
-func (container *Container) StderrPipe() io.ReadCloser {
-	return container.StreamConfig.StderrPipe()
-}
-
 // CloseStreams closes the container's stdio streams
 func (container *Container) CloseStreams() error {
 	return container.StreamConfig.CloseStreams()
 }
 
+func (container *Container) LogPipes(ctx context.Context) (stdoutR io.ReadCloser, stderrR io.ReadCloser, retErr error) {
+	return container.StreamConfig.LogPipes(ctx)
+}
+
 // InitializeStdio is called by libcontainerd to connect the stdio.
+//
+// TODO: DO NOT MERGE: stream config should be created with iop rather than passing it in afterwards.
+//  So much of this is cruft from code getting added to over the years without any refactoring.
+//  Even better, ditch libcontainerd and manage these things in a central place.
 func (container *Container) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
-	if err := container.startLogging(); err != nil {
-		container.Reset(false)
-		return nil, err
-	}
-
-	container.StreamConfig.CopyToPipe(iop)
-
-	if container.StreamConfig.Stdin() == nil && !container.Config.Tty {
+	if !container.Config.OpenStdin && !container.Config.Tty {
 		if iop.Stdin != nil {
 			if err := iop.Stdin.Close(); err != nil {
 				logrus.Warnf("error closing stdin: %+v", err)
@@ -686,7 +677,16 @@ func (container *Container) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
 		}
 	}
 
-	return &rio{IO: iop, sc: container.StreamConfig}, nil
+	cio, err := container.StreamConfig.CopyToPipe(iop)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := container.startLogging(); err != nil {
+		container.Reset(false)
+		return nil, err
+	}
+	return cio, nil
 }
 
 // MountsResourcePath returns the path where mounts are stored for the given mount
@@ -748,22 +748,4 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 	// else.
 	env = ReplaceOrAppendEnvValues(env, container.Config.Env)
 	return env
-}
-
-type rio struct {
-	cio.IO
-
-	sc *stream.Config
-}
-
-func (i *rio) Close() error {
-	i.IO.Close()
-
-	return i.sc.CloseStreams()
-}
-
-func (i *rio) Wait() {
-	i.sc.Wait(context.Background())
-
-	i.IO.Wait()
 }

@@ -1,0 +1,18 @@
+version = "unstable"
+plugins = ["grpc"]
+generator = "gogomoby"
+
+[includes]
+packages = ["github.com/gogo/protobuf", "github.com/gogo/googleapis"]
+# Paths that will be added untouched to the end of the includes. We use
+# `/usr/local/include` to pickup the common install location of protobuf.
+# This is the default.
+after = ["/usr/local/include", "/usr/include"]
+
+[packages]
+"google/protobuf/empty.proto" = "github.com/gogo/protobuf/types"
+
+[[overrides]]
+# enable ttrpc and disable fieldpath and grpc for the shim
+prefixes = ["github.com/docker/docker/container/stream/streamv2/stdio"]
+plugins = ["ttrpc"]

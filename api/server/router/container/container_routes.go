@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"syscall"
@@ -18,12 +19,11 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/gobwas/ws"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/websocket"
 )
 
 func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -588,10 +588,12 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		return errdefs.InvalidParameter(errors.Errorf("error attaching to container %s, hijack connection missing", containerName))
 	}
 
-	setupStreams := func() (io.ReadCloser, io.Writer, io.Writer, error) {
-		conn, _, err := hijacker.Hijack()
+	var conn net.Conn
+	setupStreams := func() (io.ReadWriteCloser, error) {
+		var err error
+		conn, _, err = hijacker.Hijack()
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, err
 		}
 
 		// set raw mode
@@ -602,30 +604,30 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		} else {
 			fmt.Fprintf(conn, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 		}
-
-		closer := func() error {
-			httputils.CloseStreams(conn)
-			return nil
-		}
-		return ioutils.NewReadCloserWrapper(conn, closer), conn, conn, nil
+		return conn, nil
 	}
 
 	attachConfig := &backend.ContainerAttachConfig{
-		GetStreams: setupStreams,
-		UseStdin:   httputils.BoolValue(r, "stdin"),
-		UseStdout:  httputils.BoolValue(r, "stdout"),
-		UseStderr:  httputils.BoolValue(r, "stderr"),
-		Logs:       httputils.BoolValue(r, "logs"),
-		Stream:     httputils.BoolValue(r, "stream"),
-		DetachKeys: detachKeys,
-		MuxStreams: true,
+		GetStream:         setupStreams,
+		Logs:              httputils.BoolValue(r, "logs"),
+		Stream:            httputils.BoolValue(r, "stream"),
+		DetachKeys:        detachKeys,
+		Framing:           backend.AttachFramingStdcopy,
+		AllowTTYNoFraming: true,
+		IncludeStdin:      httputils.BoolValue(r, "stdin"),
+		IncludeStdout:     httputils.BoolValue(r, "stdout"),
+		IncludeStderr:     httputils.BoolValue(r, "stderr"),
 	}
 
-	if err = s.backend.ContainerAttach(containerName, attachConfig); err != nil {
+	err = s.backend.ContainerAttachMultiplexed(ctx, containerName, attachConfig)
+	if err != nil {
 		logrus.Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
-		// Remember to close stream if error happens
-		conn, _, errHijack := hijacker.Hijack()
-		if errHijack == nil {
+		// Note, errors are handled here like this intentionally due to backwards compatability.
+		// We should be able to just send a regular error message back in the case where the conn wasn't hijacked already, however this can break clients (even the docker CLI)
+		if conn == nil {
+			conn, _, _ = hijacker.Hijack()
+		}
+		if conn != nil {
 			statusCode := errdefs.GetHTTPErrorStatusCode(err)
 			statusText := http.StatusText(statusCode)
 			fmt.Fprintf(conn, "HTTP/1.1 %d %s\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n%s\r\n", statusCode, statusText, err.Error())
@@ -641,60 +643,43 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
+
 	containerName := vars["name"]
+	if _, ok := w.(http.Hijacker); !ok {
+		return errdefs.InvalidParameter(errors.Errorf("error attaching to container %s, hijack connection missing", containerName))
+	}
 
-	var err error
-	detachKeys := r.FormValue("detachKeys")
-
-	done := make(chan struct{})
-	started := make(chan struct{})
-
-	version := httputils.VersionFromContext(ctx)
-
-	setupStreams := func() (io.ReadCloser, io.Writer, io.Writer, error) {
-		wsChan := make(chan *websocket.Conn)
-		h := func(conn *websocket.Conn) {
-			wsChan <- conn
-			<-done
+	var conn net.Conn
+	setupStreams := func() (io.ReadWriteCloser, error) {
+		if r.Host == "" {
+			// Older websocket library accepted this, the new one does not.
+			// For backwards compat, put a dummy header in.
+			r.Host = "dummy"
 		}
-
-		srv := websocket.Server{Handler: h, Handshake: nil}
-		go func() {
-			close(started)
-			srv.ServeHTTP(w, r)
-		}()
-
-		conn := <-wsChan
-		// In case version 1.28 and above, a binary frame will be sent.
-		// See 28176 for details.
-		if versions.GreaterThanOrEqualTo(version, "1.28") {
-			conn.PayloadType = websocket.BinaryFrame
-		}
-		return conn, conn, conn, nil
+		conn, _, _, err := ws.UpgradeHTTP(r, w)
+		return conn, err
 	}
 
 	attachConfig := &backend.ContainerAttachConfig{
-		GetStreams: setupStreams,
-		Logs:       httputils.BoolValue(r, "logs"),
-		Stream:     httputils.BoolValue(r, "stream"),
-		DetachKeys: detachKeys,
-		UseStdin:   true,
-		UseStdout:  true,
-		UseStderr:  true,
-		MuxStreams: false, // TODO: this should be true since it's a single stream for both stdout and stderr
+		GetStream:     setupStreams,
+		Logs:          httputils.BoolValue(r, "logs"),
+		Stream:        httputils.BoolValue(r, "stream"),
+		DetachKeys:    r.FormValue("detachKeys"),
+		Framing:       backend.AttachFramingWebsocket,
+		IncludeStdin:  httputils.BoolValue(r, "stdin"),
+		IncludeStdout: httputils.BoolValue(r, "stdout"),
+		IncludeStderr: httputils.BoolValue(r, "stderr"),
+	}
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.28") {
+		attachConfig.Framing = backend.AttachFramingWebsocketBinary
 	}
 
-	err = s.backend.ContainerAttach(containerName, attachConfig)
-	close(done)
-	select {
-	case <-started:
-		if err != nil {
-			logrus.Errorf("Error attaching websocket: %s", err)
-		} else {
-			logrus.Debug("websocket connection was closed by client")
-		}
-		return nil
-	default:
+	err := s.backend.ContainerAttachMultiplexed(ctx, containerName, attachConfig)
+	if err != nil && conn != nil {
+		// hijack has already happened
+		httputils.CloseStreams(conn)
+		logrus.WithError(err).Error("Error attaching websocket")
+		err = nil
 	}
 	return err
 }

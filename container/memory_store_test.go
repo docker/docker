@@ -18,7 +18,7 @@ func TestNewMemoryStore(t *testing.T) {
 
 func TestAddContainers(t *testing.T) {
 	s := NewMemoryStore()
-	s.Add("id", NewBaseContainer("id", "root"))
+	s.Add("id", NewBaseContainer("id", "root", "exec"))
 	if s.Size() != 1 {
 		t.Fatalf("expected store size 1, got %v", s.Size())
 	}
@@ -26,7 +26,7 @@ func TestAddContainers(t *testing.T) {
 
 func TestGetContainer(t *testing.T) {
 	s := NewMemoryStore()
-	s.Add("id", NewBaseContainer("id", "root"))
+	s.Add("id", NewBaseContainer("id", "root", "exec"))
 	c := s.Get("id")
 	if c == nil {
 		t.Fatal("expected container to not be nil")
@@ -35,7 +35,7 @@ func TestGetContainer(t *testing.T) {
 
 func TestDeleteContainer(t *testing.T) {
 	s := NewMemoryStore()
-	s.Add("id", NewBaseContainer("id", "root"))
+	s.Add("id", NewBaseContainer("id", "root", "exec"))
 	s.Delete("id")
 	if c := s.Get("id"); c != nil {
 		t.Fatalf("expected container to be nil after removal, got %v", c)
@@ -49,9 +49,9 @@ func TestDeleteContainer(t *testing.T) {
 func TestListContainers(t *testing.T) {
 	s := NewMemoryStore()
 
-	cont := NewBaseContainer("id", "root")
+	cont := NewBaseContainer("id", "root", "exec")
 	cont.Created = time.Now()
-	cont2 := NewBaseContainer("id2", "root")
+	cont2 := NewBaseContainer("id2", "root", "exec")
 	cont2.Created = time.Now().Add(24 * time.Hour)
 
 	s.Add("id", cont)
@@ -69,8 +69,8 @@ func TestListContainers(t *testing.T) {
 func TestFirstContainer(t *testing.T) {
 	s := NewMemoryStore()
 
-	s.Add("id", NewBaseContainer("id", "root"))
-	s.Add("id2", NewBaseContainer("id2", "root"))
+	s.Add("id", NewBaseContainer("id", "root", "exec"))
+	s.Add("id2", NewBaseContainer("id2", "root", "exec"))
 
 	first := s.First(func(cont *Container) bool {
 		return cont.ID == "id2"
@@ -87,8 +87,8 @@ func TestFirstContainer(t *testing.T) {
 func TestApplyAllContainer(t *testing.T) {
 	s := NewMemoryStore()
 
-	s.Add("id", NewBaseContainer("id", "root"))
-	s.Add("id2", NewBaseContainer("id2", "root"))
+	s.Add("id", NewBaseContainer("id", "root", "exec"))
+	s.Add("id2", NewBaseContainer("id2", "root", "exec"))
 
 	s.ApplyAll(func(cont *Container) {
 		if cont.ID == "id2" {

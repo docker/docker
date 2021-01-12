@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package docker.container.services.stdio.v1;
+
+import "google/protobuf/empty.proto";
+import weak "gogoproto/gogo.proto";
+
+option go_package = "github.com/docker/docker/container/stream/streamv2/stdio";
+
+
+// Stdio is a service used for managing a container's stdio
+// It handles requests attach to the container's stdio streams.
+service Stdio {
+	// AttachStreams attaches the specified file descriptors to the corresponding container stdio stream.
+	// Any errors when reading or writing to the specified streams will result in the attachment being evicted.
+	rpc AttachStreams(AttachStreamsRequest) returns (google.protobuf.Empty);
+	// AttachStreamsultiplexed is like AttachStreams except there is only one output stream with writes to the stream framed to denote which stdio
+	//  stream the write belongs to. Clients will need to de-multiplex the stream.
+	// The format for the framing and helpers for de-multiplexing are here: https://github.com/moby/moby/blob/0f95b23/pkg/stdcopy/stdcopy.go
+	//
+	// Attaching to stdin is still supported in order to reduce requests needed to do a full attachment, but there is nothing multiplexed about the stdin stream
+	//  and it should behave exactly like AttachStreams.
+	rpc AttachStreamsMultiplexed(AttachStreamsMultiplexedRequest) returns (google.protobuf.Empty);
+	// Shutdown shuts down the stdio service.
+	// This should be called only when a container exits.
+	//
+	// TODO: This rpc could be moved to a separate service geared towards process management.
+	// It may not even be needed if we integrate this service with the shim process.
+	rpc Shutdown(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+// AttachStreamRequest is used to by the AttachStreams rpc to pass along references to file descriptors that the caller is requesting to attach with.
+// Each file descriptor reference must be transferred to the stdio service before making this request.
+// How the file descriptors are transferred to the stdio service is left up to the implementation to deal with.
+//
+// A nil descriptor means there is nothing to attach.
+message AttachStreamsRequest {
+	FileDescriptor stdin = 1;
+	FileDescriptor stdout = 2;
+	FileDescriptor stderr = 3;
+}
+
+// AttachStreamRequest is used to by the AttachStreamsMultiplexed rpc to pass along references to file descriptors that the caller is requesting to attach with.
+// Each file descriptor reference must be transferred to the stdio service before making this request.
+// How the file descriptors are transferred to the stdio service is left up to the implementation to deal with.
+message AttachStreamsMultiplexedRequest {
+	// Stream specifies the file descriptor that will be used for sending/receiving stdio with framing.
+	// Stream must never be nil.
+	FileDescriptor stream = 1;
+	StreamFraming framing = 2 [(gogoproto.nullable) = false];
+	// include_stdout and include_stderr denote which streams are to be multiplexed on the output stream.
+	// At lease one must be specified or an error will be generated.
+	bool include_stdin = 4;
+	bool include_stdout = 5;
+	bool include_stderr = 6;
+	bytes detach_keys = 7;
+}
+
+// StreamFraming defines how an stream should be framed
+message StreamFraming {
+	enum FramingType {
+		// No framing
+		NONE = 0;
+		// Use framing from github.com/docker/docker/pkg/stdcopy
+		STDCOPY = 1;
+		// Websocket with text framing
+		WEBSOCKET_TEXT = 2;
+		// Websocket with binary framing
+		WEBSOCKET_BINARY = 3;
+	}
+	FramingType type = 1;
+}
+
+// FileDescriptor represents a reference to a file descriptor which should exist in the process of the stdio service.
+//
+// This will be used like so: `os.NewFile(desc.Fileno, desc.Name)`.
+message FileDescriptor {
+	string name = 1;
+	uint32 fileno = 2;
+}

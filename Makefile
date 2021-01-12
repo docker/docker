@@ -1,5 +1,7 @@
 .PHONY: all binary dynbinary build cross help install manpages run shell test test-docker-py test-integration test-unit validate win
 
+
+
 ifdef USE_BUILDX
 BUILDX ?= $(shell command -v buildx)
 BUILDX ?= $(shell command -v docker-buildx)
@@ -292,3 +294,10 @@ bundles/buildx: bundles ## build buildx CLI tool
 	fi
 
 	$@ version
+
+PROTO_PATHS := ./container/stream/streamv2/stdio
+protos: bundles/bin/protoc-gen-gogomoby
+	@PATH=$(PWD)/bundles/bin:$(PATH) protobuild $(PROTO_PATHS)
+
+bundles/bin/protoc-gen-gogomoby: cmd/protoc-gen-gogomoby
+	$(DOCKER) build --target=gogomoby --output=bundles/bin/ .

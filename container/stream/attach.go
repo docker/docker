@@ -57,7 +57,7 @@ func (c *Config) AttachStreams(cfg *AttachConfig) {
 }
 
 // CopyStreams starts goroutines to copy data in and out to/from the container
-func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan error {
+func CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan error {
 	var group errgroup.Group
 
 	// Connect stdin of container to the attach stdin stream.

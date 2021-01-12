@@ -39,12 +39,13 @@ func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *containe
 		id              = uuid.New().String()
 		computedImageID = digest.FromString(id)
 		cRoot           = filepath.Join(root, id)
+		execRoot        = filepath.Join(root, "run", id)
 	)
 	if err := os.MkdirAll(cRoot, 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	c := container.NewBaseContainer(id, cRoot)
+	c := container.NewBaseContainer(id, cRoot, execRoot)
 	// these are for passing includeContainerInList
 	if name[0] != '/' {
 		name = "/" + name
