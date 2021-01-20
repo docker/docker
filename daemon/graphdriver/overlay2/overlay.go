@@ -299,7 +299,7 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 // is being shutdown. For now, we just have to unmount the bind mounted
 // we had created.
 func (d *Driver) Cleanup() error {
-	return mount.RecursiveUnmount(d.home)
+	return mount.UnmountAll(d.home)
 }
 
 // CreateReadWrite creates a layer that is writable for use as a container

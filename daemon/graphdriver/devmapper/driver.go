@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	units "github.com/docker/go-units"
 	"github.com/moby/locker"
-	"github.com/moby/sys/mount"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -120,15 +119,7 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 
 // Cleanup unmounts a device.
 func (d *Driver) Cleanup() error {
-	err := d.DeviceSet.Shutdown(d.home)
-	umountErr := mount.RecursiveUnmount(d.home)
-
-	// in case we have two errors, prefer the one from Shutdown()
-	if err != nil {
-		return err
-	}
-
-	return umountErr
+	return d.DeviceSet.Shutdown(d.home)
 }
 
 // CreateReadWrite creates a layer that is writable for use as a container
