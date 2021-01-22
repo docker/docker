@@ -176,7 +176,7 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 		return err
 	}
 
-	imageMount, err := b.imageSources.Get(state.imageID, true, req.builder.platform)
+	imageMount, err := b.imageSources.Get(state.imageID, true, req.builder.platform())
 	if err != nil {
 		return errors.Wrapf(err, "failed to get destination image %q", state.imageID)
 	}
@@ -199,7 +199,7 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 	if inst.chownStr != "" {
 		identity, err = parseChownFlag(b, state, inst.chownStr, destInfo.root.Path(), b.idMapping)
 		if err != nil {
-			if b.options.Platform != "windows" {
+			if b.platform().OS != "windows" {
 				return errors.Wrapf(err, "unable to convert uid/gid chown string to host mapping")
 			}
 
@@ -448,7 +448,7 @@ func (b *Builder) probeAndCreate(dispatchState *dispatchState, runConfig *contai
 func (b *Builder) create(runConfig *container.Config) (string, error) {
 	logrus.Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
 
-	isWCOW := runtime.GOOS == "windows" && b.platform != nil && b.platform.OS == "windows"
+	isWCOW := runtime.GOOS == "windows" && b.platform() != nil && b.platform().OS == "windows"
 	hostConfig := hostConfigFromOptions(b.options, isWCOW)
 	container, err := b.containerManager.Create(runConfig, hostConfig)
 	if err != nil {

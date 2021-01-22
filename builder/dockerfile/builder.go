@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -127,7 +126,6 @@ type Builder struct {
 	pathCache        pathCache
 	containerManager *containerManager
 	imageProber      ImageProber
-	platform         *specs.Platform
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.
@@ -150,19 +148,6 @@ func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, er
 		pathCache:        options.PathCache,
 		imageProber:      newImageProber(options.Backend, config.CacheFrom, config.NoCache),
 		containerManager: newContainerManager(options.Backend),
-	}
-
-	// same as in Builder.Build in builder/builder-next/builder.go
-	// TODO: remove once config.Platform is of type specs.Platform
-	if config.Platform != "" {
-		sp, err := platforms.Parse(config.Platform)
-		if err != nil {
-			return nil, err
-		}
-		if err := system.ValidatePlatform(sp); err != nil {
-			return nil, err
-		}
-		b.platform = &sp
 	}
 
 	return b, nil
@@ -218,6 +203,10 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 		return nil, errors.New("No image was generated. Is your Dockerfile empty?")
 	}
 	return &builder.Result{ImageID: dispatchState.imageID, FromImage: dispatchState.baseImage}, nil
+}
+
+func (b *Builder) platform() *specs.Platform {
+	return b.options.Platform
 }
 
 func emitImageID(aux *streamformatter.AuxFormatter, state *dispatchState) error {

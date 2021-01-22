@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 )
@@ -124,11 +125,11 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	if options.SessionID != "" {
 		query.Set("session", options.SessionID)
 	}
-	if options.Platform != "" {
+	if options.Platform != nil {
 		if err := cli.NewVersionError("1.32", "platform"); err != nil {
 			return query, err
 		}
-		query.Set("platform", strings.ToLower(options.Platform))
+		query.Set("platform", strings.ToLower(platforms.Format(*options.Platform)))
 	}
 	if options.BuildID != "" {
 		query.Set("buildid", options.BuildID)

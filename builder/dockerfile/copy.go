@@ -83,7 +83,7 @@ type copier struct {
 }
 
 func copierFromDispatchRequest(req dispatchRequest, download sourceDownloader, imageSource *imageMount) copier {
-	platform := req.builder.platform
+	platform := req.builder.platform()
 	if platform == nil {
 		// May be nil if not explicitly set in API/dockerfile
 		platform = &specs.Platform{}

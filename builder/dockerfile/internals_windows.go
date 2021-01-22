@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/idtools"
@@ -16,7 +15,7 @@ import (
 )
 
 func parseChownFlag(builder *Builder, state *dispatchState, chown, ctrRootPath string, identityMapping *idtools.IdentityMapping) (idtools.Identity, error) {
-	if builder.options.Platform == "windows" {
+	if builder.platform().OS == "windows" {
 		return getAccountIdentity(builder, chown, ctrRootPath, state)
 	}
 
@@ -62,13 +61,8 @@ func lookupNTAccount(builder *Builder, accountName string, state *dispatchState)
 	target := "C:\\Docker"
 	targetExecutable := target + "\\containerutility.exe"
 
-	optionsPlatform, err := platforms.Parse(builder.options.Platform)
-	if err != nil {
-		return idtools.Identity{}, err
-	}
-
 	runConfig := copyRunConfig(state.runConfig,
-		withCmdCommentString("internal run to obtain NT account information.", optionsPlatform.OS))
+		withCmdCommentString("internal run to obtain NT account information.", builder.platform().OS))
 
 	runConfig.Cmd = []string{targetExecutable, "getaccountsid", accountName}
 

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/idtools"
 	"gotest.tools/v3/assert"
@@ -48,6 +49,11 @@ othergrp:x:6666:
 		createTestTempFile(t, filepath.Join(contextDir, "etc"), filename, content, 0644)
 	}
 
+	platformLinux, err := platforms.Parse("linux")
+	if err != nil {
+		t.Fatalf("error parsing platform 'linux': %v", err)
+	}
+
 	// positive tests
 	for _, testcase := range []struct {
 		builder   *Builder
@@ -58,7 +64,7 @@ othergrp:x:6666:
 		expected  idtools.Identity
 	}{
 		{
-			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
+			builder:   &Builder{options: &types.ImageBuildOptions{Platform: &platformLinux}},
 			name:      "UIDNoMap",
 			chownStr:  "1",
 			idMapping: unmapped,
@@ -66,7 +72,7 @@ othergrp:x:6666:
 			expected:  idtools.Identity{UID: 1, GID: 1},
 		},
 		{
-			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
+			builder:   &Builder{options: &types.ImageBuildOptions{Platform: &platformLinux}},
 			name:      "UIDGIDNoMap",
 			chownStr:  "0:1",
 			idMapping: unmapped,
@@ -74,7 +80,7 @@ othergrp:x:6666:
 			expected:  idtools.Identity{UID: 0, GID: 1},
 		},
 		{
-			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
+			builder:   &Builder{options: &types.ImageBuildOptions{Platform: &platformLinux}},
 			name:      "UIDWithMap",
 			chownStr:  "0",
 			idMapping: remapped,
@@ -82,7 +88,7 @@ othergrp:x:6666:
 			expected:  idtools.Identity{UID: 100000, GID: 100000},
 		},
 		{
-			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
+			builder:   &Builder{options: &types.ImageBuildOptions{Platform: &platformLinux}},
 			name:      "UIDGIDWithMap",
 			chownStr:  "1:33",
 			idMapping: remapped,
@@ -90,7 +96,7 @@ othergrp:x:6666:
 			expected:  idtools.Identity{UID: 100001, GID: 100033},
 		},
 		{
-			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
+			builder:   &Builder{options: &types.ImageBuildOptions{Platform: &platformLinux}},
 			name:      "UserNoMap",
 			chownStr:  "bin:5555",
 			idMapping: unmapped,
@@ -98,7 +104,7 @@ othergrp:x:6666:
 			expected:  idtools.Identity{UID: 1, GID: 5555},
 		},
 		{
-			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
+			builder:   &Builder{options: &types.ImageBuildOptions{Platform: &platformLinux}},
 			name:      "GroupWithMap",
 			chownStr:  "0:unicorn",
 			idMapping: remapped,
@@ -106,7 +112,7 @@ othergrp:x:6666:
 			expected:  idtools.Identity{UID: 100000, GID: 101002},
 		},
 		{
-			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
+			builder:   &Builder{options: &types.ImageBuildOptions{Platform: &platformLinux}},
 			name:      "UserOnlyWithMap",
 			chownStr:  "unicorn",
 			idMapping: remapped,
@@ -131,7 +137,7 @@ othergrp:x:6666:
 		descr     string
 	}{
 		{
-			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
+			builder:   &Builder{options: &types.ImageBuildOptions{Platform: &platformLinux}},
 			name:      "BadChownFlagFormat",
 			chownStr:  "bob:1:555",
 			idMapping: unmapped,
@@ -139,7 +145,7 @@ othergrp:x:6666:
 			descr:     "invalid chown string format: bob:1:555",
 		},
 		{
-			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
+			builder:   &Builder{options: &types.ImageBuildOptions{Platform: &platformLinux}},
 			name:      "UserNoExist",
 			chownStr:  "bob",
 			idMapping: unmapped,
@@ -147,7 +153,7 @@ othergrp:x:6666:
 			descr:     "can't find uid for user bob: no such user: bob",
 		},
 		{
-			builder:   &Builder{options: &types.ImageBuildOptions{Platform: "linux"}},
+			builder:   &Builder{options: &types.ImageBuildOptions{Platform: &platformLinux}},
 			name:      "GroupNoExist",
 			chownStr:  "root:bob",
 			idMapping: unmapped,
