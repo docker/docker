@@ -20,6 +20,15 @@ func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
 	return "", "/"
 }
 
+// dPath converts linux absolute paths to Windows absolute paths if the daemon
+// is running on Windows
+func dPath(path string) string {
+	if testEnv.OSType == "windows" {
+		return `c:` + strings.ReplaceAll(path, "/", `\`)
+	}
+	return path
+}
+
 // TODO: update code to call cmd.RunCmd directly, and remove this function
 // Deprecated: use gotest.tools/icmd
 func runCommandWithOutput(execCmd *exec.Cmd) (string, int, error) {

@@ -54,8 +54,7 @@ func (s *DockerSuite) TestRestartRunningContainer(c *testing.T) {
 
 // Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
 func (s *DockerSuite) TestRestartWithVolumes(c *testing.T) {
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	out := runSleepingContainer(c, "-d", "-v", prefix+slash+"test")
+	out := runSleepingContainer(c, "-d", "-v", dPath("/test"))
 
 	cleanedContainerID := strings.TrimSpace(out)
 	out, err := inspectFilter(cleanedContainerID, "len .Mounts")
@@ -63,7 +62,7 @@ func (s *DockerSuite) TestRestartWithVolumes(c *testing.T) {
 	out = strings.Trim(out, " \n\r")
 	assert.Equal(c, out, "1")
 
-	source, err := inspectMountSourceField(cleanedContainerID, prefix+slash+"test")
+	source, err := inspectMountSourceField(cleanedContainerID, dPath("/test"))
 	assert.NilError(c, err)
 
 	dockerCmd(c, "restart", cleanedContainerID)
@@ -73,7 +72,7 @@ func (s *DockerSuite) TestRestartWithVolumes(c *testing.T) {
 	out = strings.Trim(out, " \n\r")
 	assert.Equal(c, out, "1")
 
-	sourceAfterRestart, err := inspectMountSourceField(cleanedContainerID, prefix+slash+"test")
+	sourceAfterRestart, err := inspectMountSourceField(cleanedContainerID, dPath("/test"))
 	assert.NilError(c, err)
 	assert.Equal(c, source, sourceAfterRestart)
 }
