@@ -4227,7 +4227,7 @@ paths:
           type: "string"
         - name: "v"
           in: "query"
-          description: "Remove the volumes associated with the container."
+          description: "Remove anonymous volumes associated with the container."
           type: "boolean"
           default: false
         - name: "force"
