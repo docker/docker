@@ -4,7 +4,7 @@ set -eu -o pipefail
 
 hack/test/unit
 
-hack/make.sh \
+TEST_SKIP_INTEGRATION_CLI=1 hack/make.sh \
 	binary-daemon \
 	dynbinary \
 	test-integration
