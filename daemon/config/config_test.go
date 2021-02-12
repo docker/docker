@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
+	"github.com/docker/libnetwork/ipamutils"
 	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -151,6 +152,48 @@ func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 	if !strings.Contains(err.Error(), "tlscacert") {
 		t.Fatalf("expected tlscacert conflict, got %v", err)
 	}
+}
+
+// Test for #40711
+func TestDaemonConfigurationMergeDefaultAddressPools(t *testing.T) {
+	emptyConfigFile := fs.NewFile(t, "config", fs.WithContent(`{}`))
+	defer emptyConfigFile.Remove()
+	configFile := fs.NewFile(t, "config", fs.WithContent(`{"default-address-pools":[{"base": "10.123.0.0/16", "size": 24 }]}`))
+	defer configFile.Remove()
+
+	expected := []*ipamutils.NetworkToSplit{{Base: "10.123.0.0/16", Size: 24}}
+
+	t.Run("empty config file", func(t *testing.T) {
+		var conf = Config{}
+		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
+		flags.Set("default-address-pool", "base=10.123.0.0/16,size=24")
+
+		config, err := MergeDaemonConfigurations(&conf, flags, emptyConfigFile.Path())
+		assert.NilError(t, err)
+		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected)
+	})
+
+	t.Run("config file", func(t *testing.T) {
+		var conf = Config{}
+		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
+
+		config, err := MergeDaemonConfigurations(&conf, flags, configFile.Path())
+		assert.NilError(t, err)
+		assert.DeepEqual(t, config.DefaultAddressPools.Value(), expected)
+	})
+
+	t.Run("with conflicting options", func(t *testing.T) {
+		var conf = Config{}
+		flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		flags.Var(&conf.NetworkConfig.DefaultAddressPools, "default-address-pool", "")
+		flags.Set("default-address-pool", "base=10.123.0.0/16,size=24")
+
+		_, err := MergeDaemonConfigurations(&conf, flags, configFile.Path())
+		assert.ErrorContains(t, err, "the following directives are specified both as a flag and in the configuration file")
+		assert.ErrorContains(t, err, "default-address-pools")
+	})
 }
 
 func TestFindConfigurationConflictsWithUnknownKeys(t *testing.T) {
