@@ -25,6 +25,82 @@ func (daemon *Daemon) setStateCounter(c *container.Container) {
 	}
 }
 
+func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontainerdtypes.EventInfo) error {
+	c.Lock()
+
+	ec, et, err := daemon.containerd.DeleteTask(context.Background(), c.ID)
+	if err != nil {
+		logrus.WithError(err).Warnf("failed to delete container %s from containerd", c.ID)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	c.StreamConfig.Wait(ctx)
+	cancel()
+	c.Reset(false)
+
+	exitStatus := container.ExitStatus{
+		ExitCode: int(ec),
+		ExitedAt: et,
+	}
+	if e != nil {
+		exitStatus.ExitCode = int(e.ExitCode)
+		exitStatus.ExitedAt = e.ExitedAt
+		exitStatus.OOMKilled = e.OOMKilled
+		if e.Error != nil {
+			c.SetError(e.Error)
+		}
+	}
+
+	restart, wait, err := c.RestartManager().ShouldRestart(ec, daemon.IsShuttingDown() || c.HasBeenManuallyStopped, time.Since(c.StartedAt))
+	if err == nil && restart {
+		c.RestartCount++
+		c.SetRestarting(&exitStatus)
+	} else {
+		c.SetStopped(&exitStatus)
+		defer daemon.autoRemove(c)
+	}
+	defer c.Unlock() // needs to be called before autoRemove
+
+	// cancel healthcheck here, they will be automatically
+	// restarted if/when the container is started again
+	daemon.stopHealthchecks(c)
+	attributes := map[string]string{
+		"exitCode": strconv.Itoa(int(ec)),
+	}
+	daemon.LogContainerEventWithAttributes(c, "die", attributes)
+	daemon.Cleanup(c)
+	daemon.setStateCounter(c)
+	cpErr := c.CheckpointTo(daemon.containersReplica)
+
+	if err == nil && restart {
+		go func() {
+			err := <-wait
+			if err == nil {
+				// daemon.netController is initialized when daemon is restoring containers.
+				// But containerStart will use daemon.netController segment.
+				// So to avoid panic at startup process, here must wait util daemon restore done.
+				daemon.waitForStartupDone()
+				if err = daemon.containerStart(c, "", "", false); err != nil {
+					logrus.Debugf("failed to restart container: %+v", err)
+				}
+			}
+			if err != nil {
+				c.Lock()
+				c.SetStopped(&exitStatus)
+				daemon.setStateCounter(c)
+				c.CheckpointTo(daemon.containersReplica)
+				c.Unlock()
+				defer daemon.autoRemove(c)
+				if err != restartmanager.ErrRestartCanceled {
+					logrus.Errorf("restartmanger wait error: %+v", err)
+				}
+			}
+		}()
+	}
+
+	return cpErr
+}
+
 // ProcessEvent is called by libcontainerd whenever an event occurs
 func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) error {
 	c, err := daemon.GetContainer(id)
@@ -49,72 +125,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		daemon.LogContainerEvent(c, "oom")
 	case libcontainerdtypes.EventExit:
 		if int(ei.Pid) == c.Pid {
-			c.Lock()
-			_, _, err := daemon.containerd.DeleteTask(context.Background(), c.ID)
-			if err != nil {
-				logrus.WithError(err).Warnf("failed to delete container %s from containerd", c.ID)
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			c.StreamConfig.Wait(ctx)
-			cancel()
-			c.Reset(false)
-
-			exitStatus := container.ExitStatus{
-				ExitCode:  int(ei.ExitCode),
-				ExitedAt:  ei.ExitedAt,
-				OOMKilled: ei.OOMKilled,
-			}
-			restart, wait, err := c.RestartManager().ShouldRestart(ei.ExitCode, daemon.IsShuttingDown() || c.HasBeenManuallyStopped, time.Since(c.StartedAt))
-			if err == nil && restart {
-				c.RestartCount++
-				c.SetRestarting(&exitStatus)
-			} else {
-				if ei.Error != nil {
-					c.SetError(ei.Error)
-				}
-				c.SetStopped(&exitStatus)
-				defer daemon.autoRemove(c)
-			}
-			defer c.Unlock() // needs to be called before autoRemove
-
-			// cancel healthcheck here, they will be automatically
-			// restarted if/when the container is started again
-			daemon.stopHealthchecks(c)
-			attributes := map[string]string{
-				"exitCode": strconv.Itoa(int(ei.ExitCode)),
-			}
-			daemon.LogContainerEventWithAttributes(c, "die", attributes)
-			daemon.Cleanup(c)
-			daemon.setStateCounter(c)
-			cpErr := c.CheckpointTo(daemon.containersReplica)
-
-			if err == nil && restart {
-				go func() {
-					err := <-wait
-					if err == nil {
-						// daemon.netController is initialized when daemon is restoring containers.
-						// But containerStart will use daemon.netController segment.
-						// So to avoid panic at startup process, here must wait util daemon restore done.
-						daemon.waitForStartupDone()
-						if err = daemon.containerStart(c, "", "", false); err != nil {
-							logrus.Debugf("failed to restart container: %+v", err)
-						}
-					}
-					if err != nil {
-						c.Lock()
-						c.SetStopped(&exitStatus)
-						daemon.setStateCounter(c)
-						c.CheckpointTo(daemon.containersReplica)
-						c.Unlock()
-						defer daemon.autoRemove(c)
-						if err != restartmanager.ErrRestartCanceled {
-							logrus.Errorf("restartmanger wait error: %+v", err)
-						}
-					}
-				}()
-			}
-
-			return cpErr
+			return daemon.handleContainerExit(c, &ei)
 		}
 
 		exitCode := 127
