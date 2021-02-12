@@ -58,6 +58,8 @@ func DefaultProfile() *types.Seccomp {
 				"chmod",
 				"chown",
 				"chown32",
+				"clock_adjtime",
+				"clock_adjtime64",
 				"clock_getres",
 				"clock_getres_time64",
 				"clock_gettime",
@@ -85,6 +87,7 @@ func DefaultProfile() *types.Seccomp {
 				"exit",
 				"exit_group",
 				"faccessat",
+				"faccessat2",
 				"fadvise64",
 				"fadvise64_64",
 				"fallocate",
@@ -182,6 +185,7 @@ func DefaultProfile() *types.Seccomp {
 				"lstat",
 				"lstat64",
 				"madvise",
+				"membarrier",
 				"memfd_create",
 				"mincore",
 				"mkdir",
@@ -216,6 +220,7 @@ func DefaultProfile() *types.Seccomp {
 				"_newselect",
 				"open",
 				"openat",
+				"openat2",
 				"pause",
 				"pipe",
 				"pipe2",
@@ -249,6 +254,7 @@ func DefaultProfile() *types.Seccomp {
 				"renameat2",
 				"restart_syscall",
 				"rmdir",
+				"rseq",
 				"rt_sigaction",
 				"rt_sigpending",
 				"rt_sigprocmask",
@@ -537,7 +543,7 @@ func DefaultProfile() *types.Seccomp {
 			Args: []*types.Arg{
 				{
 					Index:    0,
-					Value:    unix.CLONE_NEWNS | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWUSER | unix.CLONE_NEWPID | unix.CLONE_NEWNET,
+					Value:    unix.CLONE_NEWNS | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWUSER | unix.CLONE_NEWPID | unix.CLONE_NEWNET | unix.CLONE_NEWCGROUP,
 					ValueTwo: 0,
 					Op:       types.OpMaskedEqual,
 				},
@@ -555,7 +561,7 @@ func DefaultProfile() *types.Seccomp {
 			Args: []*types.Arg{
 				{
 					Index:    1,
-					Value:    unix.CLONE_NEWNS | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWUSER | unix.CLONE_NEWPID | unix.CLONE_NEWNET,
+					Value:    unix.CLONE_NEWNS | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWUSER | unix.CLONE_NEWPID | unix.CLONE_NEWNET | unix.CLONE_NEWCGROUP,
 					ValueTwo: 0,
 					Op:       types.OpMaskedEqual,
 				},

@@ -65,6 +65,8 @@
 				"chmod",
 				"chown",
 				"chown32",
+				"clock_adjtime",
+				"clock_adjtime64",
 				"clock_getres",
 				"clock_getres_time64",
 				"clock_gettime",
@@ -92,6 +94,7 @@
 				"exit",
 				"exit_group",
 				"faccessat",
+				"faccessat2",
 				"fadvise64",
 				"fadvise64_64",
 				"fallocate",
@@ -189,6 +192,7 @@
 				"lstat",
 				"lstat64",
 				"madvise",
+				"membarrier",
 				"memfd_create",
 				"mincore",
 				"mkdir",
@@ -223,6 +227,7 @@
 				"_newselect",
 				"open",
 				"openat",
+				"openat2",
 				"pause",
 				"pipe",
 				"pipe2",
@@ -256,6 +261,7 @@
 				"renameat2",
 				"restart_syscall",
 				"rmdir",
+				"rseq",
 				"rt_sigaction",
 				"rt_sigpending",
 				"rt_sigprocmask",
@@ -615,7 +621,7 @@
 			"args": [
 				{
 					"index": 0,
-					"value": 2080505856,
+					"value": 2114060288,
 					"valueTwo": 0,
 					"op": "SCMP_CMP_MASKED_EQ"
 				}
@@ -640,7 +646,7 @@
 			"args": [
 				{
 					"index": 1,
-					"value": 2080505856,
+					"value": 2114060288,
 					"valueTwo": 0,
 					"op": "SCMP_CMP_MASKED_EQ"
 				}
