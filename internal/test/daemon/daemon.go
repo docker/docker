@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/internal/test"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/opts"
@@ -77,6 +78,7 @@ type Daemon struct {
 	init          bool
 	dockerdBinary string
 	log           logT
+	imageService  *images.ImageService
 
 	// swarm related field
 	swarmListenAddr string
@@ -719,4 +721,9 @@ func cleanupRaftDir(t testingT, rootPath string) {
 			t.Logf("error removing %v: %v", dir, err)
 		}
 	}
+}
+
+// ImageService returns the Daemon's ImageService
+func (d *Daemon) ImageService() *images.ImageService {
+	return d.imageService
 }
