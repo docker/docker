@@ -84,7 +84,7 @@ FROM base AS swagger
 # Install go-swagger for validating swagger.yaml
 # This is https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix
 # TODO: move to under moby/ or fix upstream go-swagger to work for us.
-ENV GO_SWAGGER_COMMIT 5793aa66d4b4112c2602c716516e24710e4adbb5
+ENV GO_SWAGGER_COMMIT 5e6cb12f7c82ce78e45ba71fa6cb1928094db050
 RUN set -x \
     && export GOPATH="$(mktemp -d)" \
     && git clone https://github.com/kolyshkin/go-swagger.git "$GOPATH/src/github.com/go-swagger/go-swagger" \

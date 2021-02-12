@@ -5,7 +5,5 @@
 install_gotestsum() (
 	set -e
 	export GO111MODULE=on
-	go get -d "gotest.tools/gotestsum@${GOTESTSUM_COMMIT}"
-	go build -buildmode=pie -o "${PREFIX}/gotestsum" 'gotest.tools/gotestsum'
-
+	GOBIN="${PREFIX}" go get "gotest.tools/gotestsum@${GOTESTSUM_COMMIT}"
 )

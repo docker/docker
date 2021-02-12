@@ -23,6 +23,7 @@ func TestLoginFailsWithBadCredentials(t *testing.T) {
 		Password: "no-password",
 	}
 	_, err := client.RegistryLogin(context.Background(), config)
-	expected := "Error response from daemon: Get https://registry-1.docker.io/v2/: unauthorized: incorrect username or password"
-	assert.Check(t, is.Error(err, expected))
+	assert.Assert(t, err != nil)
+	assert.Check(t, is.ErrorContains(err, "unauthorized: incorrect username or password"))
+	assert.Check(t, is.ErrorContains(err, "https://registry-1.docker.io/v2/"))
 }

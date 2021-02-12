@@ -75,9 +75,10 @@ func TestResumableRequestHeaderTooMuchFailures(t *testing.T) {
 	}
 	defer resreq.Close()
 
-	expectedError := `Get I%27m%20not%20an%20url: unsupported protocol scheme ""`
 	read, err := resreq.Read([]byte{})
-	assert.Check(t, is.Error(err, expectedError))
+	assert.Assert(t, err != nil)
+	assert.Check(t, is.ErrorContains(err, "unsupported protocol scheme"))
+	assert.Check(t, is.ErrorContains(err, "I%27m%20not%20an%20url"))
 	assert.Check(t, is.Equal(0, read))
 }
 
