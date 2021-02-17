@@ -3,6 +3,7 @@
 package archive // import "github.com/docker/docker/pkg/archive"
 
 import (
+	"archive/tar"
 	"bytes"
 	"fmt"
 	"io/ioutil"
@@ -154,6 +155,24 @@ func TestTarWithHardLinkAndRebase(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Equal(i1, i2))
+}
+
+// TestUntarParentPathPermissions is a regression test to check that missing
+// parent directories are created with the expected permissions
+func TestUntarParentPathPermissions(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := tar.NewWriter(buf)
+	err := w.WriteHeader(&tar.Header{Name: "foo/bar"})
+	assert.NilError(t, err)
+	tmpDir, err := ioutil.TempDir("", t.Name())
+	assert.NilError(t, err)
+	defer os.RemoveAll(tmpDir)
+	err = Untar(buf, tmpDir, nil)
+	assert.NilError(t, err)
+
+	fi, err := os.Lstat(filepath.Join(tmpDir, "foo"))
+	assert.NilError(t, err)
+	assert.Equal(t, fi.Mode(), 0755|os.ModeDir)
 }
 
 func getNlink(path string) (uint64, error) {

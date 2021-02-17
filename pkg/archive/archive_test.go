@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1172,6 +1173,26 @@ func TestTempArchiveCloseMultipleTimes(t *testing.T) {
 			t.Fatalf("i=%d. Unexpected error closing temp archive: %v", i, err)
 		}
 	}
+}
+
+// TestXGlobalNoParent is a regression test to check parent directories are not crated for PAX headers
+func TestXGlobalNoParent(t *testing.T) {
+	buf := &bytes.Buffer{}
+	w := tar.NewWriter(buf)
+	err := w.WriteHeader(&tar.Header{
+		Name:     "foo/bar",
+		Typeflag: tar.TypeXGlobalHeader,
+	})
+	assert.NilError(t, err)
+	tmpDir, err := ioutil.TempDir("", "pax-test")
+	assert.NilError(t, err)
+	defer os.RemoveAll(tmpDir)
+	err = Untar(buf, tmpDir, nil)
+	assert.NilError(t, err)
+
+	_, err = os.Lstat(filepath.Join(tmpDir, "foo"))
+	assert.Check(t, err != nil)
+	assert.Check(t, errors.Is(err, os.ErrNotExist))
 }
 
 func TestReplaceFileTarWrapper(t *testing.T) {
