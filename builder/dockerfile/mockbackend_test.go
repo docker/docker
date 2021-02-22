@@ -55,7 +55,10 @@ func (m *MockBackend) ContainerStart(containerID string, hostConfig *container.H
 }
 
 func (m *MockBackend) ContainerWait(ctx context.Context, containerID string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error) {
-	return nil, nil
+	ch := make(chan containerpkg.StateStatus, 1)
+	ch <- containerpkg.StateStatus{}
+	close(ch)
+	return ch, nil
 }
 
 func (m *MockBackend) ContainerCreateWorkdir(containerID string) error {
