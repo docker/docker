@@ -23,13 +23,23 @@ import (
 )
 
 func PurgeFile(dirname string, suffix string, max uint, interval time.Duration, stop <-chan struct{}) <-chan error {
-	return purgeFile(dirname, suffix, max, interval, stop, nil)
+	return purgeFile(dirname, suffix, max, interval, stop, nil, nil)
+}
+
+func PurgeFileWithDoneNotify(dirname string, suffix string, max uint, interval time.Duration, stop <-chan struct{}) (<-chan struct{}, <-chan error) {
+	doneC := make(chan struct{})
+	errC := purgeFile(dirname, suffix, max, interval, stop, nil, doneC)
+	return doneC, errC
 }
 
 // purgeFile is the internal implementation for PurgeFile which can post purged files to purgec if non-nil.
-func purgeFile(dirname string, suffix string, max uint, interval time.Duration, stop <-chan struct{}, purgec chan<- string) <-chan error {
+// if donec is non-nil, the function closes it to notify its exit.
+func purgeFile(dirname string, suffix string, max uint, interval time.Duration, stop <-chan struct{}, purgec chan<- string, donec chan<- struct{}) <-chan error {
 	errC := make(chan error, 1)
 	go func() {
+		if donec != nil {
+			defer close(donec)
+		}
 		for {
 			fnames, err := ReadDir(dirname)
 			if err != nil {

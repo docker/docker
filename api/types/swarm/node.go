@@ -53,6 +53,7 @@ type NodeDescription struct {
 	Resources Resources         `json:",omitempty"`
 	Engine    EngineDescription `json:",omitempty"`
 	TLSInfo   TLSInfo           `json:",omitempty"`
+	CSIInfo   []NodeCSIInfo     `json:",omitempty"`
 }
 
 // Platform represents the platform (Arch/OS).
@@ -66,6 +67,21 @@ type EngineDescription struct {
 	EngineVersion string              `json:",omitempty"`
 	Labels        map[string]string   `json:",omitempty"`
 	Plugins       []PluginDescription `json:",omitempty"`
+}
+
+// NodeCSIInfo represents information about a CSI plugin available on the node
+type NodeCSIInfo struct {
+	// PluginName is the name of the CSI plugin.
+	PluginName string `json:",omitempty"`
+	// NodeID is the ID of the node as reported by the CSI plugin. This is
+	// different from the swarm node ID.
+	NodeID string `json:",omitempty"`
+	// MaxVolumesPerNode is the maximum number of volumes that may be published
+	// to this node
+	MaxVolumesPerNode int64 `json:",omitempty"`
+	// AccessibleTopology indicates the location of this node in the CSI
+	// plugin's topology
+	AccessibleTopology *Topology `json:",omitempty"`
 }
 
 // PluginDescription represents the description of an engine plugin.

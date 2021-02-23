@@ -11,6 +11,7 @@ import (
 	descriptor "github.com/gogo/protobuf/protoc-gen-gogo/descriptor"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 )
@@ -24,7 +25,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type WatchSelectors struct {
 	// supported by all object types
@@ -59,7 +60,7 @@ func (m *WatchSelectors) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return xxx_messageInfo_WatchSelectors.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +96,7 @@ func (m *StoreObject) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) 
 		return xxx_messageInfo_StoreObject.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +137,7 @@ func (m *TLSAuthorization) XXX_Marshal(b []byte, deterministic bool) ([]byte, er
 		return xxx_messageInfo_TLSAuthorization.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -293,7 +294,7 @@ func (m *TLSAuthorization) CopyFrom(src interface{}) {
 func (m *WatchSelectors) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -301,147 +302,152 @@ func (m *WatchSelectors) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *WatchSelectors) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *WatchSelectors) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.ID != nil {
-		dAtA[i] = 0x8
-		i++
-		if *m.ID {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
-	}
-	if m.IDPrefix != nil {
-		dAtA[i] = 0x10
-		i++
-		if *m.IDPrefix {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
-	}
-	if m.Name != nil {
-		dAtA[i] = 0x18
-		i++
-		if *m.Name {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
-	}
-	if m.NamePrefix != nil {
-		dAtA[i] = 0x20
-		i++
-		if *m.NamePrefix {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
-	}
-	if m.Custom != nil {
-		dAtA[i] = 0x28
-		i++
-		if *m.Custom {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
-	}
-	if m.CustomPrefix != nil {
-		dAtA[i] = 0x30
-		i++
-		if *m.CustomPrefix {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
-	}
-	if m.ServiceID != nil {
-		dAtA[i] = 0x38
-		i++
-		if *m.ServiceID {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
-	}
-	if m.NodeID != nil {
-		dAtA[i] = 0x40
-		i++
-		if *m.NodeID {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
-	}
-	if m.Slot != nil {
-		dAtA[i] = 0x48
-		i++
-		if *m.Slot {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
-	}
-	if m.DesiredState != nil {
-		dAtA[i] = 0x50
-		i++
-		if *m.DesiredState {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
-	}
-	if m.Role != nil {
-		dAtA[i] = 0x58
-		i++
-		if *m.Role {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
-	}
-	if m.Membership != nil {
-		dAtA[i] = 0x60
-		i++
-		if *m.Membership {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i++
-	}
 	if m.Kind != nil {
-		dAtA[i] = 0x68
-		i++
+		i--
 		if *m.Kind {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x68
 	}
-	return i, nil
+	if m.Membership != nil {
+		i--
+		if *m.Membership {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x60
+	}
+	if m.Role != nil {
+		i--
+		if *m.Role {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x58
+	}
+	if m.DesiredState != nil {
+		i--
+		if *m.DesiredState {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x50
+	}
+	if m.Slot != nil {
+		i--
+		if *m.Slot {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x48
+	}
+	if m.NodeID != nil {
+		i--
+		if *m.NodeID {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x40
+	}
+	if m.ServiceID != nil {
+		i--
+		if *m.ServiceID {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x38
+	}
+	if m.CustomPrefix != nil {
+		i--
+		if *m.CustomPrefix {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x30
+	}
+	if m.Custom != nil {
+		i--
+		if *m.Custom {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.NamePrefix != nil {
+		i--
+		if *m.NamePrefix {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.Name != nil {
+		i--
+		if *m.Name {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.IDPrefix != nil {
+		i--
+		if *m.IDPrefix {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.ID != nil {
+		i--
+		if *m.ID {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *StoreObject) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -449,29 +455,36 @@ func (m *StoreObject) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *StoreObject) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreObject) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.WatchSelectors == nil {
 		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("watch_selectors")
 	} else {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintPlugin(dAtA, i, uint64(m.WatchSelectors.Size()))
-		n1, err := m.WatchSelectors.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.WatchSelectors.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintPlugin(dAtA, i, uint64(size))
 		}
-		i += n1
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *TLSAuthorization) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -479,46 +492,47 @@ func (m *TLSAuthorization) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *TLSAuthorization) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TLSAuthorization) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Roles) > 0 {
-		for _, s := range m.Roles {
-			dAtA[i] = 0xa
-			i++
-			l = len(s)
-			for l >= 1<<7 {
-				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
-			}
-			dAtA[i] = uint8(l)
-			i++
-			i += copy(dAtA[i:], s)
-		}
-	}
 	if m.Insecure != nil {
-		dAtA[i] = 0x10
-		i++
+		i--
 		if *m.Insecure {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x10
 	}
-	return i, nil
+	if len(m.Roles) > 0 {
+		for iNdEx := len(m.Roles) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Roles[iNdEx])
+			copy(dAtA[i:], m.Roles[iNdEx])
+			i = encodeVarintPlugin(dAtA, i, uint64(len(m.Roles[iNdEx])))
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintPlugin(dAtA []byte, offset int, v uint64) int {
+	offset -= sovPlugin(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func (m *WatchSelectors) Size() (n int) {
 	if m == nil {
@@ -600,14 +614,7 @@ func (m *TLSAuthorization) Size() (n int) {
 }
 
 func sovPlugin(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozPlugin(x uint64) (n int) {
 	return sovPlugin(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -639,7 +646,7 @@ func (this *StoreObject) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&StoreObject{`,
-		`WatchSelectors:` + strings.Replace(fmt.Sprintf("%v", this.WatchSelectors), "WatchSelectors", "WatchSelectors", 1) + `,`,
+		`WatchSelectors:` + strings.Replace(this.WatchSelectors.String(), "WatchSelectors", "WatchSelectors", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -1192,6 +1199,7 @@ func (m *TLSAuthorization) Unmarshal(dAtA []byte) error {
 func skipPlugin(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -1223,10 +1231,8 @@ func skipPlugin(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -1247,55 +1253,30 @@ func skipPlugin(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthPlugin
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthPlugin
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowPlugin
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipPlugin(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthPlugin
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupPlugin
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthPlugin
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthPlugin = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowPlugin   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthPlugin        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowPlugin          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupPlugin = fmt.Errorf("proto: unexpected end of group")
 )

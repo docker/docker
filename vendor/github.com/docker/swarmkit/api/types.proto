@@ -62,6 +62,7 @@ enum ResourceType {
 	TASK = 0;
 	SECRET = 1;
 	CONFIG = 2;
+	VOLUME = 3;
 }
 
 message Resources {
@@ -140,6 +141,8 @@ message NodeDescription {
 
 	// FIPS indicates whether the node has FIPS-enabled
 	bool fips = 6 [(gogoproto.customname) = "FIPS"];
+
+	repeated NodeCSIInfo csi_info = 7 [(gogoproto.customname) = "CSIInfo"];
 }
 
 message NodeTLSInfo {
@@ -149,6 +152,27 @@ message NodeTLSInfo {
 	// Information about the node's current TLS certificate
 	bytes cert_issuer_subject = 2;
 	bytes cert_issuer_public_key = 3;
+}
+
+// NodeCSIInfo represents information about a Node returned by calling the
+// NodeGetInfo RPC on the CSI plugin present on the node. There is a separate
+// NodeCSIInfo object for each CSI plugin present.
+message NodeCSIInfo {
+
+	// PluginName is the name of the CSI plugin.
+	string plugin_name = 1;
+
+	// NodeID is the ID of the node as reported by the CSI plugin. This will be
+	// different from the swarmkit node ID.
+	string node_id = 2;
+
+	// MaxVolumesPerNode is the maximum number of volumes that may be published
+	// to this node.
+	int64 max_volumes_per_node = 3;
+
+	// AccessibleTopology indicates the location of this node in the CSI plugin's
+	// topology
+	Topology accessible_topology = 4;
 }
 
 message RaftMemberStatus {
@@ -215,6 +239,7 @@ message Mount {
 		VOLUME = 1 [(gogoproto.enumvalue_customname) = "MountTypeVolume"];  // Remote storage volumes
 		TMPFS = 2 [(gogoproto.enumvalue_customname) = "MountTypeTmpfs"]; // Mount a tmpfs
 		NPIPE = 3 [(gogoproto.enumvalue_customname) = "MountTypeNamedPipe"]; // Windows named pipes
+		CSI = 4 [(gogoproto.enumvalue_customname) = "MountTypeCSI"]; // CSI volume
 	}
 
 	// Type defines the nature of the mount.
@@ -222,6 +247,10 @@ message Mount {
 
 	// Source specifies the name of the mount. Depending on mount type, this
 	// may be a volume name or a host path, or even ignored.
+	//
+	// For CSI type mounts, the source is either the name of the volume or the
+	// name of the volume group. To specify a volume group, the source should be
+	// prefixed with "group:", as in "group:groupname"
 	string source = 2;
 
 	// Target path in container
@@ -850,6 +879,31 @@ message EncryptionConfig {
 	bool auto_lock_managers = 1;
 }
 
+// CSIConfig defines available CSI plugins and where they can be reached
+message CSIConfig {
+	// Plugin defines the details of an individual CSI plugin
+	message Plugin {
+		// Name defines the name of the CSI plugin. This corresponds to the
+		// Driver.Name field used when creating a CSI volume.
+		string name = 1;
+
+		// ControllerSocket defines the socket at which Swarm can reach the
+		// Controller plugin. This may be the same as the NodeSocket, or it
+		// may be different, depending on the Plugin architecture. The
+		// ControllerSocket will only ever be called on the current Swarm
+		// leader.
+		string controller_socket = 2;
+
+		// NodeSocket defines the socket at which Swarm can reach the Node
+		// plugin. This may be the same as ControllerPlugin depending on the
+		// Plugin architecture. NodeSocket must be present on every Node that
+		// runs the CSI plugin, and will be propagated to nodes.
+		string node_socket = 3;
+	}
+
+	repeated Plugin plugins = 1;
+}
+
 message SpreadOver {
 	string spread_descriptor = 1; // label descriptor, such as engine.labels.az
 	// TODO: support node information beyond engine and node labels
@@ -973,6 +1027,16 @@ message ManagerStatus {
 
 	// Reachability specifies whether this node is reachable.
 	RaftMemberStatus.Reachability reachability = 4;
+}
+
+// CSINodePlugin represents the configuration of a single CSI Node Plugin
+message CSINodePlugin {
+	// Name is the name of the plugin, which corresponds to the Driver.Name
+	// field on the Volume.
+	string name = 1;
+
+	// Socket is the unix domain socket that the CSI plugin can be reached on.
+	string socket = 2;
 }
 
 // FileTarget represents a specific target that is backed by a file
@@ -1130,4 +1194,457 @@ message JobStatus {
 	// this value gives us a best-effort attempt to prevent weird behavior like
 	// newly added nodes executing long-forgotten jobs.
 	google.protobuf.Timestamp last_execution = 2;
+}
+
+// VolumeAccessMode is the access mode of the volume, and is used to determine
+// the CSI AccessMode value. It is a combination of two fields, the Sharing and
+// the Scope.
+//
+// This defines how and where a volume can be accessed by more than
+// one Task, but does not imply anything about the accessible topology of the
+// volume.
+//
+// For analogy, a flash drive can be used on many computers, but only one of
+// them at a time, and so would have a scope of "Single". But, it can be used
+// by any number of programs simultaneously, so would have a sharing of "All".
+message VolumeAccessMode {
+	// Scope enumerates the possible volume access scopes.
+	enum Scope {
+		option (gogoproto.goproto_enum_prefix) = false;
+		// VolumeScopeSingleNode indicates that only one node at a time may have
+		// access to the volume.
+		SINGLE_NODE = 0 [(gogoproto.enumvalue_customname) = "VolumeScopeSingleNode"];
+		// VolumeScopeMultiNode indicates that multiple nodes may access the volume
+		// at the same time.
+		MULTI_NODE = 1 [(gogoproto.enumvalue_customname) = "VolumeScopeMultiNode"];
+	}
+
+	// Sharing enumerates the possible volume sharing modes.
+	enum Sharing {
+		option (gogoproto.goproto_enum_prefix) = false;
+		// VolumeSharingNone indicates that the volume may only be used by a single
+		// Task at any given time.
+		NONE = 0 [(gogoproto.enumvalue_customname) = "VolumeSharingNone"];
+		// VolumeSharingReadOnly indicates that the volume may be accessed by
+		// multiple Tasks, but all Tasks only have have read access.
+		READ_ONLY = 1 [(gogoproto.enumvalue_customname) = "VolumeSharingReadOnly"];
+		// VolumeSharingOneWriter indicates that the Volume may be accessed by
+		// multiple Tasks, but only the one Task may have write permission for the
+		// Volume.
+		ONE_WRITER = 2 [(gogoproto.enumvalue_customname) = "VolumeSharingOneWriter"];
+		// VolumeSharingAll indicates that any number of Tasks may have read and
+		// write access to the volume.
+		ALL = 3 [(gogoproto.enumvalue_customname) = "VolumeSharingAll"];
+	}
+
+	// Scope defines on how many nodes this volume can be accessed
+	// simultaneously.
+	Scope scope = 1;
+
+	// Sharing defines how many tasks can use this volume at the same time, and
+	// in what way.
+	Sharing sharing = 2;
+}
+
+// VolumeSecret indicates a secret value that must be passed to CSI plugin
+// operations.
+message VolumeSecret {
+	// Key represents the key that will be passed as a controller secret to the
+	// CSI plugin.
+	string key = 1;
+
+	// Secret represents the swarmkit Secret object from which to read data to
+	// use as the value to pass to the CSI plugin. This can be either a secret
+	// name or ID.
+	//
+	// TODO(dperny): should this be a SecretReference instead?
+	string secret = 2;
+}
+
+// VolumePublishStatus contains information about the volume's publishing to a
+// specific node.
+//
+// Publishing or unpublishing a volume to a node is a two-step process.
+//
+// When a Volume is needed on a Node, a VolumePublishStatus with state
+// PendingPublish is added. This indicates that the volume should be published,
+// but the RPCs have not been executed.
+//
+// Then, afterward, ControllerPublishVolume is called for the Volume, and the
+// State is changed to Published, indicating that the call was a success.
+//
+// When a Volume is no longer needed, the process is similar, with the State
+// being changed to PendingUnpublish. When ControllerUnpublishVolume succeeds,
+// the PublishStatus for that Node is simply removed.
+//
+// Without this two-step process, the following could happen:
+//
+//   1. ControllerPublishVolume is called and the Volume is successfully
+//      published.
+//   2. A crash or leadership change disrupts the cluster before
+//      the Volume with the updated VolumePublishStatus can be added to the
+//      store.
+//   3. The Task that required the Volume to be published is deleted.
+//
+// In this case, the Volume would be published to the Node, but Swarm would be
+// unaware of this, and would additionally be unaware that the Volume _should_
+// be published to the Node.
+//
+// By first committing our intention to publish a Volume, we guarantee that the
+// Volume itself is sufficient to know which Nodes it may have been published
+// to.
+message VolumePublishStatus {
+	// State is the state of the volume in the publish/unpublish
+	// lifecycle, on a particular node.
+	enum State {
+		// PendingPublish indicates that the volume should be published on this
+		// node, but the call to ControllerPublishVolume has not been
+		// successfully completed yet and the result recorded by swarmkit.
+		PENDING_PUBLISH = 0;
+
+		// Published means the volume is published successfully to the node.
+		PUBLISHED = 1;
+
+		// PendingNodeUnpublish indicates that the Volume should be unpublished
+		// on the Node, and we're waiting for confirmation that it has done so.
+		// After the Node has confirmed that the Volume has been unpublished,
+		// the state will move to PendingUnpublish.
+		PENDING_NODE_UNPUBLISH = 2;
+
+		// PendingUnpublish means the volume is published to the node, and
+		// needs to not be, but the call to ControllerUnpublishVolume has not
+		// verifiably succeeded yet. There is no Unpublished state, because
+		// after the volume has been verifiably unpublished, the
+		// VolumePublishStatus for the node is removed.
+		PENDING_UNPUBLISH = 3;
+	}
+
+	// NodeID is the swarm (not CSI plugin) node ID that this volume is
+	// published to.
+	string node_id = 1;
+
+	// State is the publish state of the volume.
+	State state = 2;
+
+	// PublishContext is the same PublishContext returned by a call to
+	// ControllerPublishVolume.
+	map<string, string> publish_context = 3;
+
+	// Message is a human-readable message explaining the state of the volume.
+	// It exists to convey the current situation with the volume to the user,
+	// allowing, for example, the user to see error messages why a volume might
+	// not be published yet.
+	string message = 5;
+}
+
+// VolumeInfo contains information about the volume originating from the CSI
+// plugin.
+message VolumeInfo {
+	// CapacityBytes is the capacity of this volume in bytes. A value of 0
+	// indicates that the capcity is unknown.
+	int64 capacity_bytes = 1;
+
+	// VolumeContext includes fields that are opaque to Swarmkit.
+	map<string, string> volume_context = 2;
+
+	// VolumeID is the ID of the volume as reported by the CSI plugin.
+	// Information about the volume is not cached in swarmkit's object store;
+	// instead, it is retrieved on-demand as needed. If the VolumeID field is an
+	// empty string, and the plugin advertises CREATE_DELETE_VOLUME capability,
+	// then Swarmkit has not yet called CreateVolume.
+	string volume_id = 3;
+
+	// AccessibleTopology is the topology this volume is actually accessible
+	// from.
+	repeated Topology accessible_topology = 4;
+}
+
+// CapacityRange describes the minimum and maximum capacity a volume should be
+// created with.
+message CapacityRange {
+	// RequiredBytes specifies that a volume must be at least this big. The value
+	// of 0 indicates an unspecified minimum. Must not be negative.
+	int64 required_bytes = 1;
+
+	// LimitBytes specifies that a volume must not be bigger than this. The value
+	// of 0 indicates an unspecified maximum. Must not be negative.
+	int64 limit_bytes = 2;
+}
+
+// VolumeAssignment contains the information needed by a Node to use a CSI
+// volume. This includes the information need to Stage and Publish the volume
+// on the node, but never the full Volume object.
+message VolumeAssignment {
+	// ID is the swarmkit ID for the volume. This is used by swarmkit components
+	// to identify the volume.
+	string id = 1;
+
+	// VolumeID is the CSI volume ID as returned from CreateVolume. This is used
+	// by the CSI driver to identify the volume.
+	string volume_id = 2;
+
+	// Driver is the CSI Driver that this volume is managed by.
+	Driver driver = 3;
+
+	// VolumeContext is a map returned from the CSI Controller service when a
+	// Volume is created. It is optional for the driver to provide, but if it is
+	// provided, it must be passed to subsequent calls.
+	map<string,string> volume_context = 4;
+
+	// PublishContext is a map returned from the Controller service when
+	// ControllerPublishVolume is called. Again, it is optional, but if provided,
+	// must be passed.
+	map<string,string> publish_context = 5;
+
+	// AccessMode specifies the access mode of the volume.
+	VolumeAccessMode access_mode = 6;
+
+	// Secrets is the set of secrets required by the CSI plugin. These refer to
+	// swarmkit Secrets that will be distributed separately to the node.
+	repeated VolumeSecret secrets = 7;
+}
+
+// VolumeAttachment is the information associating a Volume with a Task.
+message VolumeAttachment {
+	// ID is the swarmkit ID of the volume assigned to this task, not the CSI
+	// volume ID.
+	string id = 1;
+
+	// Source indicates the Mount source that this volume is assigned for.
+	string source = 2;
+
+	// Target indicates the Mount target that this volume is assigned for.
+	string target = 3;
+}
+
+
+// These types are copied from the CSI spec. They are copied because there is
+// difficulty in compatibility between the CSI protos and the swarmkit protos,
+// and straight importing them is difficult.
+
+// TopologyRequirement expresses the user's requirements for a volume's
+// accessible topology.
+message TopologyRequirement {
+	// Specifies the list of topologies the provisioned volume MUST be
+	// accessible from.
+	// This field is OPTIONAL. If TopologyRequirement is specified either
+	// requisite or preferred or both MUST be specified.
+	//
+	// If requisite is specified, the provisioned volume MUST be
+	// accessible from at least one of the requisite topologies.
+	//
+	// Given
+	//   x = number of topologies provisioned volume is accessible from
+	//   n = number of requisite topologies
+	// The CO MUST ensure n >= 1. The SP MUST ensure x >= 1
+	// If x==n, then the SP MUST make the provisioned volume available to
+	// all topologies from the list of requisite topologies. If it is
+	// unable to do so, the SP MUST fail the CreateVolume call.
+	// For example, if a volume should be accessible from a single zone,
+	// and requisite =
+	//   {"region": "R1", "zone": "Z2"}
+	// then the provisioned volume MUST be accessible from the "region"
+	// "R1" and the "zone" "Z2".
+	// Similarly, if a volume should be accessible from two zones, and
+	// requisite =
+	//   {"region": "R1", "zone": "Z2"},
+	//   {"region": "R1", "zone": "Z3"}
+	// then the provisioned volume MUST be accessible from the "region"
+	// "R1" and both "zone" "Z2" and "zone" "Z3".
+	//
+	// If x<n, then the SP SHALL choose x unique topologies from the list
+	// of requisite topologies. If it is unable to do so, the SP MUST fail
+	// the CreateVolume call.
+	// For example, if a volume should be accessible from a single zone,
+	// and requisite =
+	//   {"region": "R1", "zone": "Z2"},
+	//   {"region": "R1", "zone": "Z3"}
+	// then the SP may choose to make the provisioned volume available in
+	// either the "zone" "Z2" or the "zone" "Z3" in the "region" "R1".
+	// Similarly, if a volume should be accessible from two zones, and
+	// requisite =
+	//   {"region": "R1", "zone": "Z2"},
+	//   {"region": "R1", "zone": "Z3"},
+	//   {"region": "R1", "zone": "Z4"}
+	// then the provisioned volume MUST be accessible from any combination
+	// of two unique topologies: e.g. "R1/Z2" and "R1/Z3", or "R1/Z2" and
+	//  "R1/Z4", or "R1/Z3" and "R1/Z4".
+	//
+	// If x>n, then the SP MUST make the provisioned volume available from
+	// all topologies from the list of requisite topologies and MAY choose
+	// the remaining x-n unique topologies from the list of all possible
+	// topologies. If it is unable to do so, the SP MUST fail the
+	// CreateVolume call.
+	// For example, if a volume should be accessible from two zones, and
+	// requisite =
+	//   {"region": "R1", "zone": "Z2"}
+	// then the provisioned volume MUST be accessible from the "region"
+	// "R1" and the "zone" "Z2" and the SP may select the second zone
+	// independently, e.g. "R1/Z4".
+	repeated Topology requisite = 1;
+
+	// Specifies the list of topologies the CO would prefer the volume to
+	// be provisioned in.
+	//
+	// This field is OPTIONAL. If TopologyRequirement is specified either
+	// requisite or preferred or both MUST be specified.
+	//
+	// An SP MUST attempt to make the provisioned volume available using
+	// the preferred topologies in order from first to last.
+	//
+	// If requisite is specified, all topologies in preferred list MUST
+	// also be present in the list of requisite topologies.
+	//
+	// If the SP is unable to to make the provisioned volume available
+	// from any of the preferred topologies, the SP MAY choose a topology
+	// from the list of requisite topologies.
+	// If the list of requisite topologies is not specified, then the SP
+	// MAY choose from the list of all possible topologies.
+	// If the list of requisite topologies is specified and the SP is
+	// unable to to make the provisioned volume available from any of the
+	// requisite topologies it MUST fail the CreateVolume call.
+	//
+	// Example 1:
+	// Given a volume should be accessible from a single zone, and
+	// requisite =
+	//   {"region": "R1", "zone": "Z2"},
+	//   {"region": "R1", "zone": "Z3"}
+	// preferred =
+	//   {"region": "R1", "zone": "Z3"}
+	// then the the SP SHOULD first attempt to make the provisioned volume
+	// available from "zone" "Z3" in the "region" "R1" and fall back to
+	// "zone" "Z2" in the "region" "R1" if that is not possible.
+	//
+	// Example 2:
+	// Given a volume should be accessible from a single zone, and
+	// requisite =
+	//   {"region": "R1", "zone": "Z2"},
+	//   {"region": "R1", "zone": "Z3"},
+	//   {"region": "R1", "zone": "Z4"},
+	//   {"region": "R1", "zone": "Z5"}
+	// preferred =
+	//   {"region": "R1", "zone": "Z4"},
+	//   {"region": "R1", "zone": "Z2"}
+	// then the the SP SHOULD first attempt to make the provisioned volume
+	// accessible from "zone" "Z4" in the "region" "R1" and fall back to
+	// "zone" "Z2" in the "region" "R1" if that is not possible. If that
+	// is not possible, the SP may choose between either the "zone"
+	// "Z3" or "Z5" in the "region" "R1".
+	//
+	// Example 3:
+	// Given a volume should be accessible from TWO zones (because an
+	// opaque parameter in CreateVolumeRequest, for example, specifies
+	// the volume is accessible from two zones, aka synchronously
+	// replicated), and
+	// requisite =
+	//   {"region": "R1", "zone": "Z2"},
+	//   {"region": "R1", "zone": "Z3"},
+	//   {"region": "R1", "zone": "Z4"},
+	//   {"region": "R1", "zone": "Z5"}
+	// preferred =
+	//   {"region": "R1", "zone": "Z5"},
+	//   {"region": "R1", "zone": "Z3"}
+	// then the the SP SHOULD first attempt to make the provisioned volume
+	// accessible from the combination of the two "zones" "Z5" and "Z3" in
+	// the "region" "R1". If that's not possible, it should fall back to
+	// a combination of "Z5" and other possibilities from the list of
+	// requisite. If that's not possible, it should fall back  to a
+	// combination of "Z3" and other possibilities from the list of
+	// requisite. If that's not possible, it should fall back  to a
+	// combination of other possibilities from the list of requisite.
+	repeated Topology preferred = 2;
+}
+
+// Topology is a map of topological domains to topological segments.
+// A topological domain is a sub-division of a cluster, like "region",
+// "zone", "rack", etc.
+// A topological segment is a specific instance of a topological domain,
+// like "zone3", "rack3", etc.
+// For example {"com.company/zone": "Z1", "com.company/rack": "R3"}
+// Valid keys have two segments: an OPTIONAL prefix and name, separated
+// by a slash (/), for example: "com.company.example/zone".
+// The key name segment is REQUIRED. The prefix is OPTIONAL.
+// The key name MUST be 63 characters or less, begin and end with an
+// alphanumeric character ([a-z0-9A-Z]), and contain only dashes (-),
+// underscores (_), dots (.), or alphanumerics in between, for example
+// "zone".
+// The key prefix MUST be 63 characters or less, begin and end with a
+// lower-case alphanumeric character ([a-z0-9]), contain only
+// dashes (-), dots (.), or lower-case alphanumerics in between, and
+// follow domain name notation format
+// (https://tools.ietf.org/html/rfc1035#section-2.3.1).
+// The key prefix SHOULD include the plugin's host company name and/or
+// the plugin name, to minimize the possibility of collisions with keys
+// from other plugins.
+// If a key prefix is specified, it MUST be identical across all
+// topology keys returned by the SP (across all RPCs).
+// Keys MUST be case-insensitive. Meaning the keys "Zone" and "zone"
+// MUST not both exist.
+// Each value (topological segment) MUST contain 1 or more strings.
+// Each string MUST be 63 characters or less and begin and end with an
+// alphanumeric character with '-', '_', '.', or alphanumerics in
+// between.
+message Topology {
+	map<string, string> segments = 1;
+}
+
+// VolumeCapability specifies a capability of a volume.
+message VolumeCapability {
+	// Indicate that the volume will be accessed via the block device API.
+	message BlockVolume {
+		// Intentionally empty, for now.
+	}
+
+	// Indicate that the volume will be accessed via the filesystem API.
+	message MountVolume {
+		// The filesystem type. This field is OPTIONAL.
+		// An empty string is equal to an unspecified field value.
+		string fs_type = 1;
+
+		// The mount options that can be used for the volume. This field is
+		// OPTIONAL. `mount_flags` MAY contain sensitive information.
+		// Therefore, the CO and the Plugin MUST NOT leak this information
+		// to untrusted entities. The total size of this repeated field
+		// SHALL NOT exceed 4 KiB.
+		repeated string mount_flags = 2;
+	}
+
+	// Specify how a volume can be accessed.
+	message AccessMode {
+		enum Mode {
+			UNKNOWN = 0;
+
+			// Can only be published once as read/write on a single node, at
+			// any given time.
+			SINGLE_NODE_WRITER = 1;
+
+			// Can only be published once as readonly on a single node, at
+			// any given time.
+			SINGLE_NODE_READER_ONLY = 2;
+
+			// Can be published as readonly at multiple nodes simultaneously.
+			MULTI_NODE_READER_ONLY = 3;
+
+			// Can be published at multiple nodes simultaneously. Only one of
+			// the node can be used as read/write. The rest will be readonly.
+			MULTI_NODE_SINGLE_WRITER = 4;
+
+			// Can be published as read/write at multiple nodes
+			// simultaneously.
+			MULTI_NODE_MULTI_WRITER = 5;
+		}
+
+		// This field is REQUIRED.
+		Mode mode = 1;
+	}
+
+	// Specifies what API the volume will be accessed using. One of the
+	// following fields MUST be specified.
+	oneof access_type {
+		BlockVolume block = 1;
+		MountVolume mount = 2;
+	}
+
+	// This is a REQUIRED field.
+	AccessMode access_mode = 3;
 }

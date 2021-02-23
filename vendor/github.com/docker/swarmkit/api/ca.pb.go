@@ -18,6 +18,7 @@ import (
 	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 	rafttime "time"
@@ -32,7 +33,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type NodeCertificateStatusRequest struct {
 	NodeID string `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
@@ -51,7 +52,7 @@ func (m *NodeCertificateStatusRequest) XXX_Marshal(b []byte, deterministic bool)
 		return xxx_messageInfo_NodeCertificateStatusRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -88,7 +89,7 @@ func (m *NodeCertificateStatusResponse) XXX_Marshal(b []byte, deterministic bool
 		return xxx_messageInfo_NodeCertificateStatusResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -132,7 +133,7 @@ func (m *IssueNodeCertificateRequest) XXX_Marshal(b []byte, deterministic bool) 
 		return xxx_messageInfo_IssueNodeCertificateRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -169,7 +170,7 @@ func (m *IssueNodeCertificateResponse) XXX_Marshal(b []byte, deterministic bool)
 		return xxx_messageInfo_IssueNodeCertificateResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -204,7 +205,7 @@ func (m *GetRootCACertificateRequest) XXX_Marshal(b []byte, deterministic bool) 
 		return xxx_messageInfo_GetRootCACertificateRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -240,7 +241,7 @@ func (m *GetRootCACertificateResponse) XXX_Marshal(b []byte, deterministic bool)
 		return xxx_messageInfo_GetRootCACertificateResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -275,7 +276,7 @@ func (m *GetUnlockKeyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return xxx_messageInfo_GetUnlockKeyRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -312,7 +313,7 @@ func (m *GetUnlockKeyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte
 		return xxx_messageInfo_GetUnlockKeyResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -621,6 +622,17 @@ type CAServer interface {
 	GetUnlockKey(context.Context, *GetUnlockKeyRequest) (*GetUnlockKeyResponse, error)
 }
 
+// UnimplementedCAServer can be embedded to have forward compatible implementations.
+type UnimplementedCAServer struct {
+}
+
+func (*UnimplementedCAServer) GetRootCACertificate(ctx context.Context, req *GetRootCACertificateRequest) (*GetRootCACertificateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetRootCACertificate not implemented")
+}
+func (*UnimplementedCAServer) GetUnlockKey(ctx context.Context, req *GetUnlockKeyRequest) (*GetUnlockKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetUnlockKey not implemented")
+}
+
 func RegisterCAServer(s *grpc.Server, srv CAServer) {
 	s.RegisterService(&_CA_serviceDesc, srv)
 }
@@ -718,6 +730,17 @@ type NodeCAServer interface {
 	NodeCertificateStatus(context.Context, *NodeCertificateStatusRequest) (*NodeCertificateStatusResponse, error)
 }
 
+// UnimplementedNodeCAServer can be embedded to have forward compatible implementations.
+type UnimplementedNodeCAServer struct {
+}
+
+func (*UnimplementedNodeCAServer) IssueNodeCertificate(ctx context.Context, req *IssueNodeCertificateRequest) (*IssueNodeCertificateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IssueNodeCertificate not implemented")
+}
+func (*UnimplementedNodeCAServer) NodeCertificateStatus(ctx context.Context, req *NodeCertificateStatusRequest) (*NodeCertificateStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NodeCertificateStatus not implemented")
+}
+
 func RegisterNodeCAServer(s *grpc.Server, srv NodeCAServer) {
 	s.RegisterService(&_NodeCA_serviceDesc, srv)
 }
@@ -778,7 +801,7 @@ var _NodeCA_serviceDesc = grpc.ServiceDesc{
 func (m *NodeCertificateStatusRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -786,23 +809,29 @@ func (m *NodeCertificateStatusRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *NodeCertificateStatusRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *NodeCertificateStatusRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.NodeID) > 0 {
-		dAtA[i] = 0xa
-		i++
+		i -= len(m.NodeID)
+		copy(dAtA[i:], m.NodeID)
 		i = encodeVarintCa(dAtA, i, uint64(len(m.NodeID)))
-		i += copy(dAtA[i:], m.NodeID)
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *NodeCertificateStatusResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -810,37 +839,46 @@ func (m *NodeCertificateStatusResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *NodeCertificateStatusResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *NodeCertificateStatusResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Status != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintCa(dAtA, i, uint64(m.Status.Size()))
-		n1, err := m.Status.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n1
-	}
 	if m.Certificate != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintCa(dAtA, i, uint64(m.Certificate.Size()))
-		n2, err := m.Certificate.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Certificate.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintCa(dAtA, i, uint64(size))
 		}
-		i += n2
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.Status != nil {
+		{
+			size, err := m.Status.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintCa(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *IssueNodeCertificateRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -848,39 +886,46 @@ func (m *IssueNodeCertificateRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *IssueNodeCertificateRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *IssueNodeCertificateRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Role != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintCa(dAtA, i, uint64(m.Role))
-	}
-	if len(m.CSR) > 0 {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintCa(dAtA, i, uint64(len(m.CSR)))
-		i += copy(dAtA[i:], m.CSR)
+	if m.Availability != 0 {
+		i = encodeVarintCa(dAtA, i, uint64(m.Availability))
+		i--
+		dAtA[i] = 0x20
 	}
 	if len(m.Token) > 0 {
-		dAtA[i] = 0x1a
-		i++
+		i -= len(m.Token)
+		copy(dAtA[i:], m.Token)
 		i = encodeVarintCa(dAtA, i, uint64(len(m.Token)))
-		i += copy(dAtA[i:], m.Token)
+		i--
+		dAtA[i] = 0x1a
 	}
-	if m.Availability != 0 {
-		dAtA[i] = 0x20
-		i++
-		i = encodeVarintCa(dAtA, i, uint64(m.Availability))
+	if len(m.CSR) > 0 {
+		i -= len(m.CSR)
+		copy(dAtA[i:], m.CSR)
+		i = encodeVarintCa(dAtA, i, uint64(len(m.CSR)))
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.Role != 0 {
+		i = encodeVarintCa(dAtA, i, uint64(m.Role))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *IssueNodeCertificateResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -888,28 +933,34 @@ func (m *IssueNodeCertificateResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *IssueNodeCertificateResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *IssueNodeCertificateResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.NodeID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintCa(dAtA, i, uint64(len(m.NodeID)))
-		i += copy(dAtA[i:], m.NodeID)
-	}
 	if m.NodeMembership != 0 {
-		dAtA[i] = 0x10
-		i++
 		i = encodeVarintCa(dAtA, i, uint64(m.NodeMembership))
+		i--
+		dAtA[i] = 0x10
 	}
-	return i, nil
+	if len(m.NodeID) > 0 {
+		i -= len(m.NodeID)
+		copy(dAtA[i:], m.NodeID)
+		i = encodeVarintCa(dAtA, i, uint64(len(m.NodeID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *GetRootCACertificateRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -917,17 +968,22 @@ func (m *GetRootCACertificateRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetRootCACertificateRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetRootCACertificateRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GetRootCACertificateResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -935,23 +991,29 @@ func (m *GetRootCACertificateResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetRootCACertificateResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetRootCACertificateResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Certificate) > 0 {
-		dAtA[i] = 0xa
-		i++
+		i -= len(m.Certificate)
+		copy(dAtA[i:], m.Certificate)
 		i = encodeVarintCa(dAtA, i, uint64(len(m.Certificate)))
-		i += copy(dAtA[i:], m.Certificate)
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GetUnlockKeyRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -959,17 +1021,22 @@ func (m *GetUnlockKeyRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetUnlockKeyRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetUnlockKeyRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *GetUnlockKeyResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -977,35 +1044,45 @@ func (m *GetUnlockKeyResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *GetUnlockKeyResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GetUnlockKeyResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.UnlockKey) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintCa(dAtA, i, uint64(len(m.UnlockKey)))
-		i += copy(dAtA[i:], m.UnlockKey)
+	{
+		size, err := m.Version.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintCa(dAtA, i, uint64(size))
 	}
+	i--
 	dAtA[i] = 0x12
-	i++
-	i = encodeVarintCa(dAtA, i, uint64(m.Version.Size()))
-	n3, err := m.Version.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
+	if len(m.UnlockKey) > 0 {
+		i -= len(m.UnlockKey)
+		copy(dAtA[i:], m.UnlockKey)
+		i = encodeVarintCa(dAtA, i, uint64(len(m.UnlockKey)))
+		i--
+		dAtA[i] = 0xa
 	}
-	i += n3
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintCa(dAtA []byte, offset int, v uint64) int {
+	offset -= sovCa(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 
 type raftProxyCAServer struct {
@@ -1408,14 +1485,7 @@ func (m *GetUnlockKeyResponse) Size() (n int) {
 }
 
 func sovCa(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozCa(x uint64) (n int) {
 	return sovCa(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -1499,7 +1569,7 @@ func (this *GetUnlockKeyResponse) String() string {
 	}
 	s := strings.Join([]string{`&GetUnlockKeyResponse{`,
 		`UnlockKey:` + fmt.Sprintf("%v", this.UnlockKey) + `,`,
-		`Version:` + strings.Replace(strings.Replace(this.Version.String(), "Version", "Version", 1), `&`, ``, 1) + `,`,
+		`Version:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Version), "Version", "Version", 1), `&`, ``, 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2299,6 +2369,7 @@ func (m *GetUnlockKeyResponse) Unmarshal(dAtA []byte) error {
 func skipCa(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -2330,10 +2401,8 @@ func skipCa(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -2354,55 +2423,30 @@ func skipCa(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthCa
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthCa
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowCa
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipCa(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthCa
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupCa
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthCa
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthCa = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowCa   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthCa        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowCa          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupCa = fmt.Errorf("proto: unexpected end of group")
 )

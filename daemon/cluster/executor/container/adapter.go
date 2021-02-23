@@ -288,7 +288,7 @@ func (c *containerAdapter) create(ctx context.Context) error {
 	if cr, err = c.backend.CreateManagedContainer(types.ContainerCreateConfig{
 		Name:       c.container.name(),
 		Config:     c.container.config(),
-		HostConfig: c.container.hostConfig(),
+		HostConfig: c.container.hostConfig(c.dependencies.Volumes()),
 		// Use the first network in container create
 		NetworkingConfig: c.container.createNetworkingConfig(c.backend),
 	}); err != nil {
@@ -458,6 +458,30 @@ func (c *containerAdapter) createVolumes(ctx context.Context) error {
 
 	}
 
+	return nil
+}
+
+// waitClusterVolumes blocks until the VolumeGetter returns a path for each
+// cluster volume in use by this task
+func (c *containerAdapter) waitClusterVolumes(ctx context.Context) error {
+	for _, attached := range c.container.task.Volumes {
+		// for every attachment, try until we succeed or until the context
+		// is canceled.
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				// continue through the code.
+			}
+			path, err := c.dependencies.Volumes().Get(attached.ID)
+			if err == nil && path != "" {
+				// break out of the inner-most loop
+				break
+			}
+		}
+	}
+	log.G(ctx).Debug("volumes ready")
 	return nil
 }
 

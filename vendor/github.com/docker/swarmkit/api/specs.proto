@@ -470,6 +470,9 @@ message ClusterSpec {
 
 	// EncryptionConfig defines the cluster's encryption settings.
 	EncryptionConfig encryption_config = 8 [(gogoproto.nullable) = false];
+
+	// CSIConfig defines the available CSI plugins and how they can be reached.
+	CSIConfig csi_config = 9 [(gogoproto.nullable) = false, (gogoproto.customname) = "CSIConfig"];
 }
 
 // SecretSpec specifies a user-provided secret.
@@ -505,4 +508,70 @@ message ConfigSpec {
 	// The currently recognized values are:
 	// - golang: Go templating
 	Driver templating = 3;
+}
+
+message VolumeSpec {
+	// Annotations includes the name and labels of a volume. The name used in the
+	// spec's Annotations will be passed to the Plugin as the "Name" in the
+	// CreateVolume request.
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// Group defines the volume group this particular volume belongs to. When
+	// requesting volumes for a workload, the group name can be used instead of
+	// the volume's name, which tells swarmkit to pick one from the many volumes
+	// belonging to that group.
+	string group = 2;
+
+	// Driver represents the CSI Plugin object and its configuration parameters.
+	// The "options" field of the Driver object is passed in the CSI
+	// CreateVolumeRequest as the "parameters" field. The Driver must be
+	// specified; there is no default CSI Plugin.
+	Driver driver = 3;
+
+	// AccessMode is similar to, and used to determine, the volume access mode as
+	// defined in the CSI spec.
+	VolumeAccessMode access_mode = 4;
+
+	// Secrets represents a set of key/value pairs to pass to the CSI plugin. The
+	// keys of the secrets can be anything, but the values refer to swarmkit
+	// Secret objects. See the "Secrets Requirements" section of the CSI Plugin
+	// Spec for more information.
+	repeated VolumeSecret secrets = 5;
+
+	// AccessibilityRequirements specifies where a volume must be accessible
+	// from.
+	//
+	// This field must be empty if the plugin does not support
+	// VOLUME_ACCESSIBILITY_CONSTRAINTS capabilities. If it is present but the
+	// plugin does not support it, volume will not be created.
+	//
+	// If AccessibilityRequirements is empty, but the plugin does support
+	// VOLUME_ACCESSIBILITY_CONSTRAINTS, then Swarmkit will assume the entire
+	// cluster is a valid target for the volume.
+	TopologyRequirement AccessibilityRequirements = 6;
+
+	// CapacityRange is the capacity this volume should be created with. If nil,
+	// the plugin will decide the capacity.
+	CapacityRange capacity_range = 7;
+
+	enum VolumeAvailability {
+		option (gogoproto.goproto_enum_prefix) = false;
+
+		// Active allows a volume to be used and scheduled to. This is the
+		// default state.
+		ACTIVE = 0 [(gogoproto.enumvalue_customname) = "VolumeAvailabilityActive"];
+
+		// Pause prevents volumes from having new workloads scheduled to use
+		// them, even if they're already published on a Node.
+		PAUSE = 1 [(gogoproto.enumvalue_customname) = "VolumeAvailabilityPause"];
+
+		// Drain causes existing workloads using this volume to be rescheduled,
+		// causing the volume to be unpublished and removed from nodes.
+		DRAIN = 2 [(gogoproto.enumvalue_customname) = "VolumeAvailabilityDrain"];
+	}
+
+	// Availability is the Volume's desired availability. Analogous to Node
+	// Availability, this allows the user to take volumes offline in order to
+	// update or delete them.
+	VolumeAvailability availability = 8;
 }

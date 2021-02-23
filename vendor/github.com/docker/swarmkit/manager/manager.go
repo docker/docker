@@ -25,6 +25,7 @@ import (
 	"github.com/docker/swarmkit/manager/allocator/cnmallocator"
 	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/controlapi"
+	"github.com/docker/swarmkit/manager/csi"
 	"github.com/docker/swarmkit/manager/dispatcher"
 	"github.com/docker/swarmkit/manager/drivers"
 	"github.com/docker/swarmkit/manager/health"
@@ -36,6 +37,7 @@ import (
 	"github.com/docker/swarmkit/manager/orchestrator/jobs"
 	"github.com/docker/swarmkit/manager/orchestrator/replicated"
 	"github.com/docker/swarmkit/manager/orchestrator/taskreaper"
+	"github.com/docker/swarmkit/manager/orchestrator/volumeenforcer"
 	"github.com/docker/swarmkit/manager/resourceapi"
 	"github.com/docker/swarmkit/manager/scheduler"
 	"github.com/docker/swarmkit/manager/state/raft"
@@ -150,8 +152,10 @@ type Manager struct {
 	jobsOrchestrator       *jobs.Orchestrator
 	taskReaper             *taskreaper.TaskReaper
 	constraintEnforcer     *constraintenforcer.ConstraintEnforcer
+	volumeEnforcer         *volumeenforcer.VolumeEnforcer
 	scheduler              *scheduler.Scheduler
 	allocator              *allocator.Allocator
+	volumeManager          *csi.Manager
 	keyManager             *keymanager.KeyManager
 	server                 *grpc.Server
 	localserver            *grpc.Server
@@ -692,6 +696,9 @@ func (m *Manager) Stop(ctx context.Context, clearData bool) {
 	if m.constraintEnforcer != nil {
 		m.constraintEnforcer.Stop()
 	}
+	if m.volumeEnforcer != nil {
+		m.volumeEnforcer.Stop()
+	}
 	if m.scheduler != nil {
 		m.scheduler.Stop()
 	}
@@ -998,12 +1005,14 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 
 	m.replicatedOrchestrator = replicated.NewReplicatedOrchestrator(s)
 	m.constraintEnforcer = constraintenforcer.New(s)
+	m.volumeEnforcer = volumeenforcer.New(s)
 	m.globalOrchestrator = global.NewGlobalOrchestrator(s)
 	m.jobsOrchestrator = jobs.NewOrchestrator(s)
 	m.taskReaper = taskreaper.New(s)
 	m.scheduler = scheduler.New(s)
 	m.keyManager = keymanager.New(s, keymanager.DefaultConfig())
 	m.roleManager = newRoleManager(s, m.raftNode)
+	m.volumeManager = csi.NewManager(s)
 
 	// TODO(stevvooe): Allocate a context that can be used to
 	// shutdown underlying manager processes when leadership isTestUpdaterRollback
@@ -1086,6 +1095,10 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 		constraintEnforcer.Run()
 	}(m.constraintEnforcer)
 
+	go func(volumeEnforcer *volumeenforcer.VolumeEnforcer) {
+		volumeEnforcer.Run()
+	}(m.volumeEnforcer)
+
 	go func(taskReaper *taskreaper.TaskReaper) {
 		taskReaper.Run(ctx)
 	}(m.taskReaper)
@@ -1110,6 +1123,10 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	go func(roleManager *roleManager) {
 		roleManager.Run(ctx)
 	}(m.roleManager)
+
+	go func(volumeManager *csi.Manager) {
+		volumeManager.Run(ctx)
+	}(m.volumeManager)
 }
 
 // becomeFollower shuts down the subsystems that are only run by the leader.
@@ -1130,6 +1147,9 @@ func (m *Manager) becomeFollower() {
 	m.constraintEnforcer.Stop()
 	m.constraintEnforcer = nil
 
+	m.volumeEnforcer.Stop()
+	m.volumeEnforcer = nil
+
 	m.replicatedOrchestrator.Stop()
 	m.replicatedOrchestrator = nil
 
@@ -1149,6 +1169,9 @@ func (m *Manager) becomeFollower() {
 		m.keyManager.Stop()
 		m.keyManager = nil
 	}
+
+	m.volumeManager.Stop()
+	m.volumeManager = nil
 }
 
 // defaultClusterObject creates a default cluster.

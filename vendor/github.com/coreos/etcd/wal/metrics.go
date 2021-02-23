@@ -24,8 +24,15 @@ var (
 		Help:      "The latency distributions of fsync called by wal.",
 		Buckets:   prometheus.ExponentialBuckets(0.001, 2, 14),
 	})
+	walWriteBytes = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: "etcd",
+		Subsystem: "disk",
+		Name:      "wal_write_bytes_total",
+		Help:      "Total number of bytes written in WAL.",
+	})
 )
 
 func init() {
 	prometheus.MustRegister(syncDurations)
+	prometheus.MustRegister(walWriteBytes)
 }

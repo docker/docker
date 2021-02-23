@@ -57,6 +57,17 @@ func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
 		}
 	}
 
+	// appending to a nil slice is valid. if there are no items in t.Volumes,
+	// then the task.Volumes will remain nil; otherwise, it will contain
+	// converted entries.
+	for _, v := range t.Volumes {
+		task.Volumes = append(task.Volumes, types.VolumeAttachment{
+			ID:     v.ID,
+			Source: v.Source,
+			Target: v.Target,
+		})
+	}
+
 	if t.Status.PortStatus == nil {
 		return task, nil
 	}

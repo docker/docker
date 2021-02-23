@@ -165,6 +165,16 @@ func ByReferencedConfigID(configID string) By {
 	return byReferencedConfigID(configID)
 }
 
+type byVolumeAttachment string
+
+func (b byVolumeAttachment) isBy() {}
+
+// ByVolumeAttachment creates an object to pass to Find to search for a Task
+// that has been assigned the given ID.
+func ByVolumeAttachment(volumeID string) By {
+	return byVolumeAttachment(volumeID)
+}
+
 type byKind string
 
 func (b byKind) isBy() {
@@ -211,4 +221,26 @@ func ByCustomPrefix(objType, index, value string) By {
 		index:   index,
 		value:   value,
 	}
+}
+
+// ByVolumeGroup creates an object to pass to Find to search for volumes
+// belonging to a particular group.
+func ByVolumeGroup(group string) By {
+	return byVolumeGroup(group)
+}
+
+type byVolumeGroup string
+
+func (b byVolumeGroup) isBy() {
+}
+
+// ByDriver creates an object to pass to Find to search for objects using a
+// specific driver.
+func ByDriver(driver string) By {
+	return byDriver(driver)
+}
+
+type byDriver string
+
+func (b byDriver) isBy() {
 }

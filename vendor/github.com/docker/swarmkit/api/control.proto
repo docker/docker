@@ -246,6 +246,34 @@ service Control {
 	rpc RemoveResource(RemoveResourceRequest) returns (RemoveResourceResponse) {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
 	}
+
+	// --- volumes APIs ---
+
+	// CreateVolume returns a `CreateVolumeResponse` with a `Volume` based on the
+	// provided `CreateVolumeRequest.VolumeSpec`.
+	// - Returns `InvalidArgument` if the `CreateVolumeRequest.VolumeSpec` is
+	//   malformed.
+	rpc CreateVolume(CreateVolumeRequest) returns (CreateVolumeResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// GetVolume returns a `GetVolumeResponse` with a Volume with the same ID
+	// as `GetVolumeRequest.ID`
+	rpc GetVolume(GetVolumeRequest) returns (GetVolumeResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	rpc UpdateVolume(UpdateVolumeRequest) returns (UpdateVolumeResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	rpc ListVolumes(ListVolumesRequest) returns (ListVolumesResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	rpc RemoveVolume(RemoveVolumeRequest) returns (RemoveVolumeResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
 }
 
 message GetNodeRequest {
@@ -787,3 +815,54 @@ message ListResourcesRequest {
 message ListResourcesResponse {
 	repeated Resource resources = 1;
 }
+
+message CreateVolumeRequest {
+	VolumeSpec spec = 1;
+}
+
+message CreateVolumeResponse {
+	Volume volume = 1;
+}
+
+message GetVolumeRequest {
+	string volume_id = 1;
+}
+
+message GetVolumeResponse {
+	Volume volume = 1;
+}
+
+message UpdateVolumeRequest {
+	string volume_id = 1;
+
+	Version volume_version = 2;
+
+	VolumeSpec spec = 3;
+}
+
+message UpdateVolumeResponse {
+	Volume volume = 1;
+}
+
+message ListVolumesRequest {
+	message Filters {
+		repeated string names = 1;
+		repeated string id_prefixes = 2;
+		map<string, string> labels = 3;
+		repeated string name_prefixes = 4;
+		repeated string groups = 5;
+		repeated string drivers = 6;
+	}
+
+	Filters filters = 1;
+}
+
+message ListVolumesResponse {
+	repeated Volume volumes = 1;
+}
+
+message RemoveVolumeRequest {
+	string volume_id = 1;
+}
+
+message RemoveVolumeResponse {}

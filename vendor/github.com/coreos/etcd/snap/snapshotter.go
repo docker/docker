@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,7 +32,7 @@ import (
 	"github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/snap/snappb"
-
+	"github.com/coreos/etcd/wal/walpb"
 	"github.com/coreos/pkg/capnslog"
 )
 
@@ -80,9 +81,8 @@ func (s *Snapshotter) save(snapshot *raftpb.Snapshot) error {
 	d, err := snap.Marshal()
 	if err != nil {
 		return err
-	} else {
-		marshallingDurations.Observe(float64(time.Since(start)) / float64(time.Second))
 	}
+	marshallingDurations.Observe(float64(time.Since(start)) / float64(time.Second))
 
 	err = pioutil.WriteAndSyncFile(filepath.Join(s.dir, fname), d, 0666)
 	if err == nil {
@@ -97,20 +97,35 @@ func (s *Snapshotter) save(snapshot *raftpb.Snapshot) error {
 }
 
 func (s *Snapshotter) Load() (*raftpb.Snapshot, error) {
+	return s.loadMatching(func(*raftpb.Snapshot) bool { return true })
+}
+
+// LoadNewestAvailable loads the newest snapshot available that is in walSnaps.
+func (s *Snapshotter) LoadNewestAvailable(walSnaps []walpb.Snapshot) (*raftpb.Snapshot, error) {
+	return s.loadMatching(func(snapshot *raftpb.Snapshot) bool {
+		m := snapshot.Metadata
+		for i := len(walSnaps) - 1; i >= 0; i-- {
+			if m.Term == walSnaps[i].Term && m.Index == walSnaps[i].Index {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+// loadMatching returns the newest snapshot where matchFn returns true.
+func (s *Snapshotter) loadMatching(matchFn func(*raftpb.Snapshot) bool) (*raftpb.Snapshot, error) {
 	names, err := s.snapNames()
 	if err != nil {
 		return nil, err
 	}
 	var snap *raftpb.Snapshot
 	for _, name := range names {
-		if snap, err = loadSnap(s.dir, name); err == nil {
-			break
+		if snap, err = loadSnap(s.dir, name); err == nil && matchFn(snap) {
+			return snap, nil
 		}
 	}
-	if err != nil {
-		return nil, ErrNoSnapshot
-	}
-	return snap, nil
+	return nil, ErrNoSnapshot
 }
 
 func loadSnap(dir, name string) (*raftpb.Snapshot, error) {
@@ -172,6 +187,10 @@ func (s *Snapshotter) snapNames() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	names, err = s.cleanupSnapdir(names)
+	if err != nil {
+		return nil, err
+	}
 	snaps := checkSuffix(names)
 	if len(snaps) == 0 {
 		return nil, ErrNoSnapshot
@@ -201,4 +220,49 @@ func renameBroken(path string) {
 	if err := os.Rename(path, brokenPath); err != nil {
 		plog.Warningf("cannot rename broken snapshot file %v to %v: %v", path, brokenPath, err)
 	}
+}
+
+// cleanupSnapdir removes any files that should not be in the snapshot directory:
+// - db.tmp prefixed files that can be orphaned by defragmentation
+func (s *Snapshotter) cleanupSnapdir(filenames []string) (names []string, err error) {
+	for _, filename := range filenames {
+		if strings.HasPrefix(filename, "db.tmp") {
+			plog.Infof("found orphaned defragmentation file; deleting: %s", filename)
+			if rmErr := os.Remove(filepath.Join(s.dir, filename)); rmErr != nil && !os.IsNotExist(rmErr) {
+				return nil, fmt.Errorf("failed to remove orphaned defragmentation file %s: %v", filename, rmErr)
+			}
+			continue
+		}
+		names = append(names, filename)
+	}
+	return names, nil
+}
+
+func (s *Snapshotter) ReleaseSnapDBs(snap raftpb.Snapshot) error {
+	dir, err := os.Open(s.dir)
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	filenames, err := dir.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	for _, filename := range filenames {
+		if strings.HasSuffix(filename, ".snap.db") {
+			hexIndex := strings.TrimSuffix(filepath.Base(filename), ".snap.db")
+			index, err := strconv.ParseUint(hexIndex, 16, 64)
+			if err != nil {
+				plog.Warningf("failed to parse index from filename: %s (%v)", filename, err)
+				continue
+			}
+			if index < snap.Metadata.Index {
+				plog.Infof("found orphaned .snap.db file; deleting %q", filename)
+				if rmErr := os.Remove(filepath.Join(s.dir, filename)); rmErr != nil && !os.IsNotExist(rmErr) {
+					plog.Warningf("failed to remove orphaned .snap.db file: %s (%v)", filename, rmErr)
+				}
+			}
+		}
+	}
+	return nil
 }

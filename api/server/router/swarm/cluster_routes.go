@@ -558,3 +558,75 @@ func (sr *swarmRouter) updateConfig(ctx context.Context, w http.ResponseWriter, 
 	id := vars["id"]
 	return sr.backend.UpdateConfig(id, version, config)
 }
+
+func (sr *swarmRouter) getVolume(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	volume, err := sr.backend.GetVolume(vars["id"])
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, volume)
+}
+
+func (sr *swarmRouter) getVolumes(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	filters, err := filters.FromJSON(r.Form.Get("filters"))
+	if err != nil {
+		return err
+	}
+
+	volumes, err := sr.backend.GetVolumes(basictypes.VolumeListOptions{Filters: filters})
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, volumes)
+}
+
+func (sr *swarmRouter) createVolume(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var volume types.VolumeSpec
+	if err := json.NewDecoder(r.Body).Decode(&volume); err != nil {
+		if err == io.EOF {
+			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
+		}
+		return errdefs.InvalidParameter(err)
+	}
+	id, err := sr.backend.CreateVolume(volume)
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusCreated, &basictypes.VolumeCreateResponse{
+		ID: id,
+	})
+}
+
+func (sr *swarmRouter) removeVolume(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := sr.backend.RemoveVolume(vars["id"]); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func (sr *swarmRouter) updateVolume(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var volume types.VolumeSpec
+	if err := json.NewDecoder(r.Body).Decode(&volume); err != nil {
+		if err == io.EOF {
+			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
+		}
+		return errdefs.InvalidParameter(err)
+	}
+
+	rawVersion := r.URL.Query().Get("version")
+	version, err := strconv.ParseUint(rawVersion, 10, 64)
+	if err != nil {
+		return errdefs.InvalidParameter(fmt.Errorf("invalid volume version"))
+	}
+
+	id := vars["id"]
+	return sr.backend.UpdateVolume(id, version, volume)
+}

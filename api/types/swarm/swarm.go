@@ -41,6 +41,7 @@ type Spec struct {
 	CAConfig         CAConfig            `json:",omitempty"`
 	TaskDefaults     TaskDefaults        `json:",omitempty"`
 	EncryptionConfig EncryptionConfig    `json:",omitempty"`
+	CSIConfig        CSIConfig           `json:",omitempty"`
 }
 
 // OrchestrationConfig represents orchestration configuration.
@@ -147,6 +148,32 @@ type ExternalCA struct {
 	// CACert specifies which root CA is used by this external CA.  This certificate must
 	// be in PEM format.
 	CACert string
+}
+
+// CSIConfig defines available CSI plugins and where they can be reached.
+//
+// TODO(dperny): this is temporary
+type CSIConfig struct {
+	Plugins []CSIPlugin
+}
+
+// CSIPlugin defines the details of an individual CSI plugin.
+type CSIPlugin struct {
+	// Name defines the name of the CSI plugin. This corresponds to the
+	// Driver.Name field used when creating a Volume.
+	Name string `json:",omitempty"`
+
+	// ControllerSocket defines the socket at which Swarm can reach the
+	// Controller plugin. This may be the same as NodeSocket, or it may be
+	// different, depending on the PLugin architecture. The ControllerSocket
+	// will only ever be used by the current Swarm leader.
+	ControllerSocket string `json:",omitempty"`
+
+	// NodeSocket defines the socket at which Swarm can reach the Node plugin.
+	// This may be the same as ControllerSocket, depending on the plugin
+	// architecture. NodeSocket is expected to be present on every Node that
+	// runs the CSI plugin, and its value will be propagated to nodes.
+	NodeSocket string `json:",omitempty"`
 }
 
 // InitRequest is the request used to init a swarm.

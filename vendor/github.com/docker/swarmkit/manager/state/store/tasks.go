@@ -69,6 +69,11 @@ func init() {
 					AllowMissing: true,
 					Indexer:      taskIndexerByConfig{},
 				},
+				indexVolumeAttachment: {
+					Name:         indexVolumeAttachment,
+					AllowMissing: true,
+					Indexer:      taskIndexerByVolumeAttachment{},
+				},
 				indexCustom: {
 					Name:         indexCustom,
 					Indexer:      api.TaskCustomIndexer{},
@@ -138,7 +143,7 @@ func GetTask(tx ReadTx, id string) *api.Task {
 func FindTasks(tx ReadTx, by By) ([]*api.Task, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byNamePrefix, byIDPrefix, byRuntime, byDesiredState, byTaskState, byNode, byService, bySlot, byReferencedNetworkID, byReferencedSecretID, byReferencedConfigID, byCustom, byCustomPrefix:
+		case byName, byNamePrefix, byIDPrefix, byRuntime, byDesiredState, byTaskState, byNode, byService, bySlot, byReferencedNetworkID, byReferencedSecretID, byReferencedConfigID, byVolumeAttachment, byCustom, byCustomPrefix:
 			return nil
 		default:
 			return ErrInvalidFindBy
@@ -315,6 +320,26 @@ func (ti taskIndexerByConfig) FromObject(obj interface{}) (bool, [][]byte, error
 	}
 
 	return len(configIDs) != 0, configIDs, nil
+}
+
+type taskIndexerByVolumeAttachment struct{}
+
+func (ti taskIndexerByVolumeAttachment) FromArgs(args ...interface{}) ([]byte, error) {
+	return fromArgs(args...)
+}
+
+func (ti taskIndexerByVolumeAttachment) FromObject(obj interface{}) (bool, [][]byte, error) {
+	t, ok := obj.(*api.Task)
+	if !ok {
+		panic("unexpected type passed to FromObject")
+	}
+
+	var volumeIDs [][]byte
+
+	for _, v := range t.Volumes {
+		volumeIDs = append(volumeIDs, []byte(v.ID+"\x00"))
+	}
+	return len(volumeIDs) != 0, volumeIDs, nil
 }
 
 type taskIndexerByTaskState struct{}

@@ -18,6 +18,7 @@ import (
 	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 	rafttime "time"
@@ -32,7 +33,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // WatchActionKind distinguishes between creations, updates, and removals. It
 // is structured as a bitmap so multiple kinds of events can be requested with
@@ -79,6 +80,7 @@ type Object struct {
 	//	*Object_Resource
 	//	*Object_Extension
 	//	*Object_Config
+	//	*Object_Volume
 	Object isObject_Object `protobuf_oneof:"Object"`
 }
 
@@ -95,7 +97,7 @@ func (m *Object) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Object.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -121,31 +123,34 @@ type isObject_Object interface {
 }
 
 type Object_Node struct {
-	Node *Node `protobuf:"bytes,1,opt,name=node,proto3,oneof"`
+	Node *Node `protobuf:"bytes,1,opt,name=node,proto3,oneof" json:"node,omitempty"`
 }
 type Object_Service struct {
-	Service *Service `protobuf:"bytes,2,opt,name=service,proto3,oneof"`
+	Service *Service `protobuf:"bytes,2,opt,name=service,proto3,oneof" json:"service,omitempty"`
 }
 type Object_Network struct {
-	Network *Network `protobuf:"bytes,3,opt,name=network,proto3,oneof"`
+	Network *Network `protobuf:"bytes,3,opt,name=network,proto3,oneof" json:"network,omitempty"`
 }
 type Object_Task struct {
-	Task *Task `protobuf:"bytes,4,opt,name=task,proto3,oneof"`
+	Task *Task `protobuf:"bytes,4,opt,name=task,proto3,oneof" json:"task,omitempty"`
 }
 type Object_Cluster struct {
-	Cluster *Cluster `protobuf:"bytes,5,opt,name=cluster,proto3,oneof"`
+	Cluster *Cluster `protobuf:"bytes,5,opt,name=cluster,proto3,oneof" json:"cluster,omitempty"`
 }
 type Object_Secret struct {
-	Secret *Secret `protobuf:"bytes,6,opt,name=secret,proto3,oneof"`
+	Secret *Secret `protobuf:"bytes,6,opt,name=secret,proto3,oneof" json:"secret,omitempty"`
 }
 type Object_Resource struct {
-	Resource *Resource `protobuf:"bytes,7,opt,name=resource,proto3,oneof"`
+	Resource *Resource `protobuf:"bytes,7,opt,name=resource,proto3,oneof" json:"resource,omitempty"`
 }
 type Object_Extension struct {
-	Extension *Extension `protobuf:"bytes,8,opt,name=extension,proto3,oneof"`
+	Extension *Extension `protobuf:"bytes,8,opt,name=extension,proto3,oneof" json:"extension,omitempty"`
 }
 type Object_Config struct {
-	Config *Config `protobuf:"bytes,9,opt,name=config,proto3,oneof"`
+	Config *Config `protobuf:"bytes,9,opt,name=config,proto3,oneof" json:"config,omitempty"`
+}
+type Object_Volume struct {
+	Volume *Volume `protobuf:"bytes,10,opt,name=volume,proto3,oneof" json:"volume,omitempty"`
 }
 
 func (*Object_Node) isObject_Object()      {}
@@ -157,6 +162,7 @@ func (*Object_Secret) isObject_Object()    {}
 func (*Object_Resource) isObject_Object()  {}
 func (*Object_Extension) isObject_Object() {}
 func (*Object_Config) isObject_Object()    {}
+func (*Object_Volume) isObject_Object()    {}
 
 func (m *Object) GetObject() isObject_Object {
 	if m != nil {
@@ -228,9 +234,16 @@ func (m *Object) GetConfig() *Config {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*Object) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _Object_OneofMarshaler, _Object_OneofUnmarshaler, _Object_OneofSizer, []interface{}{
+func (m *Object) GetVolume() *Volume {
+	if x, ok := m.GetObject().(*Object_Volume); ok {
+		return x.Volume
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Object) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*Object_Node)(nil),
 		(*Object_Service)(nil),
 		(*Object_Network)(nil),
@@ -240,199 +253,8 @@ func (*Object) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error,
 		(*Object_Resource)(nil),
 		(*Object_Extension)(nil),
 		(*Object_Config)(nil),
+		(*Object_Volume)(nil),
 	}
-}
-
-func _Object_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*Object)
-	// Object
-	switch x := m.Object.(type) {
-	case *Object_Node:
-		_ = b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Node); err != nil {
-			return err
-		}
-	case *Object_Service:
-		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Service); err != nil {
-			return err
-		}
-	case *Object_Network:
-		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Network); err != nil {
-			return err
-		}
-	case *Object_Task:
-		_ = b.EncodeVarint(4<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Task); err != nil {
-			return err
-		}
-	case *Object_Cluster:
-		_ = b.EncodeVarint(5<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Cluster); err != nil {
-			return err
-		}
-	case *Object_Secret:
-		_ = b.EncodeVarint(6<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Secret); err != nil {
-			return err
-		}
-	case *Object_Resource:
-		_ = b.EncodeVarint(7<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Resource); err != nil {
-			return err
-		}
-	case *Object_Extension:
-		_ = b.EncodeVarint(8<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Extension); err != nil {
-			return err
-		}
-	case *Object_Config:
-		_ = b.EncodeVarint(9<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Config); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("Object.Object has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _Object_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*Object)
-	switch tag {
-	case 1: // Object.node
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Node)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Node{msg}
-		return true, err
-	case 2: // Object.service
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Service)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Service{msg}
-		return true, err
-	case 3: // Object.network
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Network)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Network{msg}
-		return true, err
-	case 4: // Object.task
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Task)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Task{msg}
-		return true, err
-	case 5: // Object.cluster
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Cluster)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Cluster{msg}
-		return true, err
-	case 6: // Object.secret
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Secret)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Secret{msg}
-		return true, err
-	case 7: // Object.resource
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Resource)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Resource{msg}
-		return true, err
-	case 8: // Object.extension
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Extension)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Extension{msg}
-		return true, err
-	case 9: // Object.config
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Config)
-		err := b.DecodeMessage(msg)
-		m.Object = &Object_Config{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _Object_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*Object)
-	// Object
-	switch x := m.Object.(type) {
-	case *Object_Node:
-		s := proto.Size(x.Node)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Service:
-		s := proto.Size(x.Service)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Network:
-		s := proto.Size(x.Network)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Task:
-		s := proto.Size(x.Task)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Cluster:
-		s := proto.Size(x.Cluster)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Secret:
-		s := proto.Size(x.Secret)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Resource:
-		s := proto.Size(x.Resource)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Extension:
-		s := proto.Size(x.Extension)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Object_Config:
-		s := proto.Size(x.Config)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 // FIXME(aaronl): These messages should ideally be embedded in SelectBy, but
@@ -455,7 +277,7 @@ func (m *SelectBySlot) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_SelectBySlot.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -493,7 +315,7 @@ func (m *SelectByCustom) XXX_Marshal(b []byte, deterministic bool) ([]byte, erro
 		return xxx_messageInfo_SelectByCustom.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -550,7 +372,7 @@ func (m *SelectBy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_SelectBy.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -576,52 +398,52 @@ type isSelectBy_By interface {
 }
 
 type SelectBy_ID struct {
-	ID string `protobuf:"bytes,1,opt,name=id,proto3,oneof"`
+	ID string `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
 }
 type SelectBy_IDPrefix struct {
-	IDPrefix string `protobuf:"bytes,2,opt,name=id_prefix,json=idPrefix,proto3,oneof"`
+	IDPrefix string `protobuf:"bytes,2,opt,name=id_prefix,json=idPrefix,proto3,oneof" json:"id_prefix,omitempty"`
 }
 type SelectBy_Name struct {
-	Name string `protobuf:"bytes,3,opt,name=name,proto3,oneof"`
+	Name string `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
 }
 type SelectBy_NamePrefix struct {
-	NamePrefix string `protobuf:"bytes,4,opt,name=name_prefix,json=namePrefix,proto3,oneof"`
+	NamePrefix string `protobuf:"bytes,4,opt,name=name_prefix,json=namePrefix,proto3,oneof" json:"name_prefix,omitempty"`
 }
 type SelectBy_Custom struct {
-	Custom *SelectByCustom `protobuf:"bytes,5,opt,name=custom,proto3,oneof"`
+	Custom *SelectByCustom `protobuf:"bytes,5,opt,name=custom,proto3,oneof" json:"custom,omitempty"`
 }
 type SelectBy_CustomPrefix struct {
-	CustomPrefix *SelectByCustom `protobuf:"bytes,6,opt,name=custom_prefix,json=customPrefix,proto3,oneof"`
+	CustomPrefix *SelectByCustom `protobuf:"bytes,6,opt,name=custom_prefix,json=customPrefix,proto3,oneof" json:"custom_prefix,omitempty"`
 }
 type SelectBy_ServiceID struct {
-	ServiceID string `protobuf:"bytes,7,opt,name=service_id,json=serviceId,proto3,oneof"`
+	ServiceID string `protobuf:"bytes,7,opt,name=service_id,json=serviceId,proto3,oneof" json:"service_id,omitempty"`
 }
 type SelectBy_NodeID struct {
-	NodeID string `protobuf:"bytes,8,opt,name=node_id,json=nodeId,proto3,oneof"`
+	NodeID string `protobuf:"bytes,8,opt,name=node_id,json=nodeId,proto3,oneof" json:"node_id,omitempty"`
 }
 type SelectBy_Slot struct {
-	Slot *SelectBySlot `protobuf:"bytes,9,opt,name=slot,proto3,oneof"`
+	Slot *SelectBySlot `protobuf:"bytes,9,opt,name=slot,proto3,oneof" json:"slot,omitempty"`
 }
 type SelectBy_DesiredState struct {
-	DesiredState TaskState `protobuf:"varint,10,opt,name=desired_state,json=desiredState,proto3,enum=docker.swarmkit.v1.TaskState,oneof"`
+	DesiredState TaskState `protobuf:"varint,10,opt,name=desired_state,json=desiredState,proto3,enum=docker.swarmkit.v1.TaskState,oneof" json:"desired_state,omitempty"`
 }
 type SelectBy_Role struct {
-	Role NodeRole `protobuf:"varint,11,opt,name=role,proto3,enum=docker.swarmkit.v1.NodeRole,oneof"`
+	Role NodeRole `protobuf:"varint,11,opt,name=role,proto3,enum=docker.swarmkit.v1.NodeRole,oneof" json:"role,omitempty"`
 }
 type SelectBy_Membership struct {
-	Membership NodeSpec_Membership `protobuf:"varint,12,opt,name=membership,proto3,enum=docker.swarmkit.v1.NodeSpec_Membership,oneof"`
+	Membership NodeSpec_Membership `protobuf:"varint,12,opt,name=membership,proto3,enum=docker.swarmkit.v1.NodeSpec_Membership,oneof" json:"membership,omitempty"`
 }
 type SelectBy_ReferencedNetworkID struct {
-	ReferencedNetworkID string `protobuf:"bytes,13,opt,name=referenced_network_id,json=referencedNetworkId,proto3,oneof"`
+	ReferencedNetworkID string `protobuf:"bytes,13,opt,name=referenced_network_id,json=referencedNetworkId,proto3,oneof" json:"referenced_network_id,omitempty"`
 }
 type SelectBy_ReferencedSecretID struct {
-	ReferencedSecretID string `protobuf:"bytes,14,opt,name=referenced_secret_id,json=referencedSecretId,proto3,oneof"`
+	ReferencedSecretID string `protobuf:"bytes,14,opt,name=referenced_secret_id,json=referencedSecretId,proto3,oneof" json:"referenced_secret_id,omitempty"`
 }
 type SelectBy_ReferencedConfigID struct {
-	ReferencedConfigID string `protobuf:"bytes,16,opt,name=referenced_config_id,json=referencedConfigId,proto3,oneof"`
+	ReferencedConfigID string `protobuf:"bytes,16,opt,name=referenced_config_id,json=referencedConfigId,proto3,oneof" json:"referenced_config_id,omitempty"`
 }
 type SelectBy_Kind struct {
-	Kind string `protobuf:"bytes,15,opt,name=kind,proto3,oneof"`
+	Kind string `protobuf:"bytes,15,opt,name=kind,proto3,oneof" json:"kind,omitempty"`
 }
 
 func (*SelectBy_ID) isSelectBy_By()                  {}
@@ -760,9 +582,9 @@ func (m *SelectBy) GetKind() string {
 	return ""
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*SelectBy) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _SelectBy_OneofMarshaler, _SelectBy_OneofUnmarshaler, _SelectBy_OneofSizer, []interface{}{
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*SelectBy) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*SelectBy_ID)(nil),
 		(*SelectBy_IDPrefix)(nil),
 		(*SelectBy_Name)(nil),
@@ -780,269 +602,6 @@ func (*SelectBy) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) erro
 		(*SelectBy_ReferencedConfigID)(nil),
 		(*SelectBy_Kind)(nil),
 	}
-}
-
-func _SelectBy_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*SelectBy)
-	// By
-	switch x := m.By.(type) {
-	case *SelectBy_ID:
-		_ = b.EncodeVarint(1<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.ID)
-	case *SelectBy_IDPrefix:
-		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.IDPrefix)
-	case *SelectBy_Name:
-		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.Name)
-	case *SelectBy_NamePrefix:
-		_ = b.EncodeVarint(4<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.NamePrefix)
-	case *SelectBy_Custom:
-		_ = b.EncodeVarint(5<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Custom); err != nil {
-			return err
-		}
-	case *SelectBy_CustomPrefix:
-		_ = b.EncodeVarint(6<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.CustomPrefix); err != nil {
-			return err
-		}
-	case *SelectBy_ServiceID:
-		_ = b.EncodeVarint(7<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.ServiceID)
-	case *SelectBy_NodeID:
-		_ = b.EncodeVarint(8<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.NodeID)
-	case *SelectBy_Slot:
-		_ = b.EncodeVarint(9<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Slot); err != nil {
-			return err
-		}
-	case *SelectBy_DesiredState:
-		_ = b.EncodeVarint(10<<3 | proto.WireVarint)
-		_ = b.EncodeVarint(uint64(x.DesiredState))
-	case *SelectBy_Role:
-		_ = b.EncodeVarint(11<<3 | proto.WireVarint)
-		_ = b.EncodeVarint(uint64(x.Role))
-	case *SelectBy_Membership:
-		_ = b.EncodeVarint(12<<3 | proto.WireVarint)
-		_ = b.EncodeVarint(uint64(x.Membership))
-	case *SelectBy_ReferencedNetworkID:
-		_ = b.EncodeVarint(13<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.ReferencedNetworkID)
-	case *SelectBy_ReferencedSecretID:
-		_ = b.EncodeVarint(14<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.ReferencedSecretID)
-	case *SelectBy_ReferencedConfigID:
-		_ = b.EncodeVarint(16<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.ReferencedConfigID)
-	case *SelectBy_Kind:
-		_ = b.EncodeVarint(15<<3 | proto.WireBytes)
-		_ = b.EncodeStringBytes(x.Kind)
-	case nil:
-	default:
-		return fmt.Errorf("SelectBy.By has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _SelectBy_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*SelectBy)
-	switch tag {
-	case 1: // By.id
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_ID{x}
-		return true, err
-	case 2: // By.id_prefix
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_IDPrefix{x}
-		return true, err
-	case 3: // By.name
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_Name{x}
-		return true, err
-	case 4: // By.name_prefix
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_NamePrefix{x}
-		return true, err
-	case 5: // By.custom
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(SelectByCustom)
-		err := b.DecodeMessage(msg)
-		m.By = &SelectBy_Custom{msg}
-		return true, err
-	case 6: // By.custom_prefix
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(SelectByCustom)
-		err := b.DecodeMessage(msg)
-		m.By = &SelectBy_CustomPrefix{msg}
-		return true, err
-	case 7: // By.service_id
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_ServiceID{x}
-		return true, err
-	case 8: // By.node_id
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_NodeID{x}
-		return true, err
-	case 9: // By.slot
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(SelectBySlot)
-		err := b.DecodeMessage(msg)
-		m.By = &SelectBy_Slot{msg}
-		return true, err
-	case 10: // By.desired_state
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.By = &SelectBy_DesiredState{TaskState(x)}
-		return true, err
-	case 11: // By.role
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.By = &SelectBy_Role{NodeRole(x)}
-		return true, err
-	case 12: // By.membership
-		if wire != proto.WireVarint {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeVarint()
-		m.By = &SelectBy_Membership{NodeSpec_Membership(x)}
-		return true, err
-	case 13: // By.referenced_network_id
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_ReferencedNetworkID{x}
-		return true, err
-	case 14: // By.referenced_secret_id
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_ReferencedSecretID{x}
-		return true, err
-	case 16: // By.referenced_config_id
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_ReferencedConfigID{x}
-		return true, err
-	case 15: // By.kind
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		x, err := b.DecodeStringBytes()
-		m.By = &SelectBy_Kind{x}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _SelectBy_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*SelectBy)
-	// By
-	switch x := m.By.(type) {
-	case *SelectBy_ID:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.ID)))
-		n += len(x.ID)
-	case *SelectBy_IDPrefix:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.IDPrefix)))
-		n += len(x.IDPrefix)
-	case *SelectBy_Name:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Name)))
-		n += len(x.Name)
-	case *SelectBy_NamePrefix:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.NamePrefix)))
-		n += len(x.NamePrefix)
-	case *SelectBy_Custom:
-		s := proto.Size(x.Custom)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *SelectBy_CustomPrefix:
-		s := proto.Size(x.CustomPrefix)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *SelectBy_ServiceID:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.ServiceID)))
-		n += len(x.ServiceID)
-	case *SelectBy_NodeID:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.NodeID)))
-		n += len(x.NodeID)
-	case *SelectBy_Slot:
-		s := proto.Size(x.Slot)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *SelectBy_DesiredState:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(x.DesiredState))
-	case *SelectBy_Role:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(x.Role))
-	case *SelectBy_Membership:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(x.Membership))
-	case *SelectBy_ReferencedNetworkID:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.ReferencedNetworkID)))
-		n += len(x.ReferencedNetworkID)
-	case *SelectBy_ReferencedSecretID:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.ReferencedSecretID)))
-		n += len(x.ReferencedSecretID)
-	case *SelectBy_ReferencedConfigID:
-		n += 2 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.ReferencedConfigID)))
-		n += len(x.ReferencedConfigID)
-	case *SelectBy_Kind:
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(len(x.Kind)))
-		n += len(x.Kind)
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type WatchRequest struct {
@@ -1076,7 +635,7 @@ func (m *WatchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_WatchRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -1120,7 +679,7 @@ func (m *WatchRequest_WatchEntry) XXX_Marshal(b []byte, deterministic bool) ([]b
 		return xxx_messageInfo_WatchRequest_WatchEntry.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -1162,7 +721,7 @@ func (m *WatchMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_WatchMessage.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -1207,7 +766,7 @@ func (m *WatchMessage_Event) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return xxx_messageInfo_WatchMessage_Event.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -1243,82 +802,83 @@ func init() {
 }
 
 var fileDescriptor_da25266013800cd9 = []byte{
-	// 1199 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x96, 0xbd, 0x73, 0x1b, 0xc5,
-	0x1b, 0xc7, 0xef, 0x14, 0xf9, 0x24, 0x3d, 0xb6, 0x13, 0xcf, 0xc6, 0x49, 0xee, 0xa7, 0x5f, 0x90,
-	0x85, 0x78, 0xcb, 0x24, 0x41, 0x06, 0x13, 0x92, 0x01, 0x02, 0x33, 0x96, 0x2c, 0x46, 0x22, 0xe3,
-	0x97, 0x59, 0xdb, 0x49, 0xa9, 0x39, 0xdf, 0x3d, 0x56, 0x0e, 0xdf, 0xdd, 0x8a, 0xbd, 0x93, 0x1d,
-	0x77, 0x14, 0x14, 0x4c, 0x2a, 0x1a, 0x66, 0x68, 0x52, 0x41, 0x4d, 0x43, 0x07, 0xff, 0x40, 0x86,
-	0x2a, 0x65, 0x68, 0x3c, 0x44, 0xe9, 0x28, 0xf8, 0x0b, 0x28, 0x98, 0x7d, 0x39, 0xdb, 0x51, 0x4e,
-	0x36, 0xa9, 0xb4, 0xb7, 0xf7, 0xf9, 0x3e, 0xfb, 0xec, 0xf3, 0x76, 0x82, 0xab, 0x3d, 0x3f, 0xb9,
-	0x3f, 0xd8, 0xaa, 0xbb, 0x2c, 0x9c, 0xf7, 0x98, 0xbb, 0x83, 0x7c, 0x3e, 0xde, 0x73, 0x78, 0xb8,
-	0xe3, 0x27, 0xf3, 0x4e, 0xdf, 0x9f, 0xdf, 0x73, 0x12, 0xf7, 0x7e, 0xbd, 0xcf, 0x59, 0xc2, 0x08,
-	0x51, 0x40, 0x3d, 0x05, 0xea, 0xbb, 0xef, 0x97, 0x4f, 0xd3, 0xc7, 0x7d, 0x74, 0x63, 0xa5, 0x2f,
-	0x5f, 0x3f, 0x85, 0x65, 0x5b, 0x5f, 0xa2, 0x9b, 0xa4, 0xf4, 0x69, 0x96, 0x93, 0xfd, 0x3e, 0xa6,
-	0xec, 0x6c, 0x8f, 0xf5, 0x98, 0x5c, 0xce, 0x8b, 0x95, 0xde, 0xbd, 0x75, 0x82, 0x05, 0x49, 0x6c,
-	0x0d, 0xb6, 0xe7, 0xfb, 0xc1, 0xa0, 0xe7, 0x47, 0xfa, 0x47, 0x09, 0x6b, 0xdf, 0xe4, 0xc1, 0x5a,
-	0x95, 0xce, 0x90, 0x3a, 0xe4, 0x23, 0xe6, 0xa1, 0x6d, 0x56, 0xcd, 0x2b, 0x93, 0x0b, 0x76, 0xfd,
-	0xe5, 0x10, 0xd4, 0x57, 0x98, 0x87, 0x6d, 0x83, 0x4a, 0x8e, 0xdc, 0x82, 0x42, 0x8c, 0x7c, 0xd7,
-	0x77, 0xd1, 0xce, 0x49, 0xc9, 0xff, 0xb3, 0x24, 0xeb, 0x0a, 0x69, 0x1b, 0x34, 0xa5, 0x85, 0x30,
-	0xc2, 0x64, 0x8f, 0xf1, 0x1d, 0xfb, 0xcc, 0x78, 0xe1, 0x8a, 0x42, 0x84, 0x50, 0xd3, 0xc2, 0xc3,
-	0xc4, 0x89, 0x77, 0xec, 0xfc, 0x78, 0x0f, 0x37, 0x9c, 0x58, 0x48, 0x24, 0x27, 0x0e, 0x72, 0x83,
-	0x41, 0x9c, 0x20, 0xb7, 0x27, 0xc6, 0x1f, 0xd4, 0x54, 0x88, 0x38, 0x48, 0xd3, 0xe4, 0x06, 0x58,
-	0x31, 0xba, 0x1c, 0x13, 0xdb, 0x92, 0xba, 0x72, 0xf6, 0xcd, 0x04, 0xd1, 0x36, 0xa8, 0x66, 0xc9,
-	0xc7, 0x50, 0xe4, 0x18, 0xb3, 0x01, 0x77, 0xd1, 0x2e, 0x48, 0xdd, 0xe5, 0x2c, 0x1d, 0xd5, 0x4c,
-	0xdb, 0xa0, 0x87, 0x3c, 0xf9, 0x14, 0x4a, 0xf8, 0x20, 0xc1, 0x28, 0xf6, 0x59, 0x64, 0x17, 0xa5,
-	0xf8, 0xb5, 0x2c, 0x71, 0x2b, 0x85, 0xda, 0x06, 0x3d, 0x52, 0x08, 0x87, 0x5d, 0x16, 0x6d, 0xfb,
-	0x3d, 0xbb, 0x34, 0xde, 0xe1, 0xa6, 0x24, 0x84, 0xc3, 0x8a, 0x6d, 0x14, 0xd3, 0xdc, 0xd7, 0xd6,
-	0x60, 0x6a, 0x1d, 0x03, 0x74, 0x93, 0xc6, 0xfe, 0x7a, 0xc0, 0x12, 0x72, 0x1d, 0x40, 0x67, 0xab,
-	0xeb, 0x7b, 0xb2, 0x22, 0x4a, 0x8d, 0xe9, 0xe1, 0xc1, 0x5c, 0x49, 0xa7, 0xb3, 0xb3, 0x44, 0x4b,
-	0x1a, 0xe8, 0x78, 0x84, 0x40, 0x3e, 0x0e, 0x58, 0x22, 0xcb, 0x20, 0x4f, 0xe5, 0xba, 0xb6, 0x06,
-	0x67, 0x53, 0x8b, 0xcd, 0x41, 0x9c, 0xb0, 0x50, 0x50, 0x3b, 0x7e, 0xa4, 0xad, 0x51, 0xb9, 0x26,
-	0xb3, 0x30, 0xe1, 0x47, 0x1e, 0x3e, 0x90, 0xd2, 0x12, 0x55, 0x0f, 0x62, 0x77, 0xd7, 0x09, 0x06,
-	0x28, 0xcb, 0xa3, 0x44, 0xd5, 0x43, 0xed, 0x2f, 0x0b, 0x8a, 0xa9, 0x49, 0x62, 0x43, 0xee, 0xd0,
-	0x31, 0x6b, 0x78, 0x30, 0x97, 0xeb, 0x2c, 0xb5, 0x0d, 0x9a, 0xf3, 0x3d, 0x72, 0x0d, 0x4a, 0xbe,
-	0xd7, 0xed, 0x73, 0xdc, 0xf6, 0xb5, 0xd9, 0xc6, 0xd4, 0xf0, 0x60, 0xae, 0xd8, 0x59, 0x5a, 0x93,
-	0x7b, 0x22, 0xec, 0xbe, 0xa7, 0xd6, 0x64, 0x16, 0xf2, 0x91, 0x13, 0xea, 0x83, 0x64, 0x65, 0x3b,
-	0x21, 0x92, 0xd7, 0x61, 0x52, 0xfc, 0xa6, 0x46, 0xf2, 0xfa, 0x25, 0x88, 0x4d, 0x2d, 0xbc, 0x0d,
-	0x96, 0x2b, 0xaf, 0xa5, 0x2b, 0xab, 0x96, 0x5d, 0x21, 0xc7, 0x03, 0x20, 0x03, 0xaf, 0x42, 0xd1,
-	0x81, 0x69, 0xb5, 0x4a, 0x8f, 0xb0, 0x5e, 0xc1, 0xc8, 0x94, 0x92, 0x6a, 0x47, 0xea, 0x2f, 0x64,
-	0xaa, 0x90, 0x91, 0x29, 0x51, 0x29, 0x47, 0xb9, 0x7a, 0x0b, 0x0a, 0xa2, 0x7b, 0x05, 0x5c, 0x94,
-	0x30, 0x0c, 0x0f, 0xe6, 0x2c, 0xd1, 0xd8, 0x92, 0xb4, 0xc4, 0xcb, 0x8e, 0x47, 0x6e, 0xea, 0x94,
-	0xaa, 0x72, 0xaa, 0x9e, 0xe4, 0x98, 0x28, 0x18, 0x11, 0x3a, 0xc1, 0x93, 0x25, 0x98, 0xf6, 0x30,
-	0xf6, 0x39, 0x7a, 0xdd, 0x38, 0x71, 0x12, 0xb4, 0xa1, 0x6a, 0x5e, 0x39, 0x9b, 0x5d, 0xcb, 0xa2,
-	0x57, 0xd7, 0x05, 0x24, 0x2e, 0xa5, 0x55, 0xf2, 0x99, 0x2c, 0x40, 0x9e, 0xb3, 0x00, 0xed, 0x49,
-	0x29, 0xbe, 0x3c, 0x6e, 0x14, 0x51, 0x16, 0xc8, 0x71, 0x24, 0x58, 0xd2, 0x01, 0x08, 0x31, 0xdc,
-	0x42, 0x1e, 0xdf, 0xf7, 0xfb, 0xf6, 0x94, 0x54, 0xbe, 0x33, 0x4e, 0xb9, 0xde, 0x47, 0xb7, 0xbe,
-	0x7c, 0x88, 0x8b, 0xe4, 0x1e, 0x89, 0xc9, 0x32, 0x5c, 0xe0, 0xb8, 0x8d, 0x1c, 0x23, 0x17, 0xbd,
-	0xae, 0x9e, 0x3e, 0x22, 0x62, 0xd3, 0x32, 0x62, 0x97, 0x86, 0x07, 0x73, 0xe7, 0xe9, 0x21, 0xa0,
-	0x07, 0x95, 0x0c, 0xdf, 0x79, 0xfe, 0xd2, 0xb6, 0x47, 0xbe, 0x80, 0xd9, 0x63, 0xe6, 0xd4, 0xb0,
-	0x10, 0xd6, 0xce, 0x4a, 0x6b, 0x17, 0x87, 0x07, 0x73, 0xe4, 0xc8, 0x9a, 0x9a, 0x2a, 0xd2, 0x18,
-	0xe1, 0xa3, 0xbb, 0xa3, 0xb6, 0x54, 0x1f, 0x0b, 0x5b, 0x33, 0x59, 0xb6, 0x54, 0xc3, 0x8f, 0xda,
-	0xd2, 0xbb, 0xa2, 0xf9, 0x54, 0x43, 0x9e, 0x4b, 0x8b, 0x5f, 0x3c, 0x35, 0xf2, 0x90, 0x6b, 0xec,
-	0xd7, 0xfe, 0xc8, 0xc1, 0xd4, 0x3d, 0xf1, 0x41, 0xa4, 0xf8, 0xd5, 0x00, 0xe3, 0x84, 0xb4, 0xa0,
-	0x80, 0x51, 0xc2, 0x7d, 0x8c, 0x6d, 0xb3, 0x7a, 0xe6, 0xca, 0xe4, 0xc2, 0xb5, 0xac, 0xd8, 0x1e,
-	0x97, 0xa8, 0x87, 0x56, 0x94, 0xf0, 0x7d, 0x9a, 0x6a, 0xc9, 0x6d, 0x98, 0xe4, 0x18, 0x0f, 0x42,
-	0xec, 0x6e, 0x73, 0x16, 0x9e, 0xf4, 0xe1, 0xb8, 0x8b, 0x5c, 0x8c, 0x36, 0x0a, 0x8a, 0xff, 0x9c,
-	0xb3, 0x90, 0x5c, 0x07, 0xe2, 0x47, 0x6e, 0x30, 0xf0, 0xb0, 0xcb, 0x02, 0xaf, 0xab, 0xbe, 0xa2,
-	0xb2, 0x79, 0x8b, 0x74, 0x46, 0xbf, 0x59, 0x0d, 0x3c, 0x35, 0xd4, 0xca, 0xdf, 0x9b, 0x00, 0x47,
-	0x3e, 0x64, 0xce, 0x9f, 0x4f, 0xc0, 0x72, 0xdc, 0x44, 0xcc, 0xdc, 0x9c, 0x2c, 0x98, 0x37, 0xc6,
-	0x5e, 0x6a, 0x51, 0x62, 0x77, 0xfc, 0xc8, 0xa3, 0x5a, 0x42, 0x6e, 0x42, 0x61, 0xdb, 0x0f, 0x12,
-	0xe4, 0xb1, 0x7d, 0x46, 0x86, 0xe4, 0xf2, 0x49, 0x6d, 0x42, 0x53, 0xb8, 0xf6, 0x5b, 0x1a, 0xdb,
-	0x65, 0x8c, 0x63, 0xa7, 0x87, 0xe4, 0x33, 0xb0, 0x70, 0x17, 0xa3, 0x24, 0x0d, 0xed, 0xdb, 0x63,
-	0xbd, 0xd0, 0x8a, 0x7a, 0x4b, 0xe0, 0x54, 0xab, 0xc8, 0x87, 0x50, 0xd8, 0x55, 0xd1, 0xfa, 0x2f,
-	0x01, 0x4d, 0xd9, 0xf2, 0x2f, 0x26, 0x4c, 0x48, 0x43, 0xc7, 0xc2, 0x60, 0xbe, 0x7a, 0x18, 0x16,
-	0xc0, 0xd2, 0x89, 0xc8, 0x8d, 0xff, 0xf6, 0xa8, 0x94, 0x50, 0x4d, 0x92, 0x8f, 0x00, 0x46, 0x12,
-	0x78, 0xb2, 0xae, 0xc4, 0xd2, 0xac, 0x5e, 0xfd, 0xc7, 0x84, 0x73, 0x23, 0xae, 0x90, 0x1b, 0x30,
-	0x7b, 0x6f, 0x71, 0xa3, 0xd9, 0xee, 0x2e, 0x36, 0x37, 0x3a, 0xab, 0x2b, 0xdd, 0xcd, 0x95, 0x3b,
-	0x2b, 0xab, 0xf7, 0x56, 0x66, 0x8c, 0x72, 0xf9, 0xe1, 0xa3, 0xea, 0xc5, 0x11, 0x7c, 0x33, 0xda,
-	0x89, 0xd8, 0x9e, 0x70, 0xfc, 0xfc, 0x0b, 0xaa, 0x26, 0x6d, 0x2d, 0x6e, 0xb4, 0x66, 0xcc, 0xf2,
-	0xff, 0x1e, 0x3e, 0xaa, 0x5e, 0x18, 0x11, 0x35, 0x39, 0xaa, 0xc9, 0xf4, 0xa2, 0x66, 0x73, 0x6d,
-	0x49, 0x68, 0x72, 0x99, 0x9a, 0xcd, 0xbe, 0x97, 0xa5, 0xa1, 0xad, 0xe5, 0xd5, 0xbb, 0xad, 0x99,
-	0x7c, 0xa6, 0x86, 0x62, 0xc8, 0x76, 0xb1, 0x7c, 0xe9, 0xdb, 0x1f, 0x2b, 0xc6, 0xaf, 0x3f, 0x55,
-	0x46, 0xaf, 0xba, 0x10, 0xc2, 0x84, 0xdc, 0x22, 0x5e, 0xba, 0xa8, 0x9e, 0xd6, 0x88, 0xe5, 0xea,
-	0x69, 0xf5, 0x54, 0xbb, 0xf0, 0xfb, 0xcf, 0x7f, 0xff, 0x90, 0x3b, 0x07, 0xd3, 0x92, 0x78, 0x37,
-	0x74, 0x22, 0xa7, 0x87, 0xfc, 0x3d, 0xb3, 0xf1, 0xe6, 0xe3, 0x67, 0x15, 0xe3, 0xe9, 0xb3, 0x8a,
-	0xf1, 0xf5, 0xb0, 0x62, 0x3e, 0x1e, 0x56, 0xcc, 0x27, 0xc3, 0x8a, 0xf9, 0xe7, 0xb0, 0x62, 0x7e,
-	0xf7, 0xbc, 0x62, 0x3c, 0x79, 0x5e, 0x31, 0x9e, 0x3e, 0xaf, 0x18, 0x5b, 0x96, 0xfc, 0x33, 0xf9,
-	0xc1, 0xbf, 0x01, 0x00, 0x00, 0xff, 0xff, 0x96, 0x4e, 0x58, 0x61, 0x63, 0x0b, 0x00, 0x00,
+	// 1210 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x96, 0xcd, 0x73, 0xdb, 0xc4,
+	0x1b, 0xc7, 0x25, 0xd7, 0x51, 0xec, 0x27, 0x49, 0x9b, 0xd9, 0xa6, 0xad, 0x7e, 0xfe, 0x15, 0xc7,
+	0x98, 0xb7, 0x4e, 0x5b, 0x1c, 0x08, 0xa5, 0x1d, 0xa0, 0x30, 0x13, 0x3b, 0x66, 0x6c, 0x3a, 0x79,
+	0x99, 0x4d, 0xd2, 0x1e, 0x3d, 0x8a, 0xf4, 0xc4, 0x15, 0x91, 0xb4, 0x66, 0x25, 0x3b, 0xcd, 0x8d,
+	0x23, 0xd3, 0x13, 0x17, 0x66, 0xb8, 0xf4, 0x04, 0x67, 0x2e, 0xdc, 0xca, 0x3f, 0xd0, 0xe1, 0xd4,
+	0x63, 0xb9, 0x64, 0xa8, 0x7b, 0xe3, 0xc0, 0x5f, 0xc0, 0x81, 0xd9, 0x17, 0x25, 0xa9, 0x2b, 0x27,
+	0xf4, 0xe4, 0xd5, 0xea, 0xf3, 0x7d, 0xf6, 0xd9, 0xe7, 0x4d, 0x86, 0xab, 0x5d, 0x3f, 0xb9, 0xdf,
+	0xdf, 0xae, 0xb9, 0x2c, 0x5c, 0xf0, 0x98, 0xbb, 0x8b, 0x7c, 0x21, 0xde, 0x73, 0x78, 0xb8, 0xeb,
+	0x27, 0x0b, 0x4e, 0xcf, 0x5f, 0xd8, 0x73, 0x12, 0xf7, 0x7e, 0xad, 0xc7, 0x59, 0xc2, 0x08, 0x51,
+	0x40, 0x2d, 0x05, 0x6a, 0x83, 0x0f, 0x4b, 0xa7, 0xe9, 0xe3, 0x1e, 0xba, 0xb1, 0xd2, 0x97, 0xae,
+	0x9f, 0xc2, 0xb2, 0xed, 0xaf, 0xd1, 0x4d, 0x52, 0xfa, 0x34, 0xcb, 0xc9, 0x7e, 0x0f, 0x53, 0x76,
+	0xae, 0xcb, 0xba, 0x4c, 0x2e, 0x17, 0xc4, 0x4a, 0xef, 0xde, 0x3a, 0xc1, 0x82, 0x24, 0xb6, 0xfb,
+	0x3b, 0x0b, 0xbd, 0xa0, 0xdf, 0xf5, 0x23, 0xfd, 0xa3, 0x84, 0xd5, 0xc7, 0x79, 0xb0, 0xd6, 0xa4,
+	0x33, 0xa4, 0x06, 0xf9, 0x88, 0x79, 0x68, 0x9b, 0x15, 0xf3, 0xca, 0xd4, 0xa2, 0x5d, 0x7b, 0x35,
+	0x04, 0xb5, 0x55, 0xe6, 0x61, 0xcb, 0xa0, 0x92, 0x23, 0xb7, 0x60, 0x32, 0x46, 0x3e, 0xf0, 0x5d,
+	0xb4, 0x73, 0x52, 0xf2, 0xff, 0x2c, 0xc9, 0x86, 0x42, 0x5a, 0x06, 0x4d, 0x69, 0x21, 0x8c, 0x30,
+	0xd9, 0x63, 0x7c, 0xd7, 0x3e, 0x33, 0x5e, 0xb8, 0xaa, 0x10, 0x21, 0xd4, 0xb4, 0xf0, 0x30, 0x71,
+	0xe2, 0x5d, 0x3b, 0x3f, 0xde, 0xc3, 0x4d, 0x27, 0x16, 0x12, 0xc9, 0x89, 0x83, 0xdc, 0xa0, 0x1f,
+	0x27, 0xc8, 0xed, 0x89, 0xf1, 0x07, 0x35, 0x14, 0x22, 0x0e, 0xd2, 0x34, 0xb9, 0x01, 0x56, 0x8c,
+	0x2e, 0xc7, 0xc4, 0xb6, 0xa4, 0xae, 0x94, 0x7d, 0x33, 0x41, 0xb4, 0x0c, 0xaa, 0x59, 0xf2, 0x29,
+	0x14, 0x38, 0xc6, 0xac, 0xcf, 0x5d, 0xb4, 0x27, 0xa5, 0xee, 0x72, 0x96, 0x8e, 0x6a, 0xa6, 0x65,
+	0xd0, 0x43, 0x9e, 0x7c, 0x0e, 0x45, 0x7c, 0x90, 0x60, 0x14, 0xfb, 0x2c, 0xb2, 0x0b, 0x52, 0xfc,
+	0x46, 0x96, 0xb8, 0x99, 0x42, 0x2d, 0x83, 0x1e, 0x29, 0x84, 0xc3, 0x2e, 0x8b, 0x76, 0xfc, 0xae,
+	0x5d, 0x1c, 0xef, 0x70, 0x43, 0x12, 0xc2, 0x61, 0xc5, 0x0a, 0xd5, 0x80, 0x05, 0xfd, 0x10, 0x6d,
+	0x18, 0xaf, 0xba, 0x2b, 0x09, 0xa1, 0x52, 0x6c, 0xbd, 0x90, 0x56, 0x4c, 0x75, 0x1d, 0xa6, 0x37,
+	0x30, 0x40, 0x37, 0xa9, 0xef, 0x6f, 0x04, 0x2c, 0x21, 0xd7, 0x01, 0x74, 0x8e, 0x3b, 0xbe, 0x27,
+	0xeb, 0xa8, 0x58, 0x9f, 0x19, 0x1e, 0xcc, 0x17, 0x75, 0x11, 0xb4, 0x97, 0x69, 0x51, 0x03, 0x6d,
+	0x8f, 0x10, 0xc8, 0xc7, 0x01, 0x4b, 0x64, 0xf1, 0xe4, 0xa9, 0x5c, 0x57, 0xd7, 0xe1, 0x6c, 0x6a,
+	0xb1, 0xd1, 0x8f, 0x13, 0x16, 0x0a, 0x6a, 0xd7, 0x8f, 0xb4, 0x35, 0x2a, 0xd7, 0x64, 0x0e, 0x26,
+	0xfc, 0xc8, 0xc3, 0x07, 0x52, 0x5a, 0xa4, 0xea, 0x41, 0xec, 0x0e, 0x9c, 0xa0, 0x8f, 0xb2, 0xa8,
+	0x8a, 0x54, 0x3d, 0x54, 0xff, 0xb2, 0xa0, 0x90, 0x9a, 0x24, 0x36, 0xe4, 0x0e, 0x1d, 0xb3, 0x86,
+	0x07, 0xf3, 0xb9, 0xf6, 0x72, 0xcb, 0xa0, 0x39, 0xdf, 0x23, 0xd7, 0xa0, 0xe8, 0x7b, 0x9d, 0x1e,
+	0xc7, 0x1d, 0x5f, 0x9b, 0xad, 0x4f, 0x0f, 0x0f, 0xe6, 0x0b, 0xed, 0xe5, 0x75, 0xb9, 0x27, 0x92,
+	0xe5, 0x7b, 0x6a, 0x4d, 0xe6, 0x20, 0x1f, 0x39, 0xa1, 0x3e, 0x48, 0xf6, 0x83, 0x13, 0x22, 0x79,
+	0x13, 0xa6, 0xc4, 0x6f, 0x6a, 0x24, 0xaf, 0x5f, 0x82, 0xd8, 0xd4, 0xc2, 0xdb, 0x60, 0xb9, 0xf2,
+	0x5a, 0xba, 0x1e, 0xab, 0xd9, 0x75, 0x75, 0x3c, 0x00, 0x32, 0x5d, 0x2a, 0x14, 0x6d, 0x98, 0x51,
+	0xab, 0xf4, 0x08, 0xeb, 0x35, 0x8c, 0x4c, 0x2b, 0xa9, 0x76, 0xa4, 0xf6, 0x52, 0xa6, 0x26, 0x33,
+	0x32, 0x25, 0xea, 0xeb, 0x28, 0x57, 0xef, 0xc0, 0xa4, 0xe8, 0x79, 0x01, 0x17, 0x24, 0x0c, 0xc3,
+	0x83, 0x79, 0x4b, 0x8c, 0x03, 0x49, 0x5a, 0xe2, 0x65, 0xdb, 0x23, 0x37, 0x75, 0x4a, 0x55, 0x11,
+	0x56, 0x4e, 0x72, 0x4c, 0x14, 0x8c, 0x08, 0x9d, 0xe0, 0xc9, 0x32, 0xcc, 0x78, 0x18, 0xfb, 0x1c,
+	0xbd, 0x4e, 0x9c, 0x38, 0x89, 0xaa, 0xc7, 0xb3, 0xd9, 0x1d, 0x20, 0x3a, 0x7c, 0x43, 0x40, 0xe2,
+	0x52, 0x5a, 0x25, 0x9f, 0xc9, 0x22, 0xe4, 0x39, 0x0b, 0xd0, 0x9e, 0x92, 0xe2, 0xcb, 0xe3, 0x06,
+	0x18, 0x65, 0x81, 0x1c, 0x62, 0x82, 0x25, 0x6d, 0x80, 0x10, 0xc3, 0x6d, 0xe4, 0xf1, 0x7d, 0xbf,
+	0x67, 0x4f, 0x4b, 0xe5, 0x7b, 0xe3, 0x94, 0x1b, 0x3d, 0x74, 0x6b, 0x2b, 0x87, 0xb8, 0x48, 0xee,
+	0x91, 0x98, 0xac, 0xc0, 0x05, 0x8e, 0x3b, 0xc8, 0x31, 0x72, 0xd1, 0xeb, 0xe8, 0x99, 0x25, 0x22,
+	0x36, 0x23, 0x23, 0x76, 0x69, 0x78, 0x30, 0x7f, 0x9e, 0x1e, 0x02, 0x7a, 0xbc, 0xc9, 0xf0, 0x9d,
+	0xe7, 0xaf, 0x6c, 0x7b, 0xe4, 0x2b, 0x98, 0x3b, 0x66, 0x4e, 0x8d, 0x18, 0x61, 0xed, 0xac, 0xb4,
+	0x76, 0x71, 0x78, 0x30, 0x4f, 0x8e, 0xac, 0xa9, 0x59, 0x24, 0x8d, 0x11, 0x3e, 0xba, 0x3b, 0x6a,
+	0x4b, 0x75, 0xbf, 0xb0, 0x35, 0x9b, 0x65, 0x4b, 0x8d, 0x89, 0x51, 0x5b, 0x7a, 0x57, 0x34, 0x9f,
+	0x6a, 0xc8, 0x73, 0x69, 0xf1, 0x8b, 0xa7, 0x7a, 0x1e, 0x72, 0xf5, 0xfd, 0xea, 0x1f, 0x39, 0x98,
+	0xbe, 0x27, 0x3e, 0xa3, 0x14, 0xbf, 0xe9, 0x63, 0x9c, 0x90, 0x26, 0x4c, 0x62, 0x94, 0x70, 0x1f,
+	0x63, 0xdb, 0xac, 0x9c, 0xb9, 0x32, 0xb5, 0x78, 0x2d, 0x2b, 0xb6, 0xc7, 0x25, 0xea, 0xa1, 0x19,
+	0x25, 0x7c, 0x9f, 0xa6, 0x5a, 0x72, 0x1b, 0xa6, 0x38, 0xc6, 0xfd, 0x10, 0x3b, 0x3b, 0x9c, 0x85,
+	0x27, 0x7d, 0x6e, 0xee, 0x22, 0x17, 0x03, 0x91, 0x82, 0xe2, 0xbf, 0xe4, 0x2c, 0x24, 0xd7, 0x81,
+	0xf8, 0x91, 0x1b, 0xf4, 0x3d, 0xec, 0xb0, 0xc0, 0xeb, 0xa8, 0x6f, 0xaf, 0x6c, 0xde, 0x02, 0x9d,
+	0xd5, 0x6f, 0xd6, 0x02, 0x4f, 0x0d, 0xb5, 0xd2, 0x0f, 0x26, 0xc0, 0x91, 0x0f, 0x99, 0xf3, 0xe7,
+	0x33, 0xb0, 0x1c, 0x37, 0x11, 0x93, 0x3a, 0x27, 0x0b, 0xe6, 0xad, 0xb1, 0x97, 0x5a, 0x92, 0xd8,
+	0x1d, 0x3f, 0xf2, 0xa8, 0x96, 0x90, 0x9b, 0x30, 0xb9, 0xe3, 0x07, 0x09, 0xf2, 0xd8, 0x3e, 0x23,
+	0x43, 0x72, 0xf9, 0xa4, 0x36, 0xa1, 0x29, 0x5c, 0xfd, 0x2d, 0x8d, 0xed, 0x0a, 0xc6, 0xb1, 0xd3,
+	0x45, 0xf2, 0x05, 0x58, 0x38, 0xc0, 0x28, 0x49, 0x43, 0xfb, 0xee, 0x58, 0x2f, 0xb4, 0xa2, 0xd6,
+	0x14, 0x38, 0xd5, 0x2a, 0xf2, 0x31, 0x4c, 0x0e, 0x54, 0xb4, 0xfe, 0x4b, 0x40, 0x53, 0xb6, 0xf4,
+	0xab, 0x09, 0x13, 0xd2, 0xd0, 0xb1, 0x30, 0x98, 0xaf, 0x1f, 0x86, 0x45, 0xb0, 0x74, 0x22, 0x72,
+	0xe3, 0xbf, 0x3d, 0x2a, 0x25, 0x54, 0x93, 0xe4, 0x13, 0x80, 0x91, 0x04, 0x9e, 0xac, 0x2b, 0xb2,
+	0x34, 0xab, 0x57, 0xff, 0x31, 0xe1, 0xdc, 0x88, 0x2b, 0xe4, 0x06, 0xcc, 0xdd, 0x5b, 0xda, 0x6c,
+	0xb4, 0x3a, 0x4b, 0x8d, 0xcd, 0xf6, 0xda, 0x6a, 0x67, 0x6b, 0xf5, 0xce, 0xea, 0xda, 0xbd, 0xd5,
+	0x59, 0xa3, 0x54, 0x7a, 0xf8, 0xa8, 0x72, 0x71, 0x04, 0xdf, 0x8a, 0x76, 0x23, 0xb6, 0x27, 0x1c,
+	0x3f, 0xff, 0x92, 0xaa, 0x41, 0x9b, 0x4b, 0x9b, 0xcd, 0x59, 0xb3, 0xf4, 0xbf, 0x87, 0x8f, 0x2a,
+	0x17, 0x46, 0x44, 0x0d, 0x8e, 0x6a, 0x32, 0xbd, 0xac, 0xd9, 0x5a, 0x5f, 0x16, 0x9a, 0x5c, 0xa6,
+	0x66, 0xab, 0xe7, 0x65, 0x69, 0x68, 0x73, 0x65, 0xed, 0x6e, 0x73, 0x36, 0x9f, 0xa9, 0xa1, 0x18,
+	0xb2, 0x01, 0x96, 0x2e, 0x7d, 0xf7, 0x53, 0xd9, 0x78, 0xfc, 0x73, 0x79, 0xf4, 0xaa, 0x8b, 0x21,
+	0x4c, 0xc8, 0x2d, 0xe2, 0xa5, 0x8b, 0xca, 0x69, 0x8d, 0x58, 0xaa, 0x9c, 0x56, 0x4f, 0xd5, 0x0b,
+	0xbf, 0xff, 0xf2, 0xf7, 0x8f, 0xb9, 0x73, 0x30, 0x23, 0x89, 0xf7, 0x43, 0x27, 0x72, 0xba, 0xc8,
+	0x3f, 0x30, 0xeb, 0x6f, 0x3f, 0x79, 0x5e, 0x36, 0x9e, 0x3d, 0x2f, 0x1b, 0xdf, 0x0e, 0xcb, 0xe6,
+	0x93, 0x61, 0xd9, 0x7c, 0x3a, 0x2c, 0x9b, 0x7f, 0x0e, 0xcb, 0xe6, 0xf7, 0x2f, 0xca, 0xc6, 0xd3,
+	0x17, 0x65, 0xe3, 0xd9, 0x8b, 0xb2, 0xb1, 0x6d, 0xc9, 0xbf, 0xa0, 0x1f, 0xfd, 0x1b, 0x00, 0x00,
+	0xff, 0xff, 0x36, 0x4b, 0xa7, 0x78, 0x99, 0x0b, 0x00, 0x00,
 }
 
 type authenticatedWrapperWatchServer struct {
@@ -1409,6 +969,12 @@ func (m *Object) CopyFrom(src interface{}) {
 				Config: &Config{},
 			}
 			github_com_docker_swarmkit_api_deepcopy.Copy(v.Config, o.GetConfig())
+			m.Object = &v
+		case *Object_Volume:
+			v := Object_Volume{
+				Volume: &Volume{},
+			}
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Volume, o.GetVolume())
 			m.Object = &v
 		}
 	}
@@ -1718,6 +1284,14 @@ type WatchServer interface {
 	Watch(*WatchRequest, Watch_WatchServer) error
 }
 
+// UnimplementedWatchServer can be embedded to have forward compatible implementations.
+type UnimplementedWatchServer struct {
+}
+
+func (*UnimplementedWatchServer) Watch(req *WatchRequest, srv Watch_WatchServer) error {
+	return status.Errorf(codes.Unimplemented, "method Watch not implemented")
+}
+
 func RegisterWatchServer(s *grpc.Server, srv WatchServer) {
 	s.RegisterService(&_Watch_serviceDesc, srv)
 }
@@ -1760,7 +1334,7 @@ var _Watch_serviceDesc = grpc.ServiceDesc{
 func (m *Object) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1768,150 +1342,241 @@ func (m *Object) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Object) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.Object != nil {
-		nn1, err := m.Object.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.Object.Size()
+			i -= size
+			if _, err := m.Object.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
 		}
-		i += nn1
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *Object_Node) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Node) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Node != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Node.Size()))
-		n2, err := m.Node.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Node.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n2
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Service) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Service) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Service != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Service.Size()))
-		n3, err := m.Service.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Service.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n3
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Network) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Network) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Network != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Network.Size()))
-		n4, err := m.Network.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Network.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n4
+		i--
+		dAtA[i] = 0x1a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Task) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Task) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Task != nil {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Task.Size()))
-		n5, err := m.Task.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Task.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n5
+		i--
+		dAtA[i] = 0x22
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Cluster) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Cluster) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Cluster != nil {
-		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Cluster.Size()))
-		n6, err := m.Cluster.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Cluster.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n6
+		i--
+		dAtA[i] = 0x2a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Secret) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Secret) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Secret != nil {
-		dAtA[i] = 0x32
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Secret.Size()))
-		n7, err := m.Secret.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Secret.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n7
+		i--
+		dAtA[i] = 0x32
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Resource) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Resource) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Resource != nil {
-		dAtA[i] = 0x3a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Resource.Size()))
-		n8, err := m.Resource.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Resource.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n8
+		i--
+		dAtA[i] = 0x3a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Extension) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Extension) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Extension != nil {
-		dAtA[i] = 0x42
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Extension.Size()))
-		n9, err := m.Extension.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Extension.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n9
+		i--
+		dAtA[i] = 0x42
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *Object_Config) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Config) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Config != nil {
-		dAtA[i] = 0x4a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Config.Size()))
-		n10, err := m.Config.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Config.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n10
+		i--
+		dAtA[i] = 0x4a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
+}
+func (m *Object_Volume) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Object_Volume) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.Volume != nil {
+		{
+			size, err := m.Volume.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x52
+	}
+	return len(dAtA) - i, nil
 }
 func (m *SelectBySlot) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1919,28 +1584,34 @@ func (m *SelectBySlot) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SelectBySlot) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBySlot) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ServiceID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(len(m.ServiceID)))
-		i += copy(dAtA[i:], m.ServiceID)
-	}
 	if m.Slot != 0 {
-		dAtA[i] = 0x10
-		i++
 		i = encodeVarintWatch(dAtA, i, uint64(m.Slot))
+		i--
+		dAtA[i] = 0x10
 	}
-	return i, nil
+	if len(m.ServiceID) > 0 {
+		i -= len(m.ServiceID)
+		copy(dAtA[i:], m.ServiceID)
+		i = encodeVarintWatch(dAtA, i, uint64(len(m.ServiceID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *SelectByCustom) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1948,35 +1619,43 @@ func (m *SelectByCustom) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SelectByCustom) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectByCustom) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Kind) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(len(m.Kind)))
-		i += copy(dAtA[i:], m.Kind)
+	if len(m.Value) > 0 {
+		i -= len(m.Value)
+		copy(dAtA[i:], m.Value)
+		i = encodeVarintWatch(dAtA, i, uint64(len(m.Value)))
+		i--
+		dAtA[i] = 0x1a
 	}
 	if len(m.Index) > 0 {
-		dAtA[i] = 0x12
-		i++
+		i -= len(m.Index)
+		copy(dAtA[i:], m.Index)
 		i = encodeVarintWatch(dAtA, i, uint64(len(m.Index)))
-		i += copy(dAtA[i:], m.Index)
+		i--
+		dAtA[i] = 0x12
 	}
-	if len(m.Value) > 0 {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(len(m.Value)))
-		i += copy(dAtA[i:], m.Value)
+	if len(m.Kind) > 0 {
+		i -= len(m.Kind)
+		copy(dAtA[i:], m.Kind)
+		i = encodeVarintWatch(dAtA, i, uint64(len(m.Kind)))
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *SelectBy) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1984,169 +1663,272 @@ func (m *SelectBy) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SelectBy) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.By != nil {
-		nn11, err := m.By.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.By.Size()
+			i -= size
+			if _, err := m.By.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
 		}
-		i += nn11
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *SelectBy_ID) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0xa
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_ID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.ID)
+	copy(dAtA[i:], m.ID)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.ID)))
-	i += copy(dAtA[i:], m.ID)
-	return i, nil
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_IDPrefix) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x12
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_IDPrefix) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.IDPrefix)
+	copy(dAtA[i:], m.IDPrefix)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.IDPrefix)))
-	i += copy(dAtA[i:], m.IDPrefix)
-	return i, nil
+	i--
+	dAtA[i] = 0x12
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_Name) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x1a
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_Name) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.Name)))
-	i += copy(dAtA[i:], m.Name)
-	return i, nil
+	i--
+	dAtA[i] = 0x1a
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_NamePrefix) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x22
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_NamePrefix) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.NamePrefix)
+	copy(dAtA[i:], m.NamePrefix)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.NamePrefix)))
-	i += copy(dAtA[i:], m.NamePrefix)
-	return i, nil
+	i--
+	dAtA[i] = 0x22
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_Custom) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_Custom) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Custom != nil {
-		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Custom.Size()))
-		n12, err := m.Custom.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Custom.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n12
+		i--
+		dAtA[i] = 0x2a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_CustomPrefix) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_CustomPrefix) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.CustomPrefix != nil {
-		dAtA[i] = 0x32
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.CustomPrefix.Size()))
-		n13, err := m.CustomPrefix.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.CustomPrefix.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n13
+		i--
+		dAtA[i] = 0x32
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_ServiceID) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x3a
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_ServiceID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.ServiceID)
+	copy(dAtA[i:], m.ServiceID)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.ServiceID)))
-	i += copy(dAtA[i:], m.ServiceID)
-	return i, nil
+	i--
+	dAtA[i] = 0x3a
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_NodeID) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x42
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_NodeID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.NodeID)
+	copy(dAtA[i:], m.NodeID)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.NodeID)))
-	i += copy(dAtA[i:], m.NodeID)
-	return i, nil
+	i--
+	dAtA[i] = 0x42
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_Slot) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_Slot) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Slot != nil {
-		dAtA[i] = 0x4a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Slot.Size()))
-		n14, err := m.Slot.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Slot.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-		i += n14
+		i--
+		dAtA[i] = 0x4a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_DesiredState) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x50
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_DesiredState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	i = encodeVarintWatch(dAtA, i, uint64(m.DesiredState))
-	return i, nil
+	i--
+	dAtA[i] = 0x50
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_Role) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x58
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_Role) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	i = encodeVarintWatch(dAtA, i, uint64(m.Role))
-	return i, nil
+	i--
+	dAtA[i] = 0x58
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_Membership) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x60
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_Membership) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	i = encodeVarintWatch(dAtA, i, uint64(m.Membership))
-	return i, nil
+	i--
+	dAtA[i] = 0x60
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_ReferencedNetworkID) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x6a
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_ReferencedNetworkID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.ReferencedNetworkID)
+	copy(dAtA[i:], m.ReferencedNetworkID)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.ReferencedNetworkID)))
-	i += copy(dAtA[i:], m.ReferencedNetworkID)
-	return i, nil
+	i--
+	dAtA[i] = 0x6a
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_ReferencedSecretID) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x72
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_ReferencedSecretID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.ReferencedSecretID)
+	copy(dAtA[i:], m.ReferencedSecretID)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.ReferencedSecretID)))
-	i += copy(dAtA[i:], m.ReferencedSecretID)
-	return i, nil
+	i--
+	dAtA[i] = 0x72
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_Kind) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x7a
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_Kind) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.Kind)
+	copy(dAtA[i:], m.Kind)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.Kind)))
-	i += copy(dAtA[i:], m.Kind)
-	return i, nil
+	i--
+	dAtA[i] = 0x7a
+	return len(dAtA) - i, nil
 }
 func (m *SelectBy_ReferencedConfigID) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
-	dAtA[i] = 0x82
-	i++
-	dAtA[i] = 0x1
-	i++
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SelectBy_ReferencedConfigID) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.ReferencedConfigID)
+	copy(dAtA[i:], m.ReferencedConfigID)
 	i = encodeVarintWatch(dAtA, i, uint64(len(m.ReferencedConfigID)))
-	i += copy(dAtA[i:], m.ReferencedConfigID)
-	return i, nil
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0x82
+	return len(dAtA) - i, nil
 }
 func (m *WatchRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -2154,49 +1936,58 @@ func (m *WatchRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *WatchRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *WatchRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Entries) > 0 {
-		for _, msg := range m.Entries {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintWatch(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if m.ResumeFrom != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.ResumeFrom.Size()))
-		n15, err := m.ResumeFrom.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n15
-	}
 	if m.IncludeOldObject {
-		dAtA[i] = 0x18
-		i++
+		i--
 		if m.IncludeOldObject {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x18
 	}
-	return i, nil
+	if m.ResumeFrom != nil {
+		{
+			size, err := m.ResumeFrom.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Entries) > 0 {
+		for iNdEx := len(m.Entries) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Entries[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintWatch(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *WatchRequest_WatchEntry) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -2204,40 +1995,48 @@ func (m *WatchRequest_WatchEntry) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *WatchRequest_WatchEntry) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *WatchRequest_WatchEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Kind) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(len(m.Kind)))
-		i += copy(dAtA[i:], m.Kind)
-	}
-	if m.Action != 0 {
-		dAtA[i] = 0x10
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Action))
-	}
 	if len(m.Filters) > 0 {
-		for _, msg := range m.Filters {
-			dAtA[i] = 0x1a
-			i++
-			i = encodeVarintWatch(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Filters) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Filters[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintWatch(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0x1a
 		}
 	}
-	return i, nil
+	if m.Action != 0 {
+		i = encodeVarintWatch(dAtA, i, uint64(m.Action))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.Kind) > 0 {
+		i -= len(m.Kind)
+		copy(dAtA[i:], m.Kind)
+		i = encodeVarintWatch(dAtA, i, uint64(len(m.Kind)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *WatchMessage) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -2245,39 +2044,48 @@ func (m *WatchMessage) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *WatchMessage) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *WatchMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Events) > 0 {
-		for _, msg := range m.Events {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintWatch(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
+	if m.Version != nil {
+		{
+			size, err := m.Version.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
-			i += n
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
 		}
-	}
-	if m.Version != nil {
+		i--
 		dAtA[i] = 0x12
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Version.Size()))
-		n16, err := m.Version.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n16
 	}
-	return i, nil
+	if len(m.Events) > 0 {
+		for iNdEx := len(m.Events) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Events[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintWatch(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *WatchMessage_Event) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -2285,46 +2093,57 @@ func (m *WatchMessage_Event) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *WatchMessage_Event) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *WatchMessage_Event) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Action != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Action))
+	if m.OldObject != nil {
+		{
+			size, err := m.OldObject.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x1a
 	}
 	if m.Object != nil {
+		{
+			size, err := m.Object.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintWatch(dAtA, i, uint64(size))
+		}
+		i--
 		dAtA[i] = 0x12
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.Object.Size()))
-		n17, err := m.Object.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n17
 	}
-	if m.OldObject != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintWatch(dAtA, i, uint64(m.OldObject.Size()))
-		n18, err := m.OldObject.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n18
+	if m.Action != 0 {
+		i = encodeVarintWatch(dAtA, i, uint64(m.Action))
+		i--
+		dAtA[i] = 0x8
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintWatch(dAtA []byte, offset int, v uint64) int {
+	offset -= sovWatch(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 
 type raftProxyWatchServer struct {
@@ -2566,6 +2385,18 @@ func (m *Object_Config) Size() (n int) {
 	_ = l
 	if m.Config != nil {
 		l = m.Config.Size()
+		n += 1 + l + sovWatch(uint64(l))
+	}
+	return n
+}
+func (m *Object_Volume) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Volume != nil {
+		l = m.Volume.Size()
 		n += 1 + l + sovWatch(uint64(l))
 	}
 	return n
@@ -2866,14 +2697,7 @@ func (m *WatchMessage_Event) Size() (n int) {
 }
 
 func sovWatch(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozWatch(x uint64) (n int) {
 	return sovWatch(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -2974,6 +2798,16 @@ func (this *Object_Config) String() string {
 	}
 	s := strings.Join([]string{`&Object_Config{`,
 		`Config:` + strings.Replace(fmt.Sprintf("%v", this.Config), "Config", "Config", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *Object_Volume) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&Object_Volume{`,
+		`Volume:` + strings.Replace(fmt.Sprintf("%v", this.Volume), "Volume", "Volume", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3175,8 +3009,13 @@ func (this *WatchRequest) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForEntries := "[]*WatchRequest_WatchEntry{"
+	for _, f := range this.Entries {
+		repeatedStringForEntries += strings.Replace(fmt.Sprintf("%v", f), "WatchRequest_WatchEntry", "WatchRequest_WatchEntry", 1) + ","
+	}
+	repeatedStringForEntries += "}"
 	s := strings.Join([]string{`&WatchRequest{`,
-		`Entries:` + strings.Replace(fmt.Sprintf("%v", this.Entries), "WatchRequest_WatchEntry", "WatchRequest_WatchEntry", 1) + `,`,
+		`Entries:` + repeatedStringForEntries + `,`,
 		`ResumeFrom:` + strings.Replace(fmt.Sprintf("%v", this.ResumeFrom), "Version", "Version", 1) + `,`,
 		`IncludeOldObject:` + fmt.Sprintf("%v", this.IncludeOldObject) + `,`,
 		`}`,
@@ -3187,10 +3026,15 @@ func (this *WatchRequest_WatchEntry) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForFilters := "[]*SelectBy{"
+	for _, f := range this.Filters {
+		repeatedStringForFilters += strings.Replace(f.String(), "SelectBy", "SelectBy", 1) + ","
+	}
+	repeatedStringForFilters += "}"
 	s := strings.Join([]string{`&WatchRequest_WatchEntry{`,
 		`Kind:` + fmt.Sprintf("%v", this.Kind) + `,`,
 		`Action:` + fmt.Sprintf("%v", this.Action) + `,`,
-		`Filters:` + strings.Replace(fmt.Sprintf("%v", this.Filters), "SelectBy", "SelectBy", 1) + `,`,
+		`Filters:` + repeatedStringForFilters + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3199,8 +3043,13 @@ func (this *WatchMessage) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForEvents := "[]*WatchMessage_Event{"
+	for _, f := range this.Events {
+		repeatedStringForEvents += strings.Replace(fmt.Sprintf("%v", f), "WatchMessage_Event", "WatchMessage_Event", 1) + ","
+	}
+	repeatedStringForEvents += "}"
 	s := strings.Join([]string{`&WatchMessage{`,
-		`Events:` + strings.Replace(fmt.Sprintf("%v", this.Events), "WatchMessage_Event", "WatchMessage_Event", 1) + `,`,
+		`Events:` + repeatedStringForEvents + `,`,
 		`Version:` + strings.Replace(fmt.Sprintf("%v", this.Version), "Version", "Version", 1) + `,`,
 		`}`,
 	}, "")
@@ -3212,8 +3061,8 @@ func (this *WatchMessage_Event) String() string {
 	}
 	s := strings.Join([]string{`&WatchMessage_Event{`,
 		`Action:` + fmt.Sprintf("%v", this.Action) + `,`,
-		`Object:` + strings.Replace(fmt.Sprintf("%v", this.Object), "Object", "Object", 1) + `,`,
-		`OldObject:` + strings.Replace(fmt.Sprintf("%v", this.OldObject), "Object", "Object", 1) + `,`,
+		`Object:` + strings.Replace(this.Object.String(), "Object", "Object", 1) + `,`,
+		`OldObject:` + strings.Replace(this.OldObject.String(), "Object", "Object", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -3569,6 +3418,41 @@ func (m *Object) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			m.Object = &Object_Config{v}
+			iNdEx = postIndex
+		case 10:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Volume", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowWatch
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthWatch
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthWatch
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &Volume{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Object = &Object_Volume{v}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -4936,6 +4820,7 @@ func (m *WatchMessage_Event) Unmarshal(dAtA []byte) error {
 func skipWatch(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -4967,10 +4852,8 @@ func skipWatch(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -4991,55 +4874,30 @@ func skipWatch(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthWatch
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthWatch
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowWatch
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipWatch(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthWatch
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupWatch
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthWatch
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthWatch = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowWatch   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthWatch        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowWatch          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupWatch = fmt.Errorf("proto: unexpected end of group")
 )

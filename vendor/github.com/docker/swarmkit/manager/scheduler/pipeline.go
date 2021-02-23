@@ -67,6 +67,10 @@ func (p *Pipeline) Process(n *NodeInfo) bool {
 	return true
 }
 
+func (p *Pipeline) AddFilter(f Filter) {
+	p.checklist = append(p.checklist, checklistEntry{f: f})
+}
+
 // SetTask sets up the filters to process a new task. Once this is called,
 // Process can be called repeatedly to try to assign the task various nodes.
 func (p *Pipeline) SetTask(t *api.Task) {

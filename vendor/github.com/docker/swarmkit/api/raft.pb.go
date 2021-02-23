@@ -17,6 +17,7 @@ import (
 	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 	rafttime "time"
@@ -31,7 +32,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // StoreActionKind defines the operation to take on the store for the target of
 // a storage action.
@@ -91,7 +92,7 @@ func (m *RaftMember) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_RaftMember.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -128,7 +129,7 @@ func (m *JoinRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) 
 		return xxx_messageInfo_JoinRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -170,7 +171,7 @@ func (m *JoinResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_JoinResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -206,7 +207,7 @@ func (m *LeaveRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 		return xxx_messageInfo_LeaveRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -241,7 +242,7 @@ func (m *LeaveResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error
 		return xxx_messageInfo_LeaveResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -277,7 +278,7 @@ func (m *ProcessRaftMessageRequest) XXX_Marshal(b []byte, deterministic bool) ([
 		return xxx_messageInfo_ProcessRaftMessageRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -312,7 +313,7 @@ func (m *ProcessRaftMessageResponse) XXX_Marshal(b []byte, deterministic bool) (
 		return xxx_messageInfo_ProcessRaftMessageResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -349,7 +350,7 @@ func (m *StreamRaftMessageRequest) XXX_Marshal(b []byte, deterministic bool) ([]
 		return xxx_messageInfo_StreamRaftMessageRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -385,7 +386,7 @@ func (m *StreamRaftMessageResponse) XXX_Marshal(b []byte, deterministic bool) ([
 		return xxx_messageInfo_StreamRaftMessageResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -422,7 +423,7 @@ func (m *ResolveAddressRequest) XXX_Marshal(b []byte, deterministic bool) ([]byt
 		return xxx_messageInfo_ResolveAddressRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -459,7 +460,7 @@ func (m *ResolveAddressResponse) XXX_Marshal(b []byte, deterministic bool) ([]by
 		return xxx_messageInfo_ResolveAddressResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -499,7 +500,7 @@ func (m *InternalRaftRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return xxx_messageInfo_InternalRaftRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -531,6 +532,7 @@ type StoreAction struct {
 	//	*StoreAction_Resource
 	//	*StoreAction_Extension
 	//	*StoreAction_Config
+	//	*StoreAction_Volume
 	Target isStoreAction_Target `protobuf_oneof:"target"`
 }
 
@@ -547,7 +549,7 @@ func (m *StoreAction) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) 
 		return xxx_messageInfo_StoreAction.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -573,31 +575,34 @@ type isStoreAction_Target interface {
 }
 
 type StoreAction_Node struct {
-	Node *Node `protobuf:"bytes,2,opt,name=node,proto3,oneof"`
+	Node *Node `protobuf:"bytes,2,opt,name=node,proto3,oneof" json:"node,omitempty"`
 }
 type StoreAction_Service struct {
-	Service *Service `protobuf:"bytes,3,opt,name=service,proto3,oneof"`
+	Service *Service `protobuf:"bytes,3,opt,name=service,proto3,oneof" json:"service,omitempty"`
 }
 type StoreAction_Task struct {
-	Task *Task `protobuf:"bytes,4,opt,name=task,proto3,oneof"`
+	Task *Task `protobuf:"bytes,4,opt,name=task,proto3,oneof" json:"task,omitempty"`
 }
 type StoreAction_Network struct {
-	Network *Network `protobuf:"bytes,5,opt,name=network,proto3,oneof"`
+	Network *Network `protobuf:"bytes,5,opt,name=network,proto3,oneof" json:"network,omitempty"`
 }
 type StoreAction_Cluster struct {
-	Cluster *Cluster `protobuf:"bytes,6,opt,name=cluster,proto3,oneof"`
+	Cluster *Cluster `protobuf:"bytes,6,opt,name=cluster,proto3,oneof" json:"cluster,omitempty"`
 }
 type StoreAction_Secret struct {
-	Secret *Secret `protobuf:"bytes,7,opt,name=secret,proto3,oneof"`
+	Secret *Secret `protobuf:"bytes,7,opt,name=secret,proto3,oneof" json:"secret,omitempty"`
 }
 type StoreAction_Resource struct {
-	Resource *Resource `protobuf:"bytes,8,opt,name=resource,proto3,oneof"`
+	Resource *Resource `protobuf:"bytes,8,opt,name=resource,proto3,oneof" json:"resource,omitempty"`
 }
 type StoreAction_Extension struct {
-	Extension *Extension `protobuf:"bytes,9,opt,name=extension,proto3,oneof"`
+	Extension *Extension `protobuf:"bytes,9,opt,name=extension,proto3,oneof" json:"extension,omitempty"`
 }
 type StoreAction_Config struct {
-	Config *Config `protobuf:"bytes,10,opt,name=config,proto3,oneof"`
+	Config *Config `protobuf:"bytes,10,opt,name=config,proto3,oneof" json:"config,omitempty"`
+}
+type StoreAction_Volume struct {
+	Volume *Volume `protobuf:"bytes,11,opt,name=volume,proto3,oneof" json:"volume,omitempty"`
 }
 
 func (*StoreAction_Node) isStoreAction_Target()      {}
@@ -609,6 +614,7 @@ func (*StoreAction_Secret) isStoreAction_Target()    {}
 func (*StoreAction_Resource) isStoreAction_Target()  {}
 func (*StoreAction_Extension) isStoreAction_Target() {}
 func (*StoreAction_Config) isStoreAction_Target()    {}
+func (*StoreAction_Volume) isStoreAction_Target()    {}
 
 func (m *StoreAction) GetTarget() isStoreAction_Target {
 	if m != nil {
@@ -680,9 +686,16 @@ func (m *StoreAction) GetConfig() *Config {
 	return nil
 }
 
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*StoreAction) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _StoreAction_OneofMarshaler, _StoreAction_OneofUnmarshaler, _StoreAction_OneofSizer, []interface{}{
+func (m *StoreAction) GetVolume() *Volume {
+	if x, ok := m.GetTarget().(*StoreAction_Volume); ok {
+		return x.Volume
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*StoreAction) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
 		(*StoreAction_Node)(nil),
 		(*StoreAction_Service)(nil),
 		(*StoreAction_Task)(nil),
@@ -692,199 +705,8 @@ func (*StoreAction) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) e
 		(*StoreAction_Resource)(nil),
 		(*StoreAction_Extension)(nil),
 		(*StoreAction_Config)(nil),
+		(*StoreAction_Volume)(nil),
 	}
-}
-
-func _StoreAction_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*StoreAction)
-	// target
-	switch x := m.Target.(type) {
-	case *StoreAction_Node:
-		_ = b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Node); err != nil {
-			return err
-		}
-	case *StoreAction_Service:
-		_ = b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Service); err != nil {
-			return err
-		}
-	case *StoreAction_Task:
-		_ = b.EncodeVarint(4<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Task); err != nil {
-			return err
-		}
-	case *StoreAction_Network:
-		_ = b.EncodeVarint(5<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Network); err != nil {
-			return err
-		}
-	case *StoreAction_Cluster:
-		_ = b.EncodeVarint(6<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Cluster); err != nil {
-			return err
-		}
-	case *StoreAction_Secret:
-		_ = b.EncodeVarint(7<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Secret); err != nil {
-			return err
-		}
-	case *StoreAction_Resource:
-		_ = b.EncodeVarint(8<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Resource); err != nil {
-			return err
-		}
-	case *StoreAction_Extension:
-		_ = b.EncodeVarint(9<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Extension); err != nil {
-			return err
-		}
-	case *StoreAction_Config:
-		_ = b.EncodeVarint(10<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Config); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("StoreAction.Target has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _StoreAction_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*StoreAction)
-	switch tag {
-	case 2: // target.node
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Node)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Node{msg}
-		return true, err
-	case 3: // target.service
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Service)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Service{msg}
-		return true, err
-	case 4: // target.task
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Task)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Task{msg}
-		return true, err
-	case 5: // target.network
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Network)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Network{msg}
-		return true, err
-	case 6: // target.cluster
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Cluster)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Cluster{msg}
-		return true, err
-	case 7: // target.secret
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Secret)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Secret{msg}
-		return true, err
-	case 8: // target.resource
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Resource)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Resource{msg}
-		return true, err
-	case 9: // target.extension
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Extension)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Extension{msg}
-		return true, err
-	case 10: // target.config
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(Config)
-		err := b.DecodeMessage(msg)
-		m.Target = &StoreAction_Config{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _StoreAction_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*StoreAction)
-	// target
-	switch x := m.Target.(type) {
-	case *StoreAction_Node:
-		s := proto.Size(x.Node)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Service:
-		s := proto.Size(x.Service)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Task:
-		s := proto.Size(x.Task)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Network:
-		s := proto.Size(x.Network)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Cluster:
-		s := proto.Size(x.Cluster)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Secret:
-		s := proto.Size(x.Secret)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Resource:
-		s := proto.Size(x.Resource)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Extension:
-		s := proto.Size(x.Extension)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *StoreAction_Config:
-		s := proto.Size(x.Config)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 func init() {
@@ -909,72 +731,73 @@ func init() {
 }
 
 var fileDescriptor_d2c32e1e3c930c15 = []byte{
-	// 1028 bytes of a gzipped FileDescriptorProto
+	// 1044 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x96, 0x41, 0x73, 0xdb, 0x44,
-	0x14, 0xc7, 0x25, 0x5b, 0x75, 0x9a, 0x97, 0x36, 0x09, 0x5b, 0x12, 0x14, 0xb5, 0x28, 0xae, 0xda,
+	0x14, 0xc7, 0x25, 0x5b, 0x75, 0x92, 0xe7, 0x36, 0x09, 0x5b, 0x12, 0x14, 0xb5, 0x28, 0xae, 0xdb,
 	0x19, 0x9c, 0x90, 0xc8, 0x83, 0x61, 0xa6, 0x4c, 0xa1, 0x87, 0x38, 0xf1, 0x4c, 0x4c, 0x5a, 0xa7,
-	0xa3, 0x24, 0xd0, 0x5b, 0x90, 0xa5, 0x8d, 0x2b, 0x1c, 0x6b, 0xcd, 0xee, 0x3a, 0x81, 0x0b, 0xd3,
-	0x23, 0xe4, 0xc4, 0x0d, 0x86, 0x99, 0x0e, 0x07, 0x38, 0xf7, 0x03, 0xf0, 0x01, 0x98, 0x0c, 0xa7,
-	0xde, 0xe8, 0x29, 0x43, 0x9d, 0x3b, 0x7c, 0x05, 0x66, 0x57, 0x52, 0x12, 0x6c, 0xd9, 0xf1, 0x81,
-	0x4b, 0xb2, 0xa3, 0xfd, 0xfd, 0xdf, 0xff, 0xed, 0xee, 0xdb, 0xb7, 0x86, 0x85, 0x46, 0xc0, 0x9f,
-	0x76, 0xea, 0xb6, 0x47, 0x5a, 0x45, 0x9f, 0x78, 0x4d, 0x4c, 0x8b, 0xec, 0xd0, 0xa5, 0xad, 0x66,
-	0xc0, 0x8b, 0x6e, 0x3b, 0x28, 0x52, 0x77, 0x8f, 0xdb, 0x6d, 0x4a, 0x38, 0x41, 0x28, 0x9a, 0xb7,
-	0x93, 0x79, 0xfb, 0xe0, 0x3d, 0x63, 0xe9, 0x12, 0x39, 0xa9, 0x7f, 0x81, 0x3d, 0xce, 0xa2, 0x08,
-	0xc6, 0xe2, 0x25, 0x34, 0xff, 0xba, 0x8d, 0x13, 0x76, 0xf9, 0x02, 0xeb, 0x11, 0x8a, 0x09, 0x2b,
-	0x62, 0xee, 0xf9, 0x32, 0x21, 0xf9, 0xa7, 0x5d, 0xbf, 0x90, 0x9c, 0xf1, 0x66, 0x83, 0x34, 0x88,
-	0x1c, 0x16, 0xc5, 0x28, 0xfe, 0x7a, 0x6f, 0x88, 0xa1, 0x24, 0xea, 0x9d, 0xbd, 0x62, 0x7b, 0xbf,
-	0xd3, 0x08, 0xc2, 0xf8, 0x5f, 0x24, 0xb4, 0x5e, 0xa8, 0x00, 0x8e, 0xbb, 0xc7, 0x1f, 0xe1, 0x56,
-	0x1d, 0x53, 0x74, 0x07, 0xc6, 0x84, 0xd7, 0x6e, 0xe0, 0xeb, 0x6a, 0x5e, 0x2d, 0x68, 0x65, 0xe8,
-	0x9e, 0xcc, 0xe7, 0x04, 0x50, 0x5d, 0x73, 0x72, 0x62, 0xaa, 0xea, 0x0b, 0x28, 0x24, 0x3e, 0x16,
-	0x50, 0x26, 0xaf, 0x16, 0xc6, 0x23, 0xa8, 0x46, 0x7c, 0x2c, 0x20, 0x31, 0x55, 0xf5, 0x11, 0x02,
-	0xcd, 0xf5, 0x7d, 0xaa, 0x67, 0x05, 0xe1, 0xc8, 0x31, 0x2a, 0x43, 0x8e, 0x71, 0x97, 0x77, 0x98,
-	0xae, 0xe5, 0xd5, 0xc2, 0x44, 0xe9, 0xae, 0xdd, 0xbf, 0xd3, 0xf6, 0x79, 0x36, 0x5b, 0x92, 0x2d,
-	0x6b, 0xc7, 0x27, 0xf3, 0x8a, 0x13, 0x2b, 0xad, 0xdb, 0x30, 0xf1, 0x09, 0x09, 0x42, 0x07, 0x7f,
-	0xd9, 0xc1, 0x8c, 0x9f, 0xd9, 0xa8, 0xe7, 0x36, 0xd6, 0x4f, 0x2a, 0x5c, 0x8b, 0x18, 0xd6, 0x26,
-	0x21, 0xc3, 0xa3, 0xad, 0xea, 0x43, 0x18, 0x6b, 0x49, 0x5b, 0xa6, 0x67, 0xf2, 0xd9, 0xc2, 0x44,
-	0xc9, 0x1c, 0x9e, 0x9d, 0x93, 0xe0, 0xe8, 0x5d, 0x98, 0xa2, 0xb8, 0x45, 0x0e, 0xb0, 0xbf, 0x9b,
-	0x44, 0xc8, 0xe6, 0xb3, 0x05, 0xad, 0x9c, 0x99, 0x56, 0x9c, 0xc9, 0x78, 0x2a, 0x12, 0x31, 0xab,
-	0x0c, 0xd7, 0x1e, 0x62, 0xf7, 0x00, 0x27, 0x0b, 0x28, 0x81, 0x26, 0x76, 0x4c, 0x26, 0x76, 0xb9,
-	0xa7, 0x64, 0xad, 0x29, 0xb8, 0x1e, 0xc7, 0x88, 0x16, 0x68, 0x3d, 0x84, 0xb9, 0xc7, 0x94, 0x78,
-	0x98, 0xb1, 0x88, 0x65, 0xcc, 0x6d, 0x9c, 0x39, 0x2c, 0x88, 0x85, 0xc9, 0x2f, 0xb1, 0xc9, 0x94,
-	0x1d, 0x95, 0x95, 0x9d, 0x80, 0xc9, 0xfc, 0x7d, 0xed, 0xd9, 0x0f, 0x96, 0x62, 0xdd, 0x02, 0x23,
-	0x2d, 0x5a, 0xec, 0xb5, 0x01, 0xfa, 0x16, 0xa7, 0xd8, 0x6d, 0xfd, 0x1f, 0x56, 0x37, 0x61, 0x2e,
-	0x25, 0x58, 0xec, 0xf4, 0x31, 0xcc, 0x38, 0x98, 0x91, 0xfd, 0x03, 0xbc, 0xe2, 0xfb, 0x54, 0xa4,
-	0x13, 0xdb, 0x8c, 0x72, 0x9e, 0xd6, 0x12, 0xcc, 0xf6, 0xaa, 0xe3, 0x72, 0x48, 0xab, 0x99, 0x7d,
-	0xb8, 0x51, 0x0d, 0x39, 0xa6, 0xa1, 0xbb, 0x2f, 0xe2, 0x24, 0x4e, 0xb3, 0x90, 0x39, 0x33, 0xc9,
-	0x75, 0x4f, 0xe6, 0x33, 0xd5, 0x35, 0x27, 0x13, 0xf8, 0xe8, 0x01, 0xe4, 0x5c, 0x8f, 0x07, 0x24,
-	0x8c, 0x6b, 0x65, 0x3e, 0xed, 0xdc, 0xb6, 0x38, 0xa1, 0x78, 0x45, 0x62, 0x49, 0x11, 0x47, 0x22,
-	0xeb, 0x77, 0x0d, 0x26, 0x2e, 0xcc, 0xa2, 0x8f, 0xce, 0xc2, 0x09, 0xab, 0xc9, 0xd2, 0x9d, 0x4b,
-	0xc2, 0x6d, 0x04, 0xa1, 0x9f, 0x04, 0x43, 0x76, 0x5c, 0x41, 0x19, 0xb9, 0xe3, 0x7a, 0x9a, 0x54,
-	0xdc, 0xcd, 0x75, 0x25, 0xaa, 0x1e, 0x74, 0x0f, 0xc6, 0x18, 0xa6, 0x07, 0x81, 0x87, 0xe5, 0xe5,
-	0x9c, 0x28, 0xdd, 0x4c, 0x75, 0x8b, 0x90, 0x75, 0xc5, 0x49, 0x68, 0x61, 0xc4, 0x5d, 0xd6, 0x8c,
-	0x2f, 0x6f, 0xaa, 0xd1, 0xb6, 0xcb, 0x9a, 0xc2, 0x48, 0x70, 0xc2, 0x28, 0xc4, 0xfc, 0x90, 0xd0,
-	0xa6, 0x7e, 0x65, 0xb0, 0x51, 0x2d, 0x42, 0x84, 0x51, 0x4c, 0x0b, 0xa1, 0xb7, 0xdf, 0x61, 0x1c,
-	0x53, 0x3d, 0x37, 0x58, 0xb8, 0x1a, 0x21, 0x42, 0x18, 0xd3, 0xe8, 0x03, 0xc8, 0x31, 0xec, 0x51,
-	0xcc, 0xf5, 0x31, 0xa9, 0x33, 0xd2, 0x57, 0x26, 0x88, 0x75, 0xd1, 0x52, 0xe4, 0x08, 0xdd, 0x87,
-	0xab, 0x14, 0x33, 0xd2, 0xa1, 0x1e, 0xd6, 0xaf, 0x4a, 0xdd, 0xad, 0xd4, 0x6b, 0x18, 0x33, 0xeb,
-	0x8a, 0x73, 0xc6, 0xa3, 0x07, 0x30, 0x8e, 0xbf, 0xe2, 0x38, 0x64, 0xe2, 0xf0, 0xc6, 0xa5, 0xf8,
-	0xed, 0x34, 0x71, 0x25, 0x81, 0xd6, 0x15, 0xe7, 0x5c, 0x21, 0x12, 0xf6, 0x48, 0xb8, 0x17, 0x34,
-	0x74, 0x18, 0x9c, 0xf0, 0xaa, 0x24, 0x44, 0xc2, 0x11, 0x5b, 0xbe, 0x0a, 0x39, 0xee, 0xd2, 0x06,
-	0xe6, 0x8b, 0xff, 0xa8, 0x30, 0xd5, 0x53, 0x17, 0xe8, 0x1d, 0x18, 0xdb, 0xa9, 0x6d, 0xd4, 0x36,
-	0x3f, 0xab, 0x4d, 0x2b, 0x86, 0x71, 0xf4, 0x3c, 0x3f, 0xdb, 0x43, 0xec, 0x84, 0xcd, 0x90, 0x1c,
-	0x86, 0xa8, 0x04, 0x37, 0xb6, 0xb6, 0x37, 0x9d, 0xca, 0xee, 0xca, 0xea, 0x76, 0x75, 0xb3, 0xb6,
-	0xbb, 0xea, 0x54, 0x56, 0xb6, 0x2b, 0xd3, 0xaa, 0x31, 0x77, 0xf4, 0x3c, 0x3f, 0xd3, 0x23, 0x5a,
-	0xa5, 0xd8, 0xe5, 0xb8, 0x4f, 0xb3, 0xf3, 0x78, 0x4d, 0x68, 0x32, 0xa9, 0x9a, 0x9d, 0xb6, 0x9f,
-	0xa6, 0x71, 0x2a, 0x8f, 0x36, 0x3f, 0xad, 0x4c, 0x67, 0x53, 0x35, 0x8e, 0x6c, 0x97, 0xc6, 0x5b,
-	0xdf, 0xfe, 0x62, 0x2a, 0xbf, 0xfd, 0x6a, 0xf6, 0xae, 0xae, 0xf4, 0x73, 0x16, 0x34, 0x71, 0x43,
-	0xd1, 0x91, 0x0a, 0xa8, 0xbf, 0x4d, 0xa1, 0xe5, 0xb4, 0x1d, 0x1c, 0xd8, 0x1c, 0x0d, 0x7b, 0x54,
-	0x3c, 0xee, 0x49, 0x33, 0x7f, 0xbc, 0xf8, 0xfb, 0xc7, 0xcc, 0x14, 0x5c, 0x97, 0xfc, 0x72, 0xcb,
-	0x0d, 0xdd, 0x06, 0xa6, 0xe8, 0x3b, 0x15, 0xde, 0xe8, 0x6b, 0x64, 0x68, 0x29, 0xfd, 0x1a, 0xa7,
-	0x37, 0x4f, 0x63, 0x79, 0x44, 0x7a, 0x68, 0x26, 0x05, 0x15, 0x7d, 0x03, 0x93, 0xff, 0x6d, 0x7c,
-	0x68, 0x61, 0x50, 0x39, 0xf7, 0xb5, 0x56, 0x63, 0x71, 0x14, 0x74, 0x68, 0x06, 0xa5, 0x3f, 0x55,
-	0x98, 0x3c, 0x7f, 0xb2, 0xd8, 0xd3, 0xa0, 0x8d, 0x3e, 0x07, 0x4d, 0x3c, 0xc8, 0x28, 0xb5, 0x4d,
-	0x5e, 0x78, 0xce, 0x8d, 0xfc, 0x60, 0x60, 0xf8, 0x01, 0x78, 0x70, 0x45, 0x3e, 0x89, 0x28, 0x35,
-	0xc2, 0xc5, 0x17, 0xd7, 0xb8, 0x3d, 0x84, 0x18, 0x6a, 0x52, 0xbe, 0x7b, 0xfc, 0xda, 0x54, 0x5e,
-	0xbd, 0x36, 0x95, 0x67, 0x5d, 0x53, 0x3d, 0xee, 0x9a, 0xea, 0xcb, 0xae, 0xa9, 0xfe, 0xd5, 0x35,
-	0xd5, 0xef, 0x4f, 0x4d, 0xe5, 0xe5, 0xa9, 0xa9, 0xbc, 0x3a, 0x35, 0x95, 0x27, 0xd9, 0x27, 0x5a,
-	0x3d, 0x27, 0x7f, 0x5d, 0xbd, 0xff, 0x6f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xc9, 0x42, 0x09, 0xd0,
-	0x76, 0x0a, 0x00, 0x00,
+	0xa3, 0x24, 0xa5, 0xb7, 0x20, 0x4b, 0x1b, 0x57, 0xd8, 0xd6, 0x9a, 0xdd, 0xb5, 0x03, 0x17, 0xa6,
+	0x47, 0xc8, 0x89, 0x1b, 0x0c, 0x33, 0x1d, 0x0e, 0x70, 0xee, 0x07, 0xe0, 0x13, 0x64, 0x38, 0xf5,
+	0x46, 0x4f, 0x19, 0xea, 0xdc, 0xe1, 0x0b, 0x70, 0x60, 0x76, 0x25, 0x25, 0x21, 0x91, 0x1d, 0x1f,
+	0x7a, 0x49, 0x76, 0xbc, 0xbf, 0xff, 0xfb, 0xbf, 0xdd, 0x7d, 0xfb, 0x56, 0xb0, 0xd0, 0xf0, 0xf9,
+	0xd3, 0x6e, 0xdd, 0x72, 0x49, 0xbb, 0xe8, 0x11, 0xb7, 0x89, 0x69, 0x91, 0xed, 0x3b, 0xb4, 0xdd,
+	0xf4, 0x79, 0xd1, 0xe9, 0xf8, 0x45, 0xea, 0xec, 0x71, 0xab, 0x43, 0x09, 0x27, 0x08, 0x85, 0xf3,
+	0x56, 0x3c, 0x6f, 0xf5, 0x3e, 0x30, 0x96, 0x2e, 0x91, 0x93, 0xfa, 0x97, 0xd8, 0xe5, 0x2c, 0x8c,
+	0x60, 0x2c, 0x5e, 0x42, 0xf3, 0x6f, 0x3a, 0x38, 0x66, 0x97, 0xcf, 0xb0, 0x2e, 0xa1, 0x98, 0xb0,
+	0x22, 0xe6, 0xae, 0x27, 0x13, 0x92, 0x7f, 0x3a, 0xf5, 0x33, 0xc9, 0x19, 0x6f, 0x37, 0x48, 0x83,
+	0xc8, 0x61, 0x51, 0x8c, 0xa2, 0x5f, 0xef, 0x0e, 0x31, 0x94, 0x44, 0xbd, 0xbb, 0x57, 0xec, 0xb4,
+	0xba, 0x0d, 0x3f, 0x88, 0xfe, 0x85, 0xc2, 0xfc, 0x0b, 0x15, 0xc0, 0x76, 0xf6, 0xf8, 0x43, 0xdc,
+	0xae, 0x63, 0x8a, 0x6e, 0xc3, 0x98, 0xf0, 0xda, 0xf5, 0x3d, 0x5d, 0xcd, 0xa9, 0x05, 0xad, 0x0c,
+	0xfd, 0xa3, 0xf9, 0x8c, 0x00, 0xaa, 0x6b, 0x76, 0x46, 0x4c, 0x55, 0x3d, 0x01, 0x05, 0xc4, 0xc3,
+	0x02, 0x4a, 0xe5, 0xd4, 0xc2, 0x44, 0x08, 0xd5, 0x88, 0x87, 0x05, 0x24, 0xa6, 0xaa, 0x1e, 0x42,
+	0xa0, 0x39, 0x9e, 0x47, 0xf5, 0xb4, 0x20, 0x6c, 0x39, 0x46, 0x65, 0xc8, 0x30, 0xee, 0xf0, 0x2e,
+	0xd3, 0xb5, 0x9c, 0x5a, 0xc8, 0x96, 0xee, 0x58, 0x17, 0x77, 0xda, 0x3a, 0xcd, 0x66, 0x4b, 0xb2,
+	0x65, 0xed, 0xf0, 0x68, 0x5e, 0xb1, 0x23, 0x65, 0xfe, 0x16, 0x64, 0x3f, 0x23, 0x7e, 0x60, 0xe3,
+	0xaf, 0xba, 0x98, 0xf1, 0x13, 0x1b, 0xf5, 0xd4, 0x26, 0xff, 0xb3, 0x0a, 0x57, 0x43, 0x86, 0x75,
+	0x48, 0xc0, 0xf0, 0x68, 0xab, 0xfa, 0x18, 0xc6, 0xda, 0xd2, 0x96, 0xe9, 0xa9, 0x5c, 0xba, 0x90,
+	0x2d, 0x99, 0xc3, 0xb3, 0xb3, 0x63, 0x1c, 0xbd, 0x0f, 0x53, 0x14, 0xb7, 0x49, 0x0f, 0x7b, 0xbb,
+	0x71, 0x84, 0x74, 0x2e, 0x5d, 0xd0, 0xca, 0xa9, 0x69, 0xc5, 0x9e, 0x8c, 0xa6, 0x42, 0x11, 0xcb,
+	0x97, 0xe1, 0xea, 0x03, 0xec, 0xf4, 0x70, 0xbc, 0x80, 0x12, 0x68, 0x62, 0xc7, 0x64, 0x62, 0x97,
+	0x7b, 0x4a, 0x36, 0x3f, 0x05, 0xd7, 0xa2, 0x18, 0xe1, 0x02, 0xf3, 0x0f, 0x60, 0xee, 0x11, 0x25,
+	0x2e, 0x66, 0x2c, 0x64, 0x19, 0x73, 0x1a, 0x27, 0x0e, 0x0b, 0x62, 0x61, 0xf2, 0x97, 0xc8, 0x64,
+	0xca, 0x0a, 0xcb, 0xca, 0x8a, 0xc1, 0x78, 0xfe, 0x9e, 0xf6, 0xec, 0xc7, 0xbc, 0x92, 0xbf, 0x09,
+	0x46, 0x52, 0xb4, 0xc8, 0x6b, 0x03, 0xf4, 0x2d, 0x4e, 0xb1, 0xd3, 0x7e, 0x13, 0x56, 0x37, 0x60,
+	0x2e, 0x21, 0x58, 0xe4, 0xf4, 0x29, 0xcc, 0xd8, 0x98, 0x91, 0x56, 0x0f, 0xaf, 0x78, 0x1e, 0x15,
+	0xe9, 0x44, 0x36, 0xa3, 0x9c, 0x67, 0x7e, 0x09, 0x66, 0xcf, 0xab, 0xa3, 0x72, 0x48, 0xaa, 0x99,
+	0x16, 0x5c, 0xaf, 0x06, 0x1c, 0xd3, 0xc0, 0x69, 0x89, 0x38, 0xb1, 0xd3, 0x2c, 0xa4, 0x4e, 0x4c,
+	0x32, 0xfd, 0xa3, 0xf9, 0x54, 0x75, 0xcd, 0x4e, 0xf9, 0x1e, 0xba, 0x0f, 0x19, 0xc7, 0xe5, 0x3e,
+	0x09, 0xa2, 0x5a, 0x99, 0x4f, 0x3a, 0xb7, 0x2d, 0x4e, 0x28, 0x5e, 0x91, 0x58, 0x5c, 0xc4, 0xa1,
+	0x28, 0xff, 0xaf, 0x06, 0xd9, 0x33, 0xb3, 0xe8, 0x93, 0x93, 0x70, 0xc2, 0x6a, 0xb2, 0x74, 0xfb,
+	0x92, 0x70, 0x1b, 0x7e, 0xe0, 0xc5, 0xc1, 0x90, 0x15, 0x55, 0x50, 0x4a, 0xee, 0xb8, 0x9e, 0x24,
+	0x15, 0x77, 0x73, 0x5d, 0x09, 0xab, 0x07, 0xdd, 0x85, 0x31, 0x86, 0x69, 0xcf, 0x77, 0xb1, 0xbc,
+	0x9c, 0xd9, 0xd2, 0x8d, 0x44, 0xb7, 0x10, 0x59, 0x57, 0xec, 0x98, 0x16, 0x46, 0xdc, 0x61, 0xcd,
+	0xe8, 0xf2, 0x26, 0x1a, 0x6d, 0x3b, 0xac, 0x29, 0x8c, 0x04, 0x27, 0x8c, 0x02, 0xcc, 0xf7, 0x09,
+	0x6d, 0xea, 0x57, 0x06, 0x1b, 0xd5, 0x42, 0x44, 0x18, 0x45, 0xb4, 0x10, 0xba, 0xad, 0x2e, 0xe3,
+	0x98, 0xea, 0x99, 0xc1, 0xc2, 0xd5, 0x10, 0x11, 0xc2, 0x88, 0x46, 0x1f, 0x41, 0x86, 0x61, 0x97,
+	0x62, 0xae, 0x8f, 0x49, 0x9d, 0x91, 0xbc, 0x32, 0x41, 0xac, 0x8b, 0x96, 0x22, 0x47, 0xe8, 0x1e,
+	0x8c, 0x53, 0xcc, 0x48, 0x97, 0xba, 0x58, 0x1f, 0x97, 0xba, 0x9b, 0x89, 0xd7, 0x30, 0x62, 0xd6,
+	0x15, 0xfb, 0x84, 0x47, 0xf7, 0x61, 0x02, 0x7f, 0xcd, 0x71, 0xc0, 0xc4, 0xe1, 0x4d, 0x48, 0xf1,
+	0xbb, 0x49, 0xe2, 0x4a, 0x0c, 0xad, 0x2b, 0xf6, 0xa9, 0x42, 0x24, 0xec, 0x92, 0x60, 0xcf, 0x6f,
+	0xe8, 0x30, 0x38, 0xe1, 0x55, 0x49, 0x88, 0x84, 0x43, 0x56, 0xa8, 0x7a, 0xa4, 0xd5, 0x6d, 0x63,
+	0x3d, 0x3b, 0x58, 0xf5, 0x58, 0x12, 0x42, 0x15, 0xb2, 0xe5, 0x71, 0xc8, 0x70, 0x87, 0x36, 0x30,
+	0x5f, 0xfc, 0x47, 0x85, 0xa9, 0x73, 0xd5, 0x84, 0xde, 0x83, 0xb1, 0x9d, 0xda, 0x46, 0x6d, 0xf3,
+	0xf3, 0xda, 0xb4, 0x62, 0x18, 0x07, 0xcf, 0x73, 0xb3, 0xe7, 0x88, 0x9d, 0xa0, 0x19, 0x90, 0xfd,
+	0x00, 0x95, 0xe0, 0xfa, 0xd6, 0xf6, 0xa6, 0x5d, 0xd9, 0x5d, 0x59, 0xdd, 0xae, 0x6e, 0xd6, 0x76,
+	0x57, 0xed, 0xca, 0xca, 0x76, 0x65, 0x5a, 0x35, 0xe6, 0x0e, 0x9e, 0xe7, 0x66, 0xce, 0x89, 0x56,
+	0x29, 0x76, 0x38, 0xbe, 0xa0, 0xd9, 0x79, 0xb4, 0x26, 0x34, 0xa9, 0x44, 0xcd, 0x4e, 0xc7, 0x4b,
+	0xd2, 0xd8, 0x95, 0x87, 0x9b, 0x8f, 0x2b, 0xd3, 0xe9, 0x44, 0x8d, 0x2d, 0x9b, 0xac, 0xf1, 0xce,
+	0x77, 0xbf, 0x9a, 0xca, 0xef, 0xbf, 0x99, 0xe7, 0x57, 0x57, 0xfa, 0x25, 0x0d, 0x9a, 0xb8, 0xd7,
+	0xe8, 0x40, 0x05, 0x74, 0xb1, 0xb9, 0xa1, 0xe5, 0xa4, 0x1d, 0x1c, 0xd8, 0x52, 0x0d, 0x6b, 0x54,
+	0x3c, 0xea, 0x64, 0x33, 0x7f, 0xbc, 0xf8, 0xfb, 0xa7, 0xd4, 0x14, 0x5c, 0x93, 0xfc, 0x72, 0xdb,
+	0x09, 0x9c, 0x06, 0xa6, 0xe8, 0x7b, 0x15, 0xde, 0xba, 0xd0, 0xfe, 0xd0, 0x52, 0xf2, 0xe5, 0x4f,
+	0x6e, 0xb9, 0xc6, 0xf2, 0x88, 0xf4, 0xd0, 0x4c, 0x0a, 0x2a, 0xfa, 0x16, 0x26, 0xff, 0xdf, 0x2e,
+	0xd1, 0xc2, 0xa0, 0x4b, 0x70, 0xa1, 0x21, 0x1b, 0x8b, 0xa3, 0xa0, 0x43, 0x33, 0x28, 0xfd, 0xa9,
+	0xc2, 0xe4, 0xe9, 0x43, 0xc7, 0x9e, 0xfa, 0x1d, 0xf4, 0x05, 0x68, 0xe2, 0x19, 0x47, 0x89, 0xcd,
+	0xf5, 0xcc, 0x47, 0x80, 0x91, 0x1b, 0x0c, 0x0c, 0x3f, 0x00, 0x17, 0xae, 0xc8, 0x87, 0x14, 0x25,
+	0x46, 0x38, 0xfb, 0x4e, 0x1b, 0xb7, 0x86, 0x10, 0x43, 0x4d, 0xca, 0x77, 0x0e, 0x5f, 0x9b, 0xca,
+	0xab, 0xd7, 0xa6, 0xf2, 0xac, 0x6f, 0xaa, 0x87, 0x7d, 0x53, 0x7d, 0xd9, 0x37, 0xd5, 0xbf, 0xfa,
+	0xa6, 0xfa, 0xc3, 0xb1, 0xa9, 0xbc, 0x3c, 0x36, 0x95, 0x57, 0xc7, 0xa6, 0xf2, 0x24, 0xfd, 0x44,
+	0xab, 0x67, 0xe4, 0x37, 0xd9, 0x87, 0xff, 0x05, 0x00, 0x00, 0xff, 0xff, 0x0f, 0x7b, 0x0e, 0x6f,
+	0xac, 0x0a, 0x00, 0x00,
 }
 
 type authenticatedWrapperRaftServer struct {
@@ -1270,6 +1093,12 @@ func (m *StoreAction) CopyFrom(src interface{}) {
 			}
 			github_com_docker_swarmkit_api_deepcopy.Copy(v.Config, o.GetConfig())
 			m.Target = &v
+		case *StoreAction_Volume:
+			v := StoreAction_Volume{
+				Volume: &Volume{},
+			}
+			github_com_docker_swarmkit_api_deepcopy.Copy(v.Volume, o.GetVolume())
+			m.Target = &v
 		}
 	}
 
@@ -1373,6 +1202,20 @@ type RaftServer interface {
 	StreamRaftMessage(Raft_StreamRaftMessageServer) error
 	// ResolveAddress returns the address where the node with the given ID can be reached.
 	ResolveAddress(context.Context, *ResolveAddressRequest) (*ResolveAddressResponse, error)
+}
+
+// UnimplementedRaftServer can be embedded to have forward compatible implementations.
+type UnimplementedRaftServer struct {
+}
+
+func (*UnimplementedRaftServer) ProcessRaftMessage(ctx context.Context, req *ProcessRaftMessageRequest) (*ProcessRaftMessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ProcessRaftMessage not implemented")
+}
+func (*UnimplementedRaftServer) StreamRaftMessage(srv Raft_StreamRaftMessageServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamRaftMessage not implemented")
+}
+func (*UnimplementedRaftServer) ResolveAddress(ctx context.Context, req *ResolveAddressRequest) (*ResolveAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResolveAddress not implemented")
 }
 
 func RegisterRaftServer(s *grpc.Server, srv RaftServer) {
@@ -1508,6 +1351,17 @@ type RaftMembershipServer interface {
 	Leave(context.Context, *LeaveRequest) (*LeaveResponse, error)
 }
 
+// UnimplementedRaftMembershipServer can be embedded to have forward compatible implementations.
+type UnimplementedRaftMembershipServer struct {
+}
+
+func (*UnimplementedRaftMembershipServer) Join(ctx context.Context, req *JoinRequest) (*JoinResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Join not implemented")
+}
+func (*UnimplementedRaftMembershipServer) Leave(ctx context.Context, req *LeaveRequest) (*LeaveResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Leave not implemented")
+}
+
 func RegisterRaftMembershipServer(s *grpc.Server, srv RaftMembershipServer) {
 	s.RegisterService(&_RaftMembership_serviceDesc, srv)
 }
@@ -1568,7 +1422,7 @@ var _RaftMembership_serviceDesc = grpc.ServiceDesc{
 func (m *RaftMember) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1576,42 +1430,51 @@ func (m *RaftMember) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *RaftMember) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *RaftMember) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.RaftID != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.RaftID))
+	{
+		size, err := m.Status.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintRaft(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x22
+	if len(m.Addr) > 0 {
+		i -= len(m.Addr)
+		copy(dAtA[i:], m.Addr)
+		i = encodeVarintRaft(dAtA, i, uint64(len(m.Addr)))
+		i--
+		dAtA[i] = 0x1a
 	}
 	if len(m.NodeID) > 0 {
-		dAtA[i] = 0x12
-		i++
+		i -= len(m.NodeID)
+		copy(dAtA[i:], m.NodeID)
 		i = encodeVarintRaft(dAtA, i, uint64(len(m.NodeID)))
-		i += copy(dAtA[i:], m.NodeID)
+		i--
+		dAtA[i] = 0x12
 	}
-	if len(m.Addr) > 0 {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(len(m.Addr)))
-		i += copy(dAtA[i:], m.Addr)
+	if m.RaftID != 0 {
+		i = encodeVarintRaft(dAtA, i, uint64(m.RaftID))
+		i--
+		dAtA[i] = 0x8
 	}
-	dAtA[i] = 0x22
-	i++
-	i = encodeVarintRaft(dAtA, i, uint64(m.Status.Size()))
-	n1, err := m.Status.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n1
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *JoinRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1619,23 +1482,29 @@ func (m *JoinRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *JoinRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *JoinRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Addr) > 0 {
-		dAtA[i] = 0xa
-		i++
+		i -= len(m.Addr)
+		copy(dAtA[i:], m.Addr)
 		i = encodeVarintRaft(dAtA, i, uint64(len(m.Addr)))
-		i += copy(dAtA[i:], m.Addr)
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *JoinResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1643,41 +1512,48 @@ func (m *JoinResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *JoinResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *JoinResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.RaftID != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.RaftID))
+	if len(m.RemovedMembers) > 0 {
+		for iNdEx := len(m.RemovedMembers) - 1; iNdEx >= 0; iNdEx-- {
+			i = encodeVarintRaft(dAtA, i, uint64(m.RemovedMembers[iNdEx]))
+			i--
+			dAtA[i] = 0x18
+		}
 	}
 	if len(m.Members) > 0 {
-		for _, msg := range m.Members {
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintRaft(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Members) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Members[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintRaft(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0x12
 		}
 	}
-	if len(m.RemovedMembers) > 0 {
-		for _, num := range m.RemovedMembers {
-			dAtA[i] = 0x18
-			i++
-			i = encodeVarintRaft(dAtA, i, uint64(num))
-		}
+	if m.RaftID != 0 {
+		i = encodeVarintRaft(dAtA, i, uint64(m.RaftID))
+		i--
+		dAtA[i] = 0x8
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *LeaveRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1685,27 +1561,34 @@ func (m *LeaveRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *LeaveRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *LeaveRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.Node != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Node.Size()))
-		n2, err := m.Node.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Node.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n2
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *LeaveResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1713,17 +1596,22 @@ func (m *LeaveResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *LeaveResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *LeaveResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *ProcessRaftMessageRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1731,27 +1619,34 @@ func (m *ProcessRaftMessageRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ProcessRaftMessageRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ProcessRaftMessageRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.Message != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Message.Size()))
-		n3, err := m.Message.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Message.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n3
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *ProcessRaftMessageResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1759,17 +1654,22 @@ func (m *ProcessRaftMessageResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ProcessRaftMessageResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ProcessRaftMessageResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *StreamRaftMessageRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1777,27 +1677,34 @@ func (m *StreamRaftMessageRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *StreamRaftMessageRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StreamRaftMessageRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.Message != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Message.Size()))
-		n4, err := m.Message.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Message.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n4
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *StreamRaftMessageResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1805,17 +1712,22 @@ func (m *StreamRaftMessageResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *StreamRaftMessageResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StreamRaftMessageResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *ResolveAddressRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1823,22 +1735,27 @@ func (m *ResolveAddressRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ResolveAddressRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ResolveAddressRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if m.RaftID != 0 {
-		dAtA[i] = 0x8
-		i++
 		i = encodeVarintRaft(dAtA, i, uint64(m.RaftID))
+		i--
+		dAtA[i] = 0x8
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *ResolveAddressResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1846,23 +1763,29 @@ func (m *ResolveAddressResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ResolveAddressResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ResolveAddressResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Addr) > 0 {
-		dAtA[i] = 0xa
-		i++
+		i -= len(m.Addr)
+		copy(dAtA[i:], m.Addr)
 		i = encodeVarintRaft(dAtA, i, uint64(len(m.Addr)))
-		i += copy(dAtA[i:], m.Addr)
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *InternalRaftRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1870,34 +1793,41 @@ func (m *InternalRaftRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *InternalRaftRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *InternalRaftRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.ID != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.ID))
-	}
 	if len(m.Action) > 0 {
-		for _, msg := range m.Action {
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintRaft(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Action) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Action[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintRaft(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0x12
 		}
 	}
-	return i, nil
+	if m.ID != 0 {
+		i = encodeVarintRaft(dAtA, i, uint64(m.ID))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *StoreAction) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1905,159 +1835,252 @@ func (m *StoreAction) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *StoreAction) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Action != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Action))
-	}
 	if m.Target != nil {
-		nn5, err := m.Target.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size := m.Target.Size()
+			i -= size
+			if _, err := m.Target.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
 		}
-		i += nn5
 	}
-	return i, nil
+	if m.Action != 0 {
+		i = encodeVarintRaft(dAtA, i, uint64(m.Action))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *StoreAction_Node) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Node) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Node != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Node.Size()))
-		n6, err := m.Node.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Node.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n6
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Service) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Service) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Service != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Service.Size()))
-		n7, err := m.Service.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Service.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n7
+		i--
+		dAtA[i] = 0x1a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Task) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Task) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Task != nil {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Task.Size()))
-		n8, err := m.Task.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Task.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n8
+		i--
+		dAtA[i] = 0x22
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Network) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Network) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Network != nil {
-		dAtA[i] = 0x2a
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Network.Size()))
-		n9, err := m.Network.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Network.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n9
+		i--
+		dAtA[i] = 0x2a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Cluster) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Cluster) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Cluster != nil {
-		dAtA[i] = 0x32
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Cluster.Size()))
-		n10, err := m.Cluster.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Cluster.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n10
+		i--
+		dAtA[i] = 0x32
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Secret) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Secret) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Secret != nil {
-		dAtA[i] = 0x3a
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Secret.Size()))
-		n11, err := m.Secret.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Secret.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n11
+		i--
+		dAtA[i] = 0x3a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Resource) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Resource) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Resource != nil {
-		dAtA[i] = 0x42
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Resource.Size()))
-		n12, err := m.Resource.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Resource.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n12
+		i--
+		dAtA[i] = 0x42
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Extension) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Extension) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Extension != nil {
-		dAtA[i] = 0x4a
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Extension.Size()))
-		n13, err := m.Extension.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Extension.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n13
+		i--
+		dAtA[i] = 0x4a
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 func (m *StoreAction_Config) MarshalTo(dAtA []byte) (int, error) {
-	i := 0
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Config) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	if m.Config != nil {
-		dAtA[i] = 0x52
-		i++
-		i = encodeVarintRaft(dAtA, i, uint64(m.Config.Size()))
-		n14, err := m.Config.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Config.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
 		}
-		i += n14
+		i--
+		dAtA[i] = 0x52
 	}
-	return i, nil
+	return len(dAtA) - i, nil
+}
+func (m *StoreAction_Volume) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreAction_Volume) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.Volume != nil {
+		{
+			size, err := m.Volume.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintRaft(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x5a
+	}
+	return len(dAtA) - i, nil
 }
 func encodeVarintRaft(dAtA []byte, offset int, v uint64) int {
+	offset -= sovRaft(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 
 type raftProxyRaftServer struct {
@@ -2691,16 +2714,21 @@ func (m *StoreAction_Config) Size() (n int) {
 	}
 	return n
 }
-
-func sovRaft(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
+func (m *StoreAction_Volume) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Volume != nil {
+		l = m.Volume.Size()
+		n += 1 + l + sovRaft(uint64(l))
 	}
 	return n
+}
+
+func sovRaft(x uint64) (n int) {
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozRaft(x uint64) (n int) {
 	return sovRaft(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -2713,7 +2741,7 @@ func (this *RaftMember) String() string {
 		`RaftID:` + fmt.Sprintf("%v", this.RaftID) + `,`,
 		`NodeID:` + fmt.Sprintf("%v", this.NodeID) + `,`,
 		`Addr:` + fmt.Sprintf("%v", this.Addr) + `,`,
-		`Status:` + strings.Replace(strings.Replace(this.Status.String(), "RaftMemberStatus", "RaftMemberStatus", 1), `&`, ``, 1) + `,`,
+		`Status:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Status), "RaftMemberStatus", "RaftMemberStatus", 1), `&`, ``, 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2732,9 +2760,14 @@ func (this *JoinResponse) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForMembers := "[]*RaftMember{"
+	for _, f := range this.Members {
+		repeatedStringForMembers += strings.Replace(f.String(), "RaftMember", "RaftMember", 1) + ","
+	}
+	repeatedStringForMembers += "}"
 	s := strings.Join([]string{`&JoinResponse{`,
 		`RaftID:` + fmt.Sprintf("%v", this.RaftID) + `,`,
-		`Members:` + strings.Replace(fmt.Sprintf("%v", this.Members), "RaftMember", "RaftMember", 1) + `,`,
+		`Members:` + repeatedStringForMembers + `,`,
 		`RemovedMembers:` + fmt.Sprintf("%v", this.RemovedMembers) + `,`,
 		`}`,
 	}, "")
@@ -2745,7 +2778,7 @@ func (this *LeaveRequest) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&LeaveRequest{`,
-		`Node:` + strings.Replace(fmt.Sprintf("%v", this.Node), "RaftMember", "RaftMember", 1) + `,`,
+		`Node:` + strings.Replace(this.Node.String(), "RaftMember", "RaftMember", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2821,9 +2854,14 @@ func (this *InternalRaftRequest) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForAction := "[]StoreAction{"
+	for _, f := range this.Action {
+		repeatedStringForAction += strings.Replace(strings.Replace(f.String(), "StoreAction", "StoreAction", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForAction += "}"
 	s := strings.Join([]string{`&InternalRaftRequest{`,
 		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
-		`Action:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Action), "StoreAction", "StoreAction", 1), `&`, ``, 1) + `,`,
+		`Action:` + repeatedStringForAction + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2925,6 +2963,16 @@ func (this *StoreAction_Config) String() string {
 	}
 	s := strings.Join([]string{`&StoreAction_Config{`,
 		`Config:` + strings.Replace(fmt.Sprintf("%v", this.Config), "Config", "Config", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *StoreAction_Volume) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&StoreAction_Volume{`,
+		`Volume:` + strings.Replace(fmt.Sprintf("%v", this.Volume), "Volume", "Volume", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -4425,6 +4473,41 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 			}
 			m.Target = &StoreAction_Config{v}
 			iNdEx = postIndex
+		case 11:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Volume", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRaft
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRaft
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &Volume{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Target = &StoreAction_Volume{v}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRaft(dAtA[iNdEx:])
@@ -4452,6 +4535,7 @@ func (m *StoreAction) Unmarshal(dAtA []byte) error {
 func skipRaft(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -4483,10 +4567,8 @@ func skipRaft(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -4507,55 +4589,30 @@ func skipRaft(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthRaft
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthRaft
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowRaft
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipRaft(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthRaft
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupRaft
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthRaft
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthRaft = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowRaft   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthRaft        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowRaft          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupRaft = fmt.Errorf("proto: unexpected end of group")
 )

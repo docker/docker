@@ -59,5 +59,13 @@ func (sr *swarmRouter) initRoutes() {
 		router.NewDeleteRoute("/configs/{id}", sr.removeConfig),
 		router.NewGetRoute("/configs/{id}", sr.getConfig),
 		router.NewPostRoute("/configs/{id}/update", sr.updateConfig),
+
+		// TODO(dperny): these are temporary routes, to test the cluster
+		// volumes functionality without mangling the existing volumes routes.
+		router.NewGetRoute("/csi", sr.getVolumes),
+		router.NewPostRoute("/csi/create", sr.createVolume),
+		router.NewDeleteRoute("/csi/{id}", sr.removeVolume),
+		router.NewGetRoute("/csi/{id}", sr.getVolume),
+		router.NewPostRoute("/csi/{id}/update", sr.updateVolume),
 	}
 }

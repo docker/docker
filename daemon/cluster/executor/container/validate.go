@@ -37,6 +37,8 @@ func validateMounts(mounts []api.Mount) error {
 			if mount.Source == "" {
 				return errors.New("invalid npipe source, source must not be empty")
 			}
+		case api.MountTypeCSI:
+			// nothing to do here.
 		default:
 			return fmt.Errorf("invalid mount type: %s", mount.Type)
 		}

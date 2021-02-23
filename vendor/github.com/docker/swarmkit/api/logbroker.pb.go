@@ -19,6 +19,7 @@ import (
 	status "google.golang.org/grpc/status"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 	rafttime "time"
@@ -33,7 +34,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // LogStream defines the stream from which the log message came.
 type LogStream int32
@@ -106,7 +107,7 @@ func (m *LogSubscriptionOptions) XXX_Marshal(b []byte, deterministic bool) ([]by
 		return xxx_messageInfo_LogSubscriptionOptions.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -149,7 +150,7 @@ func (m *LogSelector) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) 
 		return xxx_messageInfo_LogSelector.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +189,7 @@ func (m *LogContext) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_LogContext.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -226,7 +227,7 @@ func (m *LogAttr) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_LogAttr.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -274,7 +275,7 @@ func (m *LogMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_LogMessage.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -312,7 +313,7 @@ func (m *SubscribeLogsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte
 		return xxx_messageInfo_SubscribeLogsRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -348,7 +349,7 @@ func (m *SubscribeLogsMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte
 		return xxx_messageInfo_SubscribeLogsMessage.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -385,7 +386,7 @@ func (m *ListenSubscriptionsRequest) XXX_Marshal(b []byte, deterministic bool) (
 		return xxx_messageInfo_ListenSubscriptionsRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -433,7 +434,7 @@ func (m *SubscriptionMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return xxx_messageInfo_SubscriptionMessage.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -478,7 +479,7 @@ func (m *PublishLogsMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return xxx_messageInfo_PublishLogsMessage.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -513,7 +514,7 @@ func (m *PublishLogsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return xxx_messageInfo_PublishLogsResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -963,6 +964,14 @@ type LogsServer interface {
 	SubscribeLogs(*SubscribeLogsRequest, Logs_SubscribeLogsServer) error
 }
 
+// UnimplementedLogsServer can be embedded to have forward compatible implementations.
+type UnimplementedLogsServer struct {
+}
+
+func (*UnimplementedLogsServer) SubscribeLogs(req *SubscribeLogsRequest, srv Logs_SubscribeLogsServer) error {
+	return status.Errorf(codes.Unimplemented, "method SubscribeLogs not implemented")
+}
+
 func RegisterLogsServer(s *grpc.Server, srv LogsServer) {
 	s.RegisterService(&_Logs_serviceDesc, srv)
 }
@@ -1104,6 +1113,17 @@ type LogBrokerServer interface {
 	PublishLogs(LogBroker_PublishLogsServer) error
 }
 
+// UnimplementedLogBrokerServer can be embedded to have forward compatible implementations.
+type UnimplementedLogBrokerServer struct {
+}
+
+func (*UnimplementedLogBrokerServer) ListenSubscriptions(req *ListenSubscriptionsRequest, srv LogBroker_ListenSubscriptionsServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListenSubscriptions not implemented")
+}
+func (*UnimplementedLogBrokerServer) PublishLogs(srv LogBroker_PublishLogsServer) error {
+	return status.Errorf(codes.Unimplemented, "method PublishLogs not implemented")
+}
+
 func RegisterLogBrokerServer(s *grpc.Server, srv LogBrokerServer) {
 	s.RegisterService(&_LogBroker_serviceDesc, srv)
 }
@@ -1177,7 +1197,7 @@ var _LogBroker_serviceDesc = grpc.ServiceDesc{
 func (m *LogSubscriptionOptions) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1185,49 +1205,56 @@ func (m *LogSubscriptionOptions) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *LogSubscriptionOptions) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *LogSubscriptionOptions) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Streams) > 0 {
-		for _, num := range m.Streams {
-			dAtA[i] = 0x8
-			i++
-			i = encodeVarintLogbroker(dAtA, i, uint64(num))
+	if m.Since != nil {
+		{
+			size, err := m.Since.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintLogbroker(dAtA, i, uint64(size))
 		}
+		i--
+		dAtA[i] = 0x22
+	}
+	if m.Tail != 0 {
+		i = encodeVarintLogbroker(dAtA, i, uint64(m.Tail))
+		i--
+		dAtA[i] = 0x18
 	}
 	if m.Follow {
-		dAtA[i] = 0x10
-		i++
+		i--
 		if m.Follow {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x10
 	}
-	if m.Tail != 0 {
-		dAtA[i] = 0x18
-		i++
-		i = encodeVarintLogbroker(dAtA, i, uint64(m.Tail))
-	}
-	if m.Since != nil {
-		dAtA[i] = 0x22
-		i++
-		i = encodeVarintLogbroker(dAtA, i, uint64(m.Since.Size()))
-		n1, err := m.Since.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if len(m.Streams) > 0 {
+		for iNdEx := len(m.Streams) - 1; iNdEx >= 0; iNdEx-- {
+			i = encodeVarintLogbroker(dAtA, i, uint64(m.Streams[iNdEx]))
+			i--
+			dAtA[i] = 0x8
 		}
-		i += n1
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *LogSelector) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1235,62 +1262,49 @@ func (m *LogSelector) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *LogSelector) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *LogSelector) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ServiceIDs) > 0 {
-		for _, s := range m.ServiceIDs {
-			dAtA[i] = 0xa
-			i++
-			l = len(s)
-			for l >= 1<<7 {
-				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
-			}
-			dAtA[i] = uint8(l)
-			i++
-			i += copy(dAtA[i:], s)
+	if len(m.TaskIDs) > 0 {
+		for iNdEx := len(m.TaskIDs) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.TaskIDs[iNdEx])
+			copy(dAtA[i:], m.TaskIDs[iNdEx])
+			i = encodeVarintLogbroker(dAtA, i, uint64(len(m.TaskIDs[iNdEx])))
+			i--
+			dAtA[i] = 0x1a
 		}
 	}
 	if len(m.NodeIDs) > 0 {
-		for _, s := range m.NodeIDs {
+		for iNdEx := len(m.NodeIDs) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.NodeIDs[iNdEx])
+			copy(dAtA[i:], m.NodeIDs[iNdEx])
+			i = encodeVarintLogbroker(dAtA, i, uint64(len(m.NodeIDs[iNdEx])))
+			i--
 			dAtA[i] = 0x12
-			i++
-			l = len(s)
-			for l >= 1<<7 {
-				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
-			}
-			dAtA[i] = uint8(l)
-			i++
-			i += copy(dAtA[i:], s)
 		}
 	}
-	if len(m.TaskIDs) > 0 {
-		for _, s := range m.TaskIDs {
-			dAtA[i] = 0x1a
-			i++
-			l = len(s)
-			for l >= 1<<7 {
-				dAtA[i] = uint8(uint64(l)&0x7f | 0x80)
-				l >>= 7
-				i++
-			}
-			dAtA[i] = uint8(l)
-			i++
-			i += copy(dAtA[i:], s)
+	if len(m.ServiceIDs) > 0 {
+		for iNdEx := len(m.ServiceIDs) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.ServiceIDs[iNdEx])
+			copy(dAtA[i:], m.ServiceIDs[iNdEx])
+			i = encodeVarintLogbroker(dAtA, i, uint64(len(m.ServiceIDs[iNdEx])))
+			i--
+			dAtA[i] = 0xa
 		}
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *LogContext) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1298,35 +1312,43 @@ func (m *LogContext) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *LogContext) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *LogContext) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ServiceID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintLogbroker(dAtA, i, uint64(len(m.ServiceID)))
-		i += copy(dAtA[i:], m.ServiceID)
+	if len(m.TaskID) > 0 {
+		i -= len(m.TaskID)
+		copy(dAtA[i:], m.TaskID)
+		i = encodeVarintLogbroker(dAtA, i, uint64(len(m.TaskID)))
+		i--
+		dAtA[i] = 0x1a
 	}
 	if len(m.NodeID) > 0 {
-		dAtA[i] = 0x12
-		i++
+		i -= len(m.NodeID)
+		copy(dAtA[i:], m.NodeID)
 		i = encodeVarintLogbroker(dAtA, i, uint64(len(m.NodeID)))
-		i += copy(dAtA[i:], m.NodeID)
+		i--
+		dAtA[i] = 0x12
 	}
-	if len(m.TaskID) > 0 {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintLogbroker(dAtA, i, uint64(len(m.TaskID)))
-		i += copy(dAtA[i:], m.TaskID)
+	if len(m.ServiceID) > 0 {
+		i -= len(m.ServiceID)
+		copy(dAtA[i:], m.ServiceID)
+		i = encodeVarintLogbroker(dAtA, i, uint64(len(m.ServiceID)))
+		i--
+		dAtA[i] = 0xa
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *LogAttr) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1334,29 +1356,36 @@ func (m *LogAttr) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *LogAttr) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *LogAttr) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Key) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintLogbroker(dAtA, i, uint64(len(m.Key)))
-		i += copy(dAtA[i:], m.Key)
-	}
 	if len(m.Value) > 0 {
-		dAtA[i] = 0x12
-		i++
+		i -= len(m.Value)
+		copy(dAtA[i:], m.Value)
 		i = encodeVarintLogbroker(dAtA, i, uint64(len(m.Value)))
-		i += copy(dAtA[i:], m.Value)
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if len(m.Key) > 0 {
+		i -= len(m.Key)
+		copy(dAtA[i:], m.Key)
+		i = encodeVarintLogbroker(dAtA, i, uint64(len(m.Key)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *LogMessage) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1364,58 +1393,70 @@ func (m *LogMessage) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *LogMessage) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *LogMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	dAtA[i] = 0xa
-	i++
-	i = encodeVarintLogbroker(dAtA, i, uint64(m.Context.Size()))
-	n2, err := m.Context.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n2
-	if m.Timestamp != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintLogbroker(dAtA, i, uint64(m.Timestamp.Size()))
-		n3, err := m.Timestamp.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+	if len(m.Attrs) > 0 {
+		for iNdEx := len(m.Attrs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Attrs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintLogbroker(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x2a
 		}
-		i += n3
-	}
-	if m.Stream != 0 {
-		dAtA[i] = 0x18
-		i++
-		i = encodeVarintLogbroker(dAtA, i, uint64(m.Stream))
 	}
 	if len(m.Data) > 0 {
-		dAtA[i] = 0x22
-		i++
+		i -= len(m.Data)
+		copy(dAtA[i:], m.Data)
 		i = encodeVarintLogbroker(dAtA, i, uint64(len(m.Data)))
-		i += copy(dAtA[i:], m.Data)
+		i--
+		dAtA[i] = 0x22
 	}
-	if len(m.Attrs) > 0 {
-		for _, msg := range m.Attrs {
-			dAtA[i] = 0x2a
-			i++
-			i = encodeVarintLogbroker(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
+	if m.Stream != 0 {
+		i = encodeVarintLogbroker(dAtA, i, uint64(m.Stream))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.Timestamp != nil {
+		{
+			size, err := m.Timestamp.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
 				return 0, err
 			}
-			i += n
+			i -= size
+			i = encodeVarintLogbroker(dAtA, i, uint64(size))
 		}
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	{
+		size, err := m.Context.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintLogbroker(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
 }
 
 func (m *SubscribeLogsRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1423,37 +1464,46 @@ func (m *SubscribeLogsRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SubscribeLogsRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SubscribeLogsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Selector != nil {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintLogbroker(dAtA, i, uint64(m.Selector.Size()))
-		n4, err := m.Selector.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n4
-	}
 	if m.Options != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintLogbroker(dAtA, i, uint64(m.Options.Size()))
-		n5, err := m.Options.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
+		{
+			size, err := m.Options.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintLogbroker(dAtA, i, uint64(size))
 		}
-		i += n5
+		i--
+		dAtA[i] = 0x12
 	}
-	return i, nil
+	if m.Selector != nil {
+		{
+			size, err := m.Selector.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintLogbroker(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *SubscribeLogsMessage) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1461,29 +1511,36 @@ func (m *SubscribeLogsMessage) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SubscribeLogsMessage) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SubscribeLogsMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
 	if len(m.Messages) > 0 {
-		for _, msg := range m.Messages {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintLogbroker(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Messages) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Messages[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintLogbroker(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0xa
 		}
 	}
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *ListenSubscriptionsRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1491,17 +1548,22 @@ func (m *ListenSubscriptionsRequest) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ListenSubscriptionsRequest) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ListenSubscriptionsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func (m *SubscriptionMessage) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1509,53 +1571,63 @@ func (m *SubscriptionMessage) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SubscriptionMessage) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SubscriptionMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.ID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintLogbroker(dAtA, i, uint64(len(m.ID)))
-		i += copy(dAtA[i:], m.ID)
-	}
-	if m.Selector != nil {
-		dAtA[i] = 0x12
-		i++
-		i = encodeVarintLogbroker(dAtA, i, uint64(m.Selector.Size()))
-		n6, err := m.Selector.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n6
-	}
-	if m.Options != nil {
-		dAtA[i] = 0x1a
-		i++
-		i = encodeVarintLogbroker(dAtA, i, uint64(m.Options.Size()))
-		n7, err := m.Options.MarshalTo(dAtA[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += n7
-	}
 	if m.Close {
-		dAtA[i] = 0x20
-		i++
+		i--
 		if m.Close {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x20
 	}
-	return i, nil
+	if m.Options != nil {
+		{
+			size, err := m.Options.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintLogbroker(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.Selector != nil {
+		{
+			size, err := m.Selector.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintLogbroker(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.ID) > 0 {
+		i -= len(m.ID)
+		copy(dAtA[i:], m.ID)
+		i = encodeVarintLogbroker(dAtA, i, uint64(len(m.ID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *PublishLogsMessage) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1563,45 +1635,53 @@ func (m *PublishLogsMessage) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PublishLogsMessage) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PublishLogsMessage) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.SubscriptionID) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintLogbroker(dAtA, i, uint64(len(m.SubscriptionID)))
-		i += copy(dAtA[i:], m.SubscriptionID)
-	}
-	if len(m.Messages) > 0 {
-		for _, msg := range m.Messages {
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintLogbroker(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
 	if m.Close {
-		dAtA[i] = 0x18
-		i++
+		i--
 		if m.Close {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i++
+		i--
+		dAtA[i] = 0x18
 	}
-	return i, nil
+	if len(m.Messages) > 0 {
+		for iNdEx := len(m.Messages) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Messages[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintLogbroker(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if len(m.SubscriptionID) > 0 {
+		i -= len(m.SubscriptionID)
+		copy(dAtA[i:], m.SubscriptionID)
+		i = encodeVarintLogbroker(dAtA, i, uint64(len(m.SubscriptionID)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *PublishLogsResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -1609,21 +1689,28 @@ func (m *PublishLogsResponse) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *PublishLogsResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PublishLogsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	return i, nil
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintLogbroker(dAtA []byte, offset int, v uint64) int {
+	offset -= sovLogbroker(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 
 type raftProxyLogsServer struct {
@@ -2143,14 +2230,7 @@ func (m *PublishLogsResponse) Size() (n int) {
 }
 
 func sovLogbroker(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozLogbroker(x uint64) (n int) {
 	return sovLogbroker(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -2207,12 +2287,17 @@ func (this *LogMessage) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForAttrs := "[]LogAttr{"
+	for _, f := range this.Attrs {
+		repeatedStringForAttrs += strings.Replace(strings.Replace(f.String(), "LogAttr", "LogAttr", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForAttrs += "}"
 	s := strings.Join([]string{`&LogMessage{`,
 		`Context:` + strings.Replace(strings.Replace(this.Context.String(), "LogContext", "LogContext", 1), `&`, ``, 1) + `,`,
 		`Timestamp:` + strings.Replace(fmt.Sprintf("%v", this.Timestamp), "Timestamp", "types.Timestamp", 1) + `,`,
 		`Stream:` + fmt.Sprintf("%v", this.Stream) + `,`,
 		`Data:` + fmt.Sprintf("%v", this.Data) + `,`,
-		`Attrs:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Attrs), "LogAttr", "LogAttr", 1), `&`, ``, 1) + `,`,
+		`Attrs:` + repeatedStringForAttrs + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2222,8 +2307,8 @@ func (this *SubscribeLogsRequest) String() string {
 		return "nil"
 	}
 	s := strings.Join([]string{`&SubscribeLogsRequest{`,
-		`Selector:` + strings.Replace(fmt.Sprintf("%v", this.Selector), "LogSelector", "LogSelector", 1) + `,`,
-		`Options:` + strings.Replace(fmt.Sprintf("%v", this.Options), "LogSubscriptionOptions", "LogSubscriptionOptions", 1) + `,`,
+		`Selector:` + strings.Replace(this.Selector.String(), "LogSelector", "LogSelector", 1) + `,`,
+		`Options:` + strings.Replace(this.Options.String(), "LogSubscriptionOptions", "LogSubscriptionOptions", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2232,8 +2317,13 @@ func (this *SubscribeLogsMessage) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForMessages := "[]LogMessage{"
+	for _, f := range this.Messages {
+		repeatedStringForMessages += strings.Replace(strings.Replace(f.String(), "LogMessage", "LogMessage", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForMessages += "}"
 	s := strings.Join([]string{`&SubscribeLogsMessage{`,
-		`Messages:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Messages), "LogMessage", "LogMessage", 1), `&`, ``, 1) + `,`,
+		`Messages:` + repeatedStringForMessages + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2253,8 +2343,8 @@ func (this *SubscriptionMessage) String() string {
 	}
 	s := strings.Join([]string{`&SubscriptionMessage{`,
 		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
-		`Selector:` + strings.Replace(fmt.Sprintf("%v", this.Selector), "LogSelector", "LogSelector", 1) + `,`,
-		`Options:` + strings.Replace(fmt.Sprintf("%v", this.Options), "LogSubscriptionOptions", "LogSubscriptionOptions", 1) + `,`,
+		`Selector:` + strings.Replace(this.Selector.String(), "LogSelector", "LogSelector", 1) + `,`,
+		`Options:` + strings.Replace(this.Options.String(), "LogSubscriptionOptions", "LogSubscriptionOptions", 1) + `,`,
 		`Close:` + fmt.Sprintf("%v", this.Close) + `,`,
 		`}`,
 	}, "")
@@ -2264,9 +2354,14 @@ func (this *PublishLogsMessage) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForMessages := "[]LogMessage{"
+	for _, f := range this.Messages {
+		repeatedStringForMessages += strings.Replace(strings.Replace(f.String(), "LogMessage", "LogMessage", 1), `&`, ``, 1) + ","
+	}
+	repeatedStringForMessages += "}"
 	s := strings.Join([]string{`&PublishLogsMessage{`,
 		`SubscriptionID:` + fmt.Sprintf("%v", this.SubscriptionID) + `,`,
-		`Messages:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Messages), "LogMessage", "LogMessage", 1), `&`, ``, 1) + `,`,
+		`Messages:` + repeatedStringForMessages + `,`,
 		`Close:` + fmt.Sprintf("%v", this.Close) + `,`,
 		`}`,
 	}, "")
@@ -3747,6 +3842,7 @@ func (m *PublishLogsResponse) Unmarshal(dAtA []byte) error {
 func skipLogbroker(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -3778,10 +3874,8 @@ func skipLogbroker(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -3802,55 +3896,30 @@ func skipLogbroker(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthLogbroker
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthLogbroker
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowLogbroker
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipLogbroker(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthLogbroker
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupLogbroker
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthLogbroker
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthLogbroker = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowLogbroker   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthLogbroker        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowLogbroker          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupLogbroker = fmt.Errorf("proto: unexpected end of group")
 )

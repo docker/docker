@@ -45,4 +45,10 @@ type Backend interface {
 	RemoveConfig(id string) error
 	GetConfig(id string) (types.Config, error)
 	UpdateConfig(idOrName string, version uint64, spec types.ConfigSpec) error
+
+	GetVolume(input string) (types.Volume, error)
+	GetVolumes(options basictypes.VolumeListOptions) ([]types.Volume, error)
+	CreateVolume(v types.VolumeSpec) (string, error)
+	RemoveVolume(input string) error
+	UpdateVolume(idOrName string, version uint64, spec types.VolumeSpec) error
 }

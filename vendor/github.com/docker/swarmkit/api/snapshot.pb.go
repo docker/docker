@@ -9,6 +9,7 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	io "io"
 	math "math"
+	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
 )
@@ -22,7 +23,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type Snapshot_Version int32
 
@@ -58,6 +59,7 @@ type StoreSnapshot struct {
 	Resources  []*Resource  `protobuf:"bytes,7,rep,name=resources,proto3" json:"resources,omitempty"`
 	Extensions []*Extension `protobuf:"bytes,8,rep,name=extensions,proto3" json:"extensions,omitempty"`
 	Configs    []*Config    `protobuf:"bytes,9,rep,name=configs,proto3" json:"configs,omitempty"`
+	Volumes    []*Volume    `protobuf:"bytes,10,rep,name=volumes,proto3" json:"volumes,omitempty"`
 }
 
 func (m *StoreSnapshot) Reset()      { *m = StoreSnapshot{} }
@@ -73,7 +75,7 @@ func (m *StoreSnapshot) XXX_Marshal(b []byte, deterministic bool) ([]byte, error
 		return xxx_messageInfo_StoreSnapshot.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -111,7 +113,7 @@ func (m *ClusterSnapshot) XXX_Marshal(b []byte, deterministic bool) ([]byte, err
 		return xxx_messageInfo_ClusterSnapshot.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -149,7 +151,7 @@ func (m *Snapshot) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_Snapshot.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalTo(b)
+		n, err := m.MarshalToSizedBuffer(b)
 		if err != nil {
 			return nil, err
 		}
@@ -180,39 +182,40 @@ func init() {
 }
 
 var fileDescriptor_c5cad0b62cecd9af = []byte{
-	// 507 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x93, 0xcf, 0x6f, 0xd3, 0x30,
-	0x14, 0xc7, 0x93, 0xfe, 0x4a, 0xe7, 0x09, 0x18, 0x16, 0x07, 0xab, 0x0c, 0x53, 0xca, 0x0e, 0x45,
-	0x82, 0x14, 0x0a, 0x12, 0x08, 0x69, 0x1c, 0x3a, 0x71, 0xe0, 0xc0, 0x0e, 0x2e, 0x9a, 0xb8, 0xa6,
-	0xa9, 0xdb, 0x86, 0x90, 0xb8, 0xf2, 0x73, 0x3b, 0x8e, 0xf0, 0x1f, 0xf0, 0x67, 0xf5, 0xb8, 0xe3,
-	0x4e, 0x88, 0xb5, 0x07, 0xfe, 0x0d, 0x64, 0x3b, 0x09, 0x95, 0x48, 0xb7, 0x5b, 0x64, 0x7d, 0x3e,
-	0xef, 0x7d, 0xed, 0xbc, 0x87, 0x9e, 0x4d, 0x23, 0x35, 0x5b, 0x8c, 0xfc, 0x50, 0x24, 0xbd, 0xb1,
-	0x08, 0x63, 0x2e, 0x7b, 0x70, 0x1e, 0xc8, 0x24, 0x8e, 0x54, 0x2f, 0x98, 0x47, 0x3d, 0x48, 0x83,
-	0x39, 0xcc, 0x84, 0xf2, 0xe7, 0x52, 0x28, 0x81, 0xb1, 0x65, 0xfc, 0x9c, 0xf1, 0x97, 0x2f, 0x5a,
-	0x4f, 0x6f, 0x28, 0x21, 0x46, 0x5f, 0x78, 0xa8, 0xc0, 0x56, 0x68, 0x3d, 0xb9, 0x81, 0x96, 0xc1,
-	0x24, 0x6b, 0xd6, 0xba, 0x37, 0x15, 0x53, 0x61, 0x3e, 0x7b, 0xfa, 0xcb, 0x9e, 0x76, 0x7e, 0xd4,
-	0xd0, 0xad, 0xa1, 0x12, 0x92, 0x0f, 0xb3, 0x68, 0xd8, 0x47, 0xf5, 0x54, 0x8c, 0x39, 0x10, 0xb7,
-	0x5d, 0xed, 0xee, 0xf7, 0x89, 0xff, 0x7f, 0x48, 0xff, 0x54, 0x8c, 0x39, 0xb3, 0x18, 0x7e, 0x8d,
-	0x9a, 0xc0, 0xe5, 0x32, 0x0a, 0x39, 0x90, 0x8a, 0x51, 0xee, 0x97, 0x29, 0x43, 0xcb, 0xb0, 0x02,
-	0xd6, 0x62, 0xca, 0xd5, 0xb9, 0x90, 0x31, 0x90, 0xea, 0x6e, 0xf1, 0xd4, 0x32, 0xac, 0x80, 0x75,
-	0x42, 0x15, 0x40, 0x0c, 0xa4, 0xb6, 0x3b, 0xe1, 0xa7, 0x00, 0x62, 0x66, 0x31, 0xdd, 0x28, 0xfc,
-	0xba, 0x00, 0xc5, 0x25, 0x90, 0xfa, 0xee, 0x46, 0x27, 0x96, 0x61, 0x05, 0x8c, 0x5f, 0x21, 0x0f,
-	0x78, 0x28, 0xb9, 0x02, 0xd2, 0x30, 0x5e, 0xab, 0xfc, 0x66, 0x1a, 0x61, 0x39, 0x8a, 0xdf, 0xa2,
-	0x3d, 0xc9, 0x41, 0x2c, 0xa4, 0x7e, 0x11, 0xcf, 0x78, 0x87, 0x65, 0x1e, 0xcb, 0x20, 0xf6, 0x0f,
-	0xc7, 0xc7, 0x08, 0xf1, 0x6f, 0x8a, 0xa7, 0x10, 0x89, 0x14, 0x48, 0xd3, 0xc8, 0x0f, 0xca, 0xe4,
-	0xf7, 0x39, 0xc5, 0xb6, 0x04, 0x1d, 0x38, 0x14, 0xe9, 0x24, 0x9a, 0x02, 0xd9, 0xdb, 0x1d, 0xf8,
-	0xc4, 0x20, 0x2c, 0x47, 0x3b, 0x11, 0xba, 0x93, 0xdd, 0xbd, 0x18, 0x82, 0x37, 0xc8, 0x4b, 0x78,
-	0x32, 0xd2, 0x2f, 0x66, 0xc7, 0x80, 0x96, 0xde, 0x20, 0x98, 0xa8, 0x8f, 0x06, 0x63, 0x39, 0x8e,
-	0x0f, 0x91, 0x27, 0x79, 0x22, 0x96, 0x7c, 0x6c, 0xa6, 0xa1, 0x36, 0xa8, 0x1c, 0x38, 0x2c, 0x3f,
-	0xea, 0xfc, 0x71, 0x51, 0xb3, 0x68, 0xf2, 0x0e, 0x79, 0x4b, 0x2e, 0x75, 0x72, 0xe2, 0xb6, 0xdd,
-	0xee, 0xed, 0xfe, 0x51, 0xe9, 0xf3, 0xe6, 0x3b, 0x73, 0x66, 0x59, 0x96, 0x4b, 0xf8, 0x03, 0x42,
-	0x59, 0xd7, 0x59, 0x34, 0x27, 0x95, 0xb6, 0xdb, 0xdd, 0xef, 0x3f, 0xbe, 0xe6, 0xcf, 0xe6, 0x95,
-	0x06, 0xb5, 0xd5, 0xaf, 0x87, 0x0e, 0xdb, 0x92, 0xf1, 0x31, 0xaa, 0x83, 0xde, 0x02, 0x52, 0x35,
-	0x55, 0x1e, 0x95, 0x06, 0xd9, 0x5e, 0x93, 0xac, 0x86, 0xb5, 0x3a, 0x77, 0x91, 0x97, 0xa5, 0xc3,
-	0x0d, 0x54, 0x39, 0x7b, 0x7e, 0xe0, 0x0c, 0x8e, 0x56, 0x57, 0xd4, 0xb9, 0xbc, 0xa2, 0xce, 0xf7,
-	0x35, 0x75, 0x57, 0x6b, 0xea, 0x5e, 0xac, 0xa9, 0xfb, 0x7b, 0x4d, 0xdd, 0x9f, 0x1b, 0xea, 0x5c,
-	0x6c, 0xa8, 0x73, 0xb9, 0xa1, 0xce, 0xe7, 0xca, 0xa8, 0x61, 0xf6, 0xf0, 0xe5, 0xdf, 0x00, 0x00,
-	0x00, 0xff, 0xff, 0x97, 0x4e, 0xfd, 0x2a, 0x3b, 0x04, 0x00, 0x00,
+	// 523 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x93, 0x41, 0x8f, 0x12, 0x31,
+	0x14, 0xc7, 0x67, 0x58, 0x60, 0xd8, 0x6e, 0xd4, 0xb5, 0xf1, 0xd0, 0xe0, 0x5a, 0x11, 0xf7, 0x80,
+	0x89, 0x0e, 0x8a, 0x26, 0x1a, 0x93, 0xf5, 0xc0, 0xc6, 0x83, 0x07, 0xf7, 0x50, 0x0c, 0xf1, 0x3a,
+	0x0c, 0x05, 0x46, 0x76, 0xa6, 0xa4, 0xaf, 0xb0, 0x1e, 0xfd, 0x08, 0x7e, 0x1b, 0xbf, 0x02, 0xc7,
+	0x3d, 0xee, 0xc9, 0xb8, 0x70, 0xf0, 0x6b, 0x98, 0xb6, 0x53, 0x24, 0x71, 0x70, 0x6f, 0x93, 0xe6,
+	0xf7, 0x7b, 0xef, 0xdf, 0xce, 0x7b, 0xe8, 0xd9, 0x38, 0x51, 0x93, 0xf9, 0x20, 0x8c, 0x45, 0xda,
+	0x1e, 0x8a, 0x78, 0xca, 0x65, 0x1b, 0x2e, 0x22, 0x99, 0x4e, 0x13, 0xd5, 0x8e, 0x66, 0x49, 0x1b,
+	0xb2, 0x68, 0x06, 0x13, 0xa1, 0xc2, 0x99, 0x14, 0x4a, 0x60, 0x6c, 0x99, 0xd0, 0x31, 0xe1, 0xe2,
+	0x45, 0xfd, 0xe9, 0x0d, 0x25, 0xc4, 0xe0, 0x0b, 0x8f, 0x15, 0xd8, 0x0a, 0xf5, 0x27, 0x37, 0xd0,
+	0x32, 0x1a, 0xe5, 0xcd, 0xea, 0xf7, 0xc6, 0x62, 0x2c, 0xcc, 0x67, 0x5b, 0x7f, 0xd9, 0xd3, 0xe6,
+	0x8f, 0x32, 0xba, 0xd5, 0x53, 0x42, 0xf2, 0x5e, 0x1e, 0x0d, 0x87, 0xa8, 0x92, 0x89, 0x21, 0x07,
+	0xe2, 0x37, 0xf6, 0x5a, 0x07, 0x1d, 0x12, 0xfe, 0x1b, 0x32, 0x3c, 0x13, 0x43, 0xce, 0x2c, 0x86,
+	0x5f, 0xa3, 0x1a, 0x70, 0xb9, 0x48, 0x62, 0x0e, 0xa4, 0x64, 0x94, 0xfb, 0x45, 0x4a, 0xcf, 0x32,
+	0x6c, 0x03, 0x6b, 0x31, 0xe3, 0xea, 0x42, 0xc8, 0x29, 0x90, 0xbd, 0xdd, 0xe2, 0x99, 0x65, 0xd8,
+	0x06, 0xd6, 0x09, 0x55, 0x04, 0x53, 0x20, 0xe5, 0xdd, 0x09, 0x3f, 0x45, 0x30, 0x65, 0x16, 0xd3,
+	0x8d, 0xe2, 0xf3, 0x39, 0x28, 0x2e, 0x81, 0x54, 0x76, 0x37, 0x3a, 0xb5, 0x0c, 0xdb, 0xc0, 0xf8,
+	0x15, 0x0a, 0x80, 0xc7, 0x92, 0x2b, 0x20, 0x55, 0xe3, 0xd5, 0x8b, 0x6f, 0xa6, 0x11, 0xe6, 0x50,
+	0xfc, 0x16, 0xed, 0x4b, 0x0e, 0x62, 0x2e, 0xf5, 0x8b, 0x04, 0xc6, 0x3b, 0x2a, 0xf2, 0x58, 0x0e,
+	0xb1, 0xbf, 0x38, 0x3e, 0x41, 0x88, 0x7f, 0x55, 0x3c, 0x83, 0x44, 0x64, 0x40, 0x6a, 0x46, 0x7e,
+	0x50, 0x24, 0xbf, 0x77, 0x14, 0xdb, 0x12, 0x74, 0xe0, 0x58, 0x64, 0xa3, 0x64, 0x0c, 0x64, 0x7f,
+	0x77, 0xe0, 0x53, 0x83, 0x30, 0x87, 0x6a, 0x6b, 0x21, 0xce, 0xe7, 0x29, 0x07, 0x82, 0x76, 0x5b,
+	0x7d, 0x83, 0x30, 0x87, 0x36, 0x13, 0x74, 0x27, 0x7f, 0xb1, 0xcd, 0xe8, 0xbc, 0x41, 0x41, 0xca,
+	0xd3, 0x81, 0x7e, 0x67, 0x3b, 0x3c, 0xb4, 0xf0, 0xde, 0xd1, 0x48, 0x7d, 0x34, 0x18, 0x73, 0x38,
+	0x3e, 0x42, 0x81, 0xe4, 0xa9, 0x58, 0xf0, 0xa1, 0x99, 0xa1, 0x72, 0xb7, 0x74, 0xe8, 0x31, 0x77,
+	0xd4, 0xfc, 0xed, 0xa3, 0xda, 0xa6, 0xc9, 0x3b, 0x14, 0x2c, 0xb8, 0xd4, 0xf7, 0x25, 0x7e, 0xc3,
+	0x6f, 0xdd, 0xee, 0x1c, 0x17, 0xfe, 0x14, 0xb7, 0x69, 0x7d, 0xcb, 0x32, 0x27, 0xe1, 0x0f, 0x08,
+	0xe5, 0x5d, 0x27, 0xc9, 0x8c, 0x94, 0x1a, 0x7e, 0xeb, 0xa0, 0xf3, 0xf8, 0x3f, 0xf3, 0xe0, 0x2a,
+	0x75, 0xcb, 0xcb, 0x9f, 0x0f, 0x3d, 0xb6, 0x25, 0xe3, 0x13, 0x54, 0x01, 0xbd, 0x3b, 0x64, 0xcf,
+	0x54, 0x79, 0x54, 0x18, 0x64, 0x7b, 0xb9, 0xf2, 0x1a, 0xd6, 0x6a, 0xde, 0x45, 0x41, 0x9e, 0x0e,
+	0x57, 0x51, 0xa9, 0xff, 0xfc, 0xd0, 0xeb, 0x1e, 0x2f, 0xaf, 0xa9, 0x77, 0x75, 0x4d, 0xbd, 0x6f,
+	0x2b, 0xea, 0x2f, 0x57, 0xd4, 0xbf, 0x5c, 0x51, 0xff, 0xd7, 0x8a, 0xfa, 0xdf, 0xd7, 0xd4, 0xbb,
+	0x5c, 0x53, 0xef, 0x6a, 0x4d, 0xbd, 0xcf, 0xa5, 0x41, 0xd5, 0x6c, 0xef, 0xcb, 0x3f, 0x01, 0x00,
+	0x00, 0xff, 0xff, 0x27, 0xb3, 0xad, 0x75, 0x71, 0x04, 0x00, 0x00,
 }
 
 func (m *StoreSnapshot) Copy() *StoreSnapshot {
@@ -300,6 +303,14 @@ func (m *StoreSnapshot) CopyFrom(src interface{}) {
 		}
 	}
 
+	if o.Volumes != nil {
+		m.Volumes = make([]*Volume, len(o.Volumes))
+		for i := range m.Volumes {
+			m.Volumes[i] = &Volume{}
+			github_com_docker_swarmkit_api_deepcopy.Copy(m.Volumes[i], o.Volumes[i])
+		}
+	}
+
 }
 
 func (m *ClusterSnapshot) Copy() *ClusterSnapshot {
@@ -350,7 +361,7 @@ func (m *Snapshot) CopyFrom(src interface{}) {
 func (m *StoreSnapshot) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -358,125 +369,162 @@ func (m *StoreSnapshot) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *StoreSnapshot) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StoreSnapshot) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Nodes) > 0 {
-		for _, msg := range m.Nodes {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+	if len(m.Volumes) > 0 {
+		for iNdEx := len(m.Volumes) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Volumes[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
 			}
-			i += n
-		}
-	}
-	if len(m.Services) > 0 {
-		for _, msg := range m.Services {
-			dAtA[i] = 0x12
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.Networks) > 0 {
-		for _, msg := range m.Networks {
-			dAtA[i] = 0x1a
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.Tasks) > 0 {
-		for _, msg := range m.Tasks {
-			dAtA[i] = 0x22
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.Clusters) > 0 {
-		for _, msg := range m.Clusters {
-			dAtA[i] = 0x2a
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.Secrets) > 0 {
-		for _, msg := range m.Secrets {
-			dAtA[i] = 0x32
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.Resources) > 0 {
-		for _, msg := range m.Resources {
-			dAtA[i] = 0x3a
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
-	if len(m.Extensions) > 0 {
-		for _, msg := range m.Extensions {
-			dAtA[i] = 0x42
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
+			i--
+			dAtA[i] = 0x52
 		}
 	}
 	if len(m.Configs) > 0 {
-		for _, msg := range m.Configs {
-			dAtA[i] = 0x4a
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
+		for iNdEx := len(m.Configs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Configs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
 			}
-			i += n
+			i--
+			dAtA[i] = 0x4a
 		}
 	}
-	return i, nil
+	if len(m.Extensions) > 0 {
+		for iNdEx := len(m.Extensions) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Extensions[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x42
+		}
+	}
+	if len(m.Resources) > 0 {
+		for iNdEx := len(m.Resources) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Resources[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x3a
+		}
+	}
+	if len(m.Secrets) > 0 {
+		for iNdEx := len(m.Secrets) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Secrets[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x32
+		}
+	}
+	if len(m.Clusters) > 0 {
+		for iNdEx := len(m.Clusters) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Clusters[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
+	if len(m.Tasks) > 0 {
+		for iNdEx := len(m.Tasks) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Tasks[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x22
+		}
+	}
+	if len(m.Networks) > 0 {
+		for iNdEx := len(m.Networks) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Networks[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
+	if len(m.Services) > 0 {
+		for iNdEx := len(m.Services) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Services[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if len(m.Nodes) > 0 {
+		for iNdEx := len(m.Nodes) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Nodes[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *ClusterSnapshot) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -484,36 +532,43 @@ func (m *ClusterSnapshot) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ClusterSnapshot) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ClusterSnapshot) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Members) > 0 {
-		for _, msg := range m.Members {
-			dAtA[i] = 0xa
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(msg.Size()))
-			n, err := msg.MarshalTo(dAtA[i:])
-			if err != nil {
-				return 0, err
-			}
-			i += n
-		}
-	}
 	if len(m.Removed) > 0 {
-		for _, num := range m.Removed {
+		for iNdEx := len(m.Removed) - 1; iNdEx >= 0; iNdEx-- {
+			i = encodeVarintSnapshot(dAtA, i, uint64(m.Removed[iNdEx]))
+			i--
 			dAtA[i] = 0x10
-			i++
-			i = encodeVarintSnapshot(dAtA, i, uint64(num))
 		}
 	}
-	return i, nil
+	if len(m.Members) > 0 {
+		for iNdEx := len(m.Members) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Members[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintSnapshot(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
 }
 
 func (m *Snapshot) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
 	if err != nil {
 		return nil, err
 	}
@@ -521,42 +576,53 @@ func (m *Snapshot) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *Snapshot) MarshalTo(dAtA []byte) (int, error) {
-	var i int
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *Snapshot) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.Version != 0 {
-		dAtA[i] = 0x8
-		i++
-		i = encodeVarintSnapshot(dAtA, i, uint64(m.Version))
+	{
+		size, err := m.Store.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintSnapshot(dAtA, i, uint64(size))
 	}
-	dAtA[i] = 0x12
-	i++
-	i = encodeVarintSnapshot(dAtA, i, uint64(m.Membership.Size()))
-	n1, err := m.Membership.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += n1
+	i--
 	dAtA[i] = 0x1a
-	i++
-	i = encodeVarintSnapshot(dAtA, i, uint64(m.Store.Size()))
-	n2, err := m.Store.MarshalTo(dAtA[i:])
-	if err != nil {
-		return 0, err
+	{
+		size, err := m.Membership.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintSnapshot(dAtA, i, uint64(size))
 	}
-	i += n2
-	return i, nil
+	i--
+	dAtA[i] = 0x12
+	if m.Version != 0 {
+		i = encodeVarintSnapshot(dAtA, i, uint64(m.Version))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
 }
 
 func encodeVarintSnapshot(dAtA []byte, offset int, v uint64) int {
+	offset -= sovSnapshot(v)
+	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return offset + 1
+	return base
 }
 func (m *StoreSnapshot) Size() (n int) {
 	if m == nil {
@@ -618,6 +684,12 @@ func (m *StoreSnapshot) Size() (n int) {
 			n += 1 + l + sovSnapshot(uint64(l))
 		}
 	}
+	if len(m.Volumes) > 0 {
+		for _, e := range m.Volumes {
+			l = e.Size()
+			n += 1 + l + sovSnapshot(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -658,14 +730,7 @@ func (m *Snapshot) Size() (n int) {
 }
 
 func sovSnapshot(x uint64) (n int) {
-	for {
-		n++
-		x >>= 7
-		if x == 0 {
-			break
-		}
-	}
-	return n
+	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozSnapshot(x uint64) (n int) {
 	return sovSnapshot(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -674,16 +739,67 @@ func (this *StoreSnapshot) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForNodes := "[]*Node{"
+	for _, f := range this.Nodes {
+		repeatedStringForNodes += strings.Replace(fmt.Sprintf("%v", f), "Node", "Node", 1) + ","
+	}
+	repeatedStringForNodes += "}"
+	repeatedStringForServices := "[]*Service{"
+	for _, f := range this.Services {
+		repeatedStringForServices += strings.Replace(fmt.Sprintf("%v", f), "Service", "Service", 1) + ","
+	}
+	repeatedStringForServices += "}"
+	repeatedStringForNetworks := "[]*Network{"
+	for _, f := range this.Networks {
+		repeatedStringForNetworks += strings.Replace(fmt.Sprintf("%v", f), "Network", "Network", 1) + ","
+	}
+	repeatedStringForNetworks += "}"
+	repeatedStringForTasks := "[]*Task{"
+	for _, f := range this.Tasks {
+		repeatedStringForTasks += strings.Replace(fmt.Sprintf("%v", f), "Task", "Task", 1) + ","
+	}
+	repeatedStringForTasks += "}"
+	repeatedStringForClusters := "[]*Cluster{"
+	for _, f := range this.Clusters {
+		repeatedStringForClusters += strings.Replace(fmt.Sprintf("%v", f), "Cluster", "Cluster", 1) + ","
+	}
+	repeatedStringForClusters += "}"
+	repeatedStringForSecrets := "[]*Secret{"
+	for _, f := range this.Secrets {
+		repeatedStringForSecrets += strings.Replace(fmt.Sprintf("%v", f), "Secret", "Secret", 1) + ","
+	}
+	repeatedStringForSecrets += "}"
+	repeatedStringForResources := "[]*Resource{"
+	for _, f := range this.Resources {
+		repeatedStringForResources += strings.Replace(fmt.Sprintf("%v", f), "Resource", "Resource", 1) + ","
+	}
+	repeatedStringForResources += "}"
+	repeatedStringForExtensions := "[]*Extension{"
+	for _, f := range this.Extensions {
+		repeatedStringForExtensions += strings.Replace(fmt.Sprintf("%v", f), "Extension", "Extension", 1) + ","
+	}
+	repeatedStringForExtensions += "}"
+	repeatedStringForConfigs := "[]*Config{"
+	for _, f := range this.Configs {
+		repeatedStringForConfigs += strings.Replace(fmt.Sprintf("%v", f), "Config", "Config", 1) + ","
+	}
+	repeatedStringForConfigs += "}"
+	repeatedStringForVolumes := "[]*Volume{"
+	for _, f := range this.Volumes {
+		repeatedStringForVolumes += strings.Replace(fmt.Sprintf("%v", f), "Volume", "Volume", 1) + ","
+	}
+	repeatedStringForVolumes += "}"
 	s := strings.Join([]string{`&StoreSnapshot{`,
-		`Nodes:` + strings.Replace(fmt.Sprintf("%v", this.Nodes), "Node", "Node", 1) + `,`,
-		`Services:` + strings.Replace(fmt.Sprintf("%v", this.Services), "Service", "Service", 1) + `,`,
-		`Networks:` + strings.Replace(fmt.Sprintf("%v", this.Networks), "Network", "Network", 1) + `,`,
-		`Tasks:` + strings.Replace(fmt.Sprintf("%v", this.Tasks), "Task", "Task", 1) + `,`,
-		`Clusters:` + strings.Replace(fmt.Sprintf("%v", this.Clusters), "Cluster", "Cluster", 1) + `,`,
-		`Secrets:` + strings.Replace(fmt.Sprintf("%v", this.Secrets), "Secret", "Secret", 1) + `,`,
-		`Resources:` + strings.Replace(fmt.Sprintf("%v", this.Resources), "Resource", "Resource", 1) + `,`,
-		`Extensions:` + strings.Replace(fmt.Sprintf("%v", this.Extensions), "Extension", "Extension", 1) + `,`,
-		`Configs:` + strings.Replace(fmt.Sprintf("%v", this.Configs), "Config", "Config", 1) + `,`,
+		`Nodes:` + repeatedStringForNodes + `,`,
+		`Services:` + repeatedStringForServices + `,`,
+		`Networks:` + repeatedStringForNetworks + `,`,
+		`Tasks:` + repeatedStringForTasks + `,`,
+		`Clusters:` + repeatedStringForClusters + `,`,
+		`Secrets:` + repeatedStringForSecrets + `,`,
+		`Resources:` + repeatedStringForResources + `,`,
+		`Extensions:` + repeatedStringForExtensions + `,`,
+		`Configs:` + repeatedStringForConfigs + `,`,
+		`Volumes:` + repeatedStringForVolumes + `,`,
 		`}`,
 	}, "")
 	return s
@@ -692,8 +808,13 @@ func (this *ClusterSnapshot) String() string {
 	if this == nil {
 		return "nil"
 	}
+	repeatedStringForMembers := "[]*RaftMember{"
+	for _, f := range this.Members {
+		repeatedStringForMembers += strings.Replace(fmt.Sprintf("%v", f), "RaftMember", "RaftMember", 1) + ","
+	}
+	repeatedStringForMembers += "}"
 	s := strings.Join([]string{`&ClusterSnapshot{`,
-		`Members:` + strings.Replace(fmt.Sprintf("%v", this.Members), "RaftMember", "RaftMember", 1) + `,`,
+		`Members:` + repeatedStringForMembers + `,`,
 		`Removed:` + fmt.Sprintf("%v", this.Removed) + `,`,
 		`}`,
 	}, "")
@@ -1054,6 +1175,40 @@ func (m *StoreSnapshot) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 10:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Volumes", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSnapshot
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthSnapshot
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthSnapshot
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Volumes = append(m.Volumes, &Volume{})
+			if err := m.Volumes[len(m.Volumes)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipSnapshot(dAtA[iNdEx:])
@@ -1382,6 +1537,7 @@ func (m *Snapshot) Unmarshal(dAtA []byte) error {
 func skipSnapshot(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
+	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -1413,10 +1569,8 @@ func skipSnapshot(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			return iNdEx, nil
 		case 1:
 			iNdEx += 8
-			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -1437,55 +1591,30 @@ func skipSnapshot(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthSnapshot
 			}
 			iNdEx += length
-			if iNdEx < 0 {
-				return 0, ErrInvalidLengthSnapshot
-			}
-			return iNdEx, nil
 		case 3:
-			for {
-				var innerWire uint64
-				var start int = iNdEx
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return 0, ErrIntOverflowSnapshot
-					}
-					if iNdEx >= l {
-						return 0, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					innerWire |= (uint64(b) & 0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				innerWireType := int(innerWire & 0x7)
-				if innerWireType == 4 {
-					break
-				}
-				next, err := skipSnapshot(dAtA[start:])
-				if err != nil {
-					return 0, err
-				}
-				iNdEx = start + next
-				if iNdEx < 0 {
-					return 0, ErrInvalidLengthSnapshot
-				}
-			}
-			return iNdEx, nil
+			depth++
 		case 4:
-			return iNdEx, nil
+			if depth == 0 {
+				return 0, ErrUnexpectedEndOfGroupSnapshot
+			}
+			depth--
 		case 5:
 			iNdEx += 4
-			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
+		if iNdEx < 0 {
+			return 0, ErrInvalidLengthSnapshot
+		}
+		if depth == 0 {
+			return iNdEx, nil
+		}
 	}
-	panic("unreachable")
+	return 0, io.ErrUnexpectedEOF
 }
 
 var (
-	ErrInvalidLengthSnapshot = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowSnapshot   = fmt.Errorf("proto: integer overflow")
+	ErrInvalidLengthSnapshot        = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowSnapshot          = fmt.Errorf("proto: integer overflow")
+	ErrUnexpectedEndOfGroupSnapshot = fmt.Errorf("proto: unexpected end of group")
 )
