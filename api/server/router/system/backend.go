@@ -26,3 +26,8 @@ type Backend interface {
 type ClusterBackend interface {
 	Info() swarm.Info
 }
+
+// StatusProvider provides methods to get the swarm status of the current node.
+type StatusProvider interface {
+	Status() string
+}

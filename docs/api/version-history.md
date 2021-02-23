@@ -17,6 +17,22 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.42](https://docs.docker.com/engine/api/v1.42/) documentation
 
+* `GET /_ping` and `HEAD /_ping` now return a `Swarm` header, which allows a
+  client to detect if Swarm is enabled on the daemon, without having to call
+  additional endpoints.
+  This change is not versioned, and affects all API versions if the daemon has
+  this patch. Clients must consider this header "optional", and fall back to
+  using other endpoints to get this information if the header is not present.
+
+  The `Swarm` header can contain one of the following values:
+
+    - "inactive"
+    - "pending"
+    - "error"
+    - "locked"
+    - "active (worker)"
+    - "active (manager)"
+
 ## v1.41 API changes
 
 [Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.41/) documentation
