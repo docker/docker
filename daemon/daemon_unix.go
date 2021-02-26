@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/initlayer"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/libcontainerd/remote"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
@@ -1719,4 +1720,16 @@ func (daemon *Daemon) RawSysInfo(quiet bool) *sysinfo.SysInfo {
 
 func recursiveUnmount(target string) error {
 	return mount.RecursiveUnmount(target)
+}
+
+func (daemon *Daemon) initLibcontainerd(ctx context.Context) error {
+	var err error
+	daemon.containerd, err = remote.NewClient(
+		ctx,
+		daemon.containerdCli,
+		filepath.Join(daemon.configStore.ExecRoot, "containerd"),
+		daemon.configStore.ContainerdNamespace,
+		daemon,
+	)
+	return err
 }
