@@ -4088,7 +4088,7 @@ definitions:
         Mounts:
           type: "array"
           items:
-            $ref: "#/definitions/Mount"
+            $ref: "#/definitions/MountPoint"
 
   Driver:
     description: "Driver represents a driver (network, logging, secrets)."
