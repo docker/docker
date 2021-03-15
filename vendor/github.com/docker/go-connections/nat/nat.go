@@ -175,13 +175,16 @@ func splitParts(rawport string) (string, string, string) {
 // ParsePortSpec parses a port specification string into a slice of PortMappings
 func ParsePortSpec(rawPort string) ([]PortMapping, error) {
 	var proto string
-	rawIP, hostPort, containerPort := splitParts(rawPort)
+	ip, hostPort, containerPort := splitParts(rawPort)
 	proto, containerPort = SplitProtoPort(containerPort)
 
-	// Strip [] from IPV6 addresses
-	ip, _, err := net.SplitHostPort(rawIP + ":")
-	if err != nil {
-		return nil, fmt.Errorf("Invalid ip address %v: %s", rawIP, err)
+	if ip != "" && ip[0] == '[' {
+		// Strip [] from IPV6 addresses
+		rawIP, _, err := net.SplitHostPort(ip + ":")
+		if err != nil {
+			return nil, fmt.Errorf("Invalid ip address %v: %s", ip, err)
+		}
+		ip = rawIP
 	}
 	if ip != "" && net.ParseIP(ip) == nil {
 		return nil, fmt.Errorf("Invalid ip address: %s", ip)
