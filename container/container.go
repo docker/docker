@@ -728,7 +728,7 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 
 	// Figure out what size slice we need so we can allocate this all at once.
 	envSize := len(container.Config.Env)
-	if runtime.GOOS != "windows" || (runtime.GOOS == "windows" && os == "linux") {
+	if runtime.GOOS != "windows" {
 		envSize += 2 + len(linkedEnv)
 	}
 	if tty {

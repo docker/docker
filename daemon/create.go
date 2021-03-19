@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
@@ -113,19 +114,17 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 		img   *image.Image
 		imgID image.ID
 		err   error
+		os    = runtime.GOOS
 	)
 
-	os := runtime.GOOS
 	if opts.params.Config.Image != "" {
 		img, err = daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform)
 		if err != nil {
 			return nil, err
 		}
-		if img.OS != "" {
-			os = img.OS
-		}
+		os = img.OperatingSystem()
 		imgID = img.ID()
-		if isWindows && img.OS == "linux" {
+		if !system.IsOSSupported(os) {
 			return nil, errors.New("operating system on which parent image was created is not Windows")
 		}
 	} else if isWindows {
