@@ -549,7 +549,6 @@ func copyDirectory(archiver Archiver, source, dest *copyEndpoint, identity *idto
 		return errors.Wrapf(err, "failed to copy directory")
 	}
 	if identity != nil {
-		// TODO: @gupta-ak. Investigate how LCOW permission mappings will work.
 		return fixPermissions(source.path, dest.path, *identity, !destExists)
 	}
 	return nil
@@ -583,7 +582,6 @@ func copyFile(archiver Archiver, source, dest *copyEndpoint, identity *idtools.I
 		return errors.Wrapf(err, "failed to copy file")
 	}
 	if identity != nil {
-		// TODO: @gupta-ak. Investigate how LCOW permission mappings will work.
 		return fixPermissions(source.path, dest.path, *identity, false)
 	}
 	return nil

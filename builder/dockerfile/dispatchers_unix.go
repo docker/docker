@@ -27,10 +27,10 @@ func normalizeWorkdir(_ string, current string, requested string) (string, error
 
 // resolveCmdLine takes a command line arg set and optionally prepends a platform-specific
 // shell in front of it.
-func resolveCmdLine(cmd instructions.ShellDependantCmdLine, runConfig *container.Config, os, _, _ string) ([]string, bool) {
+func resolveCmdLine(cmd instructions.ShellDependantCmdLine, runConfig *container.Config, _, _ string) ([]string, bool) {
 	result := cmd.CmdLine
 	if cmd.PrependShell && result != nil {
-		result = append(getShell(runConfig, os), result...)
+		result = append(getShell(runConfig), result...)
 	}
 	return result, false
 }

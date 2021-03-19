@@ -107,35 +107,26 @@ func normalizeWorkdirWindows(current string, requested string) (string, error) {
 // while what is here is good-enough, it could be improved, but would be highly invasive.
 //
 // The commands when this function is called are RUN, ENTRYPOINT and CMD.
-func resolveCmdLine(cmd instructions.ShellDependantCmdLine, runConfig *container.Config, os, command, original string) ([]string, bool) {
+func resolveCmdLine(cmd instructions.ShellDependantCmdLine, runConfig *container.Config, command, original string) ([]string, bool) {
 
 	// Make sure we return an empty array if there is no cmd.CmdLine
 	if len(cmd.CmdLine) == 0 {
 		return []string{}, runConfig.ArgsEscaped
 	}
-
-	if os == "windows" { // ie WCOW
-		if cmd.PrependShell {
-			// WCOW shell-form. Return a single-element array containing the original command line prepended with the shell.
-			// Also indicate that it has not been escaped (so will be passed through directly to HCS). Note that
-			// we go back to the original un-parsed command line in the dockerfile line, strip off both the command part of
-			// it (RUN/ENTRYPOINT/CMD), and also strip any leading white space. IOW, we deliberately ignore any prior parsing
-			// so as to ensure it is treated exactly as a command line. For those interested, `RUN mkdir "c:/foo"` is a particularly
-			// good example of why this is necessary if you fancy debugging how cmd.exe and its builtin mkdir works. (Windows
-			// doesn't have a mkdir.exe, and I'm guessing cmd.exe has some very long unavoidable and unchangeable historical
-			// design decisions over how both its built-in echo and mkdir are coded. Probably more too.)
-			original = original[len(command):]               // Strip off the command
-			original = strings.TrimLeft(original, " \t\v\n") // Strip of leading whitespace
-			return []string{strings.Join(getShell(runConfig, os), " ") + " " + original}, true
-		}
-
-		// WCOW JSON/"exec" form.
-		return cmd.CmdLine, false
+	if cmd.PrependShell {
+		// WCOW shell-form. Return a single-element array containing the original command line prepended with the shell.
+		// Also indicate that it has not been escaped (so will be passed through directly to HCS). Note that
+		// we go back to the original un-parsed command line in the dockerfile line, strip off both the command part of
+		// it (RUN/ENTRYPOINT/CMD), and also strip any leading white space. IOW, we deliberately ignore any prior parsing
+		// so as to ensure it is treated exactly as a command line. For those interested, `RUN mkdir "c:/foo"` is a particularly
+		// good example of why this is necessary if you fancy debugging how cmd.exe and its builtin mkdir works. (Windows
+		// doesn't have a mkdir.exe, and I'm guessing cmd.exe has some very long unavoidable and unchangeable historical
+		// design decisions over how both its built-in echo and mkdir are coded. Probably more too.)
+		original = original[len(command):]               // Strip off the command
+		original = strings.TrimLeft(original, " \t\v\n") // Strip of leading whitespace
+		return []string{strings.Join(getShell(runConfig), " ") + " " + original}, true
 	}
 
-	// LCOW - use args as an array, same as LCOL.
-	if cmd.PrependShell && cmd.CmdLine != nil {
-		return append(getShell(runConfig, os), cmd.CmdLine...), false
-	}
+	// WCOW JSON/"exec" form.
 	return cmd.CmdLine, false
 }

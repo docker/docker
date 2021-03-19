@@ -541,25 +541,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 		descriptors = append(descriptors, layerDescriptor)
 	}
 
-	// The v1 manifest itself doesn't directly contain an OS. However,
-	// the history does, but unfortunately that's a string, so search through
-	// all the history until hopefully we find one which indicates the OS.
-	// supertest2014/nyan is an example of a registry image with schemav1.
 	configOS := runtime.GOOS
-	if system.LCOWSupported() {
-		type config struct {
-			Os string `json:"os,omitempty"`
-		}
-		for _, v := range verifiedManifest.History {
-			var c config
-			if err := json.Unmarshal([]byte(v.V1Compatibility), &c); err == nil {
-				if c.Os != "" {
-					configOS = c.Os
-					break
-				}
-			}
-		}
-	}
 
 	// In the situation that the API call didn't specify an OS explicitly, but
 	// we support the operating system, switch to that operating system.
@@ -568,8 +550,8 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 	requestedOS := ""
 	if platform != nil {
 		requestedOS = platform.OS
-	} else if system.IsOSSupported(configOS) {
-		requestedOS = configOS
+	} else {
+		requestedOS = runtime.GOOS
 	}
 
 	// Early bath if the requested OS doesn't match that of the configuration.

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/idtools"
@@ -61,14 +60,8 @@ func lookupNTAccount(builder *Builder, accountName string, state *dispatchState)
 
 	target := "C:\\Docker"
 	targetExecutable := target + "\\containerutility.exe"
-
-	optionsPlatform, err := platforms.Parse(builder.options.Platform)
-	if err != nil {
-		return idtools.Identity{}, err
-	}
-
 	runConfig := copyRunConfig(state.runConfig,
-		withCmdCommentString("internal run to obtain NT account information.", optionsPlatform.OS))
+		withCmdCommentString("internal run to obtain NT account information."))
 
 	runConfig.Cmd = []string{targetExecutable, "getaccountsid", accountName}
 

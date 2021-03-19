@@ -116,7 +116,7 @@ func TestFromScratch(t *testing.T) {
 	}
 	err := initializeStage(sb, cmd)
 
-	if runtime.GOOS == "windows" && !system.LCOWSupported() {
+	if runtime.GOOS == "windows" {
 		assert.Check(t, is.Error(err, "Linux containers are not supported on this system"))
 		return
 	}
@@ -442,9 +442,9 @@ func TestRunWithBuildArgs(t *testing.T) {
 
 	var cmdWithShell strslice.StrSlice
 	if runtime.GOOS == "windows" {
-		cmdWithShell = strslice.StrSlice([]string{strings.Join(append(getShell(runConfig, runtime.GOOS), []string{"echo foo"}...), " ")})
+		cmdWithShell = []string{strings.Join(append(getShell(runConfig), []string{"echo foo"}...), " ")}
 	} else {
-		cmdWithShell = strslice.StrSlice(append(getShell(runConfig, runtime.GOOS), "echo foo"))
+		cmdWithShell = append(getShell(runConfig), "echo foo")
 	}
 
 	envVars := []string{"|1", "one=two"}
