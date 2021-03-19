@@ -5,7 +5,6 @@ package local // import "github.com/docker/docker/libcontainerd/local"
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -47,7 +46,6 @@ type container struct {
 	// have access to the Spec
 	ociSpec *specs.Spec
 
-	isWindows    bool
 	hcsContainer hcsshim.Container
 
 	id               string
@@ -334,7 +332,6 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 	ctr := &container{
 		id:           id,
 		execs:        make(map[string]*process),
-		isWindows:    true,
 		ociSpec:      spec,
 		hcsContainer: hcsContainer,
 		status:       containerd.Created,
@@ -435,23 +432,10 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 	createProcessParms.Environment = setupEnvironmentVariables(ctr.ociSpec.Process.Env)
 
 	// Configure the CommandLine/CommandArgs
-	setCommandLineAndArgs(ctr.isWindows, ctr.ociSpec.Process, createProcessParms)
-	if ctr.isWindows {
-		logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
-	}
+	setCommandLineAndArgs(ctr.ociSpec.Process, createProcessParms)
+	logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
 
 	createProcessParms.User = ctr.ociSpec.Process.User.Username
-
-	// LCOW requires the raw OCI spec passed through HCS and onwards to
-	// GCS for the utility VM.
-	if !ctr.isWindows {
-		ociBuf, err := json.Marshal(ctr.ociSpec)
-		if err != nil {
-			return -1, err
-		}
-		ociRaw := json.RawMessage(ociBuf)
-		createProcessParms.OCISpecification = &ociRaw
-	}
 
 	ctr.Lock()
 
@@ -546,15 +530,11 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 }
 
 // setCommandLineAndArgs configures the HCS ProcessConfig based on an OCI process spec
-func setCommandLineAndArgs(isWindows bool, process *specs.Process, createProcessParms *hcsshim.ProcessConfig) {
-	if isWindows {
-		if process.CommandLine != "" {
-			createProcessParms.CommandLine = process.CommandLine
-		} else {
-			createProcessParms.CommandLine = system.EscapeArgs(process.Args)
-		}
+func setCommandLineAndArgs(process *specs.Process, createProcessParms *hcsshim.ProcessConfig) {
+	if process.CommandLine != "" {
+		createProcessParms.CommandLine = process.CommandLine
 	} else {
-		createProcessParms.CommandArgs = process.Args
+		createProcessParms.CommandLine = system.EscapeArgs(process.Args)
 	}
 }
 
@@ -622,7 +602,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	createProcessParms.Environment = setupEnvironmentVariables(spec.Env)
 
 	// Configure the CommandLine/CommandArgs
-	setCommandLineAndArgs(ctr.isWindows, spec, createProcessParms)
+	setCommandLineAndArgs(spec, createProcessParms)
 	logger.Debugf("exec commandLine: %s", createProcessParms.CommandLine)
 
 	createProcessParms.User = spec.User.Username

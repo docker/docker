@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/Microsoft/hcsshim/osversion"
@@ -32,8 +31,11 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !system.IsOSSupported(img.OperatingSystem()) {
+		return nil, system.ErrNotSupportedOperatingSystem
+	}
 
-	s := oci.DefaultOSSpec(img.OS)
+	s := oci.DefaultSpec()
 
 	linkedEnv, err := daemon.setupLinkedContainers(c)
 	if err != nil {
@@ -115,11 +117,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		if !mount.Writable {
 			m.Options = append(m.Options, "ro")
 		}
-		if img.OS != runtime.GOOS {
-			m.Type = "bind"
-			m.Options = append(m.Options, "rbind")
-			m.Options = append(m.Options, fmt.Sprintf("uvmpath=/tmp/gcs/%s/binds", c.ID))
-		}
 		s.Mounts = append(s.Mounts, m)
 	}
 
@@ -199,15 +196,8 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		NetworkSharedContainerName: networkSharedContainerID,
 	}
 
-	switch img.OS {
-	case "windows":
-		if err := daemon.createSpecWindowsFields(c, &s, isHyperV); err != nil {
-			return nil, err
-		}
-	case "linux":
-		return nil, fmt.Errorf("Linux containers on Windows are not supported")
-	default:
-		return nil, fmt.Errorf("Unsupported platform %q", img.OS)
+	if err := daemon.createSpecWindowsFields(c, &s, isHyperV); err != nil {
+		return nil, err
 	}
 
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {

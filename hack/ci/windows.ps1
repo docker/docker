@@ -602,7 +602,7 @@ Try {
     }
 
     # Arguments: Allow setting optional storage-driver options
-    # example usage: DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
+    # example usage: DOCKER_STORAGE_OPTS="foo.bar=false,bar.baz=hello"
     if (-not ("$env:DOCKER_STORAGE_OPTS" -eq "")) {
         Write-Host -ForegroundColor Green "INFO: Running the daemon under test with storage-driver options ${env:DOCKER_STORAGE_OPTS}"
         $env:DOCKER_STORAGE_OPTS.Split(",") | ForEach {

@@ -184,11 +184,5 @@ func DefaultLinuxSpec() specs.Spec {
 			},
 		},
 	}
-
-	// For LCOW support, populate a blank Windows spec
-	if runtime.GOOS == "windows" {
-		s.Windows = &specs.Windows{}
-	}
-
 	return s
 }
