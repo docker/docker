@@ -61,7 +61,6 @@ Write-Host -ForegroundColor Red "-----------------------------------------------
 #   DOCKER_STORAGE_OPTS       comma-separated list of optional storage driver options for the daemon under test
 #                             examples:
 #                             DOCKER_STORAGE_OPTS="size=40G"
-#                             DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
 #
 #    SKIP_VALIDATION_TESTS    if defined skips the validation tests
 #
