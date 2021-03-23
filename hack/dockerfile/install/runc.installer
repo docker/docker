@@ -4,7 +4,7 @@
 # The version of runc should match the version that is used by the containerd
 # version that is used. If you need to update runc, open a pull request in
 # the containerd project first, and update both after that is merged.
-: ${RUNC_COMMIT:=dc9208a3303feef5b3839f4323d9beb36df0a9dd} # v1.0.0-rc10
+: ${RUNC_COMMIT:=12644e614e25b05da6fd08a38ffa0cfe1903fdec} # v1.0.0-rc93
 
 install_runc() {
 	# If using RHEL7 kernels (3.10.0 el7), disable kmem accounting/limiting
@@ -13,7 +13,7 @@ install_runc() {
 	fi
 
 	# Do not build with ambient capabilities support
-	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp apparmor selinux $RUNC_NOKMEM"}"
+	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp $RUNC_NOKMEM"}"
 
 	echo "Install runc version $RUNC_COMMIT (build tags: $RUNC_BUILDTAGS)"
 	git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc"

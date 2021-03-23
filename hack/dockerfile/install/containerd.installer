@@ -4,7 +4,7 @@
 # containerd is also pinned in vendor.conf. When updating the binary
 # version you may also need to update the vendor version to pick up bug
 # fixes or new APIs.
-: "${CONTAINERD_COMMIT:=ea765aba0d05254012b0b9e595e995c09186427f}" # v1.3.9
+: "${CONTAINERD_COMMIT:=05f951a3781f4f2c1911b05e61c160e9c30eaa8e}" # v1.4.4
 
 install_containerd() {
 	echo "Install containerd version $CONTAINERD_COMMIT"
