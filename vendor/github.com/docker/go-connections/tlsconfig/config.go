@@ -53,15 +53,6 @@ var acceptedCBCCiphers = []uint16{
 // known weak algorithms removed.
 var DefaultServerAcceptedCiphers = append(clientCipherSuites, acceptedCBCCiphers...)
 
-// allTLSVersions lists all the TLS versions and is used by the code that validates
-// a uint16 value as a TLS version.
-var allTLSVersions = map[uint16]struct{}{
-	tls.VersionSSL30: {},
-	tls.VersionTLS10: {},
-	tls.VersionTLS11: {},
-	tls.VersionTLS12: {},
-}
-
 // ServerDefault returns a secure-enough TLS configuration for the server TLS configuration.
 func ServerDefault(ops ...func(*tls.Config)) *tls.Config {
 	tlsconfig := &tls.Config{
