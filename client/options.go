@@ -24,32 +24,13 @@ type Opt func(*Client) error
 // DOCKER_CERT_PATH to load the TLS certificates from.
 // DOCKER_TLS_VERIFY to enable or disable TLS verification, off by default.
 func FromEnv(c *Client) error {
-	if dockerCertPath := os.Getenv("DOCKER_CERT_PATH"); dockerCertPath != "" {
-		options := tlsconfig.Options{
-			CAFile:             filepath.Join(dockerCertPath, "ca.pem"),
-			CertFile:           filepath.Join(dockerCertPath, "cert.pem"),
-			KeyFile:            filepath.Join(dockerCertPath, "key.pem"),
-			InsecureSkipVerify: os.Getenv("DOCKER_TLS_VERIFY") == "",
-		}
-		tlsc, err := tlsconfig.Client(options)
-		if err != nil {
-			return err
-		}
-
-		c.client = &http.Client{
-			Transport:     &http.Transport{TLSClientConfig: tlsc},
-			CheckRedirect: CheckRedirect,
-		}
+	ops := []Opt{
+		WithTLSClientConfigFromEnv(),
+		WithHostFromEnv(),
+		WithVersionFromEnv(),
 	}
-
-	if host := os.Getenv("DOCKER_HOST"); host != "" {
-		if err := WithHost(host)(c); err != nil {
-			return err
-		}
-	}
-
-	if version := os.Getenv("DOCKER_API_VERSION"); version != "" {
-		if err := WithVersion(version)(c); err != nil {
+	for _, op := range ops {
+		if err := op(c); err != nil {
 			return err
 		}
 	}
@@ -90,6 +71,18 @@ func WithHost(host string) Opt {
 			return sockets.ConfigureTransport(transport, c.proto, c.addr)
 		}
 		return errors.Errorf("cannot apply host to transport: %T", c.client.Transport)
+	}
+}
+
+// WithHostFromEnv overrides the client host with the host specified in the
+// DOCKER_HOST environment variable. If DOCKER_HOST is not set, the host is
+// not modified.
+func WithHostFromEnv() Opt {
+	return func(c *Client) error {
+		if host := os.Getenv("DOCKER_HOST"); host != "" {
+			return WithHost(host)(c)
+		}
+		return nil
 	}
 }
 
@@ -148,6 +141,38 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 	}
 }
 
+// WithTLSClientConfigFromEnv configures the client's TLS settings with the
+// settings in the DOCKER_CERT_PATH and DOCKER_TLS_VERIFY environment variables.
+// If DOCKER_CERT_PATH is not set or empty, TLS configuration is not modified.
+//
+// Supported environment variables:
+// DOCKER_CERT_PATH  directory to load the TLS certificates (ca.pem, cert.pem, key.pem) from.
+// DOCKER_TLS_VERIFY to enable or disable TLS verification, off by default.
+func WithTLSClientConfigFromEnv() Opt {
+	return func(c *Client) error {
+		dockerCertPath := os.Getenv("DOCKER_CERT_PATH")
+		if dockerCertPath == "" {
+			return nil
+		}
+		options := tlsconfig.Options{
+			CAFile:             filepath.Join(dockerCertPath, "ca.pem"),
+			CertFile:           filepath.Join(dockerCertPath, "cert.pem"),
+			KeyFile:            filepath.Join(dockerCertPath, "key.pem"),
+			InsecureSkipVerify: os.Getenv("DOCKER_TLS_VERIFY") == "",
+		}
+		tlsc, err := tlsconfig.Client(options)
+		if err != nil {
+			return err
+		}
+
+		c.client = &http.Client{
+			Transport:     &http.Transport{TLSClientConfig: tlsc},
+			CheckRedirect: CheckRedirect,
+		}
+		return nil
+	}
+}
+
 // WithVersion overrides the client version with the specified one. If an empty
 // version is specified, the value will be ignored to allow version negotiation.
 func WithVersion(version string) Opt {
@@ -155,6 +180,18 @@ func WithVersion(version string) Opt {
 		if version != "" {
 			c.version = version
 			c.manualOverride = true
+		}
+		return nil
+	}
+}
+
+// WithVersionFromEnv overrides the client version with the version specified in
+// the DOCKER_API_VERSION environment variable. If DOCKER_API_VERSION is not set,
+// the version is not modified.
+func WithVersionFromEnv() Opt {
+	return func(c *Client) error {
+		if version := os.Getenv("DOCKER_API_VERSION"); version != "" {
+			return WithVersion(version)(c)
 		}
 		return nil
 	}
