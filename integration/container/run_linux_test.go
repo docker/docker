@@ -110,15 +110,15 @@ func TestHostnameDnsResolution(t *testing.T) {
 
 	const (
 		hostname = "foobar"
+		netName  = "foobar-net"
 	)
 
 	// using user defined network as we want to use internal DNS
-	netName := "foobar-net"
 	net.CreateNoError(context.Background(), t, client, netName, net.WithDriver("bridge"))
 
 	cID := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.Config.Hostname = hostname
-		c.HostConfig.NetworkMode = containertypes.NetworkMode(netName)
+		c.HostConfig.NetworkMode = netName
 	})
 
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
@@ -129,7 +129,7 @@ func TestHostnameDnsResolution(t *testing.T) {
 
 	// Clear hosts file so ping will use DNS for hostname resolution
 	res, err := container.Exec(ctx, client, cID,
-		[]string{"sh", "-c", "echo 127.0.0.1 localhost | tee /etc/hosts && ping -c 1 foobar"})
+		[]string{"sh", "-c", "echo 127.0.0.1 localhost | tee /etc/hosts && ping -4 -c 1 foobar"})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("", res.Stderr()))
 	assert.Equal(t, 0, res.ExitCode)

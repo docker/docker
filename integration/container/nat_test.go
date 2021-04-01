@@ -30,7 +30,7 @@ func TestNetworkNat(t *testing.T) {
 	startServerContainer(t, msg, 8080)
 
 	endpoint := getExternalAddress(t)
-	conn, err := net.Dial("tcp", net.JoinHostPort(endpoint.String(), "8080"))
+	conn, err := net.Dial("tcp4", net.JoinHostPort(endpoint.String(), "8080"))
 	assert.NilError(t, err)
 	defer conn.Close()
 
@@ -47,7 +47,7 @@ func TestNetworkLocalhostTCPNat(t *testing.T) {
 	msg := "hi yall"
 	startServerContainer(t, msg, 8081)
 
-	conn, err := net.Dial("tcp", "localhost:8081")
+	conn, err := net.Dial("tcp4", "localhost:8081")
 	assert.NilError(t, err)
 	defer conn.Close()
 
@@ -71,7 +71,7 @@ func TestNetworkLoopbackNat(t *testing.T) {
 	ctx := context.Background()
 
 	cID := container.Run(ctx, t, client,
-		container.WithCmd("sh", "-c", fmt.Sprintf("stty raw && nc -w 1 %s 8080", endpoint.String())),
+		container.WithCmd("sh", "-c", fmt.Sprintf("stty raw && nc -4 -w 1 %s 8080", endpoint.String())),
 		container.WithTty(true),
 		container.WithNetworkMode("container:"+serverContainerID),
 	)
