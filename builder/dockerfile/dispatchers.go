@@ -435,7 +435,7 @@ func prependEnvOnCmd(buildArgs *BuildArgs, buildArgVars []string, cmd strslice.S
 
 	sort.Strings(tmpBuildEnv)
 	tmpEnv := append([]string{fmt.Sprintf("|%d", len(tmpBuildEnv))}, tmpBuildEnv...)
-	return strslice.StrSlice(append(tmpEnv, cmd...))
+	return append(tmpEnv, cmd...)
 }
 
 // CMD foo
