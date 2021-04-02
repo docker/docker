@@ -15,7 +15,6 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -35,7 +34,6 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/images"
@@ -97,7 +95,6 @@ type Daemon struct {
 	EventsService         *events.Events
 	netController         libnetwork.NetworkController
 	volumes               *volumesservice.VolumesService
-	discoveryWatcher      discovery.Reloader
 	root                  string
 	seccompEnabled        bool
 	apparmorEnabled       bool
@@ -519,8 +516,6 @@ func (daemon *Daemon) restore() error {
 				}
 			}
 
-			// Make sure networks are available before starting
-			daemon.waitForNetworks(c)
 			if err := daemon.containerStart(c, "", "", true); err != nil {
 				log.WithError(err).Error("failed to start container")
 			}
@@ -623,40 +618,6 @@ func (daemon *Daemon) RestartSwarmContainers() {
 		}
 	}
 	group.Wait()
-}
-
-// waitForNetworks is used during daemon initialization when starting up containers
-// It ensures that all of a container's networks are available before the daemon tries to start the container.
-// In practice it just makes sure the discovery service is available for containers which use a network that require discovery.
-func (daemon *Daemon) waitForNetworks(c *container.Container) {
-	if daemon.discoveryWatcher == nil {
-		return
-	}
-
-	// Make sure if the container has a network that requires discovery that the discovery service is available before starting
-	for netName := range c.NetworkSettings.Networks {
-		// If we get `ErrNoSuchNetwork` here, we can assume that it is due to discovery not being ready
-		// Most likely this is because the K/V store used for discovery is in a container and needs to be started
-		if _, err := daemon.netController.NetworkByName(netName); err != nil {
-			if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok {
-				continue
-			}
-
-			// use a longish timeout here due to some slowdowns in libnetwork if the k/v store is on anything other than --net=host
-			// FIXME: why is this slow???
-			dur := 60 * time.Second
-			timer := time.NewTimer(dur)
-
-			logrus.WithField("container", c.ID).Debugf("Container %s waiting for network to be ready", c.Name)
-			select {
-			case <-daemon.discoveryWatcher.ReadyCh():
-			case <-timer.C:
-			}
-			timer.Stop()
-
-			return
-		}
-	}
 }
 
 func (daemon *Daemon) children(c *container.Container) map[string]*container.Container {
@@ -1044,12 +1005,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	// Discovery is only enabled when the daemon is launched with an address to advertise.  When
-	// initialized, the daemon is registered and we can store the discovery backend as it's read-only
-	if err := d.initDiscovery(config); err != nil {
-		return nil, err
-	}
-
 	sysInfo := d.RawSysInfo(false)
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux.
@@ -1382,26 +1337,6 @@ func (daemon *Daemon) IsShuttingDown() bool {
 	return daemon.shutdown
 }
 
-// initDiscovery initializes the discovery watcher for this daemon.
-func (daemon *Daemon) initDiscovery(conf *config.Config) error {
-	advertise, err := config.ParseClusterAdvertiseSettings(conf.ClusterStore, conf.ClusterAdvertise)
-	if err != nil {
-		if err == discovery.ErrDiscoveryDisabled {
-			return nil
-		}
-		return err
-	}
-
-	conf.ClusterAdvertise = advertise
-	discoveryWatcher, err := discovery.Init(conf.ClusterStore, conf.ClusterAdvertise, conf.ClusterOpts)
-	if err != nil {
-		return fmt.Errorf("discovery initialization failed (%v)", err)
-	}
-
-	daemon.discoveryWatcher = discoveryWatcher
-	return nil
-}
-
 func isBridgeNetworkDisabled(conf *config.Config) bool {
 	return conf.BridgeConfig.Iface == config.DisableNetworkBridge
 }
@@ -1420,27 +1355,6 @@ func (daemon *Daemon) networkOptions(dconfig *config.Config, pg plugingetter.Plu
 	dn := runconfig.DefaultDaemonNetworkMode().NetworkName()
 	options = append(options, nwconfig.OptionDefaultDriver(string(dd)))
 	options = append(options, nwconfig.OptionDefaultNetwork(dn))
-
-	if strings.TrimSpace(dconfig.ClusterStore) != "" {
-		kv := strings.Split(dconfig.ClusterStore, "://")
-		if len(kv) != 2 {
-			return nil, errors.New("kv store daemon config must be of the form KV-PROVIDER://KV-URL")
-		}
-		options = append(options, nwconfig.OptionKVProvider(kv[0]))
-		options = append(options, nwconfig.OptionKVProviderURL(kv[1]))
-	}
-	if len(dconfig.ClusterOpts) > 0 {
-		options = append(options, nwconfig.OptionKVOpts(dconfig.ClusterOpts))
-	}
-
-	if daemon.discoveryWatcher != nil {
-		options = append(options, nwconfig.OptionDiscoveryWatcher(daemon.discoveryWatcher))
-	}
-
-	if dconfig.ClusterAdvertise != "" {
-		options = append(options, nwconfig.OptionDiscoveryAddress(dconfig.ClusterAdvertise))
-	}
-
 	options = append(options, nwconfig.OptionLabels(dconfig.Labels))
 	options = append(options, driverOptions(dconfig)...)
 

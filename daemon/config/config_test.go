@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/libnetwork/ipamutils"
 	"github.com/docker/docker/opts"
 	"github.com/spf13/pflag"
@@ -36,23 +35,6 @@ func TestDaemonBrokenConfiguration(t *testing.T) {
 	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
 	if err == nil {
 		t.Fatalf("expected error, got %v", err)
-	}
-}
-
-func TestParseClusterAdvertiseSettings(t *testing.T) {
-	_, err := ParseClusterAdvertiseSettings("something", "")
-	if err != discovery.ErrDiscoveryDisabled {
-		t.Fatalf("expected discovery disabled error, got %v\n", err)
-	}
-
-	_, err = ParseClusterAdvertiseSettings("", "something")
-	if err == nil {
-		t.Fatalf("expected discovery store error, got %v\n", err)
-	}
-
-	_, err = ParseClusterAdvertiseSettings("etcd", "127.0.0.1:8080")
-	if err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -445,67 +427,6 @@ func TestValidateConfiguration(t *testing.T) {
 			err := Validate(tc.config)
 			assert.NilError(t, err)
 		})
-	}
-}
-
-func TestModifiedDiscoverySettings(t *testing.T) {
-	cases := []struct {
-		current  *Config
-		modified *Config
-		expected bool
-	}{
-		{
-			current:  discoveryConfig("foo", "bar", map[string]string{}),
-			modified: discoveryConfig("foo", "bar", map[string]string{}),
-			expected: false,
-		},
-		{
-			current:  discoveryConfig("foo", "bar", map[string]string{"foo": "bar"}),
-			modified: discoveryConfig("foo", "bar", map[string]string{"foo": "bar"}),
-			expected: false,
-		},
-		{
-			current:  discoveryConfig("foo", "bar", map[string]string{}),
-			modified: discoveryConfig("foo", "bar", nil),
-			expected: false,
-		},
-		{
-			current:  discoveryConfig("foo", "bar", nil),
-			modified: discoveryConfig("foo", "bar", map[string]string{}),
-			expected: false,
-		},
-		{
-			current:  discoveryConfig("foo", "bar", nil),
-			modified: discoveryConfig("baz", "bar", nil),
-			expected: true,
-		},
-		{
-			current:  discoveryConfig("foo", "bar", nil),
-			modified: discoveryConfig("foo", "baz", nil),
-			expected: true,
-		},
-		{
-			current:  discoveryConfig("foo", "bar", nil),
-			modified: discoveryConfig("foo", "bar", map[string]string{"foo": "bar"}),
-			expected: true,
-		},
-	}
-
-	for _, c := range cases {
-		got := ModifiedDiscoverySettings(c.current, c.modified.ClusterStore, c.modified.ClusterAdvertise, c.modified.ClusterOpts)
-		if c.expected != got {
-			t.Fatalf("expected %v, got %v: current config %v, new config %v", c.expected, got, c.current, c.modified)
-		}
-	}
-}
-
-func discoveryConfig(backendAddr, advertiseAddr string, opts map[string]string) *Config {
-	return &Config{
-		CommonConfig: CommonConfig{
-			ClusterStore:     backendAddr,
-			ClusterAdvertise: advertiseAddr,
-			ClusterOpts:      opts,
-		},
 	}
 }
 

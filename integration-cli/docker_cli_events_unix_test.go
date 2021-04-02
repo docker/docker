@@ -415,9 +415,6 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *testing.T) {
 	expectedSubstrings := []string{
 		" daemon reload " + info.ID + " ",
 		"(allow-nondistributable-artifacts=[",
-		" cluster-advertise=, ",
-		" cluster-store=, ",
-		" cluster-store-opts=",
 		" debug=true, ",
 		" default-ipc-mode=",
 		" default-runtime=",

@@ -824,22 +824,6 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4ExplicitOutsideContainer
 	s.d.Restart(c)
 }
 
-func (s *DockerDaemonSuite) TestDaemonDefaultNetworkInvalidClusterConfig(c *testing.T) {
-
-	// Start daemon without docker0 bridge
-	defaultNetworkBridge := "docker0"
-	deleteInterface(c, defaultNetworkBridge)
-
-	discoveryBackend := "consul://consuladdr:consulport/some/path"
-	s.d.Start(c, fmt.Sprintf("--cluster-store=%s", discoveryBackend))
-
-	// Start daemon with docker0 bridge
-	result := icmd.RunCommand("ifconfig", defaultNetworkBridge)
-	result.Assert(c, icmd.Success)
-
-	s.d.Restart(c, fmt.Sprintf("--cluster-store=%s", discoveryBackend))
-}
-
 func (s *DockerDaemonSuite) TestDaemonIP(c *testing.T) {
 	d := s.d
 
@@ -2194,51 +2178,6 @@ func (s *DockerDaemonSuite) TestDaemonDebugLog(c *testing.T) {
 	s.d.StartWithLogFile(tty, "--debug")
 	s.d.Stop(c)
 	assert.Assert(c, strings.Contains(b.String(), debugLog))
-}
-
-func (s *DockerDaemonSuite) TestDaemonDiscoveryBackendConfigReload(c *testing.T) {
-	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
-
-	// daemon config file
-	daemonConfig := `{ "debug" : false }`
-	configFile, err := ioutil.TempFile("", "test-daemon-discovery-backend-config-reload-config")
-	assert.Assert(c, err == nil, "could not create temp file for config reload")
-	configFilePath := configFile.Name()
-	defer func() {
-		configFile.Close()
-		os.RemoveAll(configFile.Name())
-	}()
-
-	_, err = configFile.Write([]byte(daemonConfig))
-	assert.NilError(c, err)
-
-	// --log-level needs to be set so that d.Start() doesn't add --debug causing
-	// a conflict with the config
-	s.d.Start(c, "--config-file", configFilePath, "--log-level=info")
-
-	// daemon config file
-	daemonConfig = `{
-	      "cluster-store": "consul://consuladdr:consulport/some/path",
-	      "cluster-advertise": "192.168.56.100:0",
-	      "debug" : false
-	}`
-
-	err = configFile.Truncate(0)
-	assert.NilError(c, err)
-	_, err = configFile.Seek(0, io.SeekStart)
-	assert.NilError(c, err)
-
-	_, err = configFile.Write([]byte(daemonConfig))
-	assert.NilError(c, err)
-
-	err = s.d.ReloadConfig()
-	assert.Assert(c, err == nil, "error reloading daemon config")
-
-	out, err := s.d.Cmd("info")
-	assert.NilError(c, err)
-
-	assert.Assert(c, strings.Contains(out, "Cluster Store: consul://consuladdr:consulport/some/path"))
-	assert.Assert(c, strings.Contains(out, "Cluster Advertise: 192.168.56.100:0"))
 }
 
 // Test for #21956
