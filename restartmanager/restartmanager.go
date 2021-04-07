@@ -21,7 +21,7 @@ var ErrRestartCanceled = errors.New("restart canceled")
 
 // RestartManager defines object that controls container restarting rules.
 type RestartManager interface {
-	Cancel() error
+	Cancel()
 	ShouldRestart(exitCode uint32, hasBeenManuallyStopped bool, executionDuration time.Duration) (bool, chan error, error)
 	SetPolicy(policy container.RestartPolicy)
 }
@@ -126,12 +126,11 @@ func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 	return true, ch, nil
 }
 
-func (rm *restartManager) Cancel() error {
+func (rm *restartManager) Cancel() {
 	rm.Do(func() {
 		rm.Lock()
 		rm.canceled = true
 		close(rm.cancel)
 		rm.Unlock()
 	})
-	return nil
 }
