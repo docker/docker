@@ -343,6 +343,8 @@ func (container *Container) GetRootResourcePath(path string) (string, error) {
 // ExitOnNext signals to the monitor that it should not restart the container
 // after we send the kill signal.
 func (container *Container) ExitOnNext() {
+	// Note that we always instance a RestartManager here, even if there
+	// wasn't one yet, to register that restarting is cancelled.
 	container.RestartManager().Cancel()
 }
 
@@ -566,6 +568,10 @@ func (container *Container) InitDNSHostConfig() {
 
 // UpdateMonitor updates monitor configure for running container
 func (container *Container) UpdateMonitor(restartPolicy containertypes.RestartPolicy) {
+	if restartPolicy.IsNone() && container.restartManager == nil {
+		// No need to instance a RestartManager if we don't want a restart policy
+		return
+	}
 	container.RestartManager().SetPolicy(restartPolicy)
 }
 
