@@ -26,6 +26,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/containerd/containerd/sys"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
@@ -634,6 +635,9 @@ func (d *Driver) Remove(id string) error {
 
 	if err := subvolDelete(d.subvolumesDir(), id, d.quotaEnabled); err != nil {
 		if d.quotaEnabled {
+			if sys.RunningInUserNS() && strings.Contains(err.Error(), "operation not permitted") {
+				err = errors.Wrap(err, "failed to delete subvolume without root (hint: remount btrfs on \"user_subvol_rm_allowed\" option, or update the kernel to >= 4.18, or change the storage driver to \"fuse-overlayfs\")")
+			}
 			return err
 		}
 		// If quota is not enabled, fallback to rmdir syscall to delete subvolumes.
