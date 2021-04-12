@@ -207,7 +207,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 
 	checkpoint := r.Form.Get("checkpoint")
 	checkpointDir := r.Form.Get("checkpoint-dir")
-	if err := s.backend.ContainerStart(vars["name"], hostConfig, checkpoint, checkpointDir); err != nil {
+	if err := s.backend.ContainerStart(ctx, vars["name"], hostConfig, checkpoint, checkpointDir); err != nil {
 		return err
 	}
 
@@ -229,7 +229,7 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 		seconds = &valSeconds
 	}
 
-	if err := s.backend.ContainerStop(vars["name"], seconds); err != nil {
+	if err := s.backend.ContainerStop(ctx, vars["name"], seconds); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -253,7 +253,7 @@ func (s *containerRouter) postContainersKill(ctx context.Context, w http.Respons
 		}
 	}
 
-	if err := s.backend.ContainerKill(name, uint64(sig)); err != nil {
+	if err := s.backend.ContainerKill(ctx, name, uint64(sig)); err != nil {
 		var isStopped bool
 		if errdefs.IsConflict(err) {
 			isStopped = true
@@ -286,7 +286,7 @@ func (s *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 		seconds = &valSeconds
 	}
 
-	if err := s.backend.ContainerRestart(vars["name"], seconds); err != nil {
+	if err := s.backend.ContainerRestart(ctx, vars["name"], seconds); err != nil {
 		return err
 	}
 

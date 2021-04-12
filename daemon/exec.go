@@ -275,6 +275,10 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 
 	select {
 	case <-ctx.Done():
+		// Must use a new context since the current context is done
+		ctxErr := ctx.Err()
+		ctx := context.Background()
+
 		logrus.Debugf("Sending TERM signal to process %v in container %v", name, c.ID)
 		daemon.containerd.SignalProcess(ctx, c.ID, name, int(signal.SignalMap["TERM"]))
 
@@ -288,7 +292,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 		case <-attachErr:
 			// TERM signal worked
 		}
-		return ctx.Err()
+		return ctxErr
 	case err := <-attachErr:
 		if err != nil {
 			if _, ok := err.(term.EscapeError); !ok {

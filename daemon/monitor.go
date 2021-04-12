@@ -24,17 +24,17 @@ func (daemon *Daemon) setStateCounter(c *container.Container) {
 	}
 }
 
-func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontainerdtypes.EventInfo) error {
+func (daemon *Daemon) handleContainerExit(ctx context.Context, c *container.Container, e *libcontainerdtypes.EventInfo) error {
 	c.Lock()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	ec, et, err := daemon.containerd.DeleteTask(ctx, c.ID)
+	ctxDelete, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ec, et, err := daemon.containerd.DeleteTask(ctxDelete, c.ID)
 	cancel()
 	if err != nil {
 		logrus.WithError(err).WithField("container", c.ID).Warnf("failed to delete container from containerd")
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
-	c.StreamConfig.Wait(ctx)
+	ctxWait, cancel := context.WithTimeout(ctx, 2*time.Second)
+	c.StreamConfig.Wait(ctxWait)
 	cancel()
 
 	c.Reset(false)
@@ -84,7 +84,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 				// But containerStart will use daemon.netController segment.
 				// So to avoid panic at startup process, here must wait util daemon restore done.
 				daemon.waitForStartupDone()
-				if err = daemon.containerStart(c, "", "", false); err != nil {
+				if err = daemon.containerStart(ctx, c, "", "", false); err != nil {
 					logrus.Debugf("failed to restart container: %+v", err)
 				}
 			}
@@ -112,6 +112,8 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		return errors.Wrapf(err, "could not find container %s", id)
 	}
 
+	ctx := context.TODO()
+
 	switch e {
 	case libcontainerdtypes.EventOOM:
 		// StateOOM is Linux specific and should never be hit on Windows
@@ -129,7 +131,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		daemon.LogContainerEvent(c, "oom")
 	case libcontainerdtypes.EventExit:
 		if int(ei.Pid) == c.Pid {
-			return daemon.handleContainerExit(c, &ei)
+			return daemon.handleContainerExit(ctx, c, &ei)
 		}
 
 		exitCode := 127
@@ -140,8 +142,8 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			execConfig.ExitCode = &ec
 			execConfig.Running = false
 
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			execConfig.StreamConfig.Wait(ctx)
+			ctxWait, cancel := context.WithTimeout(ctx, 2*time.Second)
+			execConfig.StreamConfig.Wait(ctxWait)
 			cancel()
 
 			if err := execConfig.CloseStreams(); err != nil {

@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 
 	containertypes "github.com/docker/docker/api/types/container"
@@ -14,7 +15,7 @@ import (
 // timeout, ContainerRestart will wait forever until a graceful
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
-func (daemon *Daemon) ContainerRestart(name string, seconds *int) error {
+func (daemon *Daemon) ContainerRestart(ctx context.Context, name string, seconds *int) error {
 	ctr, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -23,7 +24,7 @@ func (daemon *Daemon) ContainerRestart(name string, seconds *int) error {
 		stopTimeout := ctr.StopTimeout()
 		seconds = &stopTimeout
 	}
-	if err := daemon.containerRestart(ctr, *seconds); err != nil {
+	if err := daemon.containerRestart(ctx, ctr, *seconds); err != nil {
 		return fmt.Errorf("Cannot restart container %s: %v", name, err)
 	}
 	return nil
@@ -34,7 +35,7 @@ func (daemon *Daemon) ContainerRestart(name string, seconds *int) error {
 // container. When stopping, wait for the given duration in seconds to
 // gracefully stop, before forcefully terminating the container. If
 // given a negative duration, wait forever for a graceful stop.
-func (daemon *Daemon) containerRestart(container *container.Container, seconds int) error {
+func (daemon *Daemon) containerRestart(ctx context.Context, container *container.Container, seconds int) error {
 
 	// Determine isolation. If not specified in the hostconfig, use daemon default.
 	actualIsolation := container.HostConfig.Isolation
@@ -60,7 +61,7 @@ func (daemon *Daemon) containerRestart(container *container.Container, seconds i
 		autoRemove := container.HostConfig.AutoRemove
 
 		container.HostConfig.AutoRemove = false
-		err := daemon.containerStop(container, seconds)
+		err := daemon.containerStop(ctx, container, seconds)
 		// restore AutoRemove irrespective of whether the stop worked or not
 		container.HostConfig.AutoRemove = autoRemove
 		// containerStop will write HostConfig to disk, we shall restore AutoRemove
@@ -74,7 +75,7 @@ func (daemon *Daemon) containerRestart(container *container.Container, seconds i
 		}
 	}
 
-	if err := daemon.containerStart(container, "", "", true); err != nil {
+	if err := daemon.containerStart(ctx, container, "", "", true); err != nil {
 		return err
 	}
 

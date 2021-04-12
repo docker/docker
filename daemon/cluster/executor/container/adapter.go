@@ -352,7 +352,7 @@ func (c *containerAdapter) start(ctx context.Context) error {
 		return err
 	}
 
-	return c.backend.ContainerStart(c.container.name(), nil, "", "")
+	return c.backend.ContainerStart(ctx, c.container.name(), nil, "", "")
 }
 
 func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, error) {
@@ -414,11 +414,11 @@ func (c *containerAdapter) shutdown(ctx context.Context) error {
 		stopgraceValue := int(spec.StopGracePeriod.Seconds)
 		stopgrace = &stopgraceValue
 	}
-	return c.backend.ContainerStop(c.container.name(), stopgrace)
+	return c.backend.ContainerStop(ctx, c.container.name(), stopgrace)
 }
 
 func (c *containerAdapter) terminate(ctx context.Context) error {
-	return c.backend.ContainerKill(c.container.name(), uint64(syscall.SIGKILL))
+	return c.backend.ContainerKill(ctx, c.container.name(), uint64(syscall.SIGKILL))
 }
 
 func (c *containerAdapter) remove(ctx context.Context) error {

@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -43,7 +44,7 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 		return daemon.rmLink(container, name)
 	}
 
-	err = daemon.cleanupContainer(container, config.ForceRemove, config.RemoveVolume)
+	err = daemon.cleanupContainer(context.Background(), container, config.ForceRemove, config.RemoveVolume)
 	containerActions.WithValues("delete").UpdateSince(start)
 
 	return err
@@ -77,7 +78,7 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 
 // cleanupContainer unregisters a container from the daemon, stops stats
 // collection and cleanly removes contents and metadata from the filesystem.
-func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemove, removeVolume bool) (err error) {
+func (daemon *Daemon) cleanupContainer(ctx context.Context, container *container.Container, forceRemove, removeVolume bool) (err error) {
 	if container.IsRunning() {
 		if !forceRemove {
 			state := container.StateString()
@@ -88,7 +89,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 			err := fmt.Errorf("You cannot remove a %s container %s. %s", state, container.ID, procedure)
 			return errdefs.Conflict(err)
 		}
-		if err := daemon.Kill(container); err != nil {
+		if err := daemon.Kill(ctx, container); err != nil {
 			return fmt.Errorf("Could not kill running container %s, cannot remove - %v", container.ID, err)
 		}
 	}
@@ -100,7 +101,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	// if stats are currently getting collected.
 	daemon.statsCollector.StopCollection(container)
 
-	if err = daemon.containerStop(container, 3); err != nil {
+	if err = daemon.containerStop(ctx, container, 3); err != nil {
 		return err
 	}
 

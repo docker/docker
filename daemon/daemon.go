@@ -359,8 +359,8 @@ func (daemon *Daemon) restore() error {
 				}
 			} else if !daemon.configStore.LiveRestoreEnabled {
 				logger(c).Debug("shutting down container considered alive by containerd")
-				if err := daemon.shutdownContainer(c); err != nil && !errdefs.IsNotFound(err) {
-					log.WithError(err).Error("error shutting down container")
+				if err := daemon.shutdownContainer(context.Background(), c); err != nil && !errdefs.IsNotFound(err) {
+					log.Error("Error shutting down container")
 					return
 				}
 				c.ResetRestartManager(false)
@@ -525,8 +525,8 @@ func (daemon *Daemon) restore() error {
 
 			// Make sure networks are available before starting
 			daemon.waitForNetworks(c)
-			if err := daemon.containerStart(c, "", "", true); err != nil {
-				log.WithError(err).Error("failed to start container")
+			if err := daemon.containerStart(context.Background(), c, "", "", true); err != nil {
+				log.WithError(err).Error("Failed to start container")
 			}
 			close(chNotify)
 
@@ -616,7 +616,7 @@ func (daemon *Daemon) RestartSwarmContainers() {
 						return
 					}
 
-					if err := daemon.containerStart(c, "", "", true); err != nil {
+					if err := daemon.containerStart(context.Background(), c, "", "", true); err != nil {
 						logrus.WithField("container", c.ID).WithError(err).Error("failed to start swarm container")
 					}
 
@@ -1184,17 +1184,17 @@ func (daemon *Daemon) waitForStartupDone() {
 	<-daemon.startupDone
 }
 
-func (daemon *Daemon) shutdownContainer(c *container.Container) error {
+func (daemon *Daemon) shutdownContainer(ctx context.Context, c *container.Container) error {
 	stopTimeout := c.StopTimeout()
 
 	// If container failed to exit in stopTimeout seconds of SIGTERM, then using the force
-	if err := daemon.containerStop(c, stopTimeout); err != nil {
+	if err := daemon.containerStop(ctx, c, stopTimeout); err != nil {
 		return fmt.Errorf("Failed to stop container %s with error: %v", c.ID, err)
 	}
 
 	// Wait without timeout for the container to exit.
 	// Ignore the result.
-	<-c.Wait(context.Background(), container.WaitConditionNotRunning)
+	<-c.Wait(ctx, container.WaitConditionNotRunning)
 	return nil
 }
 
@@ -1251,7 +1251,7 @@ func (daemon *Daemon) Shutdown() error {
 			}
 			log := logrus.WithField("container", c.ID)
 			log.Debug("shutting down container")
-			if err := daemon.shutdownContainer(c); err != nil {
+			if err := daemon.shutdownContainer(context.Background(), c); err != nil {
 				log.WithError(err).Error("failed to shut down container")
 				return
 			}

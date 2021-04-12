@@ -46,11 +46,11 @@ func (m *MockBackend) CommitBuildStep(c backend.CommitConfig) (image.ID, error) 
 	return "", nil
 }
 
-func (m *MockBackend) ContainerKill(containerID string, sig uint64) error {
+func (m *MockBackend) ContainerKill(ctx context.Context, containerID string, sig uint64) error {
 	return nil
 }
 
-func (m *MockBackend) ContainerStart(containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error {
+func (m *MockBackend) ContainerStart(ctx context.Context, containerID string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error {
 	return nil
 }
 

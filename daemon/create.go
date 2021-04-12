@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"runtime"
@@ -176,7 +177,7 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 	}
 	defer func() {
 		if retErr != nil {
-			if err := daemon.cleanupContainer(ctr, true, true); err != nil {
+			if err := daemon.cleanupContainer(context.Background(), ctr, true, true); err != nil {
 				logrus.Errorf("failed to cleanup container on create error: %v", err)
 			}
 		}

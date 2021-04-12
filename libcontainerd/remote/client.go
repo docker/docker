@@ -251,6 +251,9 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 	// Signal c.createIO that it can call CloseIO
 	close(stdinCloseSync)
 
+	// Use a fresh context here because start can't really be cancelled
+	// Meanwhile we can't really handle cancellation here because the workload could have started but other things may have failed.
+	ctx = context.Background()
 	if err := t.Start(ctx); err != nil {
 		if _, err := t.Delete(ctx); err != nil {
 			c.logger.WithError(err).WithField("container", id).
