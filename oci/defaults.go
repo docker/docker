@@ -133,6 +133,7 @@ func DefaultLinuxSpec() specs.Spec {
 					Access: "rwm",
 				},
 				{
+					// "/dev/zero",
 					Allow:  true,
 					Type:   "c",
 					Major:  iPtr(1),
@@ -140,6 +141,7 @@ func DefaultLinuxSpec() specs.Spec {
 					Access: "rwm",
 				},
 				{
+					// "/dev/null",
 					Allow:  true,
 					Type:   "c",
 					Major:  iPtr(1),
@@ -147,6 +149,7 @@ func DefaultLinuxSpec() specs.Spec {
 					Access: "rwm",
 				},
 				{
+					// "/dev/urandom",
 					Allow:  true,
 					Type:   "c",
 					Major:  iPtr(1),
@@ -154,6 +157,7 @@ func DefaultLinuxSpec() specs.Spec {
 					Access: "rwm",
 				},
 				{
+					// "/dev/random",
 					Allow:  true,
 					Type:   "c",
 					Major:  iPtr(1),
@@ -161,6 +165,7 @@ func DefaultLinuxSpec() specs.Spec {
 					Access: "rwm",
 				},
 				{
+					// "/dev/tty",
 					Allow:  true,
 					Type:   "c",
 					Major:  iPtr(5),
@@ -168,6 +173,7 @@ func DefaultLinuxSpec() specs.Spec {
 					Access: "rwm",
 				},
 				{
+					// "/dev/console",
 					Allow:  true,
 					Type:   "c",
 					Major:  iPtr(5),
@@ -175,6 +181,7 @@ func DefaultLinuxSpec() specs.Spec {
 					Access: "rwm",
 				},
 				{
+					// "fuse"
 					Allow:  false,
 					Type:   "c",
 					Major:  iPtr(10),
