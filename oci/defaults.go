@@ -4,7 +4,6 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/docker/docker/oci/caps"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -39,15 +38,8 @@ func DefaultWindowsSpec() specs.Spec {
 func DefaultLinuxSpec() specs.Spec {
 	s := specs.Spec{
 		Version: specs.Version,
-		Process: &specs.Process{
-			Capabilities: &specs.LinuxCapabilities{
-				Bounding:    caps.DefaultCapabilities(),
-				Permitted:   caps.DefaultCapabilities(),
-				Inheritable: caps.DefaultCapabilities(),
-				Effective:   caps.DefaultCapabilities(),
-			},
-		},
-		Root: &specs.Root{},
+		Process: &specs.Process{},
+		Root:    &specs.Root{},
 	}
 	s.Mounts = []specs.Mount{
 		{
@@ -127,68 +119,7 @@ func DefaultLinuxSpec() specs.Spec {
 		// See also: https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#default-devices
 		Devices: []specs.LinuxDevice{},
 		Resources: &specs.LinuxResources{
-			Devices: []specs.LinuxDeviceCgroup{
-				{
-					Allow:  false,
-					Access: "rwm",
-				},
-				{
-					// "/dev/zero",
-					Allow:  true,
-					Type:   "c",
-					Major:  iPtr(1),
-					Minor:  iPtr(5),
-					Access: "rwm",
-				},
-				{
-					// "/dev/null",
-					Allow:  true,
-					Type:   "c",
-					Major:  iPtr(1),
-					Minor:  iPtr(3),
-					Access: "rwm",
-				},
-				{
-					// "/dev/urandom",
-					Allow:  true,
-					Type:   "c",
-					Major:  iPtr(1),
-					Minor:  iPtr(9),
-					Access: "rwm",
-				},
-				{
-					// "/dev/random",
-					Allow:  true,
-					Type:   "c",
-					Major:  iPtr(1),
-					Minor:  iPtr(8),
-					Access: "rwm",
-				},
-				{
-					// "/dev/tty",
-					Allow:  true,
-					Type:   "c",
-					Major:  iPtr(5),
-					Minor:  iPtr(0),
-					Access: "rwm",
-				},
-				{
-					// "/dev/console",
-					Allow:  true,
-					Type:   "c",
-					Major:  iPtr(5),
-					Minor:  iPtr(1),
-					Access: "rwm",
-				},
-				{
-					// "fuse"
-					Allow:  false,
-					Type:   "c",
-					Major:  iPtr(10),
-					Minor:  iPtr(229),
-					Access: "rwm",
-				},
-			},
+			Devices: []specs.LinuxDeviceCgroup{},
 		},
 	}
 
