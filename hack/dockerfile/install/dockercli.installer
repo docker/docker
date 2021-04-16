@@ -1,9 +1,12 @@
 #!/bin/sh
 
-: ${DOCKERCLI_CHANNEL:=stable}
-: ${DOCKERCLI_VERSION:=17.06.2-ce}
+set -e
 
 install_dockercli() {
+	: "${DOCKERCLI_CHANNEL?}"
+	: "${DOCKERCLI_VERSION?}"
+	: "${PREFIX?}"
+
 	echo "Install docker/cli version $DOCKERCLI_VERSION from $DOCKERCLI_CHANNEL"
 
 	arch=$(uname -m)
@@ -21,6 +24,9 @@ install_dockercli() {
 }
 
 build_dockercli() {
+	: "${DOCKERCLI_VERSION?}"
+	: "${PREFIX?}"
+
 	git clone https://github.com/docker/docker-ce "$GOPATH/tmp/docker-ce"
 	cd "$GOPATH/tmp/docker-ce"
 	git checkout -q "v$DOCKERCLI_VERSION"

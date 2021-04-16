@@ -5,6 +5,123 @@ ARG SYSTEMD="false"
 # IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
 ARG GO_VERSION=1.13.15
 ARG DEBIAN_FRONTEND=noninteractive
+
+#-------------------------------------------------------------------------------
+# Package versions
+#-------------------------------------------------------------------------------
+
+# CRIU_VERSION specifies the version of CRIU to download from the
+# https://github.com/checkpoint-restore/criu repository. CRIU is used
+# in the integration tests to test the experimental checkpoint/restore support
+ARG CRIU_VERSION=v3.14
+
+# REGISTRY_COMMIT specifies the version of the registry to build and install
+# from the https://github.com/docker/distribution repository. This version of
+# the registry is used to test both schema 1 and schema 2 manifests.
+#
+# Generally, the commit specified here should match a current, tagged release.
+#
+# v2.3.0-rc.0
+ARG REGISTRY_COMMIT=47a064d4195a9b56133891bbb13620c3ac83a827
+
+# REGISTRY_COMMIT_SCHEMA1 specifies the version of the regsitry to build and
+# install from the https://github.com/docker/distribution repository. This is
+# an older (pre v2.3.0) version of the registry that only supports schema1
+# manifests. This version of the registry is not working on arm64, so installation
+# is skipped on that architecture.
+
+# v2.2.0 + ec87e9b6971d831f0eff752ddb54fb64693e51cd (docker/1.10-dev branch)
+ARG REGISTRY_COMMIT_SCHEMA1=ec87e9b6971d831f0eff752ddb54fb64693e51cd
+
+# GO_SWAGGER_COMMIT specifies the version of the go-swagger binary to build and
+# install. Go-swagger is used in CI for validating swagger.yaml in hack/validate/swagger-gen
+#
+# Currently uses a fork from https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix,
+# TODO: move to under moby/ or fix upstream go-swagger to work for us.
+ARG GO_SWAGGER_COMMIT=5e6cb12f7c82ce78e45ba71fa6cb1928094db050
+
+# GOTOML_VERSION specifies the version of the tomll binary to build and install
+# from the https://github.com/pelletier/go-toml repository. This binary is used
+# in CI in the hack/validate/toml script.
+#
+# When updating this version, consider updating the github.com/pelletier/go-toml
+# dependency in vendor.conf accordingly.
+#
+ARG GOTOML_VERSION=v1.8.1
+
+# VNDR_COMMIT specifies the version of the vndr tool to build and install
+# from the https://github.com/LK4D4/vndr repository.
+#
+# The vndr tool is used to manage vendored go packages in the vendor directory,
+# and is pinned to a fixed version because different versions of this tool
+# can result in differences in the (go) files that are considered for vendoring.
+#
+# v0.1.2
+ARG VNDR_COMMIT=f12b881cb8f081a5058408a58f429b9014833fc6
+
+# CONTAINERD_COMMIT specifies the version of the containerd runtime binary
+# to install from the https://github.com/containerd/containerd repository.
+#
+# This version is used to build statically compiled containerd binaries, and
+# used for the integration tests. The distributed docker .deb and .rpm packages
+# depend on a separate (containerd.io) package, which may be a different version
+# as is specified here.
+#
+# Generally, the commit specified here should match a tagged release.
+
+# The containerd golang package is also pinned in vendor.conf. When updating
+# the binary version you may also need to update the vendor version to pick up
+# bug fixes or new APIs, however, usually the Go packages are built from a
+# commit from the master branch.
+#
+# v1.4.4
+ARG CONTAINERD_COMMIT=05f951a3781f4f2c1911b05e61c160e9c30eaa8e
+
+# LIBNETWORK_COMMIT is used to build the docker-userland-proxy binary. When
+# updating the binary version, consider updating github.com/docker/libnetwork
+# in vendor.conf accordingly
+ARG LIBNETWORK_COMMIT=b3507428be5b458cb0e2b4086b13531fb0706e46
+
+ARG GOLANGCI_LINT_COMMIT=v1.23.8
+ARG GOTESTSUM_COMMIT=v0.5.3
+
+# DOCKERCLI_CHANNEL and DOCKERCLI_VERSION specify the version of the CLI to
+# install for use in the integration-cli tests. The integration-cli testsuite
+# is frozen, and no new tests should be added. The version of the CLI is pinned
+# to the CLI version that was current at the time the integration-cli suite
+# was frozen.
+ARG DOCKERCLI_CHANNEL=stable
+ARG DOCKERCLI_VERSION=17.06.2-ce
+
+# RUNC_COMMIT specifies the version of runc to install from the
+# https://github.com/opencontainers/runc repository.
+#
+# The version of runc should match the version that is used by the containerd
+# version that is used. If you need to update runc, open a pull request in
+# the containerd project first, and update both after that is merged.
+#
+# When updating RUNC_COMMIT, also update runc in vendor.conf accordingly
+#
+# v1.0.0-rc93
+ARG RUNC_COMMIT=12644e614e25b05da6fd08a38ffa0cfe1903fdec
+
+# TINI_COMMIT specifies the version of tini (docker-init) to build, and install
+# from the https://github.com/krallin/tini.git repository. This binary is used
+# when starting containers with the `--init` option.
+#
+# v0.19.0
+ARG TINI_COMMIT=de40ad007797e0dcd8b7126f27bb87401d224240
+
+# ROOTLESSKIT_COMMIT specifies the version of rootlesskit to install from the
+# https://github.com/rootless-containers/rootlesskit.git repository
+#
+# v0.14.1
+ARG ROOTLESSKIT_COMMIT=ed9b8c5cc48d29d0a979dae52a24f6e886795abd
+
+# VPNKIT_VERSION specifies the tag of the VPNKit (djs55/vpnkit) image to
+# use from Docker Hub, which contains the vpnkit binary. It's included in the
+# Dockerfile for all architectures, but currently only contains x86_64 and arm64
+# binaries. VPNKit is used for networking when running the daemon in rootless mode.
 ARG VPNKIT_VERSION=0.5.0
 ARG DOCKER_BUILDTAGS="apparmor seccomp"
 
@@ -34,9 +151,9 @@ RUN --mount=type=cache,sharing=locked,id=moby-criu-aptlib,target=/var/lib/apt \
             python-protobuf
 
 # Install CRIU for checkpoint/restore support
-ARG CRIU_VERSION=3.14
+ARG CRIU_VERSION
 RUN mkdir -p /usr/src/criu \
-    && curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
+    && curl -sSL https://github.com/checkpoint-restore/criu/archive/${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
     && cd /usr/src/criu \
     && make \
     && make PREFIX=/build/ install-criu
@@ -49,8 +166,8 @@ WORKDIR /go/src/github.com/docker/distribution
 # push/pull with both schema1 and schema2 manifests.
 # The old version of the registry is not working on arm64, so installation is
 # skipped on that architecture.
-ENV REGISTRY_COMMIT_SCHEMA1 ec87e9b6971d831f0eff752ddb54fb64693e51cd
-ENV REGISTRY_COMMIT 47a064d4195a9b56133891bbb13620c3ac83a827
+ARG REGISTRY_COMMIT
+ARG REGISTRY_COMMIT_SCHEMA1
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ \
@@ -69,10 +186,8 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 FROM base AS swagger
 WORKDIR $GOPATH/src/github.com/go-swagger/go-swagger
-# Install go-swagger for validating swagger.yaml
-# This is https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix
-# TODO: move to under moby/ or fix upstream go-swagger to work for us.
-ENV GO_SWAGGER_COMMIT 5e6cb12f7c82ce78e45ba71fa6cb1928094db050
+ARG GO_SWAGGER_COMMIT
+# TODO: this is currently using https://github.com/kolyshkin/go-swagger/tree/golang-1.13-fix
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ \
@@ -343,6 +458,9 @@ ENTRYPOINT ["hack/dind-systemd"]
 FROM dev-systemd-${SYSTEMD} AS dev
 
 FROM runtime-dev AS binary-base
+
+# These build-args are used by hack/make/.go-autogen. We "bake" then into
+# environment variables, so that they are also available in `make shell`
 ARG DOCKER_GITCOMMIT=HEAD
 ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT}
 ARG VERSION
@@ -355,6 +473,8 @@ ARG DEFAULT_PRODUCT_LICENSE
 ENV DEFAULT_PRODUCT_LICENSE=${DEFAULT_PRODUCT_LICENSE}
 ARG DOCKER_BUILDTAGS
 ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
+ARG TINI_COMMIT
+ENV TINI_COMMIT=${TINI_COMMIT}
 ENV PREFIX=/build
 # TODO: This is here because hack/make.sh binary copies these extras binaries
 # from $PATH into the bundles dir.
@@ -393,5 +513,81 @@ COPY --from=build-dynbinary /build/bundles/ /
 FROM scratch AS cross
 COPY --from=build-cross /build/bundles/ /
 
+FROM runtime-dev  AS integration-tests
+WORKDIR /go/src/github.com/docker/docker
+ENV PREFIX=/build
+
+# Copy test sources so that tests that use assert can print errors
+RUN --mount=type=bind,target=/go/src/github.com/docker/docker \
+        mkdir -p /build${PWD} \
+        && find integration integration-cli -name \*_test.go -exec cp --parents '{}' /build${PWD} \;
+
+# Build the integration tests and copy the resulting binaries to /build/tests
+ARG DOCKER_GITCOMMIT=HEAD
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=bind,target=/go/src/github.com/docker/docker,readwrite \
+        hack/make.sh build-integration-test-binary \
+        && mkdir -p /build/tests \
+        && find . -name test.main -exec cp --parents '{}' /build/tests \;
+
+# Build DockerSuite.TestBuild* dependencies
+FROM runtime-dev AS contrib
+WORKDIR /go/src/github.com/docker/docker
+COPY contrib/syscall-test           /build/syscall-test
+COPY contrib/httpserver/Dockerfile  /build/httpserver/Dockerfile
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=bind,target=/go/src/github.com/docker/docker \
+        CGO_ENABLED=0 go build -buildmode=pie -o /build/httpserver/httpserver ./contrib/httpserver
+
+
+## Generate testing image
+FROM alpine:3.10 AS e2e-runner
+
+ENV DOCKER_REMOTE_DAEMON=1
+ENV DOCKER_INTEGRATION_DAEMON_DEST=/
+ENTRYPOINT ["/scripts/run.sh"]
+
+# Add an unprivileged user to be used for tests which need it
+RUN addgroup docker && adduser -D -G docker unprivilegeduser -s /bin/ash
+
+# GNU tar is used for generating the emptyfs image
+RUN apk --no-cache add \
+    bash \
+    ca-certificates \
+    g++ \
+    git \
+    iptables \
+    pigz \
+    tar \
+    xz
+
+COPY hack/test/e2e-run.sh       /scripts/run.sh
+COPY hack/make/.ensure-emptyfs  /scripts/ensure-emptyfs.sh
+
+COPY integration/testdata       /tests/integration/testdata
+COPY integration/build/testdata /tests/integration/build/testdata
+COPY integration-cli/fixtures   /tests/integration-cli/fixtures
+
+COPY --from=frozen-images       /build/ /docker-frozen-images
+COPY --from=dockercli           /build/ /usr/bin/
+COPY --from=contrib             /build/ /tests/contrib/
+COPY --from=integration-tests   /build/ /
+
 FROM dev AS final
+# These build-args are used by hack/make/.go-autogen. We "bake" then into
+# environment variables, so that they are also available in `make shell`
+ARG DOCKER_GITCOMMIT=HEAD
+ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT}
+ARG VERSION
+ENV VERSION=${VERSION}
+ARG PLATFORM
+ENV PLATFORM=${PLATFORM}
+ARG PRODUCT
+ENV PRODUCT=${PRODUCT}
+ARG DEFAULT_PRODUCT_LICENSE
+ENV DEFAULT_PRODUCT_LICENSE=${DEFAULT_PRODUCT_LICENSE}
+ARG DOCKER_BUILDTAGS
+ENV DOCKER_BUILDTAGS="${DOCKER_BUILDTAGS}"
+ARG TINI_COMMIT
+ENV TINI_COMMIT=${TINI_COMMIT}
 COPY . /go/src/github.com/docker/docker

@@ -7,10 +7,11 @@ RM_GOPATH=0
 
 TMP_GOPATH=${TMP_GOPATH:-""}
 
-: ${PREFIX:="/usr/local/bin"}
+: "${PREFIX:=/usr/local/bin}"
 
 if [ -z "$TMP_GOPATH" ]; then
-	export GOPATH="$(mktemp -d)"
+	GOPATH="$(mktemp -d)"
+	export GOPATH
 	RM_GOPATH=1
 else
 	export GOPATH="$TMP_GOPATH"

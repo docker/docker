@@ -1,8 +1,11 @@
 #!/bin/sh
 
-: "${GOTOML_VERSION:=v1.8.1}"
+set -e
 
 install_tomll() {
+	: "${GOTOML_VERSION?}"
+	: "${PREFIX?}"
+
 	echo "Install go-toml version ${GOTOML_VERSION}"
 	# TODO remove GO111MODULE=on and change to 'go install -mod=mod ...' once we're at go 1.16+
 	GO111MODULE=on GOBIN="${PREFIX}" go get -v "github.com/pelletier/go-toml/cmd/tomll@${GOTOML_VERSION}"

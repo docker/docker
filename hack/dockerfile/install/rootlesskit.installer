@@ -1,10 +1,9 @@
 #!/bin/sh
 
-# v0.14.1
-: "${ROOTLESSKIT_COMMIT:=ed9b8c5cc48d29d0a979dae52a24f6e886795abd}"
+set -e
 
 install_rootlesskit() {
-	case "$1" in
+	case "${1}" in
 		"dynamic")
 			install_rootlesskit_dynamic
 			return
@@ -14,7 +13,7 @@ install_rootlesskit() {
 			_install_rootlesskit
 			;;
 		*)
-			echo 'Usage: $0 [dynamic]'
+			echo "Usage: ${0} [dynamic]"
 			;;
 	esac
 }
@@ -26,10 +25,13 @@ install_rootlesskit_dynamic() {
 }
 
 _install_rootlesskit() (
-	echo "Install rootlesskit version $ROOTLESSKIT_COMMIT"
-	git clone https://github.com/rootless-containers/rootlesskit.git "$GOPATH/src/github.com/rootless-containers/rootlesskit"
-	cd "$GOPATH/src/github.com/rootless-containers/rootlesskit" || exit 1
-	git checkout -q "$ROOTLESSKIT_COMMIT"
+	: "${ROOTLESSKIT_COMMIT?}"
+	: "${PREFIX?}"
+
+	echo "Install rootlesskit version ${ROOTLESSKIT_COMMIT}"
+	git clone https://github.com/rootless-containers/rootlesskit.git "${GOPATH}/src/github.com/rootless-containers/rootlesskit"
+	cd "${GOPATH}/src/github.com/rootless-containers/rootlesskit"
+	git checkout -q "${ROOTLESSKIT_COMMIT}"
 	export GO111MODULE=on
 	# TODO remove GOPROXY override once we updated to Go 1.14+
 	# Using goproxy instead of "direct" to work around an issue in go mod
@@ -37,6 +39,6 @@ _install_rootlesskit() (
 	# CentOS 7 is git 1.8), see https://github.com/golang/go/issues/38373
 	export GOPROXY="https://proxy.golang.org"
 	for f in rootlesskit rootlesskit-docker-proxy; do
-		go build $BUILD_MODE -ldflags="$ROOTLESSKIT_LDFLAGS" -o "${PREFIX}/$f" github.com/rootless-containers/rootlesskit/cmd/$f
+		go build ${BUILD_MODE} -ldflags="${ROOTLESSKIT_LDFLAGS}" -o "${PREFIX}/${f}" "github.com/rootless-containers/rootlesskit/cmd/${f}"
 	done
 )

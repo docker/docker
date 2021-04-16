@@ -1,12 +1,15 @@
 #!/bin/sh
 
-: ${TINI_COMMIT:=de40ad007797e0dcd8b7126f27bb87401d224240} # v0.19.0
+set -e
 
 install_tini() {
-	echo "Install tini version $TINI_COMMIT"
-	git clone https://github.com/krallin/tini.git "$GOPATH/tini"
-	cd "$GOPATH/tini"
-	git checkout -q "$TINI_COMMIT"
+	: "${TINI_COMMIT?}"
+	: "${PREFIX?}"
+
+	echo "Install tini version ${TINI_COMMIT}"
+	git clone https://github.com/krallin/tini.git "${GOPATH}/tini"
+	cd "${GOPATH}/tini"
+	git checkout -q "${TINI_COMMIT}"
 	cmake .
 	make tini-static
 	mkdir -p "${PREFIX}"

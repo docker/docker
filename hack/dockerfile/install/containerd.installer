@@ -1,12 +1,11 @@
 #!/bin/sh
-set -e
-
-# containerd is also pinned in vendor.conf. When updating the binary
-# version you may also need to update the vendor version to pick up bug
-# fixes or new APIs.
-: "${CONTAINERD_COMMIT:=05f951a3781f4f2c1911b05e61c160e9c30eaa8e}" # v1.4.4
 
 install_containerd() (
+	set -e
+
+	: "${CONTAINERD_COMMIT?}"
+	: "${PREFIX?}"
+
 	echo "Install containerd version $CONTAINERD_COMMIT"
 	git clone https://github.com/containerd/containerd.git "$GOPATH/src/github.com/containerd/containerd"
 	cd "$GOPATH/src/github.com/containerd/containerd"

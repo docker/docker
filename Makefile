@@ -56,7 +56,6 @@ DOCKER_ENVS := \
 	-e DOCKER_CLI_PATH \
 	-e DOCKER_DEBUG \
 	-e DOCKER_EXPERIMENTAL \
-	-e DOCKER_GITCOMMIT \
 	-e DOCKER_GRAPHDRIVER \
 	-e DOCKER_LDFLAGS \
 	-e DOCKER_PORT \
@@ -85,12 +84,24 @@ DOCKER_ENVS := \
 	-e NO_PROXY \
 	-e http_proxy \
 	-e https_proxy \
-	-e no_proxy \
-	-e VERSION \
-	-e PLATFORM \
-	-e DEFAULT_PRODUCT_LICENSE \
-	-e PRODUCT
-# note: we _cannot_ add "-e DOCKER_BUILDTAGS" here because even if it's unset in the shell, that would shadow the "ENV DOCKER_BUILDTAGS" set in our Dockerfile, which is very important for our official builds
+	-e no_proxy
+# NOTE: we _cannot_ add "-e DOCKER_BUILDTAGS" (or VERSION, PLATFORM, DEFAULT_PRODUCT_LICENSE,
+# PRODUCT, DOCKER_GITCOMMIT) here because even if they are unset in the shell,
+# they would shadow the corresponding "ENV DOCKER_BUILDTAGS" set in the Dockerfile.
+
+DOCKER_BUILD_ARGS := \
+	--build-arg DOCKER_GITCOMMIT \
+	--build-arg VERSION \
+	--build-arg PLATFORM \
+	--build-arg DEFAULT_PRODUCT_LICENSE \
+	--build-arg PRODUCT \
+	--build-arg CONTAINERD_COMMIT \
+	--build-arg RUNC_COMMIT \
+	--build-arg TINI_COMMIT \
+	--build-arg ROOTLESSKIT_COMMIT \
+	--build-arg REGISTRY_COMMIT \
+	--build-arg DOCKERCLI_CHANNEL \
+	--build-arg DOCKERCLI_VERSION
 
 # to allow `make BIND_DIR=. shell` or `make BIND_DIR= test`
 # (default to no bind mount if DOCKER_HOST is set)
