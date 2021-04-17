@@ -1400,6 +1400,10 @@ This is a full example of the allowed configuration options on Linux:
   "log-driver": "json-file",
   "log-level": "",
   "log-opts": {
+    "cache-disabled": "false",
+    "cache-max-file": "5",
+    "cache-max-size": "20m",
+    "cache-compress": "true",
     "env": "os,customer",
     "labels": "somelabel",
     "max-file": "5",
