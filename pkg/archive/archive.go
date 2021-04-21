@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
+	"github.com/klauspost/compress/zstd"
 	"github.com/sirupsen/logrus"
 	exec "golang.org/x/sys/execabs"
 )
@@ -84,6 +85,8 @@ const (
 	Gzip
 	// Xz is xz compression algorithm.
 	Xz
+	// Zstd is zstd compression algorithm.
+	Zstd
 )
 
 const (
@@ -128,6 +131,7 @@ func DetectCompression(source []byte) Compression {
 		Bzip2: {0x42, 0x5A, 0x68},
 		Gzip:  {0x1F, 0x8B, 0x08},
 		Xz:    {0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00},
+		Zstd:  {0x28, 0xb5, 0x2f, 0xfd},
 	} {
 		if len(source) < len(m) {
 			logrus.Debug("Len too short")
@@ -225,6 +229,14 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 		}
 		readBufWrapper := p.NewReadCloserWrapper(buf, xzReader)
 		return wrapReadCloser(readBufWrapper, cancel), nil
+	case Zstd:
+		zstdReader, err := zstd.NewReader(buf)
+		if err != nil {
+			return nil, err
+		}
+		readBufWrapper := p.NewReadCloserWrapper(buf, zstdReader)
+		return readBufWrapper, nil
+
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
