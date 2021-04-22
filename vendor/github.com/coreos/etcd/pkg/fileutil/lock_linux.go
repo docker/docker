@@ -29,7 +29,7 @@ import (
 //
 // constants from /usr/include/bits/fcntl-linux.h
 const (
-	F_OFD_GETLK  = 37
+	F_OFD_GETLK  = 36
 	F_OFD_SETLK  = 37
 	F_OFD_SETLKW = 38
 )

@@ -18,6 +18,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/coreos/etcd/pkg/fileutil"
 	"github.com/coreos/etcd/wal/walpb"
@@ -76,10 +77,14 @@ func Repair(dirpath string) bool {
 				plog.Errorf("could not repair %v, failed to truncate file", f.Name())
 				return false
 			}
+
+			start := time.Now()
 			if err = fileutil.Fsync(f.File); err != nil {
 				plog.Errorf("could not repair %v, failed to sync file", f.Name())
 				return false
 			}
+			syncDurations.Observe(time.Since(start).Seconds())
+
 			return true
 		default:
 			plog.Errorf("could not repair error (%v)", err)
