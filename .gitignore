@@ -21,3 +21,6 @@ vendor/pkg/
 go-test-report.json
 profile.out
 junit-report.xml
+/tmp
+/go.mod
+/vendor/modules.txt
