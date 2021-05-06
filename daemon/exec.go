@@ -281,7 +281,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 
 		timeout := time.NewTimer(termProcessTimeout)
 		defer timeout.Stop()
-		
+
 		select {
 		case <-timeout.C:
 			logrus.Infof("Container %v, process %v failed to exit within %d seconds of signal TERM - using the force", c.ID, name, termProcessTimeout)
