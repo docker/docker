@@ -22,7 +22,7 @@ export PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 BASE=docker
 
 # modify these in /etc/default/$BASE (/etc/default/docker)
-DOCKERD=/usr/bin/dockerd
+DAEMON=/usr/bin/dockerd
 # This is the pid file managed by docker itself
 DOCKER_PIDFILE=/var/run/$BASE.pid
 # This is the pid file created/managed by start-stop-daemon
@@ -39,8 +39,8 @@ if [ -f /etc/default/$BASE ]; then
 fi
 
 # Check docker is present
-if [ ! -x $DOCKERD ]; then
-	log_failure_msg "$DOCKERD not present or not executable"
+if [ ! -x $DAEMON ]; then
+	log_failure_msg "$DAEMON not present or not executable"
 	exit 1
 fi
 
@@ -106,7 +106,7 @@ case "$1" in
 		log_begin_msg "Starting $DOCKER_DESC: $BASE"
 		start-stop-daemon --start --background \
 			--no-close \
-			--exec "$DOCKERD" \
+			--exec "$DAEMON" \
 			--pidfile "$DOCKER_SSD_PIDFILE" \
 			--make-pidfile \
 			-- \
@@ -146,7 +146,7 @@ case "$1" in
 
 	status)
 		check_init
-		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKERD" "$DOCKER_DESC"
+		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DAEMON" "$DOCKER_DESC"
 		;;
 
 	*)
