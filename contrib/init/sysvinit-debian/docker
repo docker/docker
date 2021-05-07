@@ -2,14 +2,14 @@
 set -e
 
 ### BEGIN INIT INFO
-# Provides:           docker
-# Required-Start:     $syslog $remote_fs
-# Required-Stop:      $syslog $remote_fs
-# Should-Start:       cgroupfs-mount cgroup-lite
-# Should-Stop:        cgroupfs-mount cgroup-lite
-# Default-Start:      2 3 4 5
-# Default-Stop:       0 1 6
-# Short-Description:  Create lightweight, portable, self-sufficient containers.
+# Provides:          docker
+# Required-Start:    $syslog $remote_fs
+# Required-Stop:     $syslog $remote_fs
+# Should-Start:      cgroupfs-mount cgroup-lite
+# Should-Stop:       cgroupfs-mount cgroup-lite
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Create lightweight, portable, self-sufficient containers.
 # Description:
 #  Docker is an open-source project to easily create lightweight, portable,
 #  self-sufficient containers from any application. The same container that a
@@ -110,11 +110,11 @@ case "$1" in
 			--pidfile "$DOCKER_SSD_PIDFILE" \
 			--make-pidfile \
 			-- \
-			-p "$DOCKER_PIDFILE" \
-			$DOCKER_OPTS \
-			>> "$DOCKER_LOGFILE" 2>&1
+				-p "$DOCKER_PIDFILE" \
+				$DOCKER_OPTS \
+					>> "$DOCKER_LOGFILE" 2>&1
 		log_end_msg $?
-		;;
+	;;
 
 	stop)
 		check_init
@@ -126,7 +126,7 @@ case "$1" in
 		else
 			log_warning_msg "Docker already stopped - file $DOCKER_SSD_PIDFILE not found."
 		fi
-		;;
+	;;
 
 	restart)
 		check_init
@@ -136,21 +136,21 @@ case "$1" in
 			&& ps -p $docker_pid > /dev/null 2>&1 \
 			&& $0 stop
 		$0 start
-		;;
+	;;
 
 	force-reload)
 		check_init
 		fail_unless_root
 		$0 restart
-		;;
+	;;
 
 	status)
 		check_init
 		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DAEMON" "$DOCKER_DESC"
-		;;
+	;;
 
 	*)
 		echo "Usage: service docker {start|stop|restart|status}"
 		exit 1
-		;;
+	;;
 esac
