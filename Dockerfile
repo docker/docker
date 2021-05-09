@@ -50,7 +50,8 @@ WORKDIR /go/src/github.com/docker/distribution
 # The old version of the registry is not working on arm64, so installation is
 # skipped on that architecture.
 ENV REGISTRY_COMMIT_SCHEMA1 ec87e9b6971d831f0eff752ddb54fb64693e51cd
-ENV REGISTRY_COMMIT 47a064d4195a9b56133891bbb13620c3ac83a827
+# v2.7.1
+ENV REGISTRY_COMMIT 2461543d988979529609e8cb6fca9ca190dc48da
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ \

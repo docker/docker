@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -e -o pipefail
+
+[ -n "${TESTDEBUG}" ] && set -x
+
+BUILDKIT_COMMIT="$(awk '/github.com\/moby\/buildkit/ { print $2 }' vendor.conf)"
+TMPDIR="${TMP_DIR:-/tmp}"
+
+if [ ! -z "${TEST_SKIP_BUILDKIT}" ]; then
+	echo buildkit tests skipped according to TEST_SKIP_BUILDKIT
+	exit 0
+fi
+
+(
+	env
+
+	BUILDKIT_TMP="$(mktemp -d)"
+	function cleanup() {
+		rm -rf "${BUILDKIT_TMP}"
+		rm -f "${TMPDIR}/buildkit.tar.gz"
+	}
+	# Always run cleanup, even if the command fails.
+	trap cleanup EXIT
+
+	# Download buildkit
+	# This has to be downloaded again despite being in the vendor tree because Go
+	# prunes trees that don't contain Go packages.
+	echo "Downloading buildkit commit ${BUILDKIT_COMMIT}…"
+	curl -fsSL -o "${TMPDIR}/buildkit.tar.gz" https://github.com/moby/buildkit/archive/${BUILDKIT_COMMIT}.tar.gz
+	tar -xzf "${TMPDIR}/buildkit.tar.gz" -C "${BUILDKIT_TMP}" --strip 1
+
+	DOCKER_DIR="${PWD}"
+	cd "${BUILDKIT_TMP}"
+
+	ln -s /usr/local/bin/registry-v2 /usr/local/bin/registry || true > /dev/null
+
+	# We'll need buildctl available for several tests, so make sure we're using
+	# the same version that we're testing everyting else against.
+	go build ./cmd/buildctl
+	mv buildctl /usr/local/bin
+
+	# -parallel=1 is needed because tests may create or remove iptables rules and
+	# there is no isolation.
+	PATH="${DOCKER_DIR}/bundles/binary-daemon:${PATH}" \
+		TEST_DOCKERD=1 \
+		GO111MODULE=on go test -mod=vendor -parallel=1 ${TESTFLAGS:--v} ${TESTPKGS:-./...}
+) 2>&1 | tee -a "$DEST/test.log"

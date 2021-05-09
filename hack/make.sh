@@ -35,6 +35,7 @@ DEFAULT_BUNDLES=(
 	binary-daemon
 	dynbinary
 	test-integration
+	test-buildkit
 	test-docker-py
 	cross
 )

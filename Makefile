@@ -1,4 +1,4 @@
-.PHONY: all binary dynbinary build cross help install manpages run shell test test-docker-py test-integration test-unit validate win
+.PHONY: all binary dynbinary build cross help install manpages run shell test test-docker-py test-integration test-buildkit test-unit validate win
 
 ifdef USE_BUILDX
 BUILDX ?= $(shell command -v buildx)
@@ -43,6 +43,7 @@ export VALIDATE_ORIGIN_BRANCH
 # make DOCKER_LDFLAGS="-X github.com/docker/docker/daemon/graphdriver.priority=overlay2,devicemapper" dynbinary
 #
 DOCKER_ENVS := \
+	-e BUILDKIT_COMMIT \
 	-e DOCKER_CROSSPLATFORMS \
 	-e BUILD_APT_MIRROR \
 	-e BUILDFLAGS \
@@ -237,6 +238,9 @@ else
 test-integration: build ## run the integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration
 endif
+
+test-buildkit: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh binary test-buildkit
 
 test-integration-flaky: build ## run the stress test for all new integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration-flaky
