@@ -1203,8 +1203,8 @@ command line or Docker's Engine API are allowed or denied by the plugin.
 If you have multiple plugins installed, each plugin, in order, must
 allow the request for it to complete.
 
-For information about how to create an authorization plugin, see [authorization
-plugin](../../extend/plugins_authorization.md) section in the Docker extend section of this documentation.
+For information about how to create an authorization plugin, refer to the
+[authorization plugin](../../extend/plugins_authorization.md) section.
 
 
 ### Daemon user namespace options
@@ -1232,10 +1232,16 @@ Docker supports softlinks for the Docker data directory (`/var/lib/docker`) and
 for `/var/lib/docker/tmp`. The `DOCKER_TMPDIR` and the data directory can be
 set like this:
 
-    DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/dockerd -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
-    # or
-    export DOCKER_TMPDIR=/mnt/disk2/tmp
-    /usr/local/bin/dockerd -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
+```console
+$ DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/dockerd -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
+```
+
+or
+
+```console
+$ export DOCKER_TMPDIR=/mnt/disk2/tmp
+$ /usr/local/bin/dockerd -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
+````
 
 #### Default cgroup parent
 
@@ -1564,7 +1570,9 @@ previously configured cluster configurations.
 
 ### Run multiple daemons
 
-> **Note:** Running multiple daemons on a single host is considered as "experimental". The user should be aware of
+> **Note:**
+>
+> Running multiple daemons on a single host is considered as "experimental". The user should be aware of
 > unsolved problems. This solution may not work properly in some cases. Solutions are currently under development
 > and will be delivered in the near future.
 
@@ -1616,7 +1624,7 @@ The `--tls*` options enable use of specific certificates for individual daemons.
 
 Example script for a separate “bootstrap” instance of the Docker daemon without network:
 
-```bash
+```console
 $ sudo dockerd \
         -H unix:///var/run/docker-bootstrap.sock \
         -p /var/run/docker-bootstrap.pid \
