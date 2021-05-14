@@ -15,10 +15,27 @@ type StatusReporter interface {
 	UpdateTaskStatus(ctx context.Context, taskID string, status *api.TaskStatus) error
 }
 
+// Reporter recieves update to both task and volume status.
+type Reporter interface {
+	StatusReporter
+	ReportVolumeUnpublished(ctx context.Context, volumeID string) error
+}
+
 type statusReporterFunc func(ctx context.Context, taskID string, status *api.TaskStatus) error
 
 func (fn statusReporterFunc) UpdateTaskStatus(ctx context.Context, taskID string, status *api.TaskStatus) error {
 	return fn(ctx, taskID, status)
+}
+
+type volumeReporterFunc func(ctx context.Context, volumeID string) error
+
+func (fn volumeReporterFunc) ReportVolumeUnpublished(ctx context.Context, volumeID string) error {
+	return fn(ctx, volumeID)
+}
+
+type statusReporterCombined struct {
+	statusReporterFunc
+	volumeReporterFunc
 }
 
 // statusReporter creates a reliable StatusReporter that will always succeed.
@@ -26,17 +43,20 @@ func (fn statusReporterFunc) UpdateTaskStatus(ctx context.Context, taskID string
 //
 // The reporter will continue reporting the current status until it succeeds.
 type statusReporter struct {
-	reporter StatusReporter
+	reporter Reporter
 	statuses map[string]*api.TaskStatus
-	mu       sync.Mutex
-	cond     sync.Cond
-	closed   bool
+	// volumes is a set of volumes which are to be reported unpublished.
+	volumes map[string]struct{}
+	mu      sync.Mutex
+	cond    sync.Cond
+	closed  bool
 }
 
-func newStatusReporter(ctx context.Context, upstream StatusReporter) *statusReporter {
+func newStatusReporter(ctx context.Context, upstream Reporter) *statusReporter {
 	r := &statusReporter{
 		reporter: upstream,
 		statuses: make(map[string]*api.TaskStatus),
+		volumes:  make(map[string]struct{}),
 	}
 
 	r.cond.L = &r.mu
@@ -60,6 +80,16 @@ func (sr *statusReporter) UpdateTaskStatus(ctx context.Context, taskID string, s
 		}
 	}
 	sr.statuses[taskID] = status
+	sr.cond.Signal()
+
+	return nil
+}
+
+func (sr *statusReporter) ReportVolumeUnpublished(ctx context.Context, volumeID string) error {
+	sr.mu.Lock()
+	defer sr.mu.Unlock()
+
+	sr.volumes[volumeID] = struct{}{}
 	sr.cond.Signal()
 
 	return nil
@@ -92,7 +122,7 @@ func (sr *statusReporter) run(ctx context.Context) {
 	}()
 
 	for {
-		if len(sr.statuses) == 0 {
+		if len(sr.statuses) == 0 && len(sr.volumes) == 0 {
 			sr.cond.Wait()
 		}
 
@@ -123,6 +153,24 @@ func (sr *statusReporter) run(ctx context.Context) {
 				if _, ok := sr.statuses[taskID]; !ok {
 					sr.statuses[taskID] = status
 				}
+			}
+		}
+
+		for volumeID := range sr.volumes {
+			delete(sr.volumes, volumeID)
+
+			sr.mu.Unlock()
+			err := sr.reporter.ReportVolumeUnpublished(ctx, volumeID)
+			sr.mu.Lock()
+
+			// reporter might be closed during ReportVolumeUnpublished call
+			if sr.closed {
+				return
+			}
+
+			if err != nil {
+				log.G(ctx).WithError(err).Error("status reporter failed to report volume status to agent")
+				sr.volumes[volumeID] = struct{}{}
 			}
 		}
 	}

@@ -481,7 +481,7 @@ func initRouter(opts routerOptions) {
 		container.NewRouter(opts.daemon, decoder, opts.daemon.RawSysInfo(true).CgroupUnified),
 		image.NewRouter(opts.daemon.ImageService()),
 		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildkit, opts.features),
-		volume.NewRouter(opts.daemon.VolumesService()),
+		volume.NewRouter(opts.daemon.VolumesService(), opts.cluster),
 		build.NewRouter(opts.buildBackend, opts.daemon, opts.features),
 		sessionrouter.NewRouter(opts.sessionManager),
 		swarmrouter.NewRouter(opts.cluster),

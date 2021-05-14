@@ -70,6 +70,17 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 		})
 	}
 
+	for _, plugin := range c.Spec.CSIConfig.Plugins {
+		swarm.Spec.CSIConfig.Plugins = append(
+			swarm.Spec.CSIConfig.Plugins,
+			types.CSIPlugin{
+				Name:             plugin.Name,
+				ControllerSocket: plugin.ControllerSocket,
+				NodeSocket:       plugin.NodeSocket,
+			},
+		)
+	}
+
 	// Meta
 	swarm.Version.Index = c.Meta.Version.Index
 	swarm.CreatedAt, _ = gogotypes.TimestampFromProto(c.Meta.CreatedAt)
@@ -145,6 +156,16 @@ func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.Clu
 	}
 
 	spec.EncryptionConfig.AutoLockManagers = s.EncryptionConfig.AutoLockManagers
+
+	for _, plugin := range s.CSIConfig.Plugins {
+		spec.CSIConfig.Plugins = append(
+			spec.CSIConfig.Plugins, &swarmapi.CSIConfig_Plugin{
+				Name:             plugin.Name,
+				ControllerSocket: plugin.ControllerSocket,
+				NodeSocket:       plugin.NodeSocket,
+			},
+		)
+	}
 
 	return spec, nil
 }

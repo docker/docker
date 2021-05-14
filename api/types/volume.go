@@ -7,6 +7,9 @@ package types
 // swagger:model Volume
 type Volume struct {
 
+	// cluster volume
+	ClusterVolume *ClusterVolume `json:"ClusterVolume,omitempty"`
+
 	// Date/Time the volume was created.
 	CreatedAt string `json:"CreatedAt,omitempty"`
 

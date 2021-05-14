@@ -255,12 +255,42 @@ func (c *containerConfig) labels() map[string]string {
 	return labels
 }
 
-func (c *containerConfig) mounts() []enginemount.Mount {
+func (c *containerConfig) mounts(deps exec.VolumeGetter) []enginemount.Mount {
 	var r []enginemount.Mount
 	for _, mount := range c.spec().Mounts {
-		r = append(r, convertMount(mount))
+		if mount.Type == api.MountTypeCSI {
+			r = append(r, c.convertCSIMount(mount, deps))
+		} else {
+			r = append(r, convertMount(mount))
+		}
 	}
 	return r
+}
+
+// convertCSIMount matches the CSI mount with the path of the CSI volume.
+//
+// technically quadratic with respect to the number of CSI mounts, but that
+// number shouldn't ever be large enough for quadratic to matter.
+//
+// TODO(dperny): figure out a scheme for errors? or maybe add code to
+// checkMounts?
+func (c *containerConfig) convertCSIMount(m api.Mount, deps exec.VolumeGetter) enginemount.Mount {
+	var mount enginemount.Mount
+
+	// these are actually bind mounts
+	mount.Type = enginemount.TypeBind
+
+	for _, attach := range c.task.Volumes {
+		if attach.Source == m.Source && attach.Target == m.Target {
+			// we should not get an error here, because we should have checked
+			// already that the volume is ready
+			path, _ := deps.Get(attach.ID)
+			mount.Source = path
+			mount.Target = m.Target
+		}
+	}
+
+	return mount
 }
 
 func convertMount(m api.Mount) enginemount.Mount {
@@ -279,6 +309,8 @@ func convertMount(m api.Mount) enginemount.Mount {
 		mount.Type = enginemount.TypeTmpfs
 	case api.MountTypeNamedPipe:
 		mount.Type = enginemount.TypeNamedPipe
+	case api.MountTypeCSI:
+		mount.Type = enginemount.TypeCluster
 	}
 
 	if m.BindOptions != nil {
@@ -351,12 +383,12 @@ func (c *containerConfig) healthcheck() *enginecontainer.HealthConfig {
 	}
 }
 
-func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
+func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *enginecontainer.HostConfig {
 	hc := &enginecontainer.HostConfig{
 		Resources:      c.resources(),
 		GroupAdd:       c.spec().Groups,
 		PortBindings:   c.portBindings(),
-		Mounts:         c.mounts(),
+		Mounts:         c.mounts(deps),
 		ReadonlyRootfs: c.spec().ReadOnly,
 		Isolation:      c.isolation(),
 		Init:           c.init(),

@@ -18,18 +18,30 @@ type typeAndID struct {
 }
 
 type assignmentSet struct {
-	dp                   *drivers.DriverProvider
-	tasksMap             map[string]*api.Task
+	nodeID   string
+	dp       *drivers.DriverProvider
+	tasksMap map[string]*api.Task
+	// volumesMap keeps track of the VolumePublishStatus of the given volumes.
+	// this tells us both which volumes are assigned to the node, and what the
+	// last known VolumePublishStatus was, so we can understand if we need to
+	// send an update.
+	volumesMap map[string]*api.VolumePublishStatus
+	// tasksUsingDependency tracks both tasks and volumes using a given
+	// dependency. this works because the ID generated for swarm comes from a
+	// large enough space that it is reliably astronomically unlikely that IDs
+	// will ever collide.
 	tasksUsingDependency map[typeAndID]map[string]struct{}
 	changes              map[typeAndID]*api.AssignmentChange
 	log                  *logrus.Entry
 }
 
-func newAssignmentSet(log *logrus.Entry, dp *drivers.DriverProvider) *assignmentSet {
+func newAssignmentSet(nodeID string, log *logrus.Entry, dp *drivers.DriverProvider) *assignmentSet {
 	return &assignmentSet{
+		nodeID:               nodeID,
 		dp:                   dp,
 		changes:              make(map[typeAndID]*api.AssignmentChange),
 		tasksMap:             make(map[string]*api.Task),
+		volumesMap:           make(map[string]*api.VolumePublishStatus),
 		tasksUsingDependency: make(map[typeAndID]map[string]struct{}),
 		log:                  log,
 	}
@@ -48,15 +60,17 @@ func assignSecret(a *assignmentSet, readTx store.ReadTx, mapKey typeAndID, t *ap
 		}).Debug("failed to fetch secret")
 		return
 	}
-	// If the secret should not be reused for other tasks, give it a unique ID for the task to allow different values for different tasks.
+	// If the secret should not be reused for other tasks, give it a unique ID
+	// for the task to allow different values for different tasks.
 	if doNotReuse {
 		// Give the secret a new ID and mark it as internal
 		originalSecretID := secret.ID
 		taskSpecificID := identity.CombineTwoIDs(originalSecretID, t.ID)
 		secret.ID = taskSpecificID
 		secret.Internal = true
-		// Create a new mapKey with the new ID and insert it into the dependencies map for the task.
-		// This will make the changes map contain an entry with the new ID rather than the original one.
+		// Create a new mapKey with the new ID and insert it into the
+		// dependencies map for the task.  This will make the changes map
+		// contain an entry with the new ID rather than the original one.
 		mapKey = typeAndID{objType: mapKey.objType, id: secret.ID}
 		a.tasksUsingDependency[mapKey] = make(map[string]struct{})
 		a.tasksUsingDependency[mapKey][t.ID] = struct{}{}
@@ -92,8 +106,12 @@ func assignConfig(a *assignmentSet, readTx store.ReadTx, mapKey typeAndID) {
 }
 
 func (a *assignmentSet) addTaskDependencies(readTx store.ReadTx, t *api.Task) {
+	// first, we go through all ResourceReferences, which give us the necessary
+	// information about which secrets and configs are in use.
 	for _, resourceRef := range t.Spec.ResourceReferences {
 		mapKey := typeAndID{objType: resourceRef.ResourceType, id: resourceRef.ResourceID}
+		// if there are no tasks using this dependency yet, then we can assign
+		// it.
 		if len(a.tasksUsingDependency[mapKey]) == 0 {
 			switch resourceRef.ResourceType {
 			case api.ResourceType_SECRET:
@@ -107,6 +125,8 @@ func (a *assignmentSet) addTaskDependencies(readTx store.ReadTx, t *api.Task) {
 				continue
 			}
 		}
+		// otherwise, we don't need to add a new assignment. we just need to
+		// track the fact that another task is now using this dependency.
 		a.tasksUsingDependency[mapKey][t.ID] = struct{}{}
 	}
 
@@ -160,7 +180,9 @@ func (a *assignmentSet) releaseDependency(mapKey typeAndID, assignment *api.Assi
 	return true
 }
 
-func (a *assignmentSet) releaseTaskDependencies(t *api.Task) bool {
+// releaseTaskDependencies needs a store transaction because volumes have
+// associated Secrets which need to be released.
+func (a *assignmentSet) releaseTaskDependencies(readTx store.ReadTx, t *api.Task) bool {
 	var modified bool
 
 	for _, resourceRef := range t.Spec.ResourceReferences {
@@ -251,7 +273,7 @@ func (a *assignmentSet) addOrUpdateTask(readTx store.ReadTx, t *api.Task) bool {
 				// If releasing the dependencies caused us to
 				// remove something from the assignment set,
 				// mark one modification.
-				return a.releaseTaskDependencies(t)
+				return a.releaseTaskDependencies(readTx, t)
 			}
 			return false
 		}
@@ -274,7 +296,113 @@ func (a *assignmentSet) addOrUpdateTask(readTx store.ReadTx, t *api.Task) bool {
 	return true
 }
 
-func (a *assignmentSet) removeTask(t *api.Task) bool {
+// addOrUpdateVolume tracks a Volume assigned to a node.
+func (a *assignmentSet) addOrUpdateVolume(readTx store.ReadTx, v *api.Volume) bool {
+	var publishStatus *api.VolumePublishStatus
+	for _, status := range v.PublishStatus {
+		if status.NodeID == a.nodeID {
+			publishStatus = status
+			break
+		}
+	}
+
+	// if there is no publishStatus for this Volume on this Node, or if the
+	// Volume has not yet been published to this node, then we do not need to
+	// track this assignment.
+	if publishStatus == nil || publishStatus.State < api.VolumePublishStatus_PUBLISHED {
+		return false
+	}
+
+	// check if we are already tracking this volume, and what its old status
+	// is. if the states are identical, then we don't have any update to make.
+	if oldStatus, ok := a.volumesMap[v.ID]; ok && oldStatus.State == publishStatus.State {
+		return false
+	}
+
+	// if the volume has already been confirmed as unpublished, we can stop
+	// tracking it and remove its dependencies.
+	if publishStatus.State > api.VolumePublishStatus_PENDING_NODE_UNPUBLISH {
+		return a.removeVolume(readTx, v)
+	}
+
+	for _, secret := range v.Spec.Secrets {
+		mapKey := typeAndID{objType: api.ResourceType_SECRET, id: secret.Secret}
+		if len(a.tasksUsingDependency[mapKey]) == 0 {
+			// we can call assignSecret with task being nil, but it does mean
+			// that any secret that uses a driver will not work. we'll call
+			// that a limitation of volumes for now.
+			assignSecret(a, readTx, mapKey, nil)
+		}
+		a.tasksUsingDependency[mapKey][v.ID] = struct{}{}
+	}
+
+	// volumes are sent to nodes as VolumeAssignments. This is because a node
+	// needs node-specific information (the PublishContext from
+	// ControllerPublishVolume).
+	assignment := &api.VolumeAssignment{
+		ID:             v.ID,
+		VolumeID:       v.VolumeInfo.VolumeID,
+		Driver:         v.Spec.Driver,
+		VolumeContext:  v.VolumeInfo.VolumeContext,
+		PublishContext: publishStatus.PublishContext,
+		AccessMode:     v.Spec.AccessMode,
+		Secrets:        v.Spec.Secrets,
+	}
+
+	volumeKey := typeAndID{objType: api.ResourceType_VOLUME, id: v.ID}
+	// assignmentChange is the whole assignment without the action, which we
+	// will set next
+	assignmentChange := &api.AssignmentChange{
+		Assignment: &api.Assignment{
+			Item: &api.Assignment_Volume{
+				Volume: assignment,
+			},
+		},
+	}
+
+	// if we're in state PENDING_NODE_UNPUBLISH, we actually need to send a
+	// remove message. we do this every time, even if the node never got the
+	// first add assignment. This is because the node might not know that it
+	// has a volume published; for example, the node may be restarting, and
+	// the in-memory store does not have knowledge of the volume.
+	if publishStatus.State == api.VolumePublishStatus_PENDING_NODE_UNPUBLISH {
+		assignmentChange.Action = api.AssignmentChange_AssignmentActionRemove
+	} else {
+		assignmentChange.Action = api.AssignmentChange_AssignmentActionUpdate
+	}
+	a.changes[volumeKey] = assignmentChange
+	a.volumesMap[v.ID] = publishStatus
+	return true
+}
+
+func (a *assignmentSet) removeVolume(readTx store.ReadTx, v *api.Volume) bool {
+	if _, exists := a.volumesMap[v.ID]; !exists {
+		return false
+	}
+
+	modified := false
+
+	// if the volume does exists, we can release its secrets
+	for _, secret := range v.Spec.Secrets {
+		mapKey := typeAndID{objType: api.ResourceType_SECRET, id: secret.Secret}
+		assignment := &api.Assignment{
+			Item: &api.Assignment_Secret{
+				Secret: &api.Secret{ID: secret.Secret},
+			},
+		}
+		if a.releaseDependency(mapKey, assignment, v.ID) {
+			modified = true
+		}
+	}
+
+	// we don't need to add a removal message. the removal of the
+	// VolumeAssignment will have already happened.
+	delete(a.volumesMap, v.ID)
+
+	return modified
+}
+
+func (a *assignmentSet) removeTask(readTx store.ReadTx, t *api.Task) bool {
 	if _, exists := a.tasksMap[t.ID]; !exists {
 		return false
 	}
@@ -293,7 +421,7 @@ func (a *assignmentSet) removeTask(t *api.Task) bool {
 	// Release the dependencies being used by this task.
 	// Ignoring the return here. We will always mark this as a
 	// modification, since a task is being removed.
-	a.releaseTaskDependencies(t)
+	a.releaseTaskDependencies(readTx, t)
 	return true
 }
 

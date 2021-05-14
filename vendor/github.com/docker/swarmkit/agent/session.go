@@ -428,6 +428,24 @@ func (s *session) sendTaskStatuses(ctx context.Context, updates ...*api.UpdateTa
 	return updates[n:], nil
 }
 
+// reportVolumeUnpublished sends a status update to the manager reporting that
+// all volumes in the slice are unpublished.
+func (s *session) reportVolumeUnpublished(ctx context.Context, volumes []string) error {
+	updates := []*api.UpdateVolumeStatusRequest_VolumeStatusUpdate{}
+	for _, volume := range volumes {
+		updates = append(updates, &api.UpdateVolumeStatusRequest_VolumeStatusUpdate{
+			ID:          volume,
+			Unpublished: true,
+		})
+	}
+	client := api.NewDispatcherClient(s.conn.ClientConn)
+	_, err := client.UpdateVolumeStatus(ctx, &api.UpdateVolumeStatusRequest{
+		SessionID: s.sessionID,
+		Updates:   updates,
+	})
+	return err
+}
+
 // sendError is used to send errors to errs channel and trigger session recreation
 func (s *session) sendError(err error) {
 	select {

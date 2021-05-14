@@ -121,6 +121,15 @@ func (r *controller) Prepare(ctx context.Context) error {
 		return err
 	}
 
+	// could take a while for the cluster volumes to become available. set for
+	// 5 minutes, I guess?
+	// TODO(dperny): do this more intelligently. return a better error.
+	waitClusterVolumesCtx, wcvcancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer wcvcancel()
+	if err := r.adapter.waitClusterVolumes(waitClusterVolumesCtx); err != nil {
+		return err
+	}
+
 	// Make sure all the networks that the task needs are created.
 	if err := r.adapter.createNetworks(ctx); err != nil {
 		return err

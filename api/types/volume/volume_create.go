@@ -6,9 +6,15 @@ package volume // import "github.com/docker/docker/api/types/volume"
 // See hack/generate-swagger-api.sh
 // ----------------------------------------------------------------------------
 
+import "github.com/docker/docker/api/types"
+
 // VolumeCreateBody Volume configuration
 // swagger:model VolumeCreateBody
 type VolumeCreateBody struct {
+
+	// cluster volume spec
+	// Required: true
+	ClusterVolumeSpec *types.ClusterVolumeSpec `json:"ClusterVolumeSpec"`
 
 	// Name of the volume driver to use.
 	// Required: true

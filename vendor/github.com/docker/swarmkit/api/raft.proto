@@ -146,5 +146,6 @@ message StoreAction {
 		Resource resource = 8;
 		Extension extension = 9;
 		Config config = 10;
+		Volume volume = 11;
 	}
 }

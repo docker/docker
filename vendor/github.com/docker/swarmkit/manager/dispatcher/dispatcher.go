@@ -120,6 +120,7 @@ type clusterUpdate struct {
 	managerUpdate      *[]*api.WeightedPeer
 	bootstrapKeyUpdate *[]*api.EncryptionKey
 	rootCAUpdate       *[]byte
+	csiNodePlugins     *[]*api.CSINodePlugin
 }
 
 // Dispatcher is responsible for dispatching tasks and tracking agent health.
@@ -139,6 +140,7 @@ type Dispatcher struct {
 	store                *store.MemoryStore
 	lastSeenManagers     []*api.WeightedPeer
 	networkBootstrapKeys []*api.EncryptionKey
+	csiNodePlugins       []*api.CSINodePlugin
 	lastSeenRootCert     []byte
 	config               *Config
 	cluster              Cluster
@@ -153,6 +155,12 @@ type Dispatcher struct {
 
 	nodeUpdates     map[string]nodeUpdate // indexed by node ID
 	nodeUpdatesLock sync.Mutex
+
+	// unpublishedVolumes keeps track of Volumes that Nodes have reported as
+	// unpublished. it maps the volume ID to a list of nodes it has been
+	// unpublished on.
+	unpublishedVolumes     map[string][]string
+	unpublishedVolumesLock sync.Mutex
 
 	downNodes *nodeStore
 
@@ -223,6 +231,10 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 	d.nodeUpdates = make(map[string]nodeUpdate)
 	d.nodeUpdatesLock.Unlock()
 
+	d.unpublishedVolumesLock.Lock()
+	d.unpublishedVolumes = make(map[string][]string)
+	d.unpublishedVolumesLock.Unlock()
+
 	d.mu.Lock()
 	if d.isRunning() {
 		d.mu.Unlock()
@@ -247,6 +259,16 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 					d.networkBootstrapKeys = clusters[0].NetworkBootstrapKeys
 				}
 				d.lastSeenRootCert = clusters[0].RootCA.CACert
+				d.csiNodePlugins = []*api.CSINodePlugin{}
+				log.G(ctx).Infof("iterating through %d plugins", len(clusters[0].Spec.CSIConfig.Plugins))
+				for _, plugin := range clusters[0].Spec.CSIConfig.Plugins {
+					d.csiNodePlugins = append(
+						d.csiNodePlugins, &api.CSINodePlugin{
+							Name:   plugin.Name,
+							Socket: plugin.NodeSocket,
+						},
+					)
+				}
 			}
 			return nil
 		},
@@ -305,6 +327,8 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			// batch timer has already expired, so no need to drain
 			batchTimer.Reset(maxBatchInterval)
 		case v := <-configWatcher:
+			// TODO(dperny): remove extraneous log message
+			log.G(ctx).Info("cluster update event")
 			cluster := v.(api.EventUpdateCluster)
 			d.mu.Lock()
 			if cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod != nil {
@@ -318,10 +342,22 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			}
 			d.lastSeenRootCert = cluster.Cluster.RootCA.CACert
 			d.networkBootstrapKeys = cluster.Cluster.NetworkBootstrapKeys
+			csiNodePlugins := []*api.CSINodePlugin{}
+			log.G(ctx).Infof("iterating through %d plugins", len(cluster.Cluster.Spec.CSIConfig.Plugins))
+			for _, plugin := range cluster.Cluster.Spec.CSIConfig.Plugins {
+				csiNodePlugins = append(
+					csiNodePlugins, &api.CSINodePlugin{
+						Name:   plugin.Name,
+						Socket: plugin.NodeSocket,
+					},
+				)
+			}
+			d.csiNodePlugins = csiNodePlugins
 			d.mu.Unlock()
 			d.clusterUpdateQueue.Publish(clusterUpdate{
 				bootstrapKeyUpdate: &cluster.Cluster.NetworkBootstrapKeys,
 				rootCAUpdate:       &cluster.Cluster.RootCA.CACert,
+				csiNodePlugins:     &csiNodePlugins,
 			})
 		case <-ctx.Done():
 			return nil
@@ -664,14 +700,61 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 		case <-dctx.Done():
 		}
 	}
+
+	return nil, nil
+}
+
+func (d *Dispatcher) UpdateVolumeStatus(ctx context.Context, r *api.UpdateVolumeStatusRequest) (*api.UpdateVolumeStatusResponse, error) {
+	d.rpcRW.RLock()
+	defer d.rpcRW.RUnlock()
+
+	_, err := d.isRunningLocked()
+	if err != nil {
+		return nil, err
+	}
+
+	nodeInfo, err := ca.RemoteNode(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeID := nodeInfo.NodeID
+	fields := logrus.Fields{
+		"node.id":      nodeID,
+		"node.session": r.SessionID,
+		"method":       "(*Dispatcher).UpdateVolumeStatus",
+	}
+	if nodeInfo.ForwardedBy != nil {
+		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
+	}
+	log := log.G(ctx).WithFields(fields)
+
+	if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+		return nil, err
+	}
+
+	d.unpublishedVolumesLock.Lock()
+	for _, status := range r.Updates {
+		if status.Unpublished {
+			// it's ok if nodes is nil, because append works on a nil slice.
+			nodes := append(d.unpublishedVolumes[status.ID], nodeID)
+			d.unpublishedVolumes[status.ID] = nodes
+			log.Debugf("volume %s unpublished on node %s", status.ID, nodeID)
+		}
+	}
+	d.unpublishedVolumesLock.Unlock()
+
+	// we won't kick off a batch here, we'll just wait for the timer.
 	return nil, nil
 }
 
 func (d *Dispatcher) processUpdates(ctx context.Context) {
 	var (
-		taskUpdates map[string]*api.TaskStatus
-		nodeUpdates map[string]nodeUpdate
+		taskUpdates        map[string]*api.TaskStatus
+		nodeUpdates        map[string]nodeUpdate
+		unpublishedVolumes map[string][]string
 	)
+
 	d.taskUpdatesLock.Lock()
 	if len(d.taskUpdates) != 0 {
 		taskUpdates = d.taskUpdates
@@ -686,7 +769,14 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 	}
 	d.nodeUpdatesLock.Unlock()
 
-	if len(taskUpdates) == 0 && len(nodeUpdates) == 0 {
+	d.unpublishedVolumesLock.Lock()
+	if len(d.unpublishedVolumes) != 0 {
+		unpublishedVolumes = d.unpublishedVolumes
+		d.unpublishedVolumes = make(map[string][]string)
+	}
+	d.unpublishedVolumesLock.Unlock()
+
+	if len(taskUpdates) == 0 && len(nodeUpdates) == 0 && len(unpublishedVolumes) == 0 {
 		return
 	}
 
@@ -749,7 +839,7 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 				logger := log.WithField("node.id", nodeID)
 				node := store.GetNode(tx, nodeID)
 				if node == nil {
-					logger.Errorf("node unavailable")
+					logger.Error("node unavailable")
 					return nil
 				}
 
@@ -773,6 +863,37 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 			})
 			if err != nil {
 				log.WithError(err).Error("dispatcher node update transaction failed")
+			}
+		}
+
+		for volumeID, nodes := range unpublishedVolumes {
+			err := batch.Update(func(tx store.Tx) error {
+				logger := log.WithField("volume.id", volumeID)
+				volume := store.GetVolume(tx, volumeID)
+				if volume == nil {
+					logger.Error("volume unavailable")
+				}
+
+				// buckle your seatbelts, we're going quadratic.
+			nodesLoop:
+				for _, nodeID := range nodes {
+					for _, status := range volume.PublishStatus {
+						if status.NodeID == nodeID {
+							status.State = api.VolumePublishStatus_PENDING_UNPUBLISH
+							continue nodesLoop
+						}
+					}
+				}
+
+				if err := store.UpdateVolume(tx, volume); err != nil {
+					logger.WithError(err).Error("failed to update volume")
+					return nil
+				}
+				return nil
+			})
+
+			if err != nil {
+				log.WithError(err).Error("dispatcher volume update transaction failed")
 			}
 		}
 
@@ -947,7 +1068,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 	var (
 		sequence    int64
 		appliesTo   string
-		assignments = newAssignmentSet(log, d.dp)
+		assignments = newAssignmentSet(nodeID, log, d.dp)
 	)
 
 	sendMessage := func(msg api.AssignmentsMessage, assignmentType api.AssignmentsMessage_Type) error {
@@ -974,12 +1095,45 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 				assignments.addOrUpdateTask(readTx, t)
 			}
 
+			// there is no quick index for which nodes are using a volume, but
+			// there should not be thousands of volumes in a typical
+			// deployment, so this should be ok
+			volumes, err := store.FindVolumes(readTx, store.All)
+			if err != nil {
+				return err
+			}
+
+			for _, v := range volumes {
+				for _, status := range v.PublishStatus {
+					if status.NodeID == nodeID {
+						assignments.addOrUpdateVolume(readTx, v)
+					}
+				}
+			}
+
 			return nil
 		},
 		api.EventUpdateTask{Task: &api.Task{NodeID: nodeID},
 			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
 		api.EventDeleteTask{Task: &api.Task{NodeID: nodeID},
 			Checks: []api.TaskCheckFunc{api.TaskCheckNodeID}},
+		api.EventUpdateVolume{
+			// typically, a check function takes an object from this
+			// prototypical event and compares it to the object from the
+			// incoming event. However, because this is a bespoke, in-line
+			// matcher, we can discard the first argument (the prototype) and
+			// instead pass the desired node ID in as part of a closure.
+			Checks: []api.VolumeCheckFunc{
+				func(v1, v2 *api.Volume) bool {
+					for _, status := range v2.PublishStatus {
+						if status.NodeID == nodeID {
+							return true
+						}
+					}
+					return false
+				},
+			},
+		},
 	)
 	if err != nil {
 		return err
@@ -1035,11 +1189,26 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 						}
 					})
 				case api.EventDeleteTask:
-					if assignments.removeTask(v.Task) {
-						oneModification()
-					}
+					d.store.View(func(readTx store.ReadTx) {
+						if assignments.removeTask(readTx, v.Task) {
+							oneModification()
+						}
+					})
 					// TODO(aaronl): For node secrets, we'll need to handle
 					// EventCreateSecret.
+				case api.EventUpdateVolume:
+					d.store.View(func(readTx store.ReadTx) {
+						vol := store.GetVolume(readTx, v.Volume.ID)
+						// check through the PublishStatus to see if there is
+						// one for this node.
+						for _, status := range vol.PublishStatus {
+							if status.NodeID == nodeID {
+								if assignments.addOrUpdateVolume(readTx, vol) {
+									oneModification()
+								}
+							}
+						}
+					})
 				}
 			case <-batchingTimeout:
 				break batchingLoop
@@ -1208,6 +1377,12 @@ func (d *Dispatcher) getRootCACert() []byte {
 	return d.lastSeenRootCert
 }
 
+func (d *Dispatcher) getCSINodePlugins() []*api.CSINodePlugin {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.csiNodePlugins
+}
+
 // Session is a stream which controls agent connection.
 // Each message contains list of backup Managers with weights. Also there is
 // a special boolean field Disconnect which if true indicates that node should
@@ -1287,6 +1462,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		Managers:             d.getManagers(),
 		NetworkBootstrapKeys: d.getNetworkBootstrapKeys(),
 		RootCA:               d.getRootCACert(),
+		CSINodePlugins:       d.getCSINodePlugins(),
 	}); err != nil {
 		return err
 	}
@@ -1311,10 +1487,11 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		}
 
 		var (
-			disconnect bool
-			mgrs       []*api.WeightedPeer
-			netKeys    []*api.EncryptionKey
-			rootCert   []byte
+			disconnect     bool
+			mgrs           []*api.WeightedPeer
+			netKeys        []*api.EncryptionKey
+			rootCert       []byte
+			csiNodePlugins []*api.CSINodePlugin
 		)
 
 		select {
@@ -1328,6 +1505,9 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 			}
 			if update.rootCAUpdate != nil {
 				rootCert = *update.rootCAUpdate
+			}
+			if update.csiNodePlugins != nil {
+				csiNodePlugins = *update.csiNodePlugins
 			}
 		case ev := <-nodeUpdates:
 			nodeObj = ev.(api.EventUpdateNode).Node
@@ -1347,6 +1527,9 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		if rootCert == nil {
 			rootCert = d.getRootCACert()
 		}
+		if csiNodePlugins == nil {
+			csiNodePlugins = d.getCSINodePlugins()
+		}
 
 		if err := stream.Send(&api.SessionMessage{
 			SessionID:            sessionID,
@@ -1354,6 +1537,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 			Managers:             mgrs,
 			NetworkBootstrapKeys: netKeys,
 			RootCA:               rootCert,
+			CSINodePlugins:       csiNodePlugins,
 		}); err != nil {
 			return err
 		}
