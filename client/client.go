@@ -49,6 +49,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"sync"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -75,6 +76,8 @@ type Client struct {
 	basePath string
 	// client used to send and receive http requests.
 	client *http.Client
+	// this mutex protects `version` and `negotiated` fields
+	versionMu sync.RWMutex
 	// version of the server to talk to.
 	version string
 	// custom http headers configured by users.
@@ -180,11 +183,11 @@ func (cli *Client) Close() error {
 // It appends the query parameters to the path if they are not empty.
 func (cli *Client) getAPIPath(ctx context.Context, p string, query url.Values) string {
 	var apiPath string
-	if cli.negotiateVersion && !cli.negotiated {
+	if cli.negotiateVersion && !cli.isVersionNegotiated() {
 		cli.NegotiateAPIVersion(ctx)
 	}
-	if cli.version != "" {
-		v := strings.TrimPrefix(cli.version, "v")
+	if v := cli.ClientVersion(); v != "" {
+		v = strings.TrimPrefix(v, "v")
 		apiPath = path.Join(cli.basePath, "/v"+v, p)
 	} else {
 		apiPath = path.Join(cli.basePath, p)
@@ -194,7 +197,17 @@ func (cli *Client) getAPIPath(ctx context.Context, p string, query url.Values) s
 
 // ClientVersion returns the API version used by this client.
 func (cli *Client) ClientVersion() string {
+	cli.versionMu.RLock()
+	defer cli.versionMu.RUnlock()
+
 	return cli.version
+}
+
+// setVersion updates client version.
+func (cli *Client) setVersion(v string) {
+	cli.versionMu.Lock()
+	cli.version = v
+	cli.versionMu.Unlock()
 }
 
 // NegotiateAPIVersion queries the API and updates the version to match the
@@ -229,20 +242,29 @@ func (cli *Client) negotiateAPIVersionPing(p types.Ping) {
 	}
 
 	// if the client is not initialized with a version, start with the latest supported version
-	if cli.version == "" {
-		cli.version = api.DefaultVersion
+	if cli.ClientVersion() == "" {
+		cli.setVersion(api.DefaultVersion)
 	}
 
 	// if server version is lower than the client version, downgrade
-	if versions.LessThan(p.APIVersion, cli.version) {
-		cli.version = p.APIVersion
+	if versions.LessThan(p.APIVersion, cli.ClientVersion()) {
+		cli.setVersion(p.APIVersion)
 	}
 
 	// Store the results, so that automatic API version negotiation (if enabled)
 	// won't be performed on the next request.
 	if cli.negotiateVersion {
+		cli.versionMu.Lock()
 		cli.negotiated = true
+		cli.versionMu.Unlock()
 	}
+}
+
+func (cli *Client) isVersionNegotiated() bool {
+	cli.versionMu.RLock()
+	defer cli.versionMu.RUnlock()
+
+	return cli.negotiated
 }
 
 // DaemonHost returns the host address used by the client

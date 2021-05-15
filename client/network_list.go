@@ -14,7 +14,7 @@ func (cli *Client) NetworkList(ctx context.Context, options types.NetworkListOpt
 	query := url.Values{}
 	if options.Filters.Len() > 0 {
 		//nolint:staticcheck // ignore SA1019 for old code
-		filterJSON, err := filters.ToParamWithVersion(cli.version, options.Filters)
+		filterJSON, err := filters.ToParamWithVersion(cli.ClientVersion(), options.Filters)
 		if err != nil {
 			return nil, err
 		}

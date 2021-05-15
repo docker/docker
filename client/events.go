@@ -25,7 +25,7 @@ func (cli *Client) Events(ctx context.Context, options types.EventsOptions) (<-c
 	go func() {
 		defer close(errs)
 
-		query, err := buildEventsQueryParams(cli.version, options)
+		query, err := buildEventsQueryParams(cli.ClientVersion(), options)
 		if err != nil {
 			close(started)
 			errs <- err

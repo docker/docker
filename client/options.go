@@ -153,7 +153,7 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 func WithVersion(version string) Opt {
 	return func(c *Client) error {
 		if version != "" {
-			c.version = version
+			c.setVersion(version)
 			c.manualOverride = true
 		}
 		return nil
