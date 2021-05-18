@@ -189,7 +189,7 @@ Function Nuke-Everything {
         # Kill any spurious containerd.
         $pids=$(get-process | where-object {$_.ProcessName -like 'containerd'}).id
         foreach ($p in $pids) {
-            Write-Host "INFO: Killing daemon with PID $p"
+            Write-Host "INFO: Killing containerd with PID $p"
             Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
         }
 
@@ -981,6 +981,15 @@ Finally {
         Copy-Item  "$env:TEMP\dut.out" "bundles\CIDUT.out" -Force -ErrorAction SilentlyContinue
         Write-Host -ForegroundColor Green "INFO: Saving daemon under test log ($env:TEMP\dut.err) to bundles\CIDUT.err"
         Copy-Item  "$env:TEMP\dut.err" "bundles\CIDUT.err" -Force -ErrorAction SilentlyContinue
+
+        Write-Host -ForegroundColor Green "INFO: Saving containerd logs to bundles"
+        if (Test-Path -Path "$env:TEMP\containerd.out") {
+            Copy-Item "$env:TEMP\containerd.out" "bundles\containerd.out" -Force -ErrorAction SilentlyContinue
+            Copy-Item "$env:TEMP\containerd.err" "bundles\containerd.err" -Force -ErrorAction SilentlyContinue
+        } else {
+            "" | Out-File -FilePath "bundles\containerd.out"
+            "" | Out-File -FilePath "bundles\containerd.err"
+        }
     }
 
     Set-Location "$env:SOURCES_DRIVE\$env:SOURCES_SUBDIR" -ErrorAction SilentlyContinue
