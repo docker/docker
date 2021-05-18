@@ -10,7 +10,8 @@ Type=notify
 # the default is not to use systemd for cgroups because the delegate issues still
 # exists and systemd currently does not support the cgroup feature set required
 # for containers run by docker
-ExecStart=/usr/bin/dockerd -H fd://
+# explicitly set the PID file path to be aligned with PIDFile option in this file 
+ExecStart=/usr/bin/dockerd -H fd:// --pidfile /var/run/docker.pid
 ExecReload=/bin/kill -s HUP $MAINPID
 LimitNOFILE=1048576
 # Having non-zero Limit*s causes performance problems due to accounting overhead
@@ -29,6 +30,8 @@ KillMode=process
 Restart=on-failure
 StartLimitBurst=3
 StartLimitInterval=60s
+# ensure to cleanup pid file when the daemon stops
+PIDFile=/var/run/docker.pid
 
 [Install]
 WantedBy=multi-user.target
