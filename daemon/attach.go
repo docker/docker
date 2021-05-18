@@ -6,108 +6,96 @@ import (
 	"io"
 
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/container/stream"
+	"github.com/docker/docker/container/stream/streamv2/stdio"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/moby/term"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
-// ContainerAttach attaches to logs according to the config passed in. See ContainerAttachConfig.
-func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerAttachConfig) error {
-	keys := []byte{}
-	var err error
-	if c.DetachKeys != "" {
-		keys, err = term.ToBytes(c.DetachKeys)
+// ContainerAttachRaw attaches the provided streams to the container's stdio
+func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadCloser, stdout, stderr io.Writer) error {
+	ctr, err := daemon.GetContainer(prefixOrName)
+	if err != nil {
+		return err
+	}
+	return ctr.StreamConfig.AttachStreams(context.TODO(), stdin, stdout, stderr)
+}
+
+// ContainerAttachMultiplexed handles attaching to a container when there is only one output stream
+// This is primarily for legacy behavior for how the attach HTTP API endpoint works.
+//
+// Once this function returns, the streams are attached.
+// We also close the file descriptor related to the client stream in this process.
+//
+// This is prarimarly used for serving the HTTP API.
+// Unless you really need to have everything on a single stream, you probably should use the `ContainerAttachRaw` function.
+func (daemon *Daemon) ContainerAttachMultiplexed(ctx context.Context, ref string, cfg *backend.ContainerAttachConfig) error {
+	var detachKeys []byte
+	if cfg.DetachKeys != "" {
+		var err error
+		detachKeys, err = term.ToBytes(cfg.DetachKeys)
 		if err != nil {
-			return errdefs.InvalidParameter(errors.Errorf("Invalid detach keys (%s) provided", c.DetachKeys))
+			return errdefs.InvalidParameter(errors.Errorf("Invalid detach keys (%s) provided", cfg.DetachKeys))
 		}
 	}
 
-	ctr, err := daemon.GetContainer(prefixOrName)
+	ctr, err := daemon.GetContainer(ref)
 	if err != nil {
 		return err
 	}
+
 	if ctr.IsPaused() {
-		err := fmt.Errorf("container %s is paused, unpause the container before attach", prefixOrName)
+		err := fmt.Errorf("container %s is paused, unpause the container before attach", ref)
 		return errdefs.Conflict(err)
 	}
+
 	if ctr.IsRestarting() {
-		err := fmt.Errorf("container %s is restarting, wait until the container is running", prefixOrName)
+		err := fmt.Errorf("container %s is restarting, wait until the container is running", ref)
 		return errdefs.Conflict(err)
 	}
 
-	cfg := stream.AttachConfig{
-		UseStdin:   c.UseStdin,
-		UseStdout:  c.UseStdout,
-		UseStderr:  c.UseStderr,
-		TTY:        ctr.Config.Tty,
-		CloseStdin: ctr.Config.StdinOnce,
-		DetachKeys: keys,
+	var framing stdio.StreamFraming
+	switch cfg.Framing {
+	case backend.AttachFramingNone:
+		framing.Type = stdio.StreamFraming_NONE
+	case backend.AttachFramingStdcopy:
+		framing.Type = stdio.StreamFraming_STDCOPY
+	case backend.AttachFramingWebsocket:
+		framing.Type = stdio.StreamFraming_WEBSOCKET_TEXT
+	case backend.AttachFramingWebsocketBinary:
+		framing.Type = stdio.StreamFraming_WEBSOCKET_BINARY
+	default:
+		return errdefs.InvalidParameter(errors.Errorf("invalid stream framing: %d", cfg.Framing))
 	}
-	ctr.StreamConfig.AttachStreams(&cfg)
 
-	inStream, outStream, errStream, err := c.GetStreams()
+	if ctr.Config.Tty {
+		if len(detachKeys) == 0 {
+			detachKeys = []byte{16, 17} // ctrl-p,ctrl-q
+		}
+		if cfg.AllowTTYNoFraming {
+			// This is an idiosyncrosy of the API, which itself does not know if the container has a TTY or not.
+			//   ... and historically we do not have framing for TTY's.
+			// Except of course for websockets which have their own framing protocol unrelated to our stdio streams...
+			//
+			// Anyway, things are complicated here due to API compat.
+			// It's up to the caller to allow the fallback regardless of the passed in framing.
+			framing.Type = stdio.StreamFraming_NONE
+		}
+	}
+
+	stream, err := cfg.GetStream()
 	if err != nil {
 		return err
 	}
-	defer inStream.Close()
 
-	if !ctr.Config.Tty && c.MuxStreams {
-		errStream = stdcopy.NewStdWriter(errStream, stdcopy.Stderr)
-		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
-	}
+	// TODO: logs needs to be framed according to cfg.Framing
+	// Maybe hand this off to a custom stdio.Attacher?
+	if cfg.Logs {
+		_, stdout, stderr := stdio.GetFramedStreams(stream, framing, false, cfg.IncludeStdout, cfg.IncludeStderr)
 
-	if cfg.UseStdin {
-		cfg.Stdin = inStream
-	}
-	if cfg.UseStdout {
-		cfg.Stdout = outStream
-	}
-	if cfg.UseStderr {
-		cfg.Stderr = errStream
-	}
-
-	if err := daemon.containerAttach(ctr, &cfg, c.Logs, c.Stream); err != nil {
-		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
-	}
-	return nil
-}
-
-// ContainerAttachRaw attaches the provided streams to the container's stdio
-func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadCloser, stdout, stderr io.Writer, doStream bool, attached chan struct{}) error {
-	ctr, err := daemon.GetContainer(prefixOrName)
-	if err != nil {
-		return err
-	}
-	cfg := stream.AttachConfig{
-		UseStdin:   stdin != nil,
-		UseStdout:  stdout != nil,
-		UseStderr:  stderr != nil,
-		TTY:        ctr.Config.Tty,
-		CloseStdin: ctr.Config.StdinOnce,
-	}
-	ctr.StreamConfig.AttachStreams(&cfg)
-	close(attached)
-	if cfg.UseStdin {
-		cfg.Stdin = stdin
-	}
-	if cfg.UseStdout {
-		cfg.Stdout = stdout
-	}
-	if cfg.UseStderr {
-		cfg.Stderr = stderr
-	}
-
-	return daemon.containerAttach(ctr, &cfg, false, doStream)
-}
-
-func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.AttachConfig, logs, doStream bool) error {
-	if logs {
-		logDriver, logCreated, err := daemon.getLogger(c)
+		logDriver, logCreated, err := daemon.getLogger(ctr)
 		if err != nil {
 			return err
 		}
@@ -132,11 +120,11 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 				if !ok {
 					break LogLoop
 				}
-				if msg.Source == "stdout" && cfg.Stdout != nil {
-					cfg.Stdout.Write(msg.Line)
+				if msg.Source == "stdout" {
+					stdout.Write(msg.Line)
 				}
-				if msg.Source == "stderr" && cfg.Stderr != nil {
-					cfg.Stderr.Write(msg.Line)
+				if msg.Source == "stderr" {
+					stderr.Write(msg.Line)
 				}
 			case err := <-logs.Err:
 				logrus.Errorf("Error streaming logs: %v", err)
@@ -145,44 +133,22 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		}
 	}
 
-	daemon.LogContainerEvent(c, "attach")
-
-	if !doStream {
+	if !cfg.Stream {
 		return nil
 	}
 
-	if cfg.Stdin != nil {
-		r, w := io.Pipe()
-		go func(stdin io.ReadCloser) {
-			defer w.Close()
-			defer logrus.Debug("Closing buffered stdin pipe")
-			io.Copy(w, stdin)
-		}(cfg.Stdin)
-		cfg.Stdin = r
+	if !ctr.Config.OpenStdin {
+		cfg.IncludeStdin = false
+	}
+	if ctr.Config.Tty {
+		cfg.IncludeStderr = false
 	}
 
-	if !c.Config.OpenStdin {
-		cfg.Stdin = nil
+	logrus.WithField("container", ctr.ID).WithField("AttachFraming", framing.Type.String()).Debug("AttachStreamsMultiplexed")
+	if err := ctr.StreamConfig.AttachStreamsMultiplexed(ctx, stream, &framing, detachKeys, cfg.IncludeStdin, cfg.IncludeStdout, cfg.IncludeStderr); err != nil {
+		return err
 	}
 
-	if c.Config.StdinOnce && !c.Config.Tty {
-		// Wait for the container to stop before returning.
-		waitChan := c.Wait(context.Background(), container.WaitConditionNotRunning)
-		defer func() {
-			<-waitChan // Ignore returned exit code.
-		}()
-	}
-
-	ctx := c.InitAttachContext()
-	err := <-c.StreamConfig.CopyStreams(ctx, cfg)
-	if err != nil {
-		var ierr term.EscapeError
-		if errors.Is(err, context.Canceled) || errors.As(err, &ierr) {
-			daemon.LogContainerEvent(c, "detach")
-		} else {
-			logrus.Errorf("attach failed with error: %v", err)
-		}
-	}
-
+	daemon.LogContainerEvent(ctr, "attach")
 	return nil
 }

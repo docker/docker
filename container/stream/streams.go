@@ -30,7 +30,7 @@ type Config struct {
 	stderr    *broadcaster.Unbuffered
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
-	dio       *cio.DirectIO
+	dio       cio.IO
 }
 
 // NewConfig creates a stream config and initializes
@@ -92,6 +92,9 @@ func (c *Config) NewNopInputPipe() {
 
 // CloseStreams ensures that the configured streams are properly closed.
 func (c *Config) CloseStreams() error {
+	if c.dio != nil {
+		return c.dio.Close()
+	}
 	var errors []string
 
 	if c.stdin != nil {
@@ -117,7 +120,6 @@ func (c *Config) CloseStreams() error {
 
 // CopyToPipe connects streamconfig with a libcontainerd.IOPipe
 func (c *Config) CopyToPipe(iop *cio.DirectIO) {
-	c.dio = iop
 	copyFunc := func(w io.Writer, r io.ReadCloser) {
 		c.wg.Add(1)
 		go func() {

@@ -196,7 +196,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 
 	// TODO(mlaventure): we need to specify checkpoint options here
 	pid, err := daemon.containerd.Start(context.Background(), container.ID, checkpointDir,
-		container.StreamConfig.Stdin() != nil || container.Config.Tty,
+		container.Config.OpenStdin || container.Config.Tty,
 		container.InitializeStdio)
 	if err != nil {
 		if err := daemon.containerd.Delete(context.Background(), container.ID); err != nil {

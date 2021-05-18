@@ -44,19 +44,13 @@ var errCancelled = errors.New("build cancelled")
 
 // Run a container by ID
 func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr io.Writer) (err error) {
-	attached := make(chan struct{})
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- c.backend.ContainerAttachRaw(cID, nil, stdout, stderr, true, attached)
-	}()
-	select {
-	case err := <-errCh:
+	if err := c.backend.ContainerAttachRaw(cID, nil, stdout, stderr); err != nil {
 		return err
-	case <-attached:
 	}
 
 	finished := make(chan struct{})
 	cancelErrCh := make(chan error, 1)
+
 	go func() {
 		select {
 		case <-ctx.Done():
@@ -72,13 +66,6 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 	if err := c.backend.ContainerStart(cID, nil, "", ""); err != nil {
 		close(finished)
 		logCancellationError(cancelErrCh, "error from ContainerStart: "+err.Error())
-		return err
-	}
-
-	// Block on reading output from container, stop on err or chan closed
-	if err := <-errCh; err != nil {
-		close(finished)
-		logCancellationError(cancelErrCh, "error from errCh: "+err.Error())
 		return err
 	}
 

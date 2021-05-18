@@ -93,7 +93,6 @@ func (daemon *Daemon) containerRoot(id string) string {
 // This is typically done at startup.
 func (daemon *Daemon) load(id string) (*container.Container, error) {
 	ctr := daemon.newBaseContainer(id)
-
 	if err := ctr.FromDisk(); err != nil {
 		return nil, err
 	}
@@ -109,11 +108,11 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 // Register makes a container object usable by the daemon as <container.ID>
 func (daemon *Daemon) Register(c *container.Container) error {
 	// Attach to stdout and stderr
-	if c.Config.OpenStdin {
-		c.StreamConfig.NewInputPipes()
-	} else {
-		c.StreamConfig.NewNopInputPipe()
-	}
+	//if c.Config.OpenStdin {
+	//	c.StreamConfig.NewInputPipes()
+	//} else {
+	//	c.StreamConfig.NewNopInputPipe()
+	//}
 
 	// once in the memory store it is visible to other goroutines
 	// grab a Lock until it has been checkpointed to avoid races
@@ -160,6 +159,7 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	base.Name = name
 	base.Driver = daemon.imageService.GraphDriverForOS(operatingSystem)
 	base.OS = operatingSystem
+
 	return base, err
 }
 
@@ -186,7 +186,7 @@ func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
 // newBaseContainer creates a new container with its initial
 // configuration based on the root storage from the daemon.
 func (daemon *Daemon) newBaseContainer(id string) *container.Container {
-	return container.NewBaseContainer(id, daemon.containerRoot(id))
+	return container.NewBaseContainer(id, daemon.containerRoot(id), filepath.Join(daemon.configStore.ExecRoot, id))
 }
 
 func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint strslice.StrSlice, configCmd strslice.StrSlice) (string, []string) {

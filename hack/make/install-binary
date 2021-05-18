@@ -30,6 +30,7 @@ install_binary() {
 	install_binary "${DEST}/rootlesskit-docker-proxy"
 	install_binary "${DEST}/dockerd-rootless.sh"
 	install_binary "${DEST}/dockerd-rootless-setuptool.sh"
+	install_binary "${DEST}/docker-logs-json-file"
 	if [ -f "${DEST}/vpnkit" ]; then
 		install_binary "${DEST}/vpnkit"
 	fi

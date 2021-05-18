@@ -21,11 +21,6 @@ func (container *Container) Reset(lock bool) {
 		logrus.Errorf("%s: %s", container.ID, err)
 	}
 
-	// Re-create a brand new stdin pipe once the container exited
-	if container.Config.OpenStdin {
-		container.StreamConfig.NewInputPipes()
-	}
-
 	if container.LogDriver != nil {
 		if container.LogCopier != nil {
 			exit := make(chan struct{})

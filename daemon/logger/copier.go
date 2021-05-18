@@ -85,7 +85,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 			if upto > n {
 				read, err := src.Read(buf[n:upto])
 				if err != nil {
-					if err != io.EOF {
+					if err != io.EOF { //  && !errors.Is(err, os.ErrClosed) {
 						logReadsFailedCount.Inc(1)
 						logrus.Errorf("Error scanning log stream: %s", err)
 						return

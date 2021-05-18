@@ -18,6 +18,14 @@ RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/
  && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
 ENV GO111MODULE=off
 
+FROM base AS gogomoby-build
+COPY cmd/protoc-gen-gogomoby/ /go/src/github.com/docker/docker/cmd/protoc-gen-gogomoby
+WORKDIR /go/src/github.com/docker/docker/cmd/protoc-gen-gogomoby
+RUN --mount=source=vendor,target=vendor go build -o /tmp/build/protoc-gen-gogomoby
+
+FROM scratch AS gogomoby
+COPY --from=gogomoby-build /tmp/build/protoc-gen-gogomoby /
+
 FROM base AS criu
 ARG DEBIAN_FRONTEND
 # Install dependency packages specific to criu

@@ -59,7 +59,7 @@ type monitorBackend interface {
 
 // attachBackend includes function to implement to provide container attaching functionality.
 type attachBackend interface {
-	ContainerAttach(name string, c *backend.ContainerAttachConfig) error
+	ContainerAttachMultiplexed(ctx context.Context, name string, c *backend.ContainerAttachConfig) error
 }
 
 // systemBackend includes functions to implement to provide system wide containers functionality

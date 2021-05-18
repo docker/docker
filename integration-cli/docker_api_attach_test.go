@@ -82,8 +82,8 @@ func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *testing.T) {
 	assert.Equal(c, resp.StatusCode, http.StatusNotFound)
 	content, err := request.ReadBody(resp.Body)
 	assert.NilError(c, err)
-	expected := "No such container: doesnotexist\r\n"
-	assert.Equal(c, string(content), expected)
+	expected := "No such container: doesnotexist"
+	assert.Assert(c, is.Contains(string(content), expected))
 }
 
 func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *testing.T) {
