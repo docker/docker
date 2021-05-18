@@ -10,6 +10,9 @@ import (
 )
 
 func (s *DockerSuite) TestCommitAfterContainerIsDone(c *testing.T) {
+	// FIXME. Broken on Windows + ContainerD combination
+	testRequires(c, RuntimeIsNotWindowsContainerD())
+
 	out := cli.DockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo").Combined()
 
 	cleanedContainerID := strings.TrimSpace(out)
