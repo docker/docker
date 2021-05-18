@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	containerddefaults "github.com/containerd/containerd/defaults"
 	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
 	buildbackend "github.com/docker/docker/api/server/backend/build"
@@ -739,19 +738,6 @@ func validateAuthzPlugins(requestedPlugins []string, pg plugingetter.PluginGette
 		}
 	}
 	return nil
-}
-
-func systemContainerdRunning(honorXDG bool) (string, bool, error) {
-	addr := containerddefaults.DefaultAddress
-	if honorXDG {
-		runtimeDir, err := homedir.GetRuntimeDir()
-		if err != nil {
-			return "", false, err
-		}
-		addr = filepath.Join(runtimeDir, "containerd", "containerd.sock")
-	}
-	_, err := os.Lstat(addr)
-	return addr, err == nil, nil
 }
 
 // configureDaemonLogs sets the logrus logging level and formatting

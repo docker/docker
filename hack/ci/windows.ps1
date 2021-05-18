@@ -132,6 +132,12 @@ $FinallyColour="Cyan"
 #$env:SKIP_COPY_GO="yes"
 #$env:INTEGRATION_TESTFLAGS="-test.v"
 
+# Use containerd runtime on Windows Server 2022 preview and later
+if ([System.Environment]::OSVersion.Version.Build -ge 20295) {
+    Write-Host -ForegroundColor Green "INFO: Running the daemon under test in ContainerD mode"
+    $env:DOCKER_WINDOWS_CONTAINERD_RUNTIME=1
+}
+
 Function Nuke-Everything {
     $ErrorActionPreference = 'SilentlyContinue'
 
@@ -611,8 +617,8 @@ Try {
         $dutArgs += "-D"
     }
 
-    # Arguments: Are we starting the daemon under test in ContainerD mode?
-    if (-not ("$env:DOCKER_WINDOWS_CONTAINERD_RUNTIME" -eq ""))) {
+    # Arguments: Only Windows Server versions starting from build 20295 defaults to ContainerD
+    if (-not ("$env:DOCKER_WINDOWS_CONTAINERD_RUNTIME" -eq "") -and ([System.Environment]::OSVersion.Version.Build -lt 20295)) {
         Write-Host -ForegroundColor Green "INFO: Running the daemon under test in ContainerD mode"
         $dutArgs += "--containerd \\.\pipe\containerd-containerd"
     }
