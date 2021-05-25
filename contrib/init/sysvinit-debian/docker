@@ -44,14 +44,6 @@ if [ ! -x $DAEMON ]; then
 	exit 1
 fi
 
-check_init() {
-	# see also init_is_upstart in /lib/lsb/init-functions (which isn't available in Ubuntu 12.04, or we'd use it directly)
-	if [ -x /sbin/initctl ] && /sbin/initctl version 2> /dev/null | grep -q upstart; then
-		log_failure_msg "$DOCKER_DESC is managed via upstart, try using service $NAME $1"
-		exit 1
-	fi
-}
-
 fail_unless_root() {
 	if [ "$(id -u)" != '0' ]; then
 		log_failure_msg "$DOCKER_DESC must be run as root"
@@ -84,8 +76,6 @@ cgroupfs_mount() {
 
 case "$1" in
 	start)
-		check_init
-
 		fail_unless_root
 
 		cgroupfs_mount
@@ -117,7 +107,6 @@ case "$1" in
 	;;
 
 	stop)
-		check_init
 		fail_unless_root
 		if [ -f "$DOCKER_SSD_PIDFILE" ]; then
 			log_begin_msg "Stopping $DOCKER_DESC: $NAME"
@@ -129,7 +118,6 @@ case "$1" in
 	;;
 
 	restart)
-		check_init
 		fail_unless_root
 		docker_pid=$(cat "$DOCKER_SSD_PIDFILE" 2> /dev/null)
 		[ -n "$docker_pid" ] \
@@ -139,13 +127,11 @@ case "$1" in
 	;;
 
 	force-reload)
-		check_init
 		fail_unless_root
 		$0 restart
 	;;
 
 	status)
-		check_init
 		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DAEMON" "$DOCKER_DESC"
 	;;
 
