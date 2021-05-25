@@ -121,7 +121,7 @@ case "$1" in
 		fail_unless_root
 		if [ -f "$DOCKER_SSD_PIDFILE" ]; then
 			log_begin_msg "Stopping $DOCKER_DESC: $NAME"
-			start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE" --retry 10
+			start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE" --remove-pidfile --retry 10
 			log_end_msg $?
 		else
 			log_warning_msg "Docker already stopped - file $DOCKER_SSD_PIDFILE not found."
