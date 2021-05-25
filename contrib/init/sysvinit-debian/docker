@@ -19,9 +19,7 @@ set -e
 
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
-NAME=docker
-
-# modify these in /etc/default/$NAME (/etc/default/docker)
+NAME=$(basename $(readlink -f "$0"))
 DAEMON=/usr/bin/dockerd
 # This is the pid file managed by docker itself
 DOCKER_PIDFILE=/var/run/$NAME.pid
