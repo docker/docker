@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/runtime/v1/linux"
-	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/libnetwork/portallocator"
@@ -119,21 +118,6 @@ func allocateDaemonPort(addr string) error {
 		}
 	}
 	return nil
-}
-
-func newCgroupParent(config *config.Config) string {
-	cgroupParent := "docker"
-	useSystemd := daemon.UsingSystemd(config)
-	if useSystemd {
-		cgroupParent = "system.slice"
-	}
-	if config.CgroupParent != "" {
-		cgroupParent = config.CgroupParent
-	}
-	if useSystemd {
-		cgroupParent = cgroupParent + ":" + "docker" + ":"
-	}
-	return cgroupParent
 }
 
 func (cli *DaemonCli) initContainerD(ctx context.Context) (func(time.Duration) error, error) {
