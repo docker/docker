@@ -25,6 +25,14 @@ import (
 	"syscall"
 )
 
+// blocksUnitSize is the unit used by `st_blocks` in `stat` in bytes.
+// See https://man7.org/linux/man-pages/man2/stat.2.html
+//   st_blocks
+//     This field indicates the number of blocks allocated to the
+//     file, in 512-byte units.  (This may be smaller than
+//     st_size/512 when the file has holes.)
+const blocksUnitSize = 512
+
 type inode struct {
 	// TODO(stevvooe): Can probably reduce memory usage by not tracking
 	// device, but we can leave this right for now.
@@ -33,9 +41,9 @@ type inode struct {
 
 func newInode(stat *syscall.Stat_t) inode {
 	return inode{
-		// Dev is uint32 on darwin/bsd, uint64 on linux/solaris
+		// Dev is uint32 on darwin/bsd, uint64 on linux/solaris/freebsd
 		dev: uint64(stat.Dev), // nolint: unconvert
-		// Ino is uint32 on bsd, uint64 on darwin/linux/solaris
+		// Ino is uint32 on bsd, uint64 on darwin/linux/solaris/freebsd
 		ino: uint64(stat.Ino), // nolint: unconvert
 	}
 }
@@ -59,10 +67,11 @@ func diskUsage(ctx context.Context, roots ...string) (Usage, error) {
 			default:
 			}
 
-			inoKey := newInode(fi.Sys().(*syscall.Stat_t))
+			stat := fi.Sys().(*syscall.Stat_t)
+			inoKey := newInode(stat)
 			if _, ok := inodes[inoKey]; !ok {
 				inodes[inoKey] = struct{}{}
-				size += fi.Size()
+				size += stat.Blocks * blocksUnitSize
 			}
 
 			return nil
@@ -89,10 +98,11 @@ func diffUsage(ctx context.Context, a, b string) (Usage, error) {
 		}
 
 		if kind == ChangeKindAdd || kind == ChangeKindModify {
-			inoKey := newInode(fi.Sys().(*syscall.Stat_t))
+			stat := fi.Sys().(*syscall.Stat_t)
+			inoKey := newInode(stat)
 			if _, ok := inodes[inoKey]; !ok {
 				inodes[inoKey] = struct{}{}
-				size += fi.Size()
+				size += stat.Blocks * blocksUnitSize
 			}
 
 			return nil

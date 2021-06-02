@@ -63,6 +63,10 @@ $ stat -c %a Makefile
 $ ./bin/continuity verify . /tmp/a.pb
 ```
 
+## Platforms
+
+continuity primarily targets Linux.  continuity may compile for and work on
+other operating systems, but those platforms are not tested.
 
 ## Contribution Guide
 ### Building Proto Package
