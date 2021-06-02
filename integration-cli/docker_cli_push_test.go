@@ -248,48 +248,6 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *testing.T) {
 	assert.Equal(c, out4, "hello world")
 }
 
-func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c *testing.T) {
-	sourceRepoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
-	// tag the image to upload it to the private registry
-	dockerCmd(c, "tag", "busybox", sourceRepoName)
-	// push the image to the registry
-	out1, _, err := dockerCmdWithError("push", sourceRepoName)
-	assert.NilError(c, err, fmt.Sprintf("pushing the image to the private registry has failed: %s", out1))
-	// ensure that none of the layers were mounted from another repository during push
-	assert.Assert(c, !strings.Contains(out1, "Mounted from"))
-
-	digest1 := reference.DigestRegexp.FindString(out1)
-	assert.Assert(c, len(digest1) > 0, "no digest found for pushed manifest")
-
-	destRepoName := fmt.Sprintf("%v/dockercli/crossrepopush", privateRegistryURL)
-	// retag the image to upload the same layers to another repo in the same registry
-	dockerCmd(c, "tag", "busybox", destRepoName)
-	// push the image to the registry
-	out2, _, err := dockerCmdWithError("push", destRepoName)
-	assert.NilError(c, err, fmt.Sprintf("pushing the image to the private registry has failed: %s", out2))
-	// schema1 registry should not support cross-repo layer mounts, so ensure that this does not happen
-	assert.Assert(c, !strings.Contains(out2, "Mounted from"))
-
-	digest2 := reference.DigestRegexp.FindString(out2)
-	assert.Assert(c, len(digest2) > 0, "no digest found for pushed manifest")
-	assert.Assert(c, digest1 != digest2)
-
-	// ensure that we can pull and run the second pushed repository
-	dockerCmd(c, "rmi", destRepoName)
-	dockerCmd(c, "pull", destRepoName)
-	out3, _ := dockerCmd(c, "run", destRepoName, "echo", "-n", "hello world")
-	assert.Assert(c, out3 == "hello world")
-}
-
-func (s *DockerRegistryAuthHtpasswdSuite) TestPushNoCredentialsNoRetry(c *testing.T) {
-	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
-	dockerCmd(c, "tag", "busybox", repoName)
-	out, _, err := dockerCmdWithError("push", repoName)
-	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, !strings.Contains(out, "Retrying"))
-	assert.Assert(c, strings.Contains(out, "no basic auth credentials"))
-}
-
 // This may be flaky but it's needed not to regress on unauthorized push, see #21054
 func (s *DockerSuite) TestPushToCentralRegistryUnauthorized(c *testing.T) {
 	testRequires(c, Network)

@@ -38,9 +38,6 @@ fi
 # intentionally open a couple bogus file descriptors to help test that they get scrubbed in containers
 exec 41>&1 42>&2
 
-# Allow pushing manifest v2 schema 1 images, as they're used to push
-# images to our test-registries for testing _pulling_ schema 2v1 images.
-export DOCKER_ALLOW_SCHEMA1_PUSH_DONOTUSE=1
 export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
 export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
 

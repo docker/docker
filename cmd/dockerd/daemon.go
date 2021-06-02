@@ -402,12 +402,12 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		conf.CommonTLSOptions.KeyFile = opts.TLSOptions.KeyFile
 	}
 
-	if conf.TrustKeyPath == "" {
+	if conf.DeprecatedTrustKeyPath == "" {
 		daemonConfDir, err := getDaemonConfDir(conf.Root)
 		if err != nil {
 			return nil, err
 		}
-		conf.TrustKeyPath = filepath.Join(daemonConfDir, defaultTrustKeyFile)
+		conf.DeprecatedTrustKeyPath = filepath.Join(daemonConfDir, defaultTrustKeyFile)
 	}
 
 	if flags.Changed("graph") && flags.Changed("data-root") {
