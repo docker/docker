@@ -816,9 +816,25 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		updateSandboxNetworkSettings(container, sb)
 	}
 
-	joinOptions, err := buildJoinOptions(container.NetworkSettings, n)
-	if err != nil {
-		return err
+	// Builds endpoint Join options from a given network.
+	var joinOptions []libnetwork.EndpointOption
+	if epConfig, ok := container.NetworkSettings.Networks[n.Name()]; ok {
+		// If Link is available, the Alias should use ShortID
+		for _, str := range epConfig.Links {
+			name, alias, err := opts.ParseLink(str)
+			if err != nil {
+				return err
+			}
+			// To preseve old behavior, use truncated container id
+			// if linked container was a name.
+			if child, err := daemon.GetContainer(name); err == nil {
+				name = stringid.TruncateID(child.ID)
+			}
+			joinOptions = append(joinOptions, libnetwork.CreateOptionAlias(name, alias))
+		}
+		for k, v := range epConfig.DriverOpts {
+			joinOptions = append(joinOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
+		}
 	}
 
 	if err := ep.Join(sb, joinOptions...); err != nil {
