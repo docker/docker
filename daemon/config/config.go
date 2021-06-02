@@ -264,6 +264,8 @@ type CommonConfig struct {
 
 	ContainerdNamespace       string `json:"containerd-namespace,omitempty"`
 	ContainerdPluginNamespace string `json:"containerd-plugin-namespace,omitempty"`
+
+	DefaultRuntime string `json:"default-runtime,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value

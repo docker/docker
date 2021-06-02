@@ -12,7 +12,6 @@ import (
 // common across Unix platforms.
 type CommonUnixConfig struct {
 	Runtimes          map[string]types.Runtime `json:"runtimes,omitempty"`
-	DefaultRuntime    string                   `json:"default-runtime,omitempty"`
 	DefaultInitBinary string                   `json:"default-init,omitempty"`
 }
 

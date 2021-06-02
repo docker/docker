@@ -33,7 +33,9 @@ func (conf *Config) GetInitPath() string {
 
 // GetDefaultRuntimeName returns the current default runtime
 func (conf *Config) GetDefaultRuntimeName() string {
-	return StockRuntimeName
+	conf.Lock()
+	defer conf.Unlock()
+	return conf.DefaultRuntime
 }
 
 // GetAllRuntimes returns a copy of the runtimes map
