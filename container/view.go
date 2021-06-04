@@ -294,16 +294,18 @@ func (v *memdbView) transform(container *Container) *Snapshot {
 	if container.Health != nil {
 		health = container.Health.Status()
 	}
+	platform := types.ImagePlatform(container.Platform)
 	snapshot := &Snapshot{
 		Container: types.Container{
-			ID:      container.ID,
-			Names:   v.getNames(container.ID),
-			ImageID: container.ImageID.String(),
-			Ports:   []types.Port{},
-			Mounts:  container.GetMountPoints(),
-			State:   container.State.StateString(),
-			Status:  container.State.String(),
-			Created: container.Created.Unix(),
+			ID:       container.ID,
+			Names:    v.getNames(container.ID),
+			ImageID:  container.ImageID.String(),
+			Platform: &platform,
+			Ports:    []types.Port{},
+			Mounts:   container.GetMountPoints(),
+			State:    container.State.StateString(),
+			Status:   container.State.String(),
+			Created:  container.Created.Unix(),
 		},
 		CreatedAt:    container.Created,
 		StartedAt:    container.StartedAt,

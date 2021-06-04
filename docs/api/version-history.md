@@ -17,6 +17,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.42](https://docs.docker.com/engine/api/v1.42/) documentation
 
+* `GET /containers/json` now includes `Platform` information for containers,
+  describing platform details of the image that the container was created with
+  (`Architecture`, `OS`, and optional: `OSVersion`, `OSFeatures`, `Variant`).
+
 ## v1.41 API changes
 
 [Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.41/) documentation
