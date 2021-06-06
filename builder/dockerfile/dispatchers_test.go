@@ -250,7 +250,7 @@ func TestCmd(t *testing.T) {
 
 	cmd := &instructions.CmdCommand{
 		ShellDependantCmdLine: instructions.ShellDependantCmdLine{
-			CmdLine:      strslice.StrSlice{command},
+			CmdLine:      []string{command},
 			PrependShell: true,
 		},
 	}
@@ -259,12 +259,12 @@ func TestCmd(t *testing.T) {
 
 	var expectedCommand strslice.StrSlice
 	if runtime.GOOS == "windows" {
-		expectedCommand = strslice.StrSlice(append([]string{"cmd"}, "/S", "/C", command))
+		expectedCommand = strslice.StrSlice{"cmd", "/S", "/C", command}
 	} else {
-		expectedCommand = strslice.StrSlice(append([]string{"/bin/sh"}, "-c", command))
+		expectedCommand = strslice.StrSlice{"/bin/sh", "-c", command}
 	}
 
-	assert.Check(t, is.DeepEqual(expectedCommand, sb.state.runConfig.Cmd))
+	assert.DeepEqual(t, expectedCommand, sb.state.runConfig.Cmd)
 	assert.Check(t, sb.state.cmdSet)
 }
 
@@ -318,9 +318,9 @@ func TestEntrypoint(t *testing.T) {
 
 	var expectedEntrypoint strslice.StrSlice
 	if runtime.GOOS == "windows" {
-		expectedEntrypoint = strslice.StrSlice(append([]string{"cmd"}, "/S", "/C", entrypointCmd))
+		expectedEntrypoint = strslice.StrSlice{"cmd", "/S", "/C", entrypointCmd}
 	} else {
-		expectedEntrypoint = strslice.StrSlice(append([]string{"/bin/sh"}, "-c", entrypointCmd))
+		expectedEntrypoint = strslice.StrSlice{"/bin/sh", "-c", entrypointCmd}
 	}
 	assert.Check(t, is.DeepEqual(expectedEntrypoint, sb.state.runConfig.Entrypoint))
 }
@@ -408,14 +408,12 @@ func TestShell(t *testing.T) {
 	b := newBuilderWithMockBackend()
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
 
-	shellCmd := "powershell"
-	cmd := &instructions.ShellCommand{Shell: strslice.StrSlice{shellCmd}}
+	shellCmd := strslice.StrSlice{"powershell"}
+	cmd := &instructions.ShellCommand{Shell: shellCmd}
 
 	err := dispatch(sb, cmd)
 	assert.NilError(t, err)
-
-	expectedShell := strslice.StrSlice([]string{shellCmd})
-	assert.Check(t, is.DeepEqual(expectedShell, sb.state.runConfig.Shell))
+	assert.DeepEqual(t, shellCmd, sb.state.runConfig.Shell)
 }
 
 func TestPrependEnvOnCmd(t *testing.T) {
@@ -423,11 +421,10 @@ func TestPrependEnvOnCmd(t *testing.T) {
 	buildArgs.AddArg("NO_PROXY", nil)
 
 	args := []string{"sorted=nope", "args=not", "http_proxy=foo", "NO_PROXY=YA"}
-	cmd := []string{"foo", "bar"}
+	cmd := strslice.StrSlice{"foo", "bar"}
 	cmdWithEnv := prependEnvOnCmd(buildArgs, args, cmd)
-	expected := strslice.StrSlice([]string{
-		"|3", "NO_PROXY=YA", "args=not", "sorted=nope", "foo", "bar"})
-	assert.Check(t, is.DeepEqual(expected, cmdWithEnv))
+	expected := strslice.StrSlice{"|3", "NO_PROXY=YA", "args=not", "sorted=nope", "foo", "bar"}
+	assert.DeepEqual(t, expected, cmdWithEnv)
 }
 
 func TestRunWithBuildArgs(t *testing.T) {
@@ -438,13 +435,13 @@ func TestRunWithBuildArgs(t *testing.T) {
 	sb := newDispatchRequest(b, '`', nil, args, newStagesBuildResults())
 
 	runConfig := &container.Config{}
-	origCmd := strslice.StrSlice([]string{"cmd", "in", "from", "image"})
+	origCmd := strslice.StrSlice{"cmd", "in", "from", "image"}
 
 	var cmdWithShell strslice.StrSlice
 	if runtime.GOOS == "windows" {
-		cmdWithShell = strslice.StrSlice([]string{strings.Join(append(getShell(runConfig, runtime.GOOS), []string{"echo foo"}...), " ")})
+		cmdWithShell = strslice.StrSlice{strings.Join(append(getShell(runConfig, runtime.GOOS), "echo foo"), " ")}
 	} else {
-		cmdWithShell = strslice.StrSlice(append(getShell(runConfig, runtime.GOOS), "echo foo"))
+		cmdWithShell = append(getShell(runConfig, runtime.GOOS), "echo foo")
 	}
 
 	envVars := []string{"|1", "one=two"}
@@ -517,8 +514,6 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	sb := newDispatchRequest(b, '`', nil, args, newStagesBuildResults())
 	b.disableCommit = false
 
-	origCmd := strslice.StrSlice([]string{"cmd", "in", "from", "image"})
-
 	imageCache := &mockImageCache{
 		getCacheFunc: func(parentID string, cfg *container.Config) (string, error) {
 			return "", nil
@@ -533,7 +528,7 @@ func TestRunIgnoresHealthcheck(t *testing.T) {
 	mockBackend.getImageFunc = func(_ string) (builder.Image, builder.ROLayer, error) {
 		return &mockImage{
 			id:     "abcdef",
-			config: &container.Config{Cmd: origCmd},
+			config: &container.Config{Cmd: []string{"cmd", "in", "from", "image"}},
 		}, nil, nil
 	}
 	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {

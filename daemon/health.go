@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/sirupsen/logrus"
@@ -62,11 +61,11 @@ type cmdProbe struct {
 // exec the healthcheck command in the container.
 // Returns the exit code and probe output (if any)
 func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container) (*types.HealthcheckResult, error) {
-	cmdSlice := strslice.StrSlice(cntr.Config.Healthcheck.Test)[1:]
+	cmdSlice := cntr.Config.Healthcheck.Test[1:]
 	if p.shell {
 		cmdSlice = append(getShell(cntr), cmdSlice...)
 	}
-	entrypoint, args := d.getEntrypointAndArgs(strslice.StrSlice{}, cmdSlice)
+	entrypoint, args := d.getEntrypointAndArgs([]string{}, cmdSlice)
 	execConfig := exec.NewConfig()
 	execConfig.OpenStdin = false
 	execConfig.OpenStdout = true
