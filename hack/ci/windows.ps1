@@ -818,6 +818,9 @@ Try {
         if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
             Write-Host -ForegroundColor Green "INFO: Building busybox"
             $ErrorActionPreference = "SilentlyContinue"
+            Write-Host WINDOWS_BASE_IMAGE     : $env:WINDOWS_BASE_IMAGE
+            Write-Host WINDOWS_BASE_IMAGE_TAG : $env:WINDOWS_BASE_IMAGE_TAG
+            Write-Host "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" build  -t busybox --build-arg WINDOWS_BASE_IMAGE --build-arg WINDOWS_BASE_IMAGE_TAG "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\contrib\busybox\"
             $(& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" build  -t busybox --build-arg WINDOWS_BASE_IMAGE --build-arg WINDOWS_BASE_IMAGE_TAG "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\contrib\busybox\" | Out-Host)
             $ErrorActionPreference = "Stop"
             if (-not($LastExitCode -eq 0)) {
