@@ -176,6 +176,9 @@ func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInf
 		if profile == "" {
 			profile = config.SeccompProfileDefault
 		}
+		if profile != config.SeccompProfileDefault {
+			v.Warnings = append(v.Warnings, "WARNING: daemon is not using the default seccomp profile")
+		}
 		securityOptions = append(securityOptions, fmt.Sprintf("name=seccomp,profile=%s", profile))
 	}
 	if selinux.GetEnabled() {
