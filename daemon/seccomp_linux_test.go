@@ -8,6 +8,7 @@ import (
 	coci "github.com/containerd/containerd/oci"
 	config "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	dconfig "github.com/docker/docker/daemon/config"
 	doci "github.com/docker/docker/oci"
 	"github.com/docker/docker/profiles/seccomp"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -32,7 +33,7 @@ func TestWithSeccomp(t *testing.T) {
 				seccompEnabled: true,
 			},
 			c: &container.Container{
-				SeccompProfile: "unconfined",
+				SeccompProfile: dconfig.SeccompProfileUnconfined,
 				HostConfig: &config.HostConfig{
 					Privileged: false,
 				},

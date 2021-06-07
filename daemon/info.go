@@ -174,7 +174,7 @@ func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInf
 	if sysInfo.Seccomp && supportsSeccomp {
 		profile := daemon.seccompProfilePath
 		if profile == "" {
-			profile = "default"
+			profile = config.SeccompProfileDefault
 		}
 		securityOptions = append(securityOptions, fmt.Sprintf("name=seccomp,profile=%s", profile))
 	}
