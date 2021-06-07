@@ -8,11 +8,11 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/testutil/daemon"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
-
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 func TestConfigDaemonLibtrustID(t *testing.T) {
@@ -96,6 +96,49 @@ func TestDaemonConfigValidation(t *testing.T) {
 			} else {
 				assert.NilError(t, err)
 			}
+		})
+	}
+}
+
+func TestConfigDaemonSeccompProfiles(t *testing.T) {
+	skip.If(t, runtime.GOOS != "linux")
+
+	d := daemon.New(t)
+	defer d.Stop(t)
+
+	tests := []struct {
+		doc             string
+		profile         string
+		expectedProfile string
+	}{
+		{
+			doc:             "empty profile set",
+			profile:         "",
+			expectedProfile: "default",
+		},
+		{
+			doc:             "unconfined profile",
+			profile:         config.SeccompProfileUnconfined,
+			expectedProfile: "unconfined",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			d.Start(t, "--seccomp-profile", tc.profile)
+			info = d.Info(t)
+			assert.Assert(t, is.Contains(info.SecurityOptions, "name=seccomp,profile="+tc.expectedProfile))
+			d.Stop(t)
+
+			cfg := filepath.Join(d.RootDir(), "daemon.json")
+			err := ioutil.WriteFile(cfg, []byte(`{"seccomp-profile": "`+tc.profile+`"}`), 0644)
+			assert.NilError(t, err)
+
+			d.Start(t, "--config-file", cfg)
+			info := d.Info(t)
+			assert.Assert(t, is.Contains(info.SecurityOptions, "name=seccomp,profile="+tc.expectedProfile))
+			d.Stop(t)
 		})
 	}
 }

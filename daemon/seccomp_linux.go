@@ -39,6 +39,8 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			s.Linux.Seccomp, err = seccomp.LoadProfile(c.SeccompProfile, s)
 		case daemon.seccompProfile != nil:
 			s.Linux.Seccomp, err = seccomp.LoadProfile(string(daemon.seccompProfile), s)
+		case daemon.seccompProfilePath == dconfig.SeccompProfileUnconfined:
+			c.SeccompProfile = dconfig.SeccompProfileUnconfined
 		default:
 			s.Linux.Seccomp, err = seccomp.GetDefaultProfile(s)
 		}

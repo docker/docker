@@ -1708,11 +1708,13 @@ func maybeCreateCPURealTimeFile(configValue int64, file string, path string) err
 func (daemon *Daemon) setupSeccompProfile() error {
 	if daemon.configStore.SeccompProfile != "" {
 		daemon.seccompProfilePath = daemon.configStore.SeccompProfile
-		b, err := ioutil.ReadFile(daemon.configStore.SeccompProfile)
-		if err != nil {
-			return fmt.Errorf("opening seccomp profile (%s) failed: %v", daemon.configStore.SeccompProfile, err)
+		if daemon.configStore.SeccompProfile != config.SeccompProfileUnconfined {
+			b, err := ioutil.ReadFile(daemon.configStore.SeccompProfile)
+			if err != nil {
+				return fmt.Errorf("opening seccomp profile (%s) failed: %v", daemon.configStore.SeccompProfile, err)
+			}
+			daemon.seccompProfile = b
 		}
-		daemon.seccompProfile = b
 	}
 	return nil
 }
