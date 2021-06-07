@@ -26,7 +26,7 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			return nil
 		}
 		if !daemon.seccompEnabled {
-			if c.SeccompProfile != "" {
+			if c.SeccompProfile != "" && c.SeccompProfile != dconfig.SeccompProfileDefault {
 				return fmt.Errorf("seccomp is not enabled in your kernel, cannot run a custom seccomp profile")
 			}
 			logrus.Warn("seccomp is not enabled in your kernel, running container without default profile")
@@ -35,6 +35,8 @@ func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 		var err error
 		switch {
+		case c.SeccompProfile == dconfig.SeccompProfileDefault:
+			s.Linux.Seccomp, err = seccomp.GetDefaultProfile(s)
 		case c.SeccompProfile != "":
 			s.Linux.Seccomp, err = seccomp.LoadProfile(c.SeccompProfile, s)
 		case daemon.seccompProfile != nil:
