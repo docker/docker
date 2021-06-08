@@ -33,6 +33,13 @@ type KeyResponse struct {
 	Keys map[string]int
 }
 
+// KeyRequestOptions is used to contain optional parameters for a keyring operation
+type KeyRequestOptions struct {
+	// RelayFactor is the number of duplicate query responses to send by relaying through
+	// other nodes, for redundancy
+	RelayFactor uint8
+}
+
 // streamKeyResp takes care of reading responses from a channel and composing
 // them into a KeyResponse. It will update a KeyResponse *in place* and
 // therefore has nothing to return.
@@ -61,6 +68,11 @@ func (k *KeyManager) streamKeyResp(resp *KeyResponse, ch <-chan NodeResponse) {
 			resp.NumErr++
 		}
 
+		if nodeResponse.Result && len(nodeResponse.Message) > 0 {
+			resp.Messages[r.From] = nodeResponse.Message
+			k.serf.logger.Println("[WARN] serf:", nodeResponse.Message)
+		}
+
 		// Currently only used for key list queries, this adds keys to a counter
 		// and increments them for each node response which contains them.
 		for _, key := range nodeResponse.Keys {
@@ -83,7 +95,7 @@ func (k *KeyManager) streamKeyResp(resp *KeyResponse, ch <-chan NodeResponse) {
 // handleKeyRequest performs query broadcasting to all members for any type of
 // key operation and manages gathering responses and packing them up into a
 // KeyResponse for uniform response handling.
-func (k *KeyManager) handleKeyRequest(key, query string) (*KeyResponse, error) {
+func (k *KeyManager) handleKeyRequest(key, query string, opts *KeyRequestOptions) (*KeyResponse, error) {
 	resp := &KeyResponse{
 		Messages: make(map[string]string),
 		Keys:     make(map[string]int),
@@ -103,6 +115,9 @@ func (k *KeyManager) handleKeyRequest(key, query string) (*KeyResponse, error) {
 	}
 
 	qParam := k.serf.DefaultQueryParams()
+	if opts != nil {
+		qParam.RelayFactor = opts.RelayFactor
+	}
 	queryResp, err := k.serf.Query(qName, req, qParam)
 	if err != nil {
 		return resp, err
@@ -127,30 +142,42 @@ func (k *KeyManager) handleKeyRequest(key, query string) (*KeyResponse, error) {
 // responses from each of them, returning a list of messages from each node
 // and any applicable error conditions.
 func (k *KeyManager) InstallKey(key string) (*KeyResponse, error) {
+	return k.InstallKeyWithOptions(key, nil)
+}
+
+func (k *KeyManager) InstallKeyWithOptions(key string, opts *KeyRequestOptions) (*KeyResponse, error) {
 	k.l.Lock()
 	defer k.l.Unlock()
 
-	return k.handleKeyRequest(key, installKeyQuery)
+	return k.handleKeyRequest(key, installKeyQuery, opts)
 }
 
 // UseKey handles broadcasting a primary key change to all members in the
 // cluster, and gathering any response messages. If successful, there should
 // be an empty KeyResponse returned.
 func (k *KeyManager) UseKey(key string) (*KeyResponse, error) {
+	return k.UseKeyWithOptions(key, nil)
+}
+
+func (k *KeyManager) UseKeyWithOptions(key string, opts *KeyRequestOptions) (*KeyResponse, error) {
 	k.l.Lock()
 	defer k.l.Unlock()
 
-	return k.handleKeyRequest(key, useKeyQuery)
+	return k.handleKeyRequest(key, useKeyQuery, opts)
 }
 
 // RemoveKey handles broadcasting a key to the cluster for removal. Each member
 // will receive this event, and if they have the key in their keyring, remove
 // it. If any errors are encountered, RemoveKey will collect and relay them.
 func (k *KeyManager) RemoveKey(key string) (*KeyResponse, error) {
+	return k.RemoveKeyWithOptions(key, nil)
+}
+
+func (k *KeyManager) RemoveKeyWithOptions(key string, opts *KeyRequestOptions) (*KeyResponse, error) {
 	k.l.Lock()
 	defer k.l.Unlock()
 
-	return k.handleKeyRequest(key, removeKeyQuery)
+	return k.handleKeyRequest(key, removeKeyQuery, opts)
 }
 
 // ListKeys is used to collect installed keys from members in a Serf cluster
@@ -159,8 +186,12 @@ func (k *KeyManager) RemoveKey(key string) (*KeyResponse, error) {
 // Since having multiple keys installed can cause performance penalties in some
 // cases, it's important to verify this information and remove unneeded keys.
 func (k *KeyManager) ListKeys() (*KeyResponse, error) {
+	return k.ListKeysWithOptions(nil)
+}
+
+func (k *KeyManager) ListKeysWithOptions(opts *KeyRequestOptions) (*KeyResponse, error) {
 	k.l.RLock()
 	defer k.l.RUnlock()
 
-	return k.handleKeyRequest("", listKeysQuery)
+	return k.handleKeyRequest("", listKeysQuery, opts)
 }

@@ -22,8 +22,15 @@ const (
 
 	// DefaultLockRetryTime is how long we wait after a failed lock acquisition
 	// before attempting to do the lock again. This is so that once a lock-delay
-	// is in affect, we do not hot loop retrying the acquisition.
+	// is in effect, we do not hot loop retrying the acquisition.
 	DefaultLockRetryTime = 5 * time.Second
+
+	// DefaultMonitorRetryTime is how long we wait after a failed monitor check
+	// of a lock (500 response code). This allows the monitor to ride out brief
+	// periods of unavailability, subject to the MonitorRetries setting in the
+	// lock options which is by default set to 0, disabling this feature. This
+	// affects locks and semaphores.
+	DefaultMonitorRetryTime = 2 * time.Second
 
 	// LockFlagValue is a magic flag we set to indicate a key
 	// is being used for a lock. It is used to detect a potential
@@ -49,7 +56,7 @@ var (
 )
 
 // Lock is used to implement client-side leader election. It is follows the
-// algorithm as described here: https://consul.io/docs/guides/leader-election.html.
+// algorithm as described here: https://www.consul.io/docs/guides/leader-election.html.
 type Lock struct {
 	c    *Client
 	opts *LockOptions
@@ -62,11 +69,16 @@ type Lock struct {
 
 // LockOptions is used to parameterize the Lock behavior.
 type LockOptions struct {
-	Key         string // Must be set and have write permissions
-	Value       []byte // Optional, value to associate with the lock
-	Session     string // Optional, created if not specified
-	SessionName string // Optional, defaults to DefaultLockSessionName
-	SessionTTL  string // Optional, defaults to DefaultLockSessionTTL
+	Key              string        // Must be set and have write permissions
+	Value            []byte        // Optional, value to associate with the lock
+	Session          string        // Optional, created if not specified
+	SessionOpts      *SessionEntry // Optional, options to use when creating a session
+	SessionName      string        // Optional, defaults to DefaultLockSessionName (ignored if SessionOpts is given)
+	SessionTTL       string        // Optional, defaults to DefaultLockSessionTTL (ignored if SessionOpts is given)
+	MonitorRetries   int           // Optional, defaults to 0 which means no retries
+	MonitorRetryTime time.Duration // Optional, defaults to DefaultMonitorRetryTime
+	LockWaitTime     time.Duration // Optional, defaults to DefaultLockWaitTime
+	LockTryOnce      bool          // Optional, defaults to false which means try forever
 }
 
 // LockKey returns a handle to a lock struct which can be used
@@ -95,6 +107,12 @@ func (c *Client) LockOpts(opts *LockOptions) (*Lock, error) {
 		if _, err := time.ParseDuration(opts.SessionTTL); err != nil {
 			return nil, fmt.Errorf("invalid SessionTTL: %v", err)
 		}
+	}
+	if opts.MonitorRetryTime == 0 {
+		opts.MonitorRetryTime = DefaultMonitorRetryTime
+	}
+	if opts.LockWaitTime == 0 {
+		opts.LockWaitTime = DefaultLockWaitTime
 	}
 	l := &Lock{
 		c:    c,
@@ -125,30 +143,33 @@ func (l *Lock) Lock(stopCh <-chan struct{}) (<-chan struct{}, error) {
 	// Check if we need to create a session first
 	l.lockSession = l.opts.Session
 	if l.lockSession == "" {
-		if s, err := l.createSession(); err != nil {
+		s, err := l.createSession()
+		if err != nil {
 			return nil, fmt.Errorf("failed to create session: %v", err)
-		} else {
-			l.sessionRenew = make(chan struct{})
-			l.lockSession = s
-			session := l.c.Session()
-			go session.RenewPeriodic(l.opts.SessionTTL, s, nil, l.sessionRenew)
-
-			// If we fail to acquire the lock, cleanup the session
-			defer func() {
-				if !l.isHeld {
-					close(l.sessionRenew)
-					l.sessionRenew = nil
-				}
-			}()
 		}
+
+		l.sessionRenew = make(chan struct{})
+		l.lockSession = s
+		session := l.c.Session()
+		go session.RenewPeriodic(l.opts.SessionTTL, s, nil, l.sessionRenew)
+
+		// If we fail to acquire the lock, cleanup the session
+		defer func() {
+			if !l.isHeld {
+				close(l.sessionRenew)
+				l.sessionRenew = nil
+			}
+		}()
 	}
 
 	// Setup the query options
 	kv := l.c.KV()
 	qOpts := &QueryOptions{
-		WaitTime: DefaultLockWaitTime,
+		WaitTime: l.opts.LockWaitTime,
 	}
 
+	start := time.Now()
+	attempts := 0
 WAIT:
 	// Check if we should quit
 	select {
@@ -156,6 +177,18 @@ WAIT:
 		return nil, nil
 	default:
 	}
+
+	// Handle the one-shot mode.
+	if l.opts.LockTryOnce && attempts > 0 {
+		elapsed := time.Since(start)
+		if elapsed > l.opts.LockWaitTime {
+			return nil, nil
+		}
+
+		// Query wait time should not exceed the lock wait time
+		qOpts.WaitTime = l.opts.LockWaitTime - elapsed
+	}
+	attempts++
 
 	// Look for an existing lock, blocking until not taken
 	pair, meta, err := kv.Get(l.opts.Key, qOpts)
@@ -183,11 +216,23 @@ WAIT:
 
 	// Handle the case of not getting the lock
 	if !locked {
-		select {
-		case <-time.After(DefaultLockRetryTime):
+		// Determine why the lock failed
+		qOpts.WaitIndex = 0
+		pair, meta, err = kv.Get(l.opts.Key, qOpts)
+		if pair != nil && pair.Session != "" {
+			//If the session is not null, this means that a wait can safely happen
+			//using a long poll
+			qOpts.WaitIndex = meta.LastIndex
 			goto WAIT
-		case <-stopCh:
-			return nil, nil
+		} else {
+			// If the session is empty and the lock failed to acquire, then it means
+			// a lock-delay is in effect and a timed wait must be used
+			select {
+			case <-time.After(DefaultLockRetryTime):
+				goto WAIT
+			case <-stopCh:
+				return nil, nil
+			}
 		}
 	}
 
@@ -287,9 +332,12 @@ func (l *Lock) Destroy() error {
 // createSession is used to create a new managed session
 func (l *Lock) createSession() (string, error) {
 	session := l.c.Session()
-	se := &SessionEntry{
-		Name: l.opts.SessionName,
-		TTL:  l.opts.SessionTTL,
+	se := l.opts.SessionOpts
+	if se == nil {
+		se = &SessionEntry{
+			Name: l.opts.SessionName,
+			TTL:  l.opts.SessionTTL,
+		}
 	}
 	id, _, err := session.Create(se, nil)
 	if err != nil {
@@ -315,8 +363,20 @@ func (l *Lock) monitorLock(session string, stopCh chan struct{}) {
 	kv := l.c.KV()
 	opts := &QueryOptions{RequireConsistent: true}
 WAIT:
+	retries := l.opts.MonitorRetries
+RETRY:
 	pair, meta, err := kv.Get(l.opts.Key, opts)
 	if err != nil {
+		// If configured we can try to ride out a brief Consul unavailability
+		// by doing retries. Note that we have to attempt the retry in a non-
+		// blocking fashion so that we have a clean place to reset the retry
+		// counter if service is restored.
+		if retries > 0 && IsRetryableError(err) {
+			time.Sleep(l.opts.MonitorRetryTime)
+			retries--
+			opts.WaitIndex = 0
+			goto RETRY
+		}
 		return
 	}
 	if pair != nil && pair.Session == session {

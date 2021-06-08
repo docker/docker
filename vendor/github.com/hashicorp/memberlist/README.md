@@ -1,4 +1,4 @@
-# memberlist [![GoDoc](https://godoc.org/github.com/hashicorp/memberlist?status.png)](https://godoc.org/github.com/hashicorp/memberlist)
+# memberlist [![GoDoc](https://godoc.org/github.com/hashicorp/memberlist?status.png)](https://godoc.org/github.com/hashicorp/memberlist) [![Build Status](https://travis-ci.org/hashicorp/memberlist.svg?branch=master)](https://travis-ci.org/hashicorp/memberlist)
 
 memberlist is a [Go](http://www.golang.org) library that manages cluster
 membership and member failure detection using a gossip based protocol.
@@ -65,7 +65,7 @@ For complete documentation, see the associated [Godoc](http://godoc.org/github.c
 
 ## Protocol
 
-memberlist is based on ["SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol"](http://www.cs.cornell.edu/~asdas/research/dsn02-swim.pdf). However, we extend the protocol in a number of ways:
+memberlist is based on ["SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol"](http://ieeexplore.ieee.org/document/1028914/). However, we extend the protocol in a number of ways:
 
 * Several extensions are made to increase propagation speed and
 convergence rate.

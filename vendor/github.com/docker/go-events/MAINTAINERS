@@ -1,0 +1,46 @@
+# go-events maintainers file
+#
+# This file describes who runs the docker/go-events project and how.
+# This is a living document - if you see something out of date or missing, speak up!
+#
+# It is structured to be consumable by both humans and programs.
+# To extract its contents programmatically, use any TOML-compliant parser.
+#
+# This file is compiled into the MAINTAINERS file in docker/opensource.
+#
+[Org]
+	[Org."Core maintainers"]
+		people = [
+			"aaronlehmann",
+			"aluzzardi",
+			"lk4d4",
+			"stevvooe",
+		]
+
+[people]
+
+# A reference list of all people associated with the project.
+# All other sections should refer to people by their canonical key
+# in the people section.
+
+	# ADD YOURSELF HERE IN ALPHABETICAL ORDER
+
+	[people.aaronlehmann]
+	Name = "Aaron Lehmann"
+	Email = "aaron.lehmann@docker.com"
+	GitHub = "aaronlehmann"
+
+	[people.aluzzardi]
+	Name = "Andrea Luzzardi"
+	Email = "al@docker.com"
+	GitHub = "aluzzardi"
+
+	[people.lk4d4]
+	Name = "Alexander Morozov"
+	Email = "lk4d4@docker.com"
+	GitHub = "lk4d4"
+
+	[people.stevvooe]
+	Name = "Stephen Day"
+	Email = "stephen.day@docker.com"
+	GitHub = "stevvooe"

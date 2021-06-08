@@ -1,6 +1,6 @@
 // Copyright 2017, The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE.md file.
+// license that can be found in the LICENSE file.
 
 package cmpopts
 
@@ -11,16 +11,16 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/internal/function"
 )
 
-// IgnoreFields returns an Option that ignores exported fields of the
-// given names on a single struct type.
+// IgnoreFields returns an Option that ignores fields of the
+// given names on a single struct type. It respects the names of exported fields
+// that are forwarded due to struct embedding.
 // The struct type is specified by passing in a value of that type.
 //
 // The name may be a dot-delimited string (e.g., "Foo.Bar") to ignore a
 // specific sub-field that is embedded or nested within the parent struct.
-//
-// This does not handle unexported fields; use IgnoreUnexported instead.
 func IgnoreFields(typ interface{}, names ...string) cmp.Option {
 	sf := newStructFilter(typ, names...)
 	return cmp.FilterPath(sf.filter, cmp.Ignore())
@@ -112,6 +112,10 @@ func (tf ifaceFilter) filter(p cmp.Path) bool {
 // In particular, unexported fields within the struct's exported fields
 // of struct types, including anonymous fields, will not be ignored unless the
 // type of the field itself is also passed to IgnoreUnexported.
+//
+// Avoid ignoring unexported fields of a type which you do not control (i.e. a
+// type from another repository), as changes to the implementation of such types
+// may change how the comparison behaves. Prefer a custom Comparer instead.
 func IgnoreUnexported(typs ...interface{}) cmp.Option {
 	ux := newUnexportedFilter(typs...)
 	return cmp.FilterPath(ux.filter, cmp.Ignore())
@@ -124,7 +128,7 @@ func newUnexportedFilter(typs ...interface{}) unexportedFilter {
 	for _, typ := range typs {
 		t := reflect.TypeOf(typ)
 		if t == nil || t.Kind() != reflect.Struct {
-			panic(fmt.Sprintf("invalid struct type: %T", typ))
+			panic(fmt.Sprintf("%T must be a non-pointer struct", typ))
 		}
 		ux.m[t] = true
 	}
@@ -142,4 +146,61 @@ func (xf unexportedFilter) filter(p cmp.Path) bool {
 func isExported(id string) bool {
 	r, _ := utf8.DecodeRuneInString(id)
 	return unicode.IsUpper(r)
+}
+
+// IgnoreSliceElements returns an Option that ignores elements of []V.
+// The discard function must be of the form "func(T) bool" which is used to
+// ignore slice elements of type V, where V is assignable to T.
+// Elements are ignored if the function reports true.
+func IgnoreSliceElements(discardFunc interface{}) cmp.Option {
+	vf := reflect.ValueOf(discardFunc)
+	if !function.IsType(vf.Type(), function.ValuePredicate) || vf.IsNil() {
+		panic(fmt.Sprintf("invalid discard function: %T", discardFunc))
+	}
+	return cmp.FilterPath(func(p cmp.Path) bool {
+		si, ok := p.Index(-1).(cmp.SliceIndex)
+		if !ok {
+			return false
+		}
+		if !si.Type().AssignableTo(vf.Type().In(0)) {
+			return false
+		}
+		vx, vy := si.Values()
+		if vx.IsValid() && vf.Call([]reflect.Value{vx})[0].Bool() {
+			return true
+		}
+		if vy.IsValid() && vf.Call([]reflect.Value{vy})[0].Bool() {
+			return true
+		}
+		return false
+	}, cmp.Ignore())
+}
+
+// IgnoreMapEntries returns an Option that ignores entries of map[K]V.
+// The discard function must be of the form "func(T, R) bool" which is used to
+// ignore map entries of type K and V, where K and V are assignable to T and R.
+// Entries are ignored if the function reports true.
+func IgnoreMapEntries(discardFunc interface{}) cmp.Option {
+	vf := reflect.ValueOf(discardFunc)
+	if !function.IsType(vf.Type(), function.KeyValuePredicate) || vf.IsNil() {
+		panic(fmt.Sprintf("invalid discard function: %T", discardFunc))
+	}
+	return cmp.FilterPath(func(p cmp.Path) bool {
+		mi, ok := p.Index(-1).(cmp.MapIndex)
+		if !ok {
+			return false
+		}
+		if !mi.Key().Type().AssignableTo(vf.Type().In(0)) || !mi.Type().AssignableTo(vf.Type().In(1)) {
+			return false
+		}
+		k := mi.Key()
+		vx, vy := mi.Values()
+		if vx.IsValid() && vf.Call([]reflect.Value{k, vx})[0].Bool() {
+			return true
+		}
+		if vy.IsValid() && vf.Call([]reflect.Value{k, vy})[0].Bool() {
+			return true
+		}
+		return false
+	}, cmp.Ignore())
 }

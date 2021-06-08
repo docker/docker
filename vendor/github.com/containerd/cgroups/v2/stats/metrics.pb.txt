@@ -1,0 +1,539 @@
+file {
+  name: "github.com/containerd/cgroups/v2/stats/metrics.proto"
+  package: "io.containerd.cgroups.v2"
+  dependency: "gogoproto/gogo.proto"
+  message_type {
+    name: "Metrics"
+    field {
+      name: "pids"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.PidsStat"
+      json_name: "pids"
+    }
+    field {
+      name: "cpu"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.CPUStat"
+      options {
+        65004: "CPU"
+      }
+      json_name: "cpu"
+    }
+    field {
+      name: "memory"
+      number: 4
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.MemoryStat"
+      json_name: "memory"
+    }
+    field {
+      name: "rdma"
+      number: 5
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.RdmaStat"
+      json_name: "rdma"
+    }
+    field {
+      name: "io"
+      number: 6
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.IOStat"
+      json_name: "io"
+    }
+    field {
+      name: "hugetlb"
+      number: 7
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.HugeTlbStat"
+      json_name: "hugetlb"
+    }
+    field {
+      name: "memory_events"
+      number: 8
+      label: LABEL_OPTIONAL
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.MemoryEvents"
+      json_name: "memoryEvents"
+    }
+  }
+  message_type {
+    name: "PidsStat"
+    field {
+      name: "current"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "current"
+    }
+    field {
+      name: "limit"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "limit"
+    }
+  }
+  message_type {
+    name: "CPUStat"
+    field {
+      name: "usage_usec"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "usageUsec"
+    }
+    field {
+      name: "user_usec"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "userUsec"
+    }
+    field {
+      name: "system_usec"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "systemUsec"
+    }
+    field {
+      name: "nr_periods"
+      number: 4
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "nrPeriods"
+    }
+    field {
+      name: "nr_throttled"
+      number: 5
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "nrThrottled"
+    }
+    field {
+      name: "throttled_usec"
+      number: 6
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "throttledUsec"
+    }
+  }
+  message_type {
+    name: "MemoryStat"
+    field {
+      name: "anon"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "anon"
+    }
+    field {
+      name: "file"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "file"
+    }
+    field {
+      name: "kernel_stack"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "kernelStack"
+    }
+    field {
+      name: "slab"
+      number: 4
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "slab"
+    }
+    field {
+      name: "sock"
+      number: 5
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "sock"
+    }
+    field {
+      name: "shmem"
+      number: 6
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "shmem"
+    }
+    field {
+      name: "file_mapped"
+      number: 7
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "fileMapped"
+    }
+    field {
+      name: "file_dirty"
+      number: 8
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "fileDirty"
+    }
+    field {
+      name: "file_writeback"
+      number: 9
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "fileWriteback"
+    }
+    field {
+      name: "anon_thp"
+      number: 10
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "anonThp"
+    }
+    field {
+      name: "inactive_anon"
+      number: 11
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "inactiveAnon"
+    }
+    field {
+      name: "active_anon"
+      number: 12
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "activeAnon"
+    }
+    field {
+      name: "inactive_file"
+      number: 13
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "inactiveFile"
+    }
+    field {
+      name: "active_file"
+      number: 14
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "activeFile"
+    }
+    field {
+      name: "unevictable"
+      number: 15
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "unevictable"
+    }
+    field {
+      name: "slab_reclaimable"
+      number: 16
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "slabReclaimable"
+    }
+    field {
+      name: "slab_unreclaimable"
+      number: 17
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "slabUnreclaimable"
+    }
+    field {
+      name: "pgfault"
+      number: 18
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "pgfault"
+    }
+    field {
+      name: "pgmajfault"
+      number: 19
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "pgmajfault"
+    }
+    field {
+      name: "workingset_refault"
+      number: 20
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "workingsetRefault"
+    }
+    field {
+      name: "workingset_activate"
+      number: 21
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "workingsetActivate"
+    }
+    field {
+      name: "workingset_nodereclaim"
+      number: 22
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "workingsetNodereclaim"
+    }
+    field {
+      name: "pgrefill"
+      number: 23
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "pgrefill"
+    }
+    field {
+      name: "pgscan"
+      number: 24
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "pgscan"
+    }
+    field {
+      name: "pgsteal"
+      number: 25
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "pgsteal"
+    }
+    field {
+      name: "pgactivate"
+      number: 26
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "pgactivate"
+    }
+    field {
+      name: "pgdeactivate"
+      number: 27
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "pgdeactivate"
+    }
+    field {
+      name: "pglazyfree"
+      number: 28
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "pglazyfree"
+    }
+    field {
+      name: "pglazyfreed"
+      number: 29
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "pglazyfreed"
+    }
+    field {
+      name: "thp_fault_alloc"
+      number: 30
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "thpFaultAlloc"
+    }
+    field {
+      name: "thp_collapse_alloc"
+      number: 31
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "thpCollapseAlloc"
+    }
+    field {
+      name: "usage"
+      number: 32
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "usage"
+    }
+    field {
+      name: "usage_limit"
+      number: 33
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "usageLimit"
+    }
+    field {
+      name: "swap_usage"
+      number: 34
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "swapUsage"
+    }
+    field {
+      name: "swap_limit"
+      number: 35
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "swapLimit"
+    }
+  }
+  message_type {
+    name: "MemoryEvents"
+    field {
+      name: "low"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "low"
+    }
+    field {
+      name: "high"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "high"
+    }
+    field {
+      name: "max"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "max"
+    }
+    field {
+      name: "oom"
+      number: 4
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "oom"
+    }
+    field {
+      name: "oom_kill"
+      number: 5
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "oomKill"
+    }
+  }
+  message_type {
+    name: "RdmaStat"
+    field {
+      name: "current"
+      number: 1
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.RdmaEntry"
+      json_name: "current"
+    }
+    field {
+      name: "limit"
+      number: 2
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.RdmaEntry"
+      json_name: "limit"
+    }
+  }
+  message_type {
+    name: "RdmaEntry"
+    field {
+      name: "device"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "device"
+    }
+    field {
+      name: "hca_handles"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT32
+      json_name: "hcaHandles"
+    }
+    field {
+      name: "hca_objects"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT32
+      json_name: "hcaObjects"
+    }
+  }
+  message_type {
+    name: "IOStat"
+    field {
+      name: "usage"
+      number: 1
+      label: LABEL_REPEATED
+      type: TYPE_MESSAGE
+      type_name: ".io.containerd.cgroups.v2.IOEntry"
+      json_name: "usage"
+    }
+  }
+  message_type {
+    name: "IOEntry"
+    field {
+      name: "major"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "major"
+    }
+    field {
+      name: "minor"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "minor"
+    }
+    field {
+      name: "rbytes"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "rbytes"
+    }
+    field {
+      name: "wbytes"
+      number: 4
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "wbytes"
+    }
+    field {
+      name: "rios"
+      number: 5
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "rios"
+    }
+    field {
+      name: "wios"
+      number: 6
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "wios"
+    }
+  }
+  message_type {
+    name: "HugeTlbStat"
+    field {
+      name: "current"
+      number: 1
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "current"
+    }
+    field {
+      name: "max"
+      number: 2
+      label: LABEL_OPTIONAL
+      type: TYPE_UINT64
+      json_name: "max"
+    }
+    field {
+      name: "pagesize"
+      number: 3
+      label: LABEL_OPTIONAL
+      type: TYPE_STRING
+      json_name: "pagesize"
+    }
+  }
+  syntax: "proto3"
+}

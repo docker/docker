@@ -1,0 +1,28 @@
+version: "{build}"
+
+os: Windows Server 2016
+
+image: Visual Studio 2017
+
+clone_folder: c:\gopath\src\github.com\urfave\cli
+
+cache:
+  - node_modules
+
+environment:
+  GOPATH: C:\gopath
+  GOVERSION: 1.11.x
+  GO111MODULE: on
+  GOPROXY: https://proxy.golang.org
+
+install:
+  - set PATH=%GOPATH%\bin;C:\go\bin;%PATH%
+  - go version
+  - go env
+  - go get github.com/urfave/gfmrun/cmd/gfmrun
+  - go mod vendor
+
+build_script:
+  - go run build.go vet
+  - go run build.go test
+  - go run build.go gfmrun docs/v1/manual.md

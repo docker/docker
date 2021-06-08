@@ -39,14 +39,12 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/internal/version"
 	vkit "cloud.google.com/go/logging/apiv2"
 	"cloud.google.com/go/logging/internal"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	structpb "github.com/golang/protobuf/ptypes/struct"
-	tspb "github.com/golang/protobuf/ptypes/timestamp"
 	"google.golang.org/api/option"
 	"google.golang.org/api/support/bundler"
 	mrpb "google.golang.org/genproto/googleapis/api/monitoredres"
@@ -137,11 +135,8 @@ type Client struct {
 // By default NewClient uses WriteScope. To use a different scope, call
 // NewClient using a WithScopes option (see https://godoc.org/google.golang.org/api/option#WithScopes).
 func NewClient(ctx context.Context, parent string, opts ...option.ClientOption) (*Client, error) {
-	if !strings.ContainsRune(parent, '/') {
-		parent = "projects/" + parent
-	}
+	parent = makeParent(parent)
 	opts = append([]option.ClientOption{
-		option.WithEndpoint(internal.ProdAddr),
 		option.WithScopes(WriteScope),
 	}, opts...)
 	c, err := vkit.NewClient(ctx, opts...)
@@ -173,26 +168,27 @@ func NewClient(ctx context.Context, parent string, opts ...option.ClientOption) 
 	return client, nil
 }
 
-var unixZeroTimestamp *tspb.Timestamp
-
-func init() {
-	var err error
-	unixZeroTimestamp, err = ptypes.TimestampProto(time.Unix(0, 0))
-	if err != nil {
-		panic(err)
+func makeParent(parent string) string {
+	if !strings.ContainsRune(parent, '/') {
+		return "projects/" + parent
 	}
+	return parent
 }
 
 // Ping reports whether the client's connection to the logging service and the
 // authentication configuration are valid. To accomplish this, Ping writes a
 // log entry "ping" to a log named "ping".
 func (c *Client) Ping(ctx context.Context) error {
+	unixZeroTimestamp, err := ptypes.TimestampProto(time.Unix(0, 0))
+	if err != nil {
+		return err
+	}
 	ent := &logpb.LogEntry{
 		Payload:   &logpb.LogEntry_TextPayload{TextPayload: "ping"},
 		Timestamp: unixZeroTimestamp, // Identical timestamps and insert IDs are both
 		InsertId:  "ping",            // necessary for the service to dedup these entries.
 	}
-	_, err := c.client.WriteLogEntries(ctx, &logpb.WriteLogEntriesRequest{
+	_, err = c.client.WriteLogEntries(ctx, &logpb.WriteLogEntriesRequest{
 		LogName:  internal.LogPath(c.parent, "ping"),
 		Resource: monitoredResource(c.parent),
 		Entries:  []*logpb.LogEntry{ent},
@@ -242,86 +238,6 @@ type Logger struct {
 // A LoggerOption is a configuration option for a Logger.
 type LoggerOption interface {
 	set(*Logger)
-}
-
-// CommonResource sets the monitored resource associated with all log entries
-// written from a Logger. If not provided, the resource is automatically
-// detected based on the running environment.  This value can be overridden
-// per-entry by setting an Entry's Resource field.
-func CommonResource(r *mrpb.MonitoredResource) LoggerOption { return commonResource{r} }
-
-type commonResource struct{ *mrpb.MonitoredResource }
-
-func (r commonResource) set(l *Logger) { l.commonResource = r.MonitoredResource }
-
-var detectedResource struct {
-	pb   *mrpb.MonitoredResource
-	once sync.Once
-}
-
-func detectResource() *mrpb.MonitoredResource {
-	detectedResource.once.Do(func() {
-		if !metadata.OnGCE() {
-			return
-		}
-		projectID, err := metadata.ProjectID()
-		if err != nil {
-			return
-		}
-		id, err := metadata.InstanceID()
-		if err != nil {
-			return
-		}
-		zone, err := metadata.Zone()
-		if err != nil {
-			return
-		}
-		name, err := metadata.InstanceName()
-		if err != nil {
-			return
-		}
-		detectedResource.pb = &mrpb.MonitoredResource{
-			Type: "gce_instance",
-			Labels: map[string]string{
-				"project_id":    projectID,
-				"instance_id":   id,
-				"instance_name": name,
-				"zone":          zone,
-			},
-		}
-	})
-	return detectedResource.pb
-}
-
-var resourceInfo = map[string]struct{ rtype, label string }{
-	"organizations":   {"organization", "organization_id"},
-	"folders":         {"folder", "folder_id"},
-	"projects":        {"project", "project_id"},
-	"billingAccounts": {"billing_account", "account_id"},
-}
-
-func monitoredResource(parent string) *mrpb.MonitoredResource {
-	parts := strings.SplitN(parent, "/", 2)
-	if len(parts) != 2 {
-		return globalResource(parent)
-	}
-	info, ok := resourceInfo[parts[0]]
-	if !ok {
-		return globalResource(parts[1])
-	}
-	return &mrpb.MonitoredResource{
-		Type:   info.rtype,
-		Labels: map[string]string{info.label: parts[1]},
-	}
-}
-
-func globalResource(projectID string) *mrpb.MonitoredResource {
-	return &mrpb.MonitoredResource{
-		Type: "global",
-		Labels: map[string]string{
-			"project_id": projectID,
-		},
-	}
 }
 
 // CommonLabels are labels that apply to all log entries written from a Logger,
@@ -544,6 +460,17 @@ func (v Severity) String() string {
 	return strconv.Itoa(int(v))
 }
 
+// UnmarshalJSON turns a string representation of severity into the type
+// Severity.
+func (v *Severity) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*v = ParseSeverity(s)
+	return nil
+}
+
 // ParseSeverity returns the Severity whose name equals s, ignoring case. It
 // returns Default if no Severity matches.
 func ParseSeverity(s string) Severity {
@@ -654,14 +581,20 @@ type HTTPRequest struct {
 	// validated with the origin server before being served from cache. This
 	// field is only meaningful if CacheHit is true.
 	CacheValidatedWithOriginServer bool
+
+	// CacheFillBytes is the number of HTTP response bytes inserted into cache. Set only when a cache fill was attempted.
+	CacheFillBytes int64
+
+	// CacheLookup tells whether or not a cache lookup was attempted.
+	CacheLookup bool
 }
 
-func fromHTTPRequest(r *HTTPRequest) *logtypepb.HttpRequest {
+func fromHTTPRequest(r *HTTPRequest) (*logtypepb.HttpRequest, error) {
 	if r == nil {
-		return nil
+		return nil, nil
 	}
 	if r.Request == nil {
-		panic("HTTPRequest must have a non-nil Request")
+		return nil, errors.New("logging: HTTPRequest must have a non-nil Request")
 	}
 	u := *r.Request.URL
 	u.Fragment = ""
@@ -677,11 +610,14 @@ func fromHTTPRequest(r *HTTPRequest) *logtypepb.HttpRequest {
 		Referer:                        r.Request.Referer(),
 		CacheHit:                       r.CacheHit,
 		CacheValidatedWithOriginServer: r.CacheValidatedWithOriginServer,
+		Protocol:                       r.Request.Proto,
+		CacheFillBytes:                 r.CacheFillBytes,
+		CacheLookup:                    r.CacheLookup,
 	}
 	if r.Latency != 0 {
 		pb.Latency = ptypes.DurationProto(r.Latency)
 	}
-	return pb
+	return pb, nil
 }
 
 // fixUTF8 is a helper that fixes an invalid UTF-8 string by replacing
@@ -761,16 +697,15 @@ func jsonValueToStructValue(v interface{}) *structpb.Value {
 		}
 		return &structpb.Value{Kind: &structpb.Value_ListValue{ListValue: &structpb.ListValue{Values: vals}}}
 	default:
-		panic(fmt.Sprintf("bad type %T for JSON value", v))
+		return &structpb.Value{Kind: &structpb.Value_NullValue{}}
 	}
 }
 
 // LogSync logs the Entry synchronously without any buffering. Because LogSync is slow
 // and will block, it is intended primarily for debugging or critical errors.
 // Prefer Log for most uses.
-// TODO(jba): come up with a better name (LogNow?) or eliminate.
 func (l *Logger) LogSync(ctx context.Context, e Entry) error {
-	ent, err := l.toLogEntry(e)
+	ent, err := toLogEntryInternal(e, l.client, l.client.parent)
 	if err != nil {
 		return err
 	}
@@ -785,7 +720,7 @@ func (l *Logger) LogSync(ctx context.Context, e Entry) error {
 
 // Log buffers the Entry for output to the logging service. It never blocks.
 func (l *Logger) Log(e Entry) {
-	ent, err := l.toLogEntry(e)
+	ent, err := toLogEntryInternal(e, l.client, l.client.parent)
 	if err != nil {
 		l.client.error(err)
 		return
@@ -832,38 +767,55 @@ func (l *Logger) writeLogEntries(entries []*logpb.LogEntry) {
 // (for example by calling SetFlags or SetPrefix).
 func (l *Logger) StandardLogger(s Severity) *log.Logger { return l.stdLoggers[s] }
 
-var reCloudTraceContext = regexp.MustCompile(`([a-f\d]+)/([a-f\d]+);o=(\d)`)
+var reCloudTraceContext = regexp.MustCompile(
+	// Matches on "TRACE_ID"
+	`([a-f\d]+)?` +
+		// Matches on "/SPAN_ID"
+		`(?:/([a-f\d]+))?` +
+		// Matches on ";0=TRACE_TRUE"
+		`(?:;o=(\d))?`)
 
 func deconstructXCloudTraceContext(s string) (traceID, spanID string, traceSampled bool) {
-	// As per the format described at https://cloud.google.com/trace/docs/troubleshooting#force-trace
+	// As per the format described at https://cloud.google.com/trace/docs/setup#force-trace
 	//    "X-Cloud-Trace-Context: TRACE_ID/SPAN_ID;o=TRACE_TRUE"
 	// for example:
-	//    "X-Cloud-Trace-Context: 105445aa7843bc8bf206b120001000/0;o=1"
+	//    "X-Cloud-Trace-Context: 105445aa7843bc8bf206b120001000/1;o=1"
 	//
 	// We expect:
-	//   * traceID:         "105445aa7843bc8bf206b120001000"
-	//   * spanID:          ""
-	//   * traceSampled:    true
-	matches := reCloudTraceContext.FindAllStringSubmatch(s, -1)
-	if len(matches) != 1 {
-		return
-	}
+	//   * traceID (optional): 			"105445aa7843bc8bf206b120001000"
+	//   * spanID (optional):       	"1"
+	//   * traceSampled (optional): 	true
+	matches := reCloudTraceContext.FindStringSubmatch(s)
 
-	sub := matches[0]
-	if len(sub) != 4 {
-		return
-	}
+	traceID, spanID, traceSampled = matches[1], matches[2], matches[3] == "1"
 
-	traceID, spanID = sub[1], sub[2]
 	if spanID == "0" {
 		spanID = ""
 	}
-	traceSampled = sub[3] == "1"
 
 	return
 }
 
-func (l *Logger) toLogEntry(e Entry) (*logpb.LogEntry, error) {
+// ToLogEntry takes an Entry structure and converts it to the LogEntry proto.
+// A parent can take any of the following forms:
+//    projects/PROJECT_ID
+//    folders/FOLDER_ID
+//    billingAccounts/ACCOUNT_ID
+//    organizations/ORG_ID
+// for backwards compatibility, a string with no '/' is also allowed and is interpreted
+// as a project ID.
+//
+// ToLogEntry is implied when users invoke Logger.Log or Logger.LogSync,
+// but its exported as a pub function here to give users additional flexibility
+// when using the library. Don't call this method manually if Logger.Log or
+// Logger.LogSync are used, it is intended to be used together with direct call
+// to WriteLogEntries method.
+func ToLogEntry(e Entry, parent string) (*logpb.LogEntry, error) {
+	// We have this method to support logging agents that need a bigger flexibility.
+	return toLogEntryInternal(e, nil, makeParent(parent))
+}
+
+func toLogEntryInternal(e Entry, client *Client, parent string) (*logpb.LogEntry, error) {
 	if e.LogName != "" {
 		return nil, errors.New("logging: Entry.LogName should be not be set when writing")
 	}
@@ -882,7 +834,7 @@ func (l *Logger) toLogEntry(e Entry) (*logpb.LogEntry, error) {
 			// https://cloud.google.com/appengine/docs/flexible/go/writing-application-logs.
 			traceID, spanID, traceSampled := deconstructXCloudTraceContext(traceHeader)
 			if traceID != "" {
-				e.Trace = fmt.Sprintf("%s/traces/%s", l.client.parent, traceID)
+				e.Trace = fmt.Sprintf("%s/traces/%s", parent, traceID)
 			}
 			if e.SpanID == "" {
 				e.SpanID = spanID
@@ -894,11 +846,19 @@ func (l *Logger) toLogEntry(e Entry) (*logpb.LogEntry, error) {
 			e.TraceSampled = e.TraceSampled || traceSampled
 		}
 	}
+	req, err := fromHTTPRequest(e.HTTPRequest)
+	if err != nil {
+		if client != nil {
+			client.error(err)
+		} else {
+			return nil, err
+		}
+	}
 	ent := &logpb.LogEntry{
 		Timestamp:      ts,
 		Severity:       logtypepb.LogSeverity(e.Severity),
 		InsertId:       e.InsertID,
-		HttpRequest:    fromHTTPRequest(e.HTTPRequest),
+		HttpRequest:    req,
 		Operation:      e.Operation,
 		Labels:         e.Labels,
 		Trace:          e.Trace,

@@ -1,0 +1,15 @@
+language: go
+
+sudo: true
+
+go:
+  - "1.x"
+
+branches:
+  only:
+    - master
+
+install: true
+
+env:
+  - GO111MODULE=on # Enable Go modules in 1.11

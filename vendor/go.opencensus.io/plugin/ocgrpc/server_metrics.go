@@ -63,6 +63,8 @@ var (
 		Aggregation: DefaultMillisecondsDistribution,
 	}
 
+	// Purposely reuses the count from `ServerLatency`, tagging
+	// with method and status to result in ServerCompletedRpcs.
 	ServerCompletedRPCsView = &view.View{
 		Name:        "grpc.io/server/completed_rpcs",
 		Description: "Count of RPCs by method and status.",

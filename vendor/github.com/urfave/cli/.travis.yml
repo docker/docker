@@ -1,0 +1,35 @@
+language: go
+sudo: false
+dist: bionic
+osx_image: xcode10
+go:
+  - 1.11.x
+  - 1.12.x
+  - 1.13.x
+
+os:
+  - linux
+  - osx
+
+env:
+  GO111MODULE=on
+  GOPROXY=https://proxy.golang.org
+
+cache:
+  directories:
+    - node_modules
+
+before_script:
+  - go get github.com/urfave/gfmrun/cmd/gfmrun
+  - go get golang.org/x/tools/cmd/goimports
+  - npm install markdown-toc
+  - go mod tidy
+
+script:
+  - go run build.go vet
+  - go run build.go test
+  - go run build.go gfmrun docs/v1/manual.md
+  - go run build.go toc docs/v1/manual.md
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)

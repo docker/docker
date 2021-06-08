@@ -37,12 +37,13 @@ import (
 	"google.golang.org/grpc/credentials/alts/internal/handshaker/service"
 	altspb "google.golang.org/grpc/credentials/alts/internal/proto/grpc_gcp"
 	"google.golang.org/grpc/grpclog"
+	"google.golang.org/grpc/internal/googlecloud"
 )
 
 const (
 	// hypervisorHandshakerServiceAddress represents the default ALTS gRPC
 	// handshaker service address in the hypervisor.
-	hypervisorHandshakerServiceAddress = "metadata.google.internal:8080"
+	hypervisorHandshakerServiceAddress = "metadata.google.internal.:8080"
 	// defaultTimeout specifies the server handshake timeout.
 	defaultTimeout = 30.0 * time.Second
 	// The following constants specify the minimum and maximum acceptable
@@ -54,6 +55,7 @@ const (
 )
 
 var (
+	vmOnGCP       bool
 	once          sync.Once
 	maxRPCVersion = &altspb.RpcProtocolVersions_Version{
 		Major: protocolVersionMaxMajor,
@@ -67,6 +69,7 @@ var (
 	// ServerHandshake is running on a platform where the trustworthiness of
 	// the handshaker service is not guaranteed.
 	ErrUntrustedPlatform = errors.New("ALTS: untrusted platform. ALTS is only supported on GCP")
+	logger               = grpclog.Component("alts")
 )
 
 // AuthInfo exposes security information from the ALTS handshake to the
@@ -148,9 +151,8 @@ func NewServerCreds(opts *ServerOptions) credentials.TransportCredentials {
 
 func newALTS(side core.Side, accounts []string, hsAddress string) credentials.TransportCredentials {
 	once.Do(func() {
-		vmOnGCP = isRunningOnGCP()
+		vmOnGCP = googlecloud.OnGCE()
 	})
-
 	if hsAddress == "" {
 		hsAddress = hypervisorHandshakerServiceAddress
 	}
@@ -307,7 +309,7 @@ func compareRPCVersions(v1, v2 *altspb.RpcProtocolVersions_Version) int {
 // agreed on.
 func checkRPCVersions(local, peer *altspb.RpcProtocolVersions) (bool, *altspb.RpcProtocolVersions_Version) {
 	if local == nil || peer == nil {
-		grpclog.Error("invalid checkRPCVersions argument, either local or peer is nil.")
+		logger.Error("invalid checkRPCVersions argument, either local or peer is nil.")
 		return false, nil
 	}
 

@@ -10,6 +10,8 @@ As a radix tree, it provides the following:
  * Minimum / Maximum value lookups
  * Ordered iteration
 
+For an immutable variant, see [go-immutable-radix](https://github.com/hashicorp/go-immutable-radix).
+
 Documentation
 =============
 

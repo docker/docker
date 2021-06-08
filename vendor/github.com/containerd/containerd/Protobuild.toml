@@ -1,0 +1,71 @@
+version = "unstable"
+generator = "gogoctrd"
+plugins = ["grpc", "fieldpath"]
+
+# Control protoc include paths. Below are usually some good defaults, but feel
+# free to try it without them if it works for your project.
+[includes]
+  # Include paths that will be added before all others. Typically, you want to
+  # treat the root of the project as an include, but this may not be necessary.
+  before = ["./protobuf"]
+
+  # Paths that should be treated as include roots in relation to the vendor
+  # directory. These will be calculated with the vendor directory nearest the
+  # target package.
+  packages = ["github.com/gogo/protobuf", "github.com/gogo/googleapis"]
+
+  # Paths that will be added untouched to the end of the includes. We use
+  # `/usr/local/include` to pickup the common install location of protobuf.
+  # This is the default.
+  after = ["/usr/local/include", "/usr/include"]
+
+# This section maps protobuf imports to Go packages. These will become
+# `-M` directives in the call to the go protobuf generator.
+[packages]
+  "gogoproto/gogo.proto" = "github.com/gogo/protobuf/gogoproto"
+  "google/protobuf/any.proto" = "github.com/gogo/protobuf/types"
+  "google/protobuf/empty.proto" = "github.com/gogo/protobuf/types"
+  "google/protobuf/descriptor.proto" = "github.com/gogo/protobuf/protoc-gen-gogo/descriptor"
+  "google/protobuf/field_mask.proto" = "github.com/gogo/protobuf/types"
+  "google/protobuf/timestamp.proto" = "github.com/gogo/protobuf/types"
+  "google/protobuf/duration.proto" = "github.com/gogo/protobuf/types"
+  "google/rpc/status.proto" = "github.com/gogo/googleapis/google/rpc"
+
+[[overrides]]
+prefixes = ["github.com/containerd/containerd/api/events"]
+plugins = ["fieldpath"] # disable grpc for this package
+
+[[overrides]]
+prefixes = ["github.com/containerd/containerd/api/services/ttrpc/events/v1"]
+plugins = ["ttrpc", "fieldpath"]
+
+[[overrides]]
+# enable ttrpc and disable fieldpath and grpc for the shim
+prefixes = ["github.com/containerd/containerd/runtime/v1/shim/v1", "github.com/containerd/containerd/runtime/v2/task"]
+plugins = ["ttrpc"]
+
+# Aggregrate the API descriptors to lock down API changes.
+[[descriptors]]
+prefix = "github.com/containerd/containerd/api"
+target = "api/next.pb.txt"
+ignore_files = [
+	"google/protobuf/descriptor.proto",
+	"gogoproto/gogo.proto"
+]
+
+# Lock down runc config
+[[descriptors]]
+prefix = "github.com/containerd/containerd/runtime/linux/runctypes"
+target = "runtime/linux/runctypes/next.pb.txt"
+ignore_files = [
+	"google/protobuf/descriptor.proto",
+	"gogoproto/gogo.proto"
+]
+
+[[descriptors]]
+prefix = "github.com/containerd/containerd/runtime/v2/runc/options"
+target = "runtime/v2/runc/options/next.pb.txt"
+ignore_files = [
+	"google/protobuf/descriptor.proto",
+	"gogoproto/gogo.proto"
+]

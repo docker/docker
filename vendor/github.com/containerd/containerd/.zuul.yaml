@@ -1,0 +1,35 @@
+- project:
+    name: containerd/containerd
+    merge-mode: merge
+    check:
+      jobs:
+        - containerd-build-arm64
+        - containerd-test-arm64
+        - containerd-integration-test-arm64
+
+- job:
+    name: containerd-build-arm64
+    parent: init-test
+    description: |
+      Containerd build in openlab cluster.
+    run: .zuul/playbooks/containerd-build/run.yaml
+    nodeset: ubuntu-xenial-arm64-openlab
+    voting: false
+
+- job:
+    name: containerd-test-arm64
+    parent: init-test
+    description: |
+      Containerd unit tests in openlab cluster.
+    run: .zuul/playbooks/containerd-build/unit-test.yaml
+    nodeset: ubuntu-xenial-arm64-openlab
+    voting: false
+
+- job:
+    name: containerd-integration-test-arm64
+    parent: init-test
+    description: |
+      Containerd unit tests in openlab cluster.
+    run: .zuul/playbooks/containerd-build/integration-test.yaml
+    nodeset: ubuntu-xenial-arm64-openlab
+    voting: false

@@ -1,6 +1,6 @@
 // Copyright 2017, The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE.md file.
+// license that can be found in the LICENSE file.
 
 // Package cmpopts provides common options for the cmp package.
 package cmpopts
@@ -8,6 +8,7 @@ package cmpopts
 import (
 	"math"
 	"reflect"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -86,4 +87,62 @@ func areNaNsF64s(x, y float64) bool {
 }
 func areNaNsF32s(x, y float32) bool {
 	return areNaNsF64s(float64(x), float64(y))
+}
+
+// EquateApproxTime returns a Comparer option that determines two non-zero
+// time.Time values to be equal if they are within some margin of one another.
+// If both times have a monotonic clock reading, then the monotonic time
+// difference will be used. The margin must be non-negative.
+func EquateApproxTime(margin time.Duration) cmp.Option {
+	if margin < 0 {
+		panic("margin must be a non-negative number")
+	}
+	a := timeApproximator{margin}
+	return cmp.FilterValues(areNonZeroTimes, cmp.Comparer(a.compare))
+}
+
+func areNonZeroTimes(x, y time.Time) bool {
+	return !x.IsZero() && !y.IsZero()
+}
+
+type timeApproximator struct {
+	margin time.Duration
+}
+
+func (a timeApproximator) compare(x, y time.Time) bool {
+	// Avoid subtracting times to avoid overflow when the
+	// difference is larger than the largest representible duration.
+	if x.After(y) {
+		// Ensure x is always before y
+		x, y = y, x
+	}
+	// We're within the margin if x+margin >= y.
+	// Note: time.Time doesn't have AfterOrEqual method hence the negation.
+	return !x.Add(a.margin).Before(y)
+}
+
+// AnyError is an error that matches any non-nil error.
+var AnyError anyError
+
+type anyError struct{}
+
+func (anyError) Error() string     { return "any error" }
+func (anyError) Is(err error) bool { return err != nil }
+
+// EquateErrors returns a Comparer option that determines errors to be equal
+// if errors.Is reports them to match. The AnyError error can be used to
+// match any non-nil error.
+func EquateErrors() cmp.Option {
+	return cmp.FilterValues(areConcreteErrors, cmp.Comparer(compareErrors))
+}
+
+// areConcreteErrors reports whether x and y are types that implement error.
+// The input types are deliberately of the interface{} type rather than the
+// error type so that we can handle situations where the current type is an
+// interface{}, but the underlying concrete types both happen to implement
+// the error interface.
+func areConcreteErrors(x, y interface{}) bool {
+	_, ok1 := x.(error)
+	_, ok2 := y.(error)
+	return ok1 && ok2
 }

@@ -1,0 +1,238 @@
+A|hello                    |     hello
+A|he'll'o                  |     hello
+A|he'llo                   |     error
+A|he\'llo                  |     he'llo
+A|he\\'llo                 |     error
+A|abc\tdef                 |     abctdef
+A|"abc\tdef"               |     abc\tdef
+A|"abc\\tdef"              |     abc\tdef
+A|'abc\tdef'               |     abc\tdef
+A|hello\                   |     hello
+A|hello\\                  |     hello\
+A|"hello                   |     error
+A|"hello\"                 |     error
+A|"hel'lo"                 |     hel'lo
+A|'hello                   |     error
+A|'hello\'                 |     hello\
+A|'hello\there'            |     hello\there
+A|'hello\\there'           |     hello\\there
+A|"''"                     |     ''
+A|$.                       |     $.
+A|he$1x                    |     hex
+A|he$.x                    |     he$.x
+# Next one is different on Windows as $pwd==$PWD
+U|he$pwd.                  |     he.
+W|he$pwd.                  |     he/home.
+A|he$PWD                   |     he/home
+A|he\$PWD                  |     he$PWD
+A|he\\$PWD                 |     he\/home
+A|"he\$PWD"                |     he$PWD
+A|"he\\$PWD"               |     he\/home
+A|\${}                     |     ${}
+A|\${}aaa                  |     ${}aaa
+A|he\${}                   |     he${}
+A|he\${}xx                 |     he${}xx
+A|${}                      |     error
+A|${}aaa                   |     error
+A|he${}                    |     error
+A|he${}xx                  |     error
+A|he${hi}                  |     he
+A|he${hi}xx                |     hexx
+A|he${PWD}                 |     he/home
+A|he${.}                   |     error
+A|he${XXX:-000}xx          |     he000xx
+A|he${PWD:-000}xx          |     he/homexx
+A|he${XXX:-$PWD}xx         |     he/homexx
+A|he${XXX:-${PWD:-yyy}}xx  |     he/homexx
+A|he${XXX:-${YYY:-yyy}}xx  |     heyyyxx
+A|he${XXX:YYY}             |     error
+A|he${XXX?}                |     error
+A|he${XXX:?}               |     error
+A|he${PWD?}                |     he/home
+A|he${PWD:?}               |     he/home
+A|he${NULL?}               |     he
+A|he${NULL:?}              |     error
+A|he${XXX:+${PWD}}xx       |     hexx
+A|he${PWD:+${XXX}}xx       |     hexx
+A|he${PWD:+${SHELL}}xx     |     hebashxx
+A|he${XXX:+000}xx          |     hexx
+A|he${PWD:+000}xx          |     he000xx
+A|'he${XX}'                |     he${XX}
+A|"he${PWD}"               |     he/home
+A|"he'$PWD'"               |     he'/home'
+A|"$PWD"                   |     /home
+A|'$PWD'                   |     $PWD
+A|'\$PWD'                  |     \$PWD
+A|'"hello"'                |     "hello"
+A|he\$PWD                  |     he$PWD
+A|"he\$PWD"                |     he$PWD
+A|'he\$PWD'                |     he\$PWD
+A|he${PWD                  |     error
+A|he${PWD:=000}xx          |     error
+A|he${PWD:+${PWD}:}xx      |     he/home:xx
+A|he${XXX:-\$PWD:}xx       |     he$PWD:xx
+A|he${XXX:-\${PWD}z}xx     |     he${PWDz}xx
+A|안녕하세요                 |     안녕하세요
+A|안'녕'하세요               |     안녕하세요
+A|안'녕하세요                |     error
+A|안녕\'하세요               |     안녕'하세요
+A|안\\'녕하세요              |     error
+A|안녕\t하세요               |     안녕t하세요
+A|"안녕\t하세요"             |     안녕\t하세요
+A|'안녕\t하세요              |     error
+A|안녕하세요\                |     안녕하세요
+A|안녕하세요\\               |     안녕하세요\
+A|"안녕하세요                |     error
+A|"안녕하세요\"              |     error
+A|"안녕'하세요"              |     안녕'하세요
+A|'안녕하세요                |     error
+A|'안녕하세요\'              |     안녕하세요\
+A|안녕$1x                    |     안녕x
+A|안녕$.x                    |     안녕$.x
+# Next one is different on Windows as $pwd==$PWD
+U|안녕$pwd.                  |     안녕.
+W|안녕$pwd.                  |     안녕/home.
+A|안녕$PWD                   |     안녕/home
+A|안녕\$PWD                  |     안녕$PWD
+A|안녕\\$PWD                 |     안녕\/home
+A|안녕\${}                   |     안녕${}
+A|안녕\${}xx                 |     안녕${}xx
+A|안녕${}                    |     error
+A|안녕${}xx                  |     error
+A|안녕${hi}                  |     안녕
+A|안녕${hi}xx                |     안녕xx
+A|안녕${PWD}                 |     안녕/home
+A|안녕${.}                   |     error
+A|안녕${XXX:-000}xx          |     안녕000xx
+A|안녕${PWD:-000}xx          |     안녕/homexx
+A|안녕${XXX:-$PWD}xx         |     안녕/homexx
+A|안녕${XXX:-${PWD:-yyy}}xx  |     안녕/homexx
+A|안녕${XXX:-${YYY:-yyy}}xx  |     안녕yyyxx
+A|안녕${XXX:YYY}             |     error
+A|안녕${XXX:+${PWD}}xx       |     안녕xx
+A|안녕${PWD:+${XXX}}xx       |     안녕xx
+A|안녕${PWD:+${SHELL}}xx     |     안녕bashxx
+A|안녕${XXX:+000}xx          |     안녕xx
+A|안녕${PWD:+000}xx          |     안녕000xx
+A|'안녕${XX}'                |     안녕${XX}
+A|"안녕${PWD}"               |     안녕/home
+A|"안녕'$PWD'"               |     안녕'/home'
+A|'"안녕"'                   |     "안녕"
+A|안녕\$PWD                  |     안녕$PWD
+A|"안녕\$PWD"                |     안녕$PWD
+A|'안녕\$PWD'                |     안녕\$PWD
+A|안녕${PWD                  |     error
+A|안녕${PWD:=000}xx          |     error
+A|안녕${PWD:+${PWD}:}xx      |     안녕/home:xx
+A|안녕${XXX:-\$PWD:}xx       |     안녕$PWD:xx
+A|안녕${XXX:-\${PWD}z}xx     |     안녕${PWDz}xx
+A|$KOREAN                    |     한국어
+A|안녕$KOREAN                |     안녕한국어
+A|${{aaa}                   |     error
+A|${aaa}}                   |     }
+A|${aaa                     |     error
+A|${{aaa:-bbb}              |     error
+A|${aaa:-bbb}}              |     bbb}
+A|${aaa:-bbb                |     error
+A|${aaa:-bbb}               |     bbb
+A|${aaa:-${bbb:-ccc}}       |     ccc
+A|${aaa:-bbb ${foo}         |     error
+A|${aaa:-bbb {foo}          |     bbb {foo
+A|${:}                      |     error
+A|${:-bbb}                  |     error
+A|${:+bbb}                  |     error
+
+# Positional parameters won't be set:
+# http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_05_01
+A|$1                        |
+A|${1}                      |
+A|${1:+bbb}                 |
+A|${1:-bbb}                 |     bbb
+A|$2                        |
+A|${2}                      |
+A|${2:+bbb}                 |
+A|${2:-bbb}                 |     bbb
+A|$3                        |
+A|${3}                      |
+A|${3:+bbb}                 |
+A|${3:-bbb}                 |     bbb
+A|$4                        |
+A|${4}                      |
+A|${4:+bbb}                 |
+A|${4:-bbb}                 |     bbb
+A|$5                        |
+A|${5}                      |
+A|${5:+bbb}                 |
+A|${5:-bbb}                 |     bbb
+A|$6                        |
+A|${6}                      |
+A|${6:+bbb}                 |
+A|${6:-bbb}                 |     bbb
+A|$7                        |
+A|${7}                      |
+A|${7:+bbb}                 |
+A|${7:-bbb}                 |     bbb
+A|$8                        |
+A|${8}                      |
+A|${8:+bbb}                 |
+A|${8:-bbb}                 |     bbb
+A|$9                        |
+A|${9}                      |
+A|${9:+bbb}                 |
+A|${9:-bbb}                 |     bbb
+A|$999                      |
+A|${999}                    |
+A|${999:+bbb}               |
+A|${999:-bbb}               |     bbb
+A|$999aaa                   |     aaa
+A|${999}aaa                 |     aaa
+A|${999:+bbb}aaa            |     aaa
+A|${999:-bbb}aaa            |     bbbaaa
+A|$001                      |
+A|${001}                    |
+A|${001:+bbb}               |
+A|${001:-bbb}               |     bbb
+A|$001aaa                   |     aaa
+A|${001}aaa                 |     aaa
+A|${001:+bbb}aaa            |     aaa
+A|${001:-bbb}aaa            |     bbbaaa
+
+# Special parameters won't be set in the Dockerfile:
+# http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_05_02
+A|$@                        |
+A|${@}                      |
+A|${@:+bbb}                 |
+A|${@:-bbb}                 |     bbb
+A|$@@@                      |     @@
+A|$@aaa                     |     aaa
+A|${@}aaa                   |     aaa
+A|${@:+bbb}aaa              |     aaa
+A|${@:-bbb}aaa              |     bbbaaa
+A|$*                        |
+A|${*}                      |
+A|${*:+bbb}                 |
+A|${*:-bbb}                 |     bbb
+A|$#                        |
+A|${#}                      |
+A|${#:+bbb}                 |
+A|${#:-bbb}                 |     bbb
+A|$?                        |
+A|${?}                      |
+A|${?:+bbb}                 |
+A|${?:-bbb}                 |     bbb
+A|$-                        |
+A|${-}                      |
+A|${-:+bbb}                 |
+A|${-:-bbb}                 |     bbb
+A|$$                        |
+A|${$}                      |
+A|${$:+bbb}                 |
+A|${$:-bbb}                 |     bbb
+A|$!                        |
+A|${!}                      |
+A|${!:+bbb}                 |
+A|${!:-bbb}                 |     bbb
+A|$0                        |
+A|${0}                      |
+A|${0:+bbb}                 |
+A|${0:-bbb}                 |     bbb

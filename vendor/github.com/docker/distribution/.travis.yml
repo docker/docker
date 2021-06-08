@@ -1,0 +1,51 @@
+dist: trusty
+sudo: required
+# setup travis so that we can run containers for integration tests
+services:
+  - docker
+
+language: go
+
+go:
+  - "1.11.x"
+
+go_import_path: github.com/docker/distribution
+
+addons:
+  apt:
+    packages:
+      - python-minimal
+
+
+env:
+  - TRAVIS_GOOS=linux DOCKER_BUILDTAGS="include_oss include_gcs" TRAVIS_CGO_ENABLED=1
+
+before_install:
+  - uname -r
+  - sudo apt-get -q update
+
+install:
+  - go get -u github.com/vbatts/git-validation
+    # TODO: Add enforcement of license
+    # - go get -u github.com/kunalkushwaha/ltag
+  - cd $TRAVIS_BUILD_DIR
+
+script:
+  - export GOOS=$TRAVIS_GOOS
+  - export CGO_ENABLED=$TRAVIS_CGO_ENABLED
+  - DCO_VERBOSITY=-q script/validate/dco
+  - GOOS=linux script/setup/install-dev-tools
+  - script/validate/vendor
+  - go build -i .
+  - make check
+  - make build
+  - make binaries
+    # Currently takes too long
+    #- if [ "$GOOS" = "linux" ]; then make test-race ; fi
+  - if [ "$GOOS" = "linux" ]; then make coverage ; fi
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash) -F linux
+
+before_deploy:
+    # Run tests with storage driver configurations

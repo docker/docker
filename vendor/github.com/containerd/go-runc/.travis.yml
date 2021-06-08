@@ -1,0 +1,21 @@
+language: go
+go:
+    - 1.13.x
+    - 1.14.x
+    - 1.15.x
+
+install:
+  - go get -t ./...
+  - go get -u github.com/vbatts/git-validation
+  - go get -u github.com/kunalkushwaha/ltag
+
+before_script:
+  - pushd ..; git clone https://github.com/containerd/project; popd
+
+script:
+  - DCO_VERBOSITY=-q ../project/script/validate/dco
+  - ../project/script/validate/fileheader ../project/
+  - go test -v -race -covermode=atomic -coverprofile=coverage.txt ./...
+
+after_success:
+    - bash <(curl -s https://codecov.io/bash)

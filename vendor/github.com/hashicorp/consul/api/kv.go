@@ -11,13 +11,35 @@ import (
 
 // KVPair is used to represent a single K/V entry
 type KVPair struct {
-	Key         string
+	// Key is the name of the key. It is also part of the URL path when accessed
+	// via the API.
+	Key string
+
+	// CreateIndex holds the index corresponding the creation of this KVPair. This
+	// is a read-only field.
 	CreateIndex uint64
+
+	// ModifyIndex is used for the Check-And-Set operations and can also be fed
+	// back into the WaitIndex of the QueryOptions in order to perform blocking
+	// queries.
 	ModifyIndex uint64
-	LockIndex   uint64
-	Flags       uint64
-	Value       []byte
-	Session     string
+
+	// LockIndex holds the index corresponding to a lock on this key, if any. This
+	// is a read-only field.
+	LockIndex uint64
+
+	// Flags are any user-defined flags on the key. It is up to the implementer
+	// to check these values, since Consul does not treat them specially.
+	Flags uint64
+
+	// Value is the value for the key. This can be any value, but it will be
+	// base64 encoded upon transport.
+	Value []byte
+
+	// Session is a string representing the ID of the session. Any other
+	// interactions with this key over the same session must specify the same
+	// session ID.
+	Session string
 }
 
 // KVPairs is a list of KVPair objects
@@ -33,7 +55,8 @@ func (c *Client) KV() *KV {
 	return &KV{c}
 }
 
-// Get is used to lookup a single key
+// Get is used to lookup a single key. The returned pointer
+// to the KVPair will be nil if the key does not exist.
 func (k *KV) Get(key string, q *QueryOptions) (*KVPair, *QueryMeta, error) {
 	resp, qm, err := k.getInternal(key, nil, q)
 	if err != nil {
@@ -96,7 +119,7 @@ func (k *KV) Keys(prefix, separator string, q *QueryOptions) ([]string, *QueryMe
 }
 
 func (k *KV) getInternal(key string, params map[string]string, q *QueryOptions) (*http.Response, *QueryMeta, error) {
-	r := k.c.newRequest("GET", "/v1/kv/"+key)
+	r := k.c.newRequest("GET", "/v1/kv/"+strings.TrimPrefix(key, "/"))
 	r.setQueryOptions(q)
 	for param, val := range params {
 		r.params.Set(param, val)
@@ -143,7 +166,7 @@ func (k *KV) CAS(p *KVPair, q *WriteOptions) (bool, *WriteMeta, error) {
 	return k.put(p.Key, params, p.Value, q)
 }
 
-// Acquire is used for a lock acquisiiton operation. The Key,
+// Acquire is used for a lock acquisition operation. The Key,
 // Flags, Value and Session are respected. Returns true
 // on success or false on failures.
 func (k *KV) Acquire(p *KVPair, q *WriteOptions) (bool, *WriteMeta, error) {
@@ -168,6 +191,10 @@ func (k *KV) Release(p *KVPair, q *WriteOptions) (bool, *WriteMeta, error) {
 }
 
 func (k *KV) put(key string, params map[string]string, body []byte, q *WriteOptions) (bool, *WriteMeta, error) {
+	if len(key) > 0 && key[0] == '/' {
+		return false, nil, fmt.Errorf("Invalid key. Key must not begin with a '/': %s", key)
+	}
+
 	r := k.c.newRequest("PUT", "/v1/kv/"+key)
 	r.setWriteOptions(q)
 	for param, val := range params {
@@ -187,7 +214,7 @@ func (k *KV) put(key string, params map[string]string, body []byte, q *WriteOpti
 	if _, err := io.Copy(&buf, resp.Body); err != nil {
 		return false, nil, fmt.Errorf("Failed to read response: %v", err)
 	}
-	res := strings.Contains(string(buf.Bytes()), "true")
+	res := strings.Contains(buf.String(), "true")
 	return res, qm, nil
 }
 
@@ -213,7 +240,7 @@ func (k *KV) DeleteTree(prefix string, w *WriteOptions) (*WriteMeta, error) {
 }
 
 func (k *KV) deleteInternal(key string, params map[string]string, q *WriteOptions) (bool, *WriteMeta, error) {
-	r := k.c.newRequest("DELETE", "/v1/kv/"+key)
+	r := k.c.newRequest("DELETE", "/v1/kv/"+strings.TrimPrefix(key, "/"))
 	r.setWriteOptions(q)
 	for param, val := range params {
 		r.params.Set(param, val)
@@ -231,6 +258,29 @@ func (k *KV) deleteInternal(key string, params map[string]string, q *WriteOption
 	if _, err := io.Copy(&buf, resp.Body); err != nil {
 		return false, nil, fmt.Errorf("Failed to read response: %v", err)
 	}
-	res := strings.Contains(string(buf.Bytes()), "true")
+	res := strings.Contains(buf.String(), "true")
 	return res, qm, nil
+}
+
+// The Txn function has been deprecated from the KV object; please see the Txn
+// object for more information about Transactions.
+func (k *KV) Txn(txn KVTxnOps, q *QueryOptions) (bool, *KVTxnResponse, *QueryMeta, error) {
+	var ops TxnOps
+	for _, op := range txn {
+		ops = append(ops, &TxnOp{KV: op})
+	}
+
+	respOk, txnResp, qm, err := k.c.txn(ops, q)
+	if err != nil {
+		return false, nil, nil, err
+	}
+
+	// Convert from the internal format.
+	kvResp := KVTxnResponse{
+		Errors: txnResp.Errors,
+	}
+	for _, result := range txnResp.Results {
+		kvResp.Results = append(kvResp.Results, result.KV)
+	}
+	return respOk, &kvResp, qm, nil
 }

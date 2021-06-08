@@ -16,7 +16,7 @@ package coordinate
 type Config struct {
 	// The dimensionality of the coordinate system. As discussed in [2], more
 	// dimensions improves the accuracy of the estimates up to a point. Per [2]
-	// we chose 4 dimensions plus a non-Euclidean height.
+	// we chose 8 dimensions plus a non-Euclidean height.
 	Dimensionality uint
 
 	// VivaldiErrorMax is the default error value when a node hasn't yet made

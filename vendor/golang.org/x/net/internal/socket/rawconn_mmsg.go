@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build linux
 // +build linux
 
 package socket
@@ -16,14 +17,13 @@ func (c *Conn) recvMsgs(ms []Message, flags int) (int, error) {
 	for i := range ms {
 		ms[i].raceWrite()
 	}
-	hs := make(mmsghdrs, len(ms))
+	packer := defaultMmsghdrsPool.Get()
+	defer defaultMmsghdrsPool.Put(packer)
 	var parseFn func([]byte, string) (net.Addr, error)
 	if c.network != "tcp" {
 		parseFn = parseInetAddr
 	}
-	if err := hs.pack(ms, parseFn, nil); err != nil {
-		return 0, err
-	}
+	hs := packer.pack(ms, parseFn, nil)
 	var operr error
 	var n int
 	fn := func(s uintptr) bool {
@@ -49,14 +49,13 @@ func (c *Conn) sendMsgs(ms []Message, flags int) (int, error) {
 	for i := range ms {
 		ms[i].raceRead()
 	}
-	hs := make(mmsghdrs, len(ms))
-	var marshalFn func(net.Addr) []byte
+	packer := defaultMmsghdrsPool.Get()
+	defer defaultMmsghdrsPool.Put(packer)
+	var marshalFn func(net.Addr, []byte) int
 	if c.network != "tcp" {
 		marshalFn = marshalInetAddr
 	}
-	if err := hs.pack(ms, nil, marshalFn); err != nil {
-		return 0, err
-	}
+	hs := packer.pack(ms, nil, marshalFn)
 	var operr error
 	var n int
 	fn := func(s uintptr) bool {

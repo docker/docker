@@ -78,10 +78,9 @@ func retransmitLimit(retransmitMult, n int) int {
 // shuffleNodes randomly shuffles the input nodes using the Fisher-Yates shuffle
 func shuffleNodes(nodes []*nodeState) {
 	n := len(nodes)
-	for i := n - 1; i > 0; i-- {
-		j := rand.Intn(i + 1)
+	rand.Shuffle(n, func(i, j int) {
 		nodes[i], nodes[j] = nodes[j], nodes[i]
-	}
+	})
 }
 
 // pushPushScale is used to scale the time interval at which push/pull

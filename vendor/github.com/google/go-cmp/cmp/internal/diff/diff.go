@@ -1,6 +1,6 @@
 // Copyright 2017, The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE.md file.
+// license that can be found in the LICENSE file.
 
 // Package diff implements an algorithm for producing edit-scripts.
 // The edit-script is a sequence of operations needed to transform one list
@@ -11,6 +11,13 @@
 // This package prioritizes performance over accuracy. That is, the run time
 // is more important than obtaining a minimal Levenshtein distance.
 package diff
+
+import (
+	"math/rand"
+	"time"
+
+	"github.com/google/go-cmp/cmp/internal/flags"
+)
 
 // EditType represents a single operation within an edit-script.
 type EditType uint8
@@ -85,23 +92,34 @@ func (es EditScript) LenY() int { return len(es) - es.stats().NX }
 type EqualFunc func(ix int, iy int) Result
 
 // Result is the result of comparison.
-// NSame is the number of sub-elements that are equal.
-// NDiff is the number of sub-elements that are not equal.
-type Result struct{ NSame, NDiff int }
+// NumSame is the number of sub-elements that are equal.
+// NumDiff is the number of sub-elements that are not equal.
+type Result struct{ NumSame, NumDiff int }
+
+// BoolResult returns a Result that is either Equal or not Equal.
+func BoolResult(b bool) Result {
+	if b {
+		return Result{NumSame: 1} // Equal, Similar
+	} else {
+		return Result{NumDiff: 2} // Not Equal, not Similar
+	}
+}
 
 // Equal indicates whether the symbols are equal. Two symbols are equal
-// if and only if NDiff == 0. If Equal, then they are also Similar.
-func (r Result) Equal() bool { return r.NDiff == 0 }
+// if and only if NumDiff == 0. If Equal, then they are also Similar.
+func (r Result) Equal() bool { return r.NumDiff == 0 }
 
 // Similar indicates whether two symbols are similar and may be represented
 // by using the Modified type. As a special case, we consider binary comparisons
 // (i.e., those that return Result{1, 0} or Result{0, 1}) to be similar.
 //
-// The exact ratio of NSame to NDiff to determine similarity may change.
+// The exact ratio of NumSame to NumDiff to determine similarity may change.
 func (r Result) Similar() bool {
-	// Use NSame+1 to offset NSame so that binary comparisons are similar.
-	return r.NSame+1 >= r.NDiff
+	// Use NumSame+1 to offset NumSame so that binary comparisons are similar.
+	return r.NumSame+1 >= r.NumDiff
 }
+
+var randBool = rand.New(rand.NewSource(time.Now().Unix())).Intn(2) == 0
 
 // Difference reports whether two lists of lengths nx and ny are equal
 // given the definition of equality provided as f.
@@ -168,6 +186,11 @@ func Difference(nx, ny int, f EqualFunc) (es EditScript) {
 	// approximately the square-root of the search budget.
 	searchBudget := 4 * (nx + ny) // O(n)
 
+	// Running the tests with the "cmp_debug" build tag prints a visualization
+	// of the algorithm running in real-time. This is educational for
+	// understanding how the algorithm works. See debug_enable.go.
+	f = debug.Begin(nx, ny, f, &fwdPath.es, &revPath.es)
+
 	// The algorithm below is a greedy, meet-in-the-middle algorithm for
 	// computing sub-optimal edit-scripts between two lists.
 	//
@@ -185,20 +208,26 @@ func Difference(nx, ny int, f EqualFunc) (es EditScript) {
 	//	frontier towards the opposite corner.
 	//	• This algorithm terminates when either the X coordinates or the
 	//	Y coordinates of the forward and reverse frontier points ever intersect.
-	//
+
 	// This algorithm is correct even if searching only in the forward direction
 	// or in the reverse direction. We do both because it is commonly observed
 	// that two lists commonly differ because elements were added to the front
 	// or end of the other list.
 	//
-	// Running the tests with the "debug" build tag prints a visualization of
-	// the algorithm running in real-time. This is educational for understanding
-	// how the algorithm works. See debug_enable.go.
-	f = debug.Begin(nx, ny, f, &fwdPath.es, &revPath.es)
-	for {
+	// Non-deterministically start with either the forward or reverse direction
+	// to introduce some deliberate instability so that we have the flexibility
+	// to change this algorithm in the future.
+	if flags.Deterministic || randBool {
+		goto forwardSearch
+	} else {
+		goto reverseSearch
+	}
+
+forwardSearch:
+	{
 		// Forward search from the beginning.
 		if fwdFrontier.X >= revFrontier.X || fwdFrontier.Y >= revFrontier.Y || searchBudget == 0 {
-			break
+			goto finishSearch
 		}
 		for stop1, stop2, i := false, false, 0; !(stop1 && stop2) && searchBudget > 0; i++ {
 			// Search in a diagonal pattern for a match.
@@ -233,10 +262,14 @@ func Difference(nx, ny int, f EqualFunc) (es EditScript) {
 		} else {
 			fwdFrontier.Y++
 		}
+		goto reverseSearch
+	}
 
+reverseSearch:
+	{
 		// Reverse search from the end.
 		if fwdFrontier.X >= revFrontier.X || fwdFrontier.Y >= revFrontier.Y || searchBudget == 0 {
-			break
+			goto finishSearch
 		}
 		for stop1, stop2, i := false, false, 0; !(stop1 && stop2) && searchBudget > 0; i++ {
 			// Search in a diagonal pattern for a match.
@@ -271,8 +304,10 @@ func Difference(nx, ny int, f EqualFunc) (es EditScript) {
 		} else {
 			revFrontier.Y--
 		}
+		goto forwardSearch
 	}
 
+finishSearch:
 	// Join the forward and reverse paths and then append the reverse path.
 	fwdPath.connect(revPath.point, f)
 	for i := len(revPath.es) - 1; i >= 0; i-- {

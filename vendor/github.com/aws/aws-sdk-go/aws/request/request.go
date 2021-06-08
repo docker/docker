@@ -639,6 +639,10 @@ func getHost(r *http.Request) string {
 		return r.Host
 	}
 
+	if r.URL == nil {
+		return ""
+	}
+
 	return r.URL.Host
 }
 

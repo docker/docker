@@ -233,6 +233,15 @@ START:
 	m.probeNode(&node)
 }
 
+// probeNodeByAddr just safely calls probeNode given only the address of the node (for tests)
+func (m *Memberlist) probeNodeByAddr(addr string) {
+	m.nodeLock.RLock()
+	n := m.nodeMap[addr]
+	m.nodeLock.RUnlock()
+
+	m.probeNode(n)
+}
+
 // probeNode handles a single round of failure checking on a node.
 func (m *Memberlist) probeNode(node *nodeState) {
 	defer metrics.MeasureSince([]string{"memberlist", "probeNode"}, time.Now())

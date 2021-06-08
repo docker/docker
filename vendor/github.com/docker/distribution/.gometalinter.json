@@ -1,0 +1,16 @@
+{
+  "Vendor": true,
+  "Deadline": "2m",
+  "Sort": ["linter", "severity", "path", "line"],
+  "EnableGC": true,
+  "Enable": [
+    "structcheck",
+    "staticcheck",
+    "unconvert",
+
+    "gofmt",
+    "goimports",
+    "golint",
+    "vet"
+  ]
+}

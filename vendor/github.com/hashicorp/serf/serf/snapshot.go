@@ -2,7 +2,6 @@ package serf
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/hashicorp/serf/coordinate"
 )
 
 /*
@@ -27,34 +25,59 @@ nodes to re-join, as well as restore our clock values to avoid replaying
 old events.
 */
 
-const flushInterval = 500 * time.Millisecond
-const clockUpdateInterval = 500 * time.Millisecond
-const coordinateUpdateInterval = 60 * time.Second
-const tmpExt = ".compact"
+const (
+	// flushInterval is how often we force a flush of the snapshot file
+	flushInterval = 500 * time.Millisecond
+
+	// clockUpdateInterval is how often we fetch the current lamport time of the cluster and write to the snapshot file
+	clockUpdateInterval = 500 * time.Millisecond
+
+	// tmpExt is the extention we use for the temporary file during compaction
+	tmpExt = ".compact"
+
+	// snapshotErrorRecoveryInterval is how often we attempt to recover from
+	// errors writing to the snapshot file.
+	snapshotErrorRecoveryInterval = 30 * time.Second
+
+	// eventChSize is the size of the event buffers between Serf and the
+	// consuming application. If this is exhausted we will block Serf and Memberlist.
+	eventChSize = 2048
+
+	// shutdownFlushTimeout is the time limit to write pending events to the snapshot during a shutdown
+	shutdownFlushTimeout = 250 * time.Millisecond
+
+	// snapshotBytesPerNode is an estimated bytes per node to snapshot
+	snapshotBytesPerNode = 128
+
+	// snapshotCompactionThreshold is the threshold we apply to
+	// the snapshot size estimate (nodes * bytes per node) before compacting.
+	snapshotCompactionThreshold = 2
+)
 
 // Snapshotter is responsible for ingesting events and persisting
 // them to disk, and providing a recovery mechanism at start time.
 type Snapshotter struct {
-	aliveNodes       map[string]string
-	clock            *LamportClock
-	coordClient      *coordinate.Client
-	fh               *os.File
-	buffered         *bufio.Writer
-	inCh             <-chan Event
-	lastFlush        time.Time
-	lastClock        LamportTime
-	lastEventClock   LamportTime
-	lastQueryClock   LamportTime
-	leaveCh          chan struct{}
-	leaving          bool
-	logger           *log.Logger
-	maxSize          int64
-	path             string
-	offset           int64
-	outCh            chan<- Event
-	rejoinAfterLeave bool
-	shutdownCh       <-chan struct{}
-	waitCh           chan struct{}
+	aliveNodes              map[string]string
+	clock                   *LamportClock
+	fh                      *os.File
+	buffered                *bufio.Writer
+	inCh                    <-chan Event
+	streamCh                chan Event
+	lastFlush               time.Time
+	lastClock               LamportTime
+	lastEventClock          LamportTime
+	lastQueryClock          LamportTime
+	leaveCh                 chan struct{}
+	leaving                 bool
+	logger                  *log.Logger
+	minCompactSize          int64
+	path                    string
+	offset                  int64
+	outCh                   chan<- Event
+	rejoinAfterLeave        bool
+	shutdownCh              <-chan struct{}
+	waitCh                  chan struct{}
+	lastAttemptedCompaction time.Time
 }
 
 // PreviousNode is used to represent the previously known alive nodes
@@ -74,17 +97,17 @@ func (p PreviousNode) String() string {
 // Setting rejoinAfterLeave makes leave not clear the state, and can be used
 // if you intend to rejoin the same cluster after a leave.
 func NewSnapshotter(path string,
-	maxSize int,
+	minCompactSize int,
 	rejoinAfterLeave bool,
 	logger *log.Logger,
 	clock *LamportClock,
-	coordClient *coordinate.Client,
 	outCh chan<- Event,
 	shutdownCh <-chan struct{}) (chan<- Event, *Snapshotter, error) {
-	inCh := make(chan Event, 1024)
+	inCh := make(chan Event, eventChSize)
+	streamCh := make(chan Event, eventChSize)
 
 	// Try to open the file
-	fh, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
+	fh, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open snapshot: %v", err)
 	}
@@ -101,16 +124,16 @@ func NewSnapshotter(path string,
 	snap := &Snapshotter{
 		aliveNodes:       make(map[string]string),
 		clock:            clock,
-		coordClient:      coordClient,
 		fh:               fh,
 		buffered:         bufio.NewWriter(fh),
 		inCh:             inCh,
+		streamCh:         streamCh,
 		lastClock:        0,
 		lastEventClock:   0,
 		lastQueryClock:   0,
 		leaveCh:          make(chan struct{}),
 		logger:           logger,
-		maxSize:          int64(maxSize),
+		minCompactSize:   int64(minCompactSize),
 		path:             path,
 		offset:           offset,
 		outCh:            outCh,
@@ -126,6 +149,7 @@ func NewSnapshotter(path string,
 	}
 
 	// Start handling new commands
+	go snap.teeStream()
 	go snap.stream()
 	return inCh, snap, nil
 }
@@ -175,13 +199,68 @@ func (s *Snapshotter) Leave() {
 	}
 }
 
+// teeStream is a long running routine that is used to copy events
+// to the output channel and the internal event handler.
+func (s *Snapshotter) teeStream() {
+	flushEvent := func(e Event) {
+		// Forward to the internal stream, do not block
+		select {
+		case s.streamCh <- e:
+		default:
+		}
+
+		// Forward the event immediately, do not block
+		if s.outCh != nil {
+			select {
+			case s.outCh <- e:
+			default:
+			}
+		}
+	}
+
+OUTER:
+	for {
+		select {
+		case e := <-s.inCh:
+			flushEvent(e)
+		case <-s.shutdownCh:
+			break OUTER
+		}
+	}
+
+	// Drain any remaining events before exiting
+	for {
+		select {
+		case e := <-s.inCh:
+			flushEvent(e)
+		default:
+			return
+		}
+	}
+}
+
 // stream is a long running routine that is used to handle events
 func (s *Snapshotter) stream() {
 	clockTicker := time.NewTicker(clockUpdateInterval)
 	defer clockTicker.Stop()
 
-	coordinateTicker := time.NewTicker(coordinateUpdateInterval)
-	defer coordinateTicker.Stop()
+	// flushEvent is used to handle writing out an event
+	flushEvent := func(e Event) {
+		// Stop recording events after a leave is issued
+		if s.leaving {
+			return
+		}
+		switch typed := e.(type) {
+		case MemberEvent:
+			s.processMemberEvent(typed)
+		case UserEvent:
+			s.processUserEvent(typed)
+		case *Query:
+			s.processQuery(typed)
+		default:
+			s.logger.Printf("[ERR] serf: Unknown event to snapshot: %#v", e)
+		}
+	}
 
 	for {
 		select {
@@ -200,34 +279,32 @@ func (s *Snapshotter) stream() {
 				s.logger.Printf("[ERR] serf: failed to sync leave to snapshot: %v", err)
 			}
 
-		case e := <-s.inCh:
-			// Forward the event immediately
-			if s.outCh != nil {
-				s.outCh <- e
-			}
-
-			// Stop recording events after a leave is issued
-			if s.leaving {
-				continue
-			}
-			switch typed := e.(type) {
-			case MemberEvent:
-				s.processMemberEvent(typed)
-			case UserEvent:
-				s.processUserEvent(typed)
-			case *Query:
-				s.processQuery(typed)
-			default:
-				s.logger.Printf("[ERR] serf: Unknown event to snapshot: %#v", e)
-			}
+		case e := <-s.streamCh:
+			flushEvent(e)
 
 		case <-clockTicker.C:
 			s.updateClock()
 
-		case <-coordinateTicker.C:
-			s.updateCoordinate()
-
 		case <-s.shutdownCh:
+			// Setup a timeout
+			flushTimeout := time.After(shutdownFlushTimeout)
+
+			// Snapshot the clock
+			s.updateClock()
+
+			// Clear out the buffers
+		FLUSH:
+			for {
+				select {
+				case e := <-s.streamCh:
+					flushEvent(e)
+				case <-flushTimeout:
+					break FLUSH
+				default:
+					break FLUSH
+				}
+			}
+
 			if err := s.buffered.Flush(); err != nil {
 				s.logger.Printf("[ERR] serf: failed to flush snapshot: %v", err)
 			}
@@ -273,20 +350,6 @@ func (s *Snapshotter) updateClock() {
 	}
 }
 
-// updateCoordinate is called periodically to write out the current local
-// coordinate. It's safe to call this if coordinates aren't enabled (nil
-// client) and it will be a no-op.
-func (s *Snapshotter) updateCoordinate() {
-	if s.coordClient != nil {
-		encoded, err := json.Marshal(s.coordClient.GetCoordinate())
-		if err != nil {
-			s.logger.Printf("[ERR] serf: Failed to encode coordinate: %v", err)
-		} else {
-			s.tryAppend(fmt.Sprintf("coordinate: %s\n", encoded))
-		}
-	}
-}
-
 // processUserEvent is used to handle a single user event
 func (s *Snapshotter) processUserEvent(e UserEvent) {
 	// Ignore old clocks
@@ -311,6 +374,17 @@ func (s *Snapshotter) processQuery(q *Query) {
 func (s *Snapshotter) tryAppend(l string) {
 	if err := s.appendLine(l); err != nil {
 		s.logger.Printf("[ERR] serf: Failed to update snapshot: %v", err)
+		now := time.Now()
+		if now.Sub(s.lastAttemptedCompaction) > snapshotErrorRecoveryInterval {
+			s.lastAttemptedCompaction = now
+			s.logger.Printf("[INFO] serf: Attempting compaction to recover from error...")
+			err = s.compact()
+			if err != nil {
+				s.logger.Printf("[ERR] serf: Compaction failed, will reattempt after %v: %v", snapshotErrorRecoveryInterval, err)
+			} else {
+				s.logger.Printf("[INFO] serf: Finished compaction, successfully recovered from error state")
+			}
+		}
 	}
 }
 
@@ -334,10 +408,23 @@ func (s *Snapshotter) appendLine(l string) error {
 
 	// Check if a compaction is necessary
 	s.offset += int64(n)
-	if s.offset > s.maxSize {
+	if s.offset > s.snapshotMaxSize() {
 		return s.compact()
 	}
 	return nil
+}
+
+// snapshotMaxSize computes the maximum size and is used to force periodic compaction.
+func (s *Snapshotter) snapshotMaxSize() int64 {
+	nodes := int64(len(s.aliveNodes))
+	estSize := nodes * snapshotBytesPerNode
+	threshold := estSize * snapshotCompactionThreshold
+
+	// Apply a minimum threshold to avoid frequent compaction
+	if threshold < s.minCompactSize {
+		threshold = s.minCompactSize
+	}
+	return threshold
 }
 
 // Compact is used to compact the snapshot once it is too large
@@ -391,29 +478,21 @@ func (s *Snapshotter) compact() error {
 	}
 	offset += int64(n)
 
-	// Write out the coordinate.
-	if s.coordClient != nil {
-		encoded, err := json.Marshal(s.coordClient.GetCoordinate())
-		if err != nil {
-			fh.Close()
-			return err
-		}
-
-		line = fmt.Sprintf("coordinate: %s\n", encoded)
-		n, err = buf.WriteString(line)
-		if err != nil {
-			fh.Close()
-			return err
-		}
-		offset += int64(n)
-	}
-
 	// Flush the new snapshot
 	err = buf.Flush()
-	fh.Close()
+
 	if err != nil {
 		return fmt.Errorf("failed to flush new snapshot: %v", err)
 	}
+
+	err = fh.Sync()
+
+	if err != nil {
+		fh.Close()
+		return fmt.Errorf("failed to fsync new snapshot: %v", err)
+	}
+
+	fh.Close()
 
 	// We now need to swap the old snapshot file with the new snapshot.
 	// Turns out, Windows won't let us rename the files if we have
@@ -520,19 +599,7 @@ func (s *Snapshotter) replay() error {
 			s.lastQueryClock = LamportTime(timeInt)
 
 		} else if strings.HasPrefix(line, "coordinate: ") {
-			if s.coordClient == nil {
-				s.logger.Printf("[WARN] serf: Ignoring snapshot coordinates since they are disabled")
-				continue
-			}
-
-			coordStr := strings.TrimPrefix(line, "coordinate: ")
-			var coord coordinate.Coordinate
-			err := json.Unmarshal([]byte(coordStr), &coord)
-			if err != nil {
-				s.logger.Printf("[WARN] serf: Failed to decode coordinate: %v", err)
-				continue
-			}
-			s.coordClient.SetCoordinate(&coord)
+			continue // Ignores any coordinate persistence from old snapshots, serf should re-converge
 		} else if line == "leave" {
 			// Ignore a leave if we plan on re-joining
 			if s.rejoinAfterLeave {

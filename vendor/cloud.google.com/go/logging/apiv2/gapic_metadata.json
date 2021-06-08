@@ -1,0 +1,206 @@
+{
+  "schema":  "1.0",
+  "comment":  "This file maps proto services/RPCs to the corresponding library clients/methods.",
+  "language":  "go",
+  "protoPackage":  "google.logging.v2",
+  "libraryPackage":  "cloud.google.com/go/logging/apiv2",
+  "services":  {
+    "ConfigServiceV2":  {
+      "clients":  {
+        "grpc":  {
+          "libraryClient":  "ConfigClient",
+          "rpcs":  {
+            "CreateBucket":  {
+              "methods":  [
+                "CreateBucket"
+              ]
+            },
+            "CreateExclusion":  {
+              "methods":  [
+                "CreateExclusion"
+              ]
+            },
+            "CreateSink":  {
+              "methods":  [
+                "CreateSink"
+              ]
+            },
+            "CreateView":  {
+              "methods":  [
+                "CreateView"
+              ]
+            },
+            "DeleteBucket":  {
+              "methods":  [
+                "DeleteBucket"
+              ]
+            },
+            "DeleteExclusion":  {
+              "methods":  [
+                "DeleteExclusion"
+              ]
+            },
+            "DeleteSink":  {
+              "methods":  [
+                "DeleteSink"
+              ]
+            },
+            "DeleteView":  {
+              "methods":  [
+                "DeleteView"
+              ]
+            },
+            "GetBucket":  {
+              "methods":  [
+                "GetBucket"
+              ]
+            },
+            "GetCmekSettings":  {
+              "methods":  [
+                "GetCmekSettings"
+              ]
+            },
+            "GetExclusion":  {
+              "methods":  [
+                "GetExclusion"
+              ]
+            },
+            "GetSink":  {
+              "methods":  [
+                "GetSink"
+              ]
+            },
+            "GetView":  {
+              "methods":  [
+                "GetView"
+              ]
+            },
+            "ListBuckets":  {
+              "methods":  [
+                "ListBuckets"
+              ]
+            },
+            "ListExclusions":  {
+              "methods":  [
+                "ListExclusions"
+              ]
+            },
+            "ListSinks":  {
+              "methods":  [
+                "ListSinks"
+              ]
+            },
+            "ListViews":  {
+              "methods":  [
+                "ListViews"
+              ]
+            },
+            "UndeleteBucket":  {
+              "methods":  [
+                "UndeleteBucket"
+              ]
+            },
+            "UpdateBucket":  {
+              "methods":  [
+                "UpdateBucket"
+              ]
+            },
+            "UpdateCmekSettings":  {
+              "methods":  [
+                "UpdateCmekSettings"
+              ]
+            },
+            "UpdateExclusion":  {
+              "methods":  [
+                "UpdateExclusion"
+              ]
+            },
+            "UpdateSink":  {
+              "methods":  [
+                "UpdateSink"
+              ]
+            },
+            "UpdateView":  {
+              "methods":  [
+                "UpdateView"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "LoggingServiceV2":  {
+      "clients":  {
+        "grpc":  {
+          "libraryClient":  "Client",
+          "rpcs":  {
+            "DeleteLog":  {
+              "methods":  [
+                "DeleteLog"
+              ]
+            },
+            "ListLogEntries":  {
+              "methods":  [
+                "ListLogEntries"
+              ]
+            },
+            "ListLogs":  {
+              "methods":  [
+                "ListLogs"
+              ]
+            },
+            "ListMonitoredResourceDescriptors":  {
+              "methods":  [
+                "ListMonitoredResourceDescriptors"
+              ]
+            },
+            "TailLogEntries":  {
+              "methods":  [
+                "TailLogEntries"
+              ]
+            },
+            "WriteLogEntries":  {
+              "methods":  [
+                "WriteLogEntries"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "MetricsServiceV2":  {
+      "clients":  {
+        "grpc":  {
+          "libraryClient":  "MetricsClient",
+          "rpcs":  {
+            "CreateLogMetric":  {
+              "methods":  [
+                "CreateLogMetric"
+              ]
+            },
+            "DeleteLogMetric":  {
+              "methods":  [
+                "DeleteLogMetric"
+              ]
+            },
+            "GetLogMetric":  {
+              "methods":  [
+                "GetLogMetric"
+              ]
+            },
+            "ListLogMetrics":  {
+              "methods":  [
+                "ListLogMetrics"
+              ]
+            },
+            "UpdateLogMetric":  {
+              "methods":  [
+                "UpdateLogMetric"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

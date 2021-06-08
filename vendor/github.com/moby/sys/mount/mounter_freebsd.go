@@ -1,5 +1,3 @@
-// +build freebsd,cgo
-
 package mount
 
 /*

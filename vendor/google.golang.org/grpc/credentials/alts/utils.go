@@ -21,106 +21,12 @@ package alts
 import (
 	"context"
 	"errors"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"log"
-	"os"
-	"os/exec"
-	"regexp"
-	"runtime"
 	"strings"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
-
-const (
-	linuxProductNameFile     = "/sys/class/dmi/id/product_name"
-	windowsCheckCommand      = "powershell.exe"
-	windowsCheckCommandArgs  = "Get-WmiObject -Class Win32_BIOS"
-	powershellOutputFilter   = "Manufacturer"
-	windowsManufacturerRegex = ":(.*)"
-)
-
-type platformError string
-
-func (k platformError) Error() string {
-	return fmt.Sprintf("%s is not supported", string(k))
-}
-
-var (
-	// The following two variables will be reassigned in tests.
-	runningOS          = runtime.GOOS
-	manufacturerReader = func() (io.Reader, error) {
-		switch runningOS {
-		case "linux":
-			return os.Open(linuxProductNameFile)
-		case "windows":
-			cmd := exec.Command(windowsCheckCommand, windowsCheckCommandArgs)
-			out, err := cmd.Output()
-			if err != nil {
-				return nil, err
-			}
-
-			for _, line := range strings.Split(strings.TrimSuffix(string(out), "\n"), "\n") {
-				if strings.HasPrefix(line, powershellOutputFilter) {
-					re := regexp.MustCompile(windowsManufacturerRegex)
-					name := re.FindString(line)
-					name = strings.TrimLeft(name, ":")
-					return strings.NewReader(name), nil
-				}
-			}
-
-			return nil, errors.New("cannot determine the machine's manufacturer")
-		default:
-			return nil, platformError(runningOS)
-		}
-	}
-	vmOnGCP bool
-)
-
-// isRunningOnGCP checks whether the local system, without doing a network request is
-// running on GCP.
-func isRunningOnGCP() bool {
-	manufacturer, err := readManufacturer()
-	if os.IsNotExist(err) {
-		return false
-	}
-	if err != nil {
-		log.Fatalf("failure to read manufacturer information: %v", err)
-	}
-	name := string(manufacturer)
-	switch runningOS {
-	case "linux":
-		name = strings.TrimSpace(name)
-		return name == "Google" || name == "Google Compute Engine"
-	case "windows":
-		name = strings.Replace(name, " ", "", -1)
-		name = strings.Replace(name, "\n", "", -1)
-		name = strings.Replace(name, "\r", "", -1)
-		return name == "Google"
-	default:
-		log.Fatal(platformError(runningOS))
-	}
-	return false
-}
-
-func readManufacturer() ([]byte, error) {
-	reader, err := manufacturerReader()
-	if err != nil {
-		return nil, err
-	}
-	if reader == nil {
-		return nil, errors.New("got nil reader")
-	}
-	manufacturer, err := ioutil.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed reading %v: %v", linuxProductNameFile, err)
-	}
-	return manufacturer, nil
-}
 
 // AuthInfoFromContext extracts the alts.AuthInfo object from the given context,
 // if it exists. This API should be used by gRPC server RPC handlers to get
@@ -152,12 +58,13 @@ func AuthInfoFromPeer(p *peer.Peer) (AuthInfo, error) {
 func ClientAuthorizationCheck(ctx context.Context, expectedServiceAccounts []string) error {
 	authInfo, err := AuthInfoFromContext(ctx)
 	if err != nil {
-		return status.Newf(codes.PermissionDenied, "The context is not an ALTS-compatible context: %v", err).Err()
+		return status.Errorf(codes.PermissionDenied, "The context is not an ALTS-compatible context: %v", err)
 	}
+	peer := authInfo.PeerServiceAccount()
 	for _, sa := range expectedServiceAccounts {
-		if authInfo.PeerServiceAccount() == sa {
+		if strings.EqualFold(peer, sa) {
 			return nil
 		}
 	}
-	return status.Newf(codes.PermissionDenied, "Client %v is not authorized", authInfo.PeerServiceAccount()).Err()
+	return status.Errorf(codes.PermissionDenied, "Client %v is not authorized", peer)
 }

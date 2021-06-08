@@ -63,12 +63,16 @@ type Semaphore struct {
 
 // SemaphoreOptions is used to parameterize the Semaphore
 type SemaphoreOptions struct {
-	Prefix      string // Must be set and have write permissions
-	Limit       int    // Must be set, and be positive
-	Value       []byte // Optional, value to associate with the contender entry
-	Session     string // OPtional, created if not specified
-	SessionName string // Optional, defaults to DefaultLockSessionName
-	SessionTTL  string // Optional, defaults to DefaultLockSessionTTL
+	Prefix            string        // Must be set and have write permissions
+	Limit             int           // Must be set, and be positive
+	Value             []byte        // Optional, value to associate with the contender entry
+	Session           string        // Optional, created if not specified
+	SessionName       string        // Optional, defaults to DefaultLockSessionName
+	SessionTTL        string        // Optional, defaults to DefaultLockSessionTTL
+	MonitorRetries    int           // Optional, defaults to 0 which means no retries
+	MonitorRetryTime  time.Duration // Optional, defaults to DefaultMonitorRetryTime
+	SemaphoreWaitTime time.Duration // Optional, defaults to DefaultSemaphoreWaitTime
+	SemaphoreTryOnce  bool          // Optional, defaults to false which means try forever
 }
 
 // semaphoreLock is written under the DefaultSemaphoreKey and
@@ -115,6 +119,12 @@ func (c *Client) SemaphoreOpts(opts *SemaphoreOptions) (*Semaphore, error) {
 			return nil, fmt.Errorf("invalid SessionTTL: %v", err)
 		}
 	}
+	if opts.MonitorRetryTime == 0 {
+		opts.MonitorRetryTime = DefaultMonitorRetryTime
+	}
+	if opts.SemaphoreWaitTime == 0 {
+		opts.SemaphoreWaitTime = DefaultSemaphoreWaitTime
+	}
 	s := &Semaphore{
 		c:    c,
 		opts: opts,
@@ -123,7 +133,7 @@ func (c *Client) SemaphoreOpts(opts *SemaphoreOptions) (*Semaphore, error) {
 }
 
 // Acquire attempts to reserve a slot in the semaphore, blocking until
-// success, interrupted via the stopCh or an error is encounted.
+// success, interrupted via the stopCh or an error is encountered.
 // Providing a non-nil stopCh can be used to abort the attempt.
 // On success, a channel is returned that represents our slot.
 // This channel could be closed at any time due to session invalidation,
@@ -145,22 +155,23 @@ func (s *Semaphore) Acquire(stopCh <-chan struct{}) (<-chan struct{}, error) {
 	// Check if we need to create a session first
 	s.lockSession = s.opts.Session
 	if s.lockSession == "" {
-		if sess, err := s.createSession(); err != nil {
+		sess, err := s.createSession()
+		if err != nil {
 			return nil, fmt.Errorf("failed to create session: %v", err)
-		} else {
-			s.sessionRenew = make(chan struct{})
-			s.lockSession = sess
-			session := s.c.Session()
-			go session.RenewPeriodic(s.opts.SessionTTL, sess, nil, s.sessionRenew)
-
-			// If we fail to acquire the lock, cleanup the session
-			defer func() {
-				if !s.isHeld {
-					close(s.sessionRenew)
-					s.sessionRenew = nil
-				}
-			}()
 		}
+
+		s.sessionRenew = make(chan struct{})
+		s.lockSession = sess
+		session := s.c.Session()
+		go session.RenewPeriodic(s.opts.SessionTTL, sess, nil, s.sessionRenew)
+
+		// If we fail to acquire the lock, cleanup the session
+		defer func() {
+			if !s.isHeld {
+				close(s.sessionRenew)
+				s.sessionRenew = nil
+			}
+		}()
 	}
 
 	// Create the contender entry
@@ -172,9 +183,11 @@ func (s *Semaphore) Acquire(stopCh <-chan struct{}) (<-chan struct{}, error) {
 
 	// Setup the query options
 	qOpts := &QueryOptions{
-		WaitTime: DefaultSemaphoreWaitTime,
+		WaitTime: s.opts.SemaphoreWaitTime,
 	}
 
+	start := time.Now()
+	attempts := 0
 WAIT:
 	// Check if we should quit
 	select {
@@ -182,6 +195,18 @@ WAIT:
 		return nil, nil
 	default:
 	}
+
+	// Handle the one-shot mode.
+	if s.opts.SemaphoreTryOnce && attempts > 0 {
+		elapsed := time.Since(start)
+		if elapsed > s.opts.SemaphoreWaitTime {
+			return nil, nil
+		}
+
+		// Query wait time should not exceed the semaphore wait time
+		qOpts.WaitTime = s.opts.SemaphoreWaitTime - elapsed
+	}
+	attempts++
 
 	// Read the prefix
 	pairs, meta, err := kv.List(s.opts.Prefix, qOpts)
@@ -460,8 +485,20 @@ func (s *Semaphore) monitorLock(session string, stopCh chan struct{}) {
 	kv := s.c.KV()
 	opts := &QueryOptions{RequireConsistent: true}
 WAIT:
+	retries := s.opts.MonitorRetries
+RETRY:
 	pairs, meta, err := kv.List(s.opts.Prefix, opts)
 	if err != nil {
+		// If configured we can try to ride out a brief Consul unavailability
+		// by doing retries. Note that we have to attempt the retry in a non-
+		// blocking fashion so that we have a clean place to reset the retry
+		// counter if service is restored.
+		if retries > 0 && IsRetryableError(err) {
+			time.Sleep(s.opts.MonitorRetryTime)
+			retries--
+			opts.WaitIndex = 0
+			goto RETRY
+		}
 		return
 	}
 	lockPair := s.findLock(pairs)

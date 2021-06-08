@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /*
-Package logging contains a Stackdriver Logging client suitable for writing logs.
+Package logging contains a Cloud Logging client suitable for writing logs.
 For reading logs, and working with sinks, metrics and monitored resources,
 see package cloud.google.com/go/logging/logadmin.
 
@@ -23,7 +23,7 @@ See https://cloud.google.com/logging/docs/api/v2/ for an introduction to the API
 
 Creating a Client
 
-Use a Client to interact with the Stackdriver Logging API.
+Use a Client to interact with the Cloud Logging API.
 
 	// Create a Client
 	ctx := context.Background()
@@ -36,7 +36,7 @@ Use a Client to interact with the Stackdriver Logging API.
 Basic Usage
 
 For most use cases, you'll want to add log entries to a buffer to be periodically
-flushed (automatically and asynchronously) to the Stackdriver Logging service.
+flushed (automatically and asynchronously) to the Cloud Logging service.
 
 	// Initialize a logger
 	lg := client.Logger("my-log")
@@ -47,7 +47,7 @@ flushed (automatically and asynchronously) to the Stackdriver Logging service.
 
 Closing your Client
 
-You should call Client.Close before your program exits to flush any buffered log entries to the Stackdriver Logging service.
+You should call Client.Close before your program exits to flush any buffered log entries to the Cloud Logging service.
 
 	// Close the client when finished.
 	err = client.Close()
@@ -106,7 +106,7 @@ An Entry may have one of a number of severity levels associated with it.
 
 Viewing Logs
 
-You can view Stackdriver logs for projects at
+You can view Cloud logs for projects at
 https://console.cloud.google.com/logs/viewer. Use the dropdown at the top left. When
 running from a Google Cloud Platform VM, select "GCE VM Instance". Otherwise, select
 "Google Project" and then the project ID. Logs for organizations, folders and billing
@@ -117,13 +117,14 @@ Grouping Logs by Request
 
 To group all the log entries written during a single HTTP request, create two
 Loggers, a "parent" and a "child," with different log IDs. Both should be in the same
-project, and have the same MonitoredResouce type and labels.
+project, and have the same MonitoredResource type and labels.
 
-- Parent entries must have HTTPRequest.Request populated. (Strictly speaking, only the URL is necessary.)
+- Parent entries must have HTTPRequest.Request (strictly speaking, only Method and URL are necessary),
+  and HTTPRequest.Status populated.
 
-- A child entry's timestamp must be within the time interval covered by the parent request (i.e., older
-than parent.Timestamp, and newer than parent.Timestamp - parent.HTTPRequest.Latency, assuming the
-parent timestamp marks the end of the request.
+- A child entry's timestamp must be within the time interval covered by the parent request. (i.e., before
+the parent.Timestamp and after the parent.Timestamp - parent.HTTPRequest.Latency. This assumes the
+parent.Timestamp marks the end of the request.)
 
 - The trace field must be populated in all of the entries and match exactly.
 

@@ -1,16 +1,6 @@
-// Copyright 2016 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2016 Google LLC.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
 // Package iterator provides support for standard Google API iterators.
 // See https://github.com/GoogleCloudPlatform/gcloud-golang/wiki/Iterator-Guidelines.
@@ -82,17 +72,23 @@ type PageInfo struct {
 // It is not a stable interface.
 var NewPageInfo = newPageInfo
 
-// If an iterator can support paging, its iterator-creating method should call
-// this (via the NewPageInfo variable above).
+// newPageInfo creates and returns a PageInfo and a next func. If an iterator can
+// support paging, its iterator-creating method should call this. Each time the
+// iterator's Next is called, it should call the returned next fn to determine
+// whether a next item exists, and if so it should pop an item from the buffer.
 //
-// The fetch, bufLen and takeBuf arguments provide access to the
-// iterator's internal slice of buffered items. They behave as described in
-// PageInfo, above.
+// The fetch, bufLen and takeBuf arguments provide access to the iterator's
+// internal slice of buffered items. They behave as described in PageInfo, above.
 //
 // The return value is the PageInfo.next method bound to the returned PageInfo value.
 // (Returning it avoids exporting PageInfo.next.)
-func newPageInfo(fetch func(int, string) (string, error), bufLen func() int, takeBuf func() interface{}) (*PageInfo, func() error) {
-	pi := &PageInfo{
+//
+// Note: the returned PageInfo and next fn do not remove items from the buffer.
+// It is up to the iterator using these to remove items from the buffer:
+// typically by performing a pop in its Next. If items are not removed from the
+// buffer, memory may grow unbounded.
+func newPageInfo(fetch func(int, string) (string, error), bufLen func() int, takeBuf func() interface{}) (pi *PageInfo, next func() error) {
+	pi = &PageInfo{
 		fetch:   fetch,
 		bufLen:  bufLen,
 		takeBuf: takeBuf,

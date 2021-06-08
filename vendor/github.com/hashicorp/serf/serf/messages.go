@@ -2,8 +2,10 @@ package serf
 
 import (
 	"bytes"
-	"github.com/hashicorp/go-msgpack/codec"
+	"net"
 	"time"
+
+	"github.com/hashicorp/go-msgpack/codec"
 )
 
 // messageType are the types of gossip messages Serf will send along
@@ -20,6 +22,7 @@ const (
 	messageConflictResponseType
 	messageKeyRequestType
 	messageKeyResponseType
+	messageRelayType
 )
 
 const (
@@ -75,15 +78,16 @@ type messageUserEvent struct {
 
 // messageQuery is used for query events
 type messageQuery struct {
-	LTime   LamportTime   // Event lamport time
-	ID      uint32        // Query ID, randomly generated
-	Addr    []byte        // Source address, used for a direct reply
-	Port    uint16        // Source port, used for a direct reply
-	Filters [][]byte      // Potential query filters
-	Flags   uint32        // Used to provide various flags
-	Timeout time.Duration // Maximum time between delivery and response
-	Name    string        // Query name
-	Payload []byte        // Query payload
+	LTime       LamportTime   // Event lamport time
+	ID          uint32        // Query ID, randomly generated
+	Addr        []byte        // Source address, used for a direct reply
+	Port        uint16        // Source port, used for a direct reply
+	Filters     [][]byte      // Potential query filters
+	Flags       uint32        // Used to provide various flags
+	RelayFactor uint8         // Used to set the number of duplicate relayed responses
+	Timeout     time.Duration // Maximum time between delivery and response
+	Name        string        // Query name
+	Payload     []byte        // Query payload
 }
 
 // Ack checks if the ack flag is set
@@ -132,6 +136,28 @@ func encodeMessage(t messageType, msg interface{}) ([]byte, error) {
 
 	handle := codec.MsgpackHandle{}
 	encoder := codec.NewEncoder(buf, &handle)
+	err := encoder.Encode(msg)
+	return buf.Bytes(), err
+}
+
+// relayHeader is used to store the end destination of a relayed message
+type relayHeader struct {
+	DestAddr net.UDPAddr
+}
+
+// encodeRelayMessage wraps a message in the messageRelayType, adding the length and
+// address of the end recipient to the front of the message
+func encodeRelayMessage(t messageType, addr net.UDPAddr, msg interface{}) ([]byte, error) {
+	buf := bytes.NewBuffer(nil)
+	handle := codec.MsgpackHandle{}
+	encoder := codec.NewEncoder(buf, &handle)
+
+	buf.WriteByte(uint8(messageRelayType))
+	if err := encoder.Encode(relayHeader{DestAddr: addr}); err != nil {
+		return nil, err
+	}
+
+	buf.WriteByte(uint8(t))
 	err := encoder.Encode(msg)
 	return buf.Bytes(), err
 }

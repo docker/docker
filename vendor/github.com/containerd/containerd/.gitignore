@@ -1,0 +1,10 @@
+/bin/
+/man/
+coverage.txt
+profile.out
+containerd.test
+_site/
+releases/*.tar.gz
+releases/*.tar.gz.sha256sum
+_output/
+.vagrant/

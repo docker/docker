@@ -33,19 +33,19 @@ import (
 	"google.golang.org/grpc/balancer"
 	lbpb "google.golang.org/grpc/balancer/grpclb/grpc_lb_v1"
 	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/internal/backoff"
 	"google.golang.org/grpc/internal/channelz"
+	imetadata "google.golang.org/grpc/internal/metadata"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/resolver"
 )
 
-// processServerList updates balaner's internal state, create/remove SubConns
+// processServerList updates balancer's internal state, create/remove SubConns
 // and regenerates picker using the received serverList.
 func (lb *lbBalancer) processServerList(l *lbpb.ServerList) {
-	if grpclog.V(2) {
-		grpclog.Infof("lbBalancer: processing server list: %+v", l)
+	if logger.V(2) {
+		logger.Infof("lbBalancer: processing server list: %+v", l)
 	}
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
@@ -56,8 +56,8 @@ func (lb *lbBalancer) processServerList(l *lbpb.ServerList) {
 
 	// If the new server list == old server list, do nothing.
 	if cmp.Equal(lb.fullServerList, l.Servers, cmp.Comparer(proto.Equal)) {
-		if grpclog.V(2) {
-			grpclog.Infof("lbBalancer: new serverlist same as the previous one, ignoring")
+		if logger.V(2) {
+			logger.Infof("lbBalancer: new serverlist same as the previous one, ignoring")
 		}
 		return
 	}
@@ -77,12 +77,9 @@ func (lb *lbBalancer) processServerList(l *lbpb.ServerList) {
 			// net.SplitHostPort() will return too many colons error.
 			ipStr = fmt.Sprintf("[%s]", ipStr)
 		}
-		addr := resolver.Address{
-			Addr:     fmt.Sprintf("%s:%d", ipStr, s.Port),
-			Metadata: &md,
-		}
-		if grpclog.V(2) {
-			grpclog.Infof("lbBalancer: server list entry[%d]: ipStr:|%s|, port:|%d|, load balancer token:|%v|",
+		addr := imetadata.Set(resolver.Address{Addr: fmt.Sprintf("%s:%d", ipStr, s.Port)}, md)
+		if logger.V(2) {
+			logger.Infof("lbBalancer: server list entry[%d]: ipStr:|%s|, port:|%d|, load balancer token:|%v|",
 				i, ipStr, s.Port, s.LoadBalanceToken)
 		}
 		backendAddrs = append(backendAddrs, addr)
@@ -143,14 +140,14 @@ func (lb *lbBalancer) refreshSubConns(backendAddrs []resolver.Address, fallback 
 			break
 		}
 		if sc != nil {
-			sc.UpdateAddresses(backendAddrs)
+			lb.cc.cc.UpdateAddresses(sc, backendAddrs)
 			sc.Connect()
 			return
 		}
 		// This bypasses the cc wrapper with SubConn cache.
 		sc, err := lb.cc.cc.NewSubConn(backendAddrs, opts)
 		if err != nil {
-			grpclog.Warningf("grpclb: failed to create new SubConn: %v", err)
+			logger.Warningf("grpclb: failed to create new SubConn: %v", err)
 			return
 		}
 		sc.Connect()
@@ -164,19 +161,19 @@ func (lb *lbBalancer) refreshSubConns(backendAddrs []resolver.Address, fallback 
 	addrsSet := make(map[resolver.Address]struct{})
 	// Create new SubConns.
 	for _, addr := range backendAddrs {
-		addrWithoutMD := addr
-		addrWithoutMD.Metadata = nil
-		addrsSet[addrWithoutMD] = struct{}{}
-		lb.backendAddrsWithoutMetadata = append(lb.backendAddrsWithoutMetadata, addrWithoutMD)
+		addrWithoutAttrs := addr
+		addrWithoutAttrs.Attributes = nil
+		addrsSet[addrWithoutAttrs] = struct{}{}
+		lb.backendAddrsWithoutMetadata = append(lb.backendAddrsWithoutMetadata, addrWithoutAttrs)
 
-		if _, ok := lb.subConns[addrWithoutMD]; !ok {
+		if _, ok := lb.subConns[addrWithoutAttrs]; !ok {
 			// Use addrWithMD to create the SubConn.
 			sc, err := lb.cc.NewSubConn([]resolver.Address{addr}, opts)
 			if err != nil {
-				grpclog.Warningf("grpclb: failed to create new SubConn: %v", err)
+				logger.Warningf("grpclb: failed to create new SubConn: %v", err)
 				continue
 			}
-			lb.subConns[addrWithoutMD] = sc // Use the addr without MD as key for the map.
+			lb.subConns[addrWithoutAttrs] = sc // Use the addr without MD as key for the map.
 			if _, ok := lb.scStates[sc]; !ok {
 				// Only set state of new sc to IDLE. The state could already be
 				// READY for cached SubConns.
@@ -192,7 +189,7 @@ func (lb *lbBalancer) refreshSubConns(backendAddrs []resolver.Address, fallback 
 			lb.cc.RemoveSubConn(sc)
 			delete(lb.subConns, a)
 			// Keep the state of this sc in b.scStates until sc's state becomes Shutdown.
-			// The entry will be deleted in HandleSubConnStateChange.
+			// The entry will be deleted in UpdateSubConnState.
 		}
 	}
 
@@ -225,6 +222,9 @@ func (lb *lbBalancer) newRemoteBalancerCCWrapper() {
 	if lb.opt.Dialer != nil {
 		dopts = append(dopts, grpc.WithContextDialer(lb.opt.Dialer))
 	}
+	if lb.opt.CustomUserAgent != "" {
+		dopts = append(dopts, grpc.WithUserAgent(lb.opt.CustomUserAgent))
+	}
 	// Explicitly set pickfirst as the balancer.
 	dopts = append(dopts, grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"pick_first"}`))
 	dopts = append(dopts, grpc.WithResolvers(lb.manualResolver))
@@ -245,7 +245,7 @@ func (lb *lbBalancer) newRemoteBalancerCCWrapper() {
 	// receive ServerName as authority.
 	cc, err := grpc.DialContext(context.Background(), lb.manualResolver.Scheme()+":///grpclb.subClientConn", dopts...)
 	if err != nil {
-		grpclog.Fatalf("failed to dial: %v", err)
+		logger.Fatalf("failed to dial: %v", err)
 	}
 	ccw := &remoteBalancerCCWrapper{
 		cc:      cc,
@@ -277,6 +277,12 @@ func (ccw *remoteBalancerCCWrapper) readServerList(s *balanceLoadClientStream) e
 		}
 		if serverList := reply.GetServerList(); serverList != nil {
 			ccw.lb.processServerList(serverList)
+		}
+		if reply.GetFallbackResponse() != nil {
+			// Eagerly enter fallback
+			ccw.lb.mu.Lock()
+			ccw.lb.refreshSubConns(ccw.lb.resolvedBackendAddrs, true, ccw.lb.usePickFirst)
+			ccw.lb.mu.Unlock()
 		}
 	}
 }
@@ -344,9 +350,6 @@ func (ccw *remoteBalancerCCWrapper) callRemoteBalancer() (backoff bool, _ error)
 	if initResp == nil {
 		return true, fmt.Errorf("grpclb: reply from remote balancer did not include initial response")
 	}
-	if initResp.LoadBalancerDelegate != "" {
-		return true, fmt.Errorf("grpclb: Delegation is not supported")
-	}
 
 	ccw.wg.Add(1)
 	go func() {
@@ -370,9 +373,9 @@ func (ccw *remoteBalancerCCWrapper) watchRemoteBalancer() {
 		default:
 			if err != nil {
 				if err == errServerTerminatedConnection {
-					grpclog.Info(err)
+					logger.Info(err)
 				} else {
-					grpclog.Warning(err)
+					logger.Warning(err)
 				}
 			}
 		}

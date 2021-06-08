@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc.
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ option java_outer_classname = "CodeProto";
 option java_package = "com.google.rpc";
 option objc_class_prefix = "RPC";
 
-// The canonical error codes for Google APIs.
+// The canonical error codes for gRPC APIs.
 //
 //
 // Sometimes multiple error codes may apply.  Services should return
@@ -170,7 +170,8 @@ enum Code {
 
   // The service is currently unavailable.  This is most likely a
   // transient condition, which can be corrected by retrying with
-  // a backoff.
+  // a backoff. Note that it is not always safe to retry
+  // non-idempotent operations.
   //
   // See the guidelines above for deciding between `FAILED_PRECONDITION`,
   // `ABORTED`, and `UNAVAILABLE`.

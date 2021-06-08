@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc.
+// Copyright 2020 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ option objc_class_prefix = "RPC";
 // receiving the error response before retrying.  If retrying requests also
 // fail, clients should use an exponential backoff scheme to gradually increase
 // the delay between retries based on `retry_delay`, until either a maximum
-// number of retires have been reached or a maximum retry delay cap has been
+// number of retries have been reached or a maximum retry delay cap has been
 // reached.
 message RetryInfo {
   // Clients should wait at least this long between retrying the same request.
@@ -60,7 +60,7 @@ message DebugInfo {
 // a service could respond with the project id and set `service_disabled`
 // to true.
 //
-// Also see RetryDetail and Help types for other details about handling a
+// Also see RetryInfo and Help types for other details about handling a
 // quota failure.
 message QuotaFailure {
   // A message type used to describe a single quota violation.  For example, a
@@ -85,6 +85,53 @@ message QuotaFailure {
   repeated Violation violations = 1;
 }
 
+// Describes the cause of the error with structured details.
+//
+// Example of an error when contacting the "pubsub.googleapis.com" API when it
+// is not enabled:
+//     { "reason": "API_DISABLED"
+//       "domain": "googleapis.com"
+//       "metadata": {
+//         "resource": "projects/123",
+//         "service": "pubsub.googleapis.com"
+//       }
+//     }
+// This response indicates that the pubsub.googleapis.com API is not enabled.
+//
+// Example of an error that is returned when attempting to create a Spanner
+// instance in a region that is out of stock:
+//     { "reason": "STOCKOUT"
+//       "domain": "spanner.googleapis.com",
+//       "metadata": {
+//         "availableRegions": "us-central1,us-east2"
+//       }
+//     }
+//
+message ErrorInfo {
+  // The reason of the error. This is a constant value that identifies the
+  // proximate cause of the error. Error reasons are unique within a particular
+  // domain of errors. This should be at most 63 characters and match
+  // /[A-Z0-9_]+/.
+  string reason = 1;
+
+  // The logical grouping to which the "reason" belongs.  Often "domain" will
+  // contain the registered service name of the tool or product that is the
+  // source of the error. Example: "pubsub.googleapis.com". If the error is
+  // common across many APIs, the first segment of the example above will be
+  // omitted.  The value will be, "googleapis.com".
+  string domain = 2;
+
+  // Additional structured details about this error.
+  //
+  // Keys should match /[a-zA-Z0-9-_]/ and be limited to 64 characters in
+  // length. When identifying the current value of an exceeded limit, the units
+  // should be contained in the key, not the value.  For example, rather than
+  // {"instanceLimit": "100/request"}, should be returned as,
+  // {"instanceLimitPerRequest": "100"}, if the client exceeds the number of
+  // instances that can be created in a single (batch) request.
+  map<string, string> metadata = 3;
+}
+
 // Describes what preconditions have failed.
 //
 // For example, if an RPC failed because it required the Terms of Service to be
@@ -94,13 +141,13 @@ message PreconditionFailure {
   // A message type used to describe a single precondition failure.
   message Violation {
     // The type of PreconditionFailure. We recommend using a service-specific
-    // enum type to define the supported precondition violation types. For
+    // enum type to define the supported precondition violation subjects. For
     // example, "TOS" for "Terms of Service violation".
     string type = 1;
 
     // The subject, relative to the type, that failed.
-    // For example, "google.com/cloud" relative to the "TOS" type would
-    // indicate which terms of service is being referenced.
+    // For example, "google.com/cloud" relative to the "TOS" type would indicate
+    // which terms of service is being referenced.
     string subject = 2;
 
     // A description of how the precondition failed. Developers can use this
@@ -153,8 +200,7 @@ message ResourceInfo {
 
   // The name of the resource being accessed.  For example, a shared calendar
   // name: "example.com_4fghdhgsrgh@group.calendar.google.com", if the current
-  // error is
-  // [google.rpc.Code.PERMISSION_DENIED][google.rpc.Code.PERMISSION_DENIED].
+  // error is [google.rpc.Code.PERMISSION_DENIED][google.rpc.Code.PERMISSION_DENIED].
   string resource_name = 2;
 
   // The owner of the resource (optional).

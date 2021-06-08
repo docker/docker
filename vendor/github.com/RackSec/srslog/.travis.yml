@@ -1,0 +1,18 @@
+sudo: required
+dist: trusty
+group: edge
+language: go
+go:
+- 1.5
+before_install:
+  - pip install --user codecov
+script:
+- |
+  go get ./...
+  go test -v -coverprofile=coverage.txt -covermode=atomic
+  go vet
+after_success:
+  - codecov
+notifications:
+  slack:
+    secure: dtDue9gP6CRR1jYjEf6raXXFak3QKGcCFvCf5mfvv5XScdpmc3udwgqc5TdyjC0goaC9OK/4jTcCD30dYZm/u6ux3E9mo3xwMl2xRLHx76p5r9rSQtloH19BDwA2+A+bpDfFQVz05k2YXuTiGSvNMMdwzx+Dr294Sl/z43RFB4+b9/R/6LlFpRW89IwftvpLAFnBy4K/ZcspQzKM+rQfQTL5Kk+iZ/KBsuR/VziDq6MoJ8t43i4ee8vwS06vFBKDbUiZ4FIZpLgc2RAL5qso5aWRKYXL6waXfoKHZWKPe0w4+9IY1rDJxG1jEb7YGgcbLaF9xzPRRs2b2yO/c87FKpkh6PDgYHfLjpgXotCoojZrL4p1x6MI1ldJr3NhARGPxS9r4liB9n6Y5nD+ErXi1IMf55fuUHcPY27Jc0ySeLFeM6cIWJ8OhFejCgGw6a5DnnmJo0PqopsaBDHhadpLejT1+K6bL2iGkT4SLcVNuRGLs+VyuNf1+5XpkWZvy32vquO7SZOngLLBv+GIem+t3fWm0Z9s/0i1uRCQei1iUutlYjoV/LBd35H2rhob4B5phIuJin9kb0zbHf6HnaoN0CtN8r0d8G5CZiInVlG5Xcid5Byb4dddf5U2EJTDuCMVyyiM7tcnfjqw9UbVYNxtYM9SzcqIq+uVqM8pYL9xSec=

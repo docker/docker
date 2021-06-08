@@ -95,18 +95,19 @@ func (u UserEvent) String() string {
 	return fmt.Sprintf("user-event: %s", u.Name)
 }
 
-// Query is the struct used EventQuery type events
+// Query is the struct used by EventQuery type events
 type Query struct {
 	LTime   LamportTime
 	Name    string
 	Payload []byte
 
-	serf     *Serf
-	id       uint32    // ID is not exported, since it may change
-	addr     []byte    // Address to respond to
-	port     uint16    // Port to respond to
-	deadline time.Time // Must respond by this deadline
-	respLock sync.Mutex
+	serf        *Serf
+	id          uint32    // ID is not exported, since it may change
+	addr        []byte    // Address to respond to
+	port        uint16    // Port to respond to
+	deadline    time.Time // Must respond by this deadline
+	relayFactor uint8     // Number of duplicate responses to relay back to sender
+	respLock    sync.Mutex
 }
 
 func (q *Query) EventType() EventType {
@@ -122,47 +123,74 @@ func (q *Query) Deadline() time.Time {
 	return q.deadline
 }
 
-// Respond is used to send a response to the user query
-func (q *Query) Respond(buf []byte) error {
-	q.respLock.Lock()
-	defer q.respLock.Unlock()
-
-	// Check if we've already responded
-	if q.deadline.IsZero() {
-		return fmt.Errorf("Response already sent")
-	}
-
-	// Ensure we aren't past our response deadline
-	if time.Now().After(q.deadline) {
-		return fmt.Errorf("Response is past the deadline")
-	}
-
+func (q *Query) createResponse(buf []byte) messageQueryResponse {
 	// Create response
-	resp := messageQueryResponse{
+	return messageQueryResponse{
 		LTime:   q.LTime,
 		ID:      q.id,
 		From:    q.serf.config.NodeName,
 		Payload: buf,
 	}
+}
 
-	// Format the response
-	raw, err := encodeMessage(messageQueryResponseType, &resp)
-	if err != nil {
-		return fmt.Errorf("Failed to format response: %v", err)
-	}
-
-	// Check the size limit
-	if len(raw) > q.serf.config.QueryResponseSizeLimit {
+// Check response size
+func (q *Query) checkResponseSize(resp []byte) error {
+	if len(resp) > q.serf.config.QueryResponseSizeLimit {
 		return fmt.Errorf("response exceeds limit of %d bytes", q.serf.config.QueryResponseSizeLimit)
 	}
+	return nil
+}
 
-	// Send the response
+func (q *Query) respondWithMessageAndResponse(raw []byte, resp messageQueryResponse) error {
+	// Check the size limit
+	if err := q.checkResponseSize(raw); err != nil {
+		return err
+	}
+
+	q.respLock.Lock()
+	defer q.respLock.Unlock()
+
+	// Check if we've already responded
+	if q.deadline.IsZero() {
+		return fmt.Errorf("response already sent")
+	}
+
+	// Ensure we aren't past our response deadline
+	if time.Now().After(q.deadline) {
+		return fmt.Errorf("response is past the deadline")
+	}
+
+	// Send the response directly to the originator
 	addr := net.UDPAddr{IP: q.addr, Port: int(q.port)}
 	if err := q.serf.memberlist.SendTo(&addr, raw); err != nil {
 		return err
 	}
 
-	// Clera the deadline, response sent
+	// Relay the response through up to relayFactor other nodes
+	if err := q.serf.relayResponse(q.relayFactor, addr, &resp); err != nil {
+		return err
+	}
+
+	// Clear the deadline, responses sent
 	q.deadline = time.Time{}
+
+	return nil
+}
+
+// Respond is used to send a response to the user query
+func (q *Query) Respond(buf []byte) error {
+	// Create response
+	resp := q.createResponse(buf)
+
+	// Encode response
+	raw, err := encodeMessage(messageQueryResponseType, resp)
+	if err != nil {
+		return fmt.Errorf("failed to format response: %v", err)
+	}
+
+	if err := q.respondWithMessageAndResponse(raw, resp); err != nil {
+		return fmt.Errorf("failed to respond to key query: %v", err)
+	}
+
 	return nil
 }

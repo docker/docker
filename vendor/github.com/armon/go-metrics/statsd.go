@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -21,6 +22,12 @@ const (
 type StatsdSink struct {
 	addr        string
 	metricQueue chan string
+}
+
+// NewStatsdSinkFromURL creates an StatsdSink from a URL. It is used
+// (and tested) from NewMetricSinkFromURL.
+func NewStatsdSinkFromURL(u *url.URL) (MetricSink, error) {
+	return NewStatsdSink(u.Host)
 }
 
 // NewStatsdSink is used to create a new StatsdSink
@@ -43,6 +50,11 @@ func (s *StatsdSink) SetGauge(key []string, val float32) {
 	s.pushMetric(fmt.Sprintf("%s:%f|g\n", flatKey, val))
 }
 
+func (s *StatsdSink) SetGaugeWithLabels(key []string, val float32, labels []Label) {
+	flatKey := s.flattenKeyLabels(key, labels)
+	s.pushMetric(fmt.Sprintf("%s:%f|g\n", flatKey, val))
+}
+
 func (s *StatsdSink) EmitKey(key []string, val float32) {
 	flatKey := s.flattenKey(key)
 	s.pushMetric(fmt.Sprintf("%s:%f|kv\n", flatKey, val))
@@ -53,8 +65,18 @@ func (s *StatsdSink) IncrCounter(key []string, val float32) {
 	s.pushMetric(fmt.Sprintf("%s:%f|c\n", flatKey, val))
 }
 
+func (s *StatsdSink) IncrCounterWithLabels(key []string, val float32, labels []Label) {
+	flatKey := s.flattenKeyLabels(key, labels)
+	s.pushMetric(fmt.Sprintf("%s:%f|c\n", flatKey, val))
+}
+
 func (s *StatsdSink) AddSample(key []string, val float32) {
 	flatKey := s.flattenKey(key)
+	s.pushMetric(fmt.Sprintf("%s:%f|ms\n", flatKey, val))
+}
+
+func (s *StatsdSink) AddSampleWithLabels(key []string, val float32, labels []Label) {
+	flatKey := s.flattenKeyLabels(key, labels)
 	s.pushMetric(fmt.Sprintf("%s:%f|ms\n", flatKey, val))
 }
 
@@ -71,6 +93,14 @@ func (s *StatsdSink) flattenKey(parts []string) string {
 			return r
 		}
 	}, joined)
+}
+
+// Flattens the key along with labels for formatting, removes spaces
+func (s *StatsdSink) flattenKeyLabels(parts []string, labels []Label) string {
+	for _, label := range labels {
+		parts = append(parts, label.Value)
+	}
+	return s.flattenKey(parts)
 }
 
 // Does a non-blocking push to the metrics queue

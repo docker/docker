@@ -842,7 +842,6 @@ Try {
         } else  {
             $env:DOCKER_HOST=$DASHH_CUT
             $env:PATH="$env:TEMP\binary;$env:PATH;"  # Force to use the test binaries, not the host ones.
-                $env:GO111MODULE="off"
             Write-Host -ForegroundColor Green "INFO: DOCKER_HOST at $DASHH_CUT"
 
             $ErrorActionPreference = "SilentlyContinue"

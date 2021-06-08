@@ -1,6 +1,6 @@
 // Copyright 2017, The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE.md file.
+// license that can be found in the LICENSE file.
 
 package value
 
@@ -19,7 +19,7 @@ func SortKeys(vs []reflect.Value) []reflect.Value {
 	}
 
 	// Sort the map keys.
-	sort.Sort(valueSorter(vs))
+	sort.SliceStable(vs, func(i, j int) bool { return isLess(vs[i], vs[j]) })
 
 	// Deduplicate keys (fails for NaNs).
 	vs2 := vs[:1]
@@ -30,13 +30,6 @@ func SortKeys(vs []reflect.Value) []reflect.Value {
 	}
 	return vs2
 }
-
-// TODO: Use sort.Slice once Google AppEngine is on Go1.8 or above.
-type valueSorter []reflect.Value
-
-func (vs valueSorter) Len() int           { return len(vs) }
-func (vs valueSorter) Less(i, j int) bool { return isLess(vs[i], vs[j]) }
-func (vs valueSorter) Swap(i, j int)      { vs[i], vs[j] = vs[j], vs[i] }
 
 // isLess is a generic function for sorting arbitrary map keys.
 // The inputs must be of the same type and must be comparable.
@@ -49,6 +42,8 @@ func isLess(x, y reflect.Value) bool {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		return x.Uint() < y.Uint()
 	case reflect.Float32, reflect.Float64:
+		// NOTE: This does not sort -0 as less than +0
+		// since Go maps treat -0 and +0 as equal keys.
 		fx, fy := x.Float(), y.Float()
 		return fx < fy || math.IsNaN(fx) && !math.IsNaN(fy)
 	case reflect.Complex64, reflect.Complex128:

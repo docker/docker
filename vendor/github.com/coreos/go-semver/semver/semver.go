@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -74,6 +75,14 @@ func (v *Version) Set(version string) error {
 
 	if len(dotParts) != 3 {
 		return fmt.Errorf("%s is not in dotted-tri format", version)
+	}
+
+	if err := validateIdentifier(string(preRelease)); err != nil {
+		return fmt.Errorf("failed to validate pre-release: %v", err)
+	}
+
+	if err := validateIdentifier(metadata); err != nil {
+		return fmt.Errorf("failed to validate metadata: %v", err)
 	}
 
 	parsed := make([]int64, 3, 3)
@@ -224,6 +233,13 @@ func recursivePreReleaseCompare(versionA []string, versionB []string) int {
 		bInt = true
 	}
 
+	// Numeric identifiers always have lower precedence than non-numeric identifiers.
+	if aInt && !bInt {
+		return -1
+	} else if !aInt && bInt {
+		return 1
+	}
+
 	// Handle Integer Comparison
 	if aInt && bInt {
 		if aI > bI {
@@ -266,3 +282,15 @@ func (v *Version) BumpPatch() {
 	v.PreRelease = PreRelease("")
 	v.Metadata = ""
 }
+
+// validateIdentifier makes sure the provided identifier satisfies semver spec
+func validateIdentifier(id string) error {
+	if id != "" && !reIdentifier.MatchString(id) {
+		return fmt.Errorf("%s is not a valid semver identifier", id)
+	}
+	return nil
+}
+
+// reIdentifier is a regular expression used to check that pre-release and metadata
+// identifiers satisfy the spec requirements
+var reIdentifier = regexp.MustCompile(`^[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*$`)
