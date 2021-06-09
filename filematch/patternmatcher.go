@@ -7,8 +7,6 @@ import (
 	"regexp"
 	"strings"
 	"text/scanner"
-
-	"github.com/sirupsen/logrus"
 )
 
 // PatternMatcher allows checking paths against a list of patterns
@@ -85,10 +83,6 @@ func (pm *PatternMatcher) Matches(file string) (bool, error) {
 		if match {
 			matched = !negative
 		}
-	}
-
-	if matched {
-		logrus.Debugf("Skipping excluded path: %s", file)
 	}
 
 	return matched, nil
