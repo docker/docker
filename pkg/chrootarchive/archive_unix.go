@@ -113,7 +113,12 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 		// pending on write pipe forever
 		io.Copy(ioutil.Discard, decompressedArchive)
 
-		return fmt.Errorf("Error processing tar file(%v): %s", err, output)
+		rerr := fmt.Errorf("Error processing tar file(%v): %s", err, output)
+		if strings.Contains(err.Error(), "peration not permitted") { // "(O|o)eration not permitted"
+			// return EPERM errors as-is, as they unlikely to be a problem with the archive itself
+			return rerr
+		}
+		return invalidArchiveError{rerr}
 	}
 	return nil
 }

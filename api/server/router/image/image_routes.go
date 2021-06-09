@@ -173,6 +173,9 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 	if err := s.backend.LoadImage(r.Body, output, quiet); err != nil {
+		if !output.Flushed() {
+			w.WriteHeader(errdefs.GetHTTPErrorStatusCode(err))
+		}
 		_, _ = output.Write(streamformatter.FormatError(err))
 	}
 	return nil
