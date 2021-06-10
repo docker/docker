@@ -80,8 +80,8 @@ func (c *Config) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
 }
 
 // CloseStreams closes the stdio streams for the exec
-func (c *Config) CloseStreams() error {
-	return c.StreamConfig.CloseStreams(context.Background())
+func (c *Config) CloseStreams(ctx context.Context) error {
+	return c.StreamConfig.CloseStreams(ctx)
 }
 
 // SetExitCode sets the exec config's exit code

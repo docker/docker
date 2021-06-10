@@ -143,9 +143,11 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			execConfig.StreamConfig.Wait(ctx)
 			cancel()
 
-			if err := execConfig.CloseStreams(); err != nil {
+			ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
+			if err := execConfig.CloseStreams(ctx); err != nil {
 				logrus.Errorf("failed to cleanup exec %s streams: %s", c.ID, err)
 			}
+			cancel()
 
 			// remove the exec command from the container's store only and not the
 			// daemon's store so that the exec command can be inspected.
