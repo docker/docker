@@ -1,3 +1,5 @@
+// +build !windows
+
 package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
@@ -11,6 +13,14 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
 )
+
+// ErrVolumeTargetIsRoot is returned when the target destination is root.
+// It's used by Linux parsers.
+var ErrVolumeTargetIsRoot = errors.New("invalid specification: destination can't be '/'")
+
+func newParser() Parser {
+	return &linuxParser{}
+}
 
 type linuxParser struct {
 }
@@ -113,12 +123,6 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		return &errMountConfig{mnt, errors.New("mount type unknown")}
 	}
 	return nil
-}
-
-// read-write modes
-var rwModes = map[string]bool{
-	"rw": true,
-	"ro": true,
 }
 
 // label modes
@@ -420,4 +424,9 @@ func (p *linuxParser) ValidateTmpfsMountDestination(dest string) error {
 		return err
 	}
 	return linuxValidateAbsolute(dest)
+}
+
+func (p *linuxParser) HasResource(m *MountPoint, absolutePath string) bool {
+	relPath, err := filepath.Rel(m.Destination, absolutePath)
+	return err == nil && relPath != ".." && !strings.HasPrefix(relPath, fmt.Sprintf("..%c", filepath.Separator))
 }

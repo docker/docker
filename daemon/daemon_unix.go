@@ -719,7 +719,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		return warnings, fmt.Errorf("Unknown runtime specified %s", hostConfig.Runtime)
 	}
 
-	parser := volumemounts.NewParser(runtime.GOOS)
+	parser := volumemounts.NewParser()
 	for dest := range hostConfig.Tmpfs {
 		if err := parser.ValidateTmpfsMountDestination(dest); err != nil {
 			return warnings, err

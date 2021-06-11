@@ -10,54 +10,11 @@ import (
 
 	"github.com/docker/docker/api/types/mount"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
 )
 
 type parseMountRawTestSet struct {
 	valid   []string
 	invalid map[string]string
-}
-
-func TestConvertTmpfsOptions(t *testing.T) {
-	type testCase struct {
-		opt                  mount.TmpfsOptions
-		readOnly             bool
-		expectedSubstrings   []string
-		unexpectedSubstrings []string
-	}
-	cases := []testCase{
-		{
-			opt:                  mount.TmpfsOptions{SizeBytes: 1024 * 1024, Mode: 0700},
-			readOnly:             false,
-			expectedSubstrings:   []string{"size=1m", "mode=700"},
-			unexpectedSubstrings: []string{"ro"},
-		},
-		{
-			opt:                  mount.TmpfsOptions{},
-			readOnly:             true,
-			expectedSubstrings:   []string{"ro"},
-			unexpectedSubstrings: []string{},
-		},
-	}
-	p := &linuxParser{}
-	for _, c := range cases {
-		data, err := p.ConvertTmpfsOptions(&c.opt, c.readOnly)
-		if err != nil {
-			t.Fatalf("could not convert %+v (readOnly: %v) to string: %v",
-				c.opt, c.readOnly, err)
-		}
-		t.Logf("data=%q", data)
-		for _, s := range c.expectedSubstrings {
-			if !strings.Contains(data, s) {
-				t.Fatalf("expected substring: %s, got %v (case=%+v)", s, data, c)
-			}
-		}
-		for _, s := range c.unexpectedSubstrings {
-			if strings.Contains(data, s) {
-				t.Fatalf("unexpected substring: %s, got %v (case=%+v)", s, data, c)
-			}
-		}
-	}
 }
 
 type mockFiProvider struct{}
@@ -162,74 +119,6 @@ func TestParseMountRaw(t *testing.T) {
 			`\\.\pipe\foo:c:\pipe`:             `'c:\pipe' is not a valid pipe path`,
 		},
 	}
-	lcowSet := parseMountRawTestSet{
-		valid: []string{
-			`/foo`,
-			`/foo/`,
-			`/foo bar`,
-			`c:\:/foo`,
-			`c:\windows\:/foo`,
-			`c:\windows:/s p a c e`,
-			`c:\windows:/s p a c e:RW`,
-			`c:\program files:/s p a c e i n h o s t d i r`,
-			`0123456789name:/foo`,
-			`MiXeDcAsEnAmE:/foo`,
-			`name:/foo`,
-			`name:/foo:rW`,
-			`name:/foo:RW`,
-			`name:/foo:RO`,
-			`c:/:/forward/slashes/are/good/too`,
-			`c:/:/including with/spaces:ro`,
-			`/Program Files (x86)`, // With capitals and brackets
-		},
-		invalid: map[string]string{
-			``:                                   "invalid volume specification: ",
-			`.`:                                  "invalid volume specification: ",
-			`c:`:                                 "invalid volume specification: ",
-			`c:\`:                                "invalid volume specification: ",
-			`../`:                                "invalid volume specification: ",
-			`c:\:../`:                            "invalid volume specification: ",
-			`c:\:/foo:xyzzy`:                     "invalid volume specification: ",
-			`/`:                                  "destination can't be '/'",
-			`/..`:                                "destination can't be '/'",
-			`c:\notexist:/foo`:                   `source path does not exist: c:\notexist`,
-			`c:\windows\system32\ntdll.dll:/foo`: `source path must be a directory`,
-			`name<:/foo`:                         `invalid volume specification`,
-			`name>:/foo`:                         `invalid volume specification`,
-			`name::/foo`:                         `invalid volume specification`,
-			`name":/foo`:                         `invalid volume specification`,
-			`name\:/foo`:                         `invalid volume specification`,
-			`name*:/foo`:                         `invalid volume specification`,
-			`name|:/foo`:                         `invalid volume specification`,
-			`name?:/foo`:                         `invalid volume specification`,
-			`name/:/foo`:                         `invalid volume specification`,
-			`/foo:rw`:                            `invalid volume specification`,
-			`/foo:ro`:                            `invalid volume specification`,
-			`con:/foo`:                           `cannot be a reserved word for Windows filenames`,
-			`PRN:/foo`:                           `cannot be a reserved word for Windows filenames`,
-			`aUx:/foo`:                           `cannot be a reserved word for Windows filenames`,
-			`nul:/foo`:                           `cannot be a reserved word for Windows filenames`,
-			`com1:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`com2:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`com3:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`com4:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`com5:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`com6:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`com7:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`com8:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`com9:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`lpt1:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`lpt2:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`lpt3:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`lpt4:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`lpt5:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`lpt6:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`lpt7:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`lpt8:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`lpt9:/foo`:                          `cannot be a reserved word for Windows filenames`,
-			`\\.\pipe\foo:/foo`:                  `Linux containers on Windows do not support named pipe mounts`,
-		},
-	}
 	linuxSet := parseMountRawTestSet{
 		valid: []string{
 			"/home",
@@ -296,13 +185,8 @@ func TestParseMountRaw(t *testing.T) {
 		},
 	}
 
-	linParser := &linuxParser{}
-	winParser := &windowsParser{}
-	lcowParser := &lcowParser{}
 	tester := func(parser Parser, set parseMountRawTestSet) {
-
 		for _, path := range set.valid {
-
 			if _, err := parser.ParseMountRaw(path, "local"); err != nil {
 				t.Errorf("ParseMountRaw(`%q`) should succeed: error %q", path, err)
 			}
@@ -318,10 +202,12 @@ func TestParseMountRaw(t *testing.T) {
 			}
 		}
 	}
-	tester(linParser, linuxSet)
-	tester(winParser, windowsSet)
-	tester(lcowParser, lcowSet)
-
+	parser := NewParser()
+	if runtime.GOOS == "windows" {
+		tester(parser, windowsSet)
+	} else {
+		tester(parser, linuxSet)
+	}
 }
 
 // testParseMountRaw is a structure used by TestParseMountRawSplit for
@@ -357,20 +243,6 @@ func TestParseMountRawSplit(t *testing.T) {
 		{`\\.\pipe\foo:c:\foo\bar`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
 		{`c:\foo\bar:\\.\pipe\foo`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
 	}
-	lcowCases := []testParseMountRaw{
-		{`c:\:/foo`, "local", mount.TypeBind, `/foo`, `c:\`, ``, "", true, false},
-		{`c:\:/foo:ro`, "local", mount.TypeBind, `/foo`, `c:\`, ``, "", false, false},
-		{`c:\:/foo:rw`, "local", mount.TypeBind, `/foo`, `c:\`, ``, "", true, false},
-		{`c:\:/foo:foo`, "local", mount.TypeBind, `/foo`, `c:\`, ``, "", false, true},
-		{`name:/foo:rw`, "local", mount.TypeVolume, `/foo`, ``, `name`, "local", true, false},
-		{`name:/foo`, "local", mount.TypeVolume, `/foo`, ``, `name`, "local", true, false},
-		{`name:/foo:ro`, "local", mount.TypeVolume, `/foo`, ``, `name`, "local", false, false},
-		{`name:/`, "", mount.TypeVolume, ``, ``, ``, "", true, true},
-		{`driver/name:/`, "", mount.TypeVolume, ``, ``, ``, "", true, true},
-		{`\\.\pipe\foo:\\.\pipe\bar`, "local", mount.TypeNamedPipe, `\\.\pipe\bar`, `\\.\pipe\foo`, "", "", true, true},
-		{`\\.\pipe\foo:/data`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
-		{`c:\foo\bar:\\.\pipe\foo`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
-	}
 	linuxCases := []testParseMountRaw{
 		{"/tmp:/tmp1", "", mount.TypeBind, "/tmp1", "/tmp", "", "", true, false},
 		{"/tmp:/tmp2:ro", "", mount.TypeBind, "/tmp2", "/tmp", "", "", false, false},
@@ -382,9 +254,6 @@ func TestParseMountRawSplit(t *testing.T) {
 		{"local/name:/tmp:rw", "", mount.TypeVolume, "/tmp", "", "local/name", "", true, false},
 		{"/tmp:tmp", "", mount.TypeBind, "", "", "", "", true, true},
 	}
-	linParser := &linuxParser{}
-	winParser := &windowsParser{}
-	lcowParser := &lcowParser{}
 	tester := func(parser Parser, cases []testParseMountRaw) {
 		for i, c := range cases {
 			t.Logf("case %d", i)
@@ -426,9 +295,12 @@ func TestParseMountRawSplit(t *testing.T) {
 		}
 	}
 
-	tester(linParser, linuxCases)
-	tester(winParser, windowsCases)
-	tester(lcowParser, lcowCases)
+	parser := NewParser()
+	if runtime.GOOS == "windows" {
+		tester(parser, windowsCases)
+	} else {
+		tester(parser, linuxCases)
+	}
 }
 
 func TestParseMountSpec(t *testing.T) {
@@ -441,7 +313,7 @@ func TestParseMountSpec(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(testDir)
-	parser := NewParser(runtime.GOOS)
+	parser := NewParser()
 	cases := []c{
 		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath, ReadOnly: true}, MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath, Propagation: parser.DefaultPropagationMode()}},
 		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath}, MountPoint{Type: mount.TypeBind, Source: testDir, Destination: testDestinationPath, RW: true, Propagation: parser.DefaultPropagationMode()}},
@@ -522,9 +394,8 @@ func TestParseMountSpecBindWithFileinfoError(t *testing.T) {
 	}
 	m := mount.Mount{Type: mount.TypeBind, Source: p, Target: p}
 
-	parser := NewParser(runtime.GOOS)
+	parser := NewParser()
 
 	_, err := parser.ParseMountSpec(m)
-	assert.Assert(t, err != nil)
-	assert.Assert(t, cmp.Contains(err.Error(), "some crazy error"))
+	assert.ErrorContains(t, err, "some crazy error")
 }

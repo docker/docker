@@ -3,7 +3,6 @@ package mounts // import "github.com/docker/docker/volume/mounts"
 import (
 	"errors"
 	"fmt"
-	"os"
 	"regexp"
 	"runtime"
 	"strings"
@@ -11,6 +10,10 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/stringid"
 )
+
+func newParser() Parser {
+	return &windowsParser{}
+}
 
 type windowsParser struct {
 }
@@ -62,12 +65,6 @@ const (
 
 	// rxDestination is the regex expression for the mount destination
 	rxDestination = `(?P<destination>((?:\\\\\?\\)?([a-z]):((?:[\\/][^\\/:*?"<>\r\n]+)*[\\/]?))|(` + rxPipe + `))`
-
-	rxLCOWDestination = `(?P<destination>/(?:[^\\/:*?"<>\r\n]+[/]?)*)`
-	// Destination (aka container path):
-	//    -  Variation on hostdir but can be a drive followed by colon as well
-	//    -  If a path, must be absolute. Can include spaces
-	//    -  Drive cannot be c: (explicitly checked in code, not RegEx)
 
 	// rxMode is the regex expression for the mode of the mount
 	// Mode (optional):
@@ -138,6 +135,7 @@ func windowsValidMountMode(mode string) bool {
 	}
 	return rwModes[strings.ToLower(mode)]
 }
+
 func windowsValidateNotRoot(p string) error {
 	p = strings.ToLower(strings.Replace(p, `/`, `\`, -1))
 	if p == "c:" || p == `c:\` {
@@ -192,26 +190,6 @@ func (p *windowsParser) ValidateVolumeName(name string) error {
 func (p *windowsParser) ValidateMountConfig(mnt *mount.Mount) error {
 	return p.validateMountConfigReg(mnt, rxDestination, windowsSpecificValidators)
 }
-
-type fileInfoProvider interface {
-	fileInfo(path string) (exist, isDir bool, err error)
-}
-
-type defaultFileInfoProvider struct {
-}
-
-func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err error) {
-	fi, err := os.Stat(path)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return false, false, err
-		}
-		return false, false, nil
-	}
-	return true, fi.IsDir(), nil
-}
-
-var currentFileInfoProvider fileInfoProvider = defaultFileInfoProvider{}
 
 func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex string, additionalValidators ...mountValidator) error {
 
@@ -453,4 +431,8 @@ func (p *windowsParser) IsBackwardCompatible(m *MountPoint) bool {
 
 func (p *windowsParser) ValidateTmpfsMountDestination(dest string) error {
 	return errors.New("Platform does not support tmpfs")
+}
+
+func (p *windowsParser) HasResource(m *MountPoint, absolutePath string) bool {
+	return false
 }

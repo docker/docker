@@ -116,7 +116,7 @@ func TestNotCleanupMounts(t *testing.T) {
 func TestValidateContainerIsolationLinux(t *testing.T) {
 	d := Daemon{}
 
-	_, err := d.verifyContainerSettings("linux", &containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
+	_, err := d.verifyContainerSettings(&containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
 	assert.Check(t, is.Error(err, "invalid isolation 'hyperv' on linux"))
 }
 

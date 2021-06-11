@@ -1,22 +1,36 @@
 package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
-	"errors"
-	"runtime"
+	"os"
 
 	"github.com/docker/docker/api/types/mount"
 )
 
-const (
-	// OSLinux is the same as runtime.GOOS on linux
-	OSLinux = "linux"
-	// OSWindows is the same as runtime.GOOS on windows
-	OSWindows = "windows"
-)
+// read-write modes
+var rwModes = map[string]bool{
+	"rw": true,
+	"ro": true,
+}
 
-// ErrVolumeTargetIsRoot is returned when the target destination is root.
-// It's used by both LCOW and Linux parsers.
-var ErrVolumeTargetIsRoot = errors.New("invalid specification: destination can't be '/'")
+type fileInfoProvider interface {
+	fileInfo(path string) (exist, isDir bool, err error)
+}
+
+type defaultFileInfoProvider struct {
+}
+
+func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err error) {
+	fi, err := os.Stat(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return false, false, err
+		}
+		return false, false, nil
+	}
+	return true, fi.IsDir(), nil
+}
+
+var currentFileInfoProvider fileInfoProvider = defaultFileInfoProvider{}
 
 // Parser represents a platform specific parser for mount expressions
 type Parser interface {
@@ -34,14 +48,7 @@ type Parser interface {
 	ValidateMountConfig(mt *mount.Mount) error
 }
 
-// NewParser creates a parser for a given container OS, depending on the current host OS (linux on a windows host will resolve to an lcowParser)
-func NewParser(containerOS string) Parser {
-	switch containerOS {
-	case OSWindows:
-		return &windowsParser{}
-	}
-	if runtime.GOOS == OSWindows {
-		return &lcowParser{}
-	}
-	return &linuxParser{}
+// NewParser creates a parser for the current host OS
+func NewParser() Parser {
+	return newParser()
 }

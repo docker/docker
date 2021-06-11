@@ -1,7 +1,6 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"runtime"
 	"testing"
 
 	volumemounts "github.com/docker/docker/volume/mounts"
@@ -21,7 +20,7 @@ func TestParseVolumesFrom(t *testing.T) {
 		{"foobar:baz", "", "", true},
 	}
 
-	parser := volumemounts.NewParser(runtime.GOOS)
+	parser := volumemounts.NewParser()
 
 	for _, c := range cases {
 		id, mode, err := parser.ParseVolumesFrom(c.spec)
