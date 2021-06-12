@@ -510,20 +510,14 @@ func (daemon *Daemon) conditionalMountOnStart(container *container.Container) er
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
 func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) error {
-
-	// Bail out now for Linux containers
-	if system.LCOWSupported() && container.OS != "windows" {
+	if daemon.runAsHyperVContainer(container.HostConfig) {
+		// We do not unmount if a Hyper-V container
 		return nil
 	}
-
-	// We do not unmount if a Hyper-V container
-	if !daemon.runAsHyperVContainer(container.HostConfig) {
-		return daemon.Unmount(container)
-	}
-	return nil
+	return daemon.Unmount(container)
 }
 
-func driverOptions(config *config.Config) []nwconfig.Option {
+func driverOptions(_ *config.Config) []nwconfig.Option {
 	return []nwconfig.Option{}
 }
 

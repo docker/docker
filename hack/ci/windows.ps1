@@ -61,7 +61,6 @@ Write-Host -ForegroundColor Red "-----------------------------------------------
 #   DOCKER_STORAGE_OPTS       comma-separated list of optional storage driver options for the daemon under test
 #                             examples:
 #                             DOCKER_STORAGE_OPTS="size=40G"
-#                             DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
 #
 #    SKIP_VALIDATION_TESTS    if defined skips the validation tests
 #
@@ -602,7 +601,7 @@ Try {
     }
 
     # Arguments: Allow setting optional storage-driver options
-    # example usage: DOCKER_STORAGE_OPTS="lcow.globalmode=false,lcow.kernel=kernel.efi"
+    # example usage: DOCKER_STORAGE_OPTS="foo.bar=false,bar.baz=hello"
     if (-not ("$env:DOCKER_STORAGE_OPTS" -eq "")) {
         Write-Host -ForegroundColor Green "INFO: Running the daemon under test with storage-driver options ${env:DOCKER_STORAGE_OPTS}"
         $env:DOCKER_STORAGE_OPTS.Split(",") | ForEach {

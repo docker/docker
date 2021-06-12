@@ -264,12 +264,6 @@ func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error
 
 // SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
 func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity) error {
-	// TODO: LCOW Support. This will need revisiting.
-	// We will need to do remote filesystem operations here.
-	if container.OS != runtime.GOOS {
-		return nil
-	}
-
 	if container.Config.WorkingDir == "" {
 		return nil
 	}
@@ -474,11 +468,7 @@ func (container *Container) ShouldRestart() bool {
 
 // AddMountPointWithVolume adds a new mount point configured with a volume to the container.
 func (container *Container) AddMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
-	operatingSystem := container.OS
-	if operatingSystem == "" {
-		operatingSystem = runtime.GOOS
-	}
-	volumeParser := volumemounts.NewParser(operatingSystem)
+	volumeParser := volumemounts.NewParser()
 	container.MountPoints[destination] = &volumemounts.MountPoint{
 		Type:        mounttypes.TypeVolume,
 		Name:        vol.Name(),
@@ -738,7 +728,7 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 
 	// Figure out what size slice we need so we can allocate this all at once.
 	envSize := len(container.Config.Env)
-	if runtime.GOOS != "windows" || (runtime.GOOS == "windows" && os == "linux") {
+	if runtime.GOOS != "windows" {
 		envSize += 2 + len(linkedEnv)
 	}
 	if tty {

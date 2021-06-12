@@ -81,11 +81,6 @@ func fixPermissionsWindows(source, destination, SID string) error {
 }
 
 func validateCopySourcePath(imageSource *imageMount, origPath, platform string) error {
-	// validate windows paths from other images + LCOW
-	if imageSource == nil || platform != "windows" {
-		return nil
-	}
-
 	origPath = filepath.FromSlash(origPath)
 	p := strings.ToLower(filepath.Clean(origPath))
 	if !filepath.IsAbs(p) {

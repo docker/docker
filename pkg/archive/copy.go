@@ -364,9 +364,6 @@ func RebaseArchiveEntries(srcContent io.Reader, oldBase, newBase string) io.Read
 	return rebased
 }
 
-// TODO @gupta-ak. These might have to be changed in the future to be
-// continuity driver aware as well to support LCOW.
-
 // CopyResource performs an archive copy from the given source path to the
 // given destination path. The source path MUST exist and the destination
 // path's parent directory must exist.

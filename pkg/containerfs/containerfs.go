@@ -29,7 +29,7 @@ type ContainerFS interface {
 // field to determine the OS.
 type Driver interface {
 	// OS returns the OS where the rootfs is located. Essentially,
-	// runtime.GOOS for everything aside from LCOW, which is "linux"
+	// runtime.GOOS
 	OS() string
 
 	// Architecture returns the hardware architecture where the

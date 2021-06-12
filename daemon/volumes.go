@@ -62,7 +62,7 @@ func (m mounts) parts(i int) int {
 func (daemon *Daemon) registerMountPoints(container *container.Container, hostConfig *containertypes.HostConfig) (retErr error) {
 	binds := map[string]bool{}
 	mountPoints := map[string]*volumemounts.MountPoint{}
-	parser := volumemounts.NewParser(container.OS)
+	parser := volumemounts.NewParser()
 
 	ctx := context.TODO()
 	defer func() {
@@ -265,8 +265,6 @@ func (daemon *Daemon) backportMountSpec(container *container.Container) {
 	container.Lock()
 	defer container.Unlock()
 
-	parser := volumemounts.NewParser(container.OS)
-
 	maybeUpdate := make(map[string]bool)
 	for _, mp := range container.MountPoints {
 		if mp.Spec.Source != "" && mp.Type != "" {
@@ -283,6 +281,7 @@ func (daemon *Daemon) backportMountSpec(container *container.Container) {
 		mountSpecs[m.Target] = true
 	}
 
+	parser := volumemounts.NewParser()
 	binds := make(map[string]*volumemounts.MountPoint, len(container.HostConfig.Binds))
 	for _, rawSpec := range container.HostConfig.Binds {
 		mp, err := parser.ParseMountRaw(rawSpec, container.HostConfig.VolumeDriver)

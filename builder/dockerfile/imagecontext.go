@@ -80,9 +80,9 @@ func (m *imageSources) Add(im *imageMount, platform *specs.Platform) {
 			platform = &p
 		}
 
-		// Windows does not support scratch except for LCOW
 		os := platform.OS
 		if runtime.GOOS == "windows" {
+			// Windows does not support scratch, so always linux
 			os = "linux"
 		}
 
