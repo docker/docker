@@ -51,14 +51,14 @@ type archiver interface {
 }
 
 // helper functions to get tar/untar func
-func untarFunc(i interface{}) containerfs.UntarFunc {
+func untarFunc(i interface{}) archive.UntarFunc {
 	if ea, ok := i.(extractor); ok {
 		return ea.ExtractArchive
 	}
 	return chrootarchive.Untar
 }
 
-func tarFunc(i interface{}) containerfs.TarFunc {
+func tarFunc(i interface{}) archive.TarFunc {
 	if ap, ok := i.(archiver); ok {
 		return ap.ArchivePath
 	}
@@ -67,7 +67,7 @@ func tarFunc(i interface{}) containerfs.TarFunc {
 
 func (b *Builder) getArchiver(src, dst containerfs.Driver) Archiver {
 	t, u := tarFunc(src), untarFunc(dst)
-	return &containerfs.Archiver{
+	return &archive.Archiver{
 		SrcDriver: src,
 		DstDriver: dst,
 		Tar:       t,
