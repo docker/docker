@@ -162,6 +162,11 @@ func (e *Execution) IsUserNamespace() bool {
 	return root != ""
 }
 
+// RuntimeIsWindowsContainerD returns whether containerd runtime is used on Windows
+func (e *Execution) RuntimeIsWindowsContainerD() bool {
+	return os.Getenv("DOCKER_WINDOWS_CONTAINERD_RUNTIME") == "1"
+}
+
 // IsRootless returns whether the rootless mode is enabled
 func (e *Execution) IsRootless() bool {
 	return os.Getenv("DOCKER_ROOTLESS") != ""

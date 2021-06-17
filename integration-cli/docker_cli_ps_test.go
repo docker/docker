@@ -227,6 +227,7 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *testing.T) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterHealth(c *testing.T) {
+	skip.If(c, RuntimeIsWindowsContainerD(), "FIXME. Hang on Windows + ContainerD")
 	existingContainers := ExistingContainerIDs(c)
 	// Test legacy no health check
 	out := runSleepingContainer(c, "--name=none_legacy")

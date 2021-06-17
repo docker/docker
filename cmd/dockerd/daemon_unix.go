@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	containerddefaults "github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/runtime/v1/linux"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
@@ -165,4 +166,17 @@ func (cli *DaemonCli) initContainerD(ctx context.Context) (func(time.Duration) e
 	}
 
 	return waitForShutdown, nil
+}
+
+func systemContainerdRunning(honorXDG bool) (string, bool, error) {
+	addr := containerddefaults.DefaultAddress
+	if honorXDG {
+		runtimeDir, err := homedir.GetRuntimeDir()
+		if err != nil {
+			return "", false, err
+		}
+		addr = filepath.Join(runtimeDir, "containerd", "containerd.sock")
+	}
+	_, err := os.Lstat(addr)
+	return addr, err == nil, nil
 }

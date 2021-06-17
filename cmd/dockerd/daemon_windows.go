@@ -7,9 +7,12 @@ import (
 	"path/filepath"
 	"time"
 
+	containerddefaults "github.com/containerd/containerd/defaults"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/go-connections/sockets"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 )
@@ -94,6 +97,19 @@ func newCgroupParent(config *config.Config) string {
 }
 
 func (cli *DaemonCli) initContainerD(_ context.Context) (func(time.Duration) error, error) {
-	system.InitContainerdRuntime(cli.Config.Experimental, cli.Config.ContainerdAddr)
+	system.InitContainerdRuntime(cli.Config.ContainerdAddr)
+	if system.ContainerdRuntimeSupported() && cli.Config.ContainerdAddr == "" {
+		systemContainerdAddr, err := systemContainerdRunning()
+		if err != nil {
+			return nil, errors.New("could not connect to containerd")
+		}
+		cli.Config.ContainerdAddr = systemContainerdAddr
+	}
 	return nil, nil
+}
+
+func systemContainerdRunning() (string, error) {
+	addr := containerddefaults.DefaultAddress
+	_, err := sockets.DialPipe(addr, 32*time.Second)
+	return addr, err
 }

@@ -1984,6 +1984,9 @@ func (s *DockerSuite) TestRunCidFileCheckIDLength(c *testing.T) {
 }
 
 func (s *DockerSuite) TestRunSetMacAddress(c *testing.T) {
+	// FIXME. Broken on Windows + ContainerD combination
+	testRequires(c, RuntimeIsNotWindowsContainerD())
+
 	mac := "12:34:56:78:9a:bc"
 	var out string
 	if testEnv.OSType == "windows" {

@@ -23,6 +23,9 @@ import (
 var expectedNetworkInterfaceStats = strings.Split("rx_bytes rx_dropped rx_errors rx_packets tx_bytes tx_dropped tx_errors tx_packets", " ")
 
 func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *testing.T) {
+	// FIXME. Broken on Windows + ContainerD combination
+	testRequires(c, RuntimeIsNotWindowsContainerD())
+
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;usleep 100; do echo 'Hello'; done")
 
 	id := strings.TrimSpace(out)
@@ -98,6 +101,8 @@ func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *testing.T) {
 }
 
 func (s *DockerSuite) TestAPIStatsNetworkStats(c *testing.T) {
+	// FIXME. Broken on Windows + ContainerD combination
+	testRequires(c, RuntimeIsNotWindowsContainerD())
 	testRequires(c, testEnv.IsLocalDaemon)
 
 	out := runSleepingContainer(c)

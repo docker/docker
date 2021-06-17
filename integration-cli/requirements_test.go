@@ -39,6 +39,12 @@ func DaemonIsWindowsAtLeastBuild(buildNumber int) func() bool {
 	}
 }
 
+func RuntimeIsNotWindowsContainerD() func() bool {
+	return func() bool {
+		return os.Getenv("DOCKER_WINDOWS_CONTAINERD_RUNTIME") != "1"
+	}
+}
+
 func DaemonIsLinux() bool {
 	return testEnv.OSType == "linux"
 }
@@ -179,6 +185,10 @@ func RegistryHosting() bool {
 	// registry binary is in PATH.
 	_, err := exec.LookPath(registry.V2binary)
 	return err == nil
+}
+
+func RuntimeIsWindowsContainerD() bool {
+	return os.Getenv("DOCKER_WINDOWS_CONTAINERD_RUNTIME") == "1"
 }
 
 func SwarmInactive() bool {
