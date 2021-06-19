@@ -70,6 +70,14 @@ func TestSetIPVlanMode(t *testing.T) {
 	if mode != netlink.IPVLAN_MODE_L3 {
 		t.Fatalf("expected %d got %d", netlink.IPVLAN_MODE_L3, mode)
 	}
+	// test ipvlan l3s mode
+	mode, err = setIPVlanMode(modeL3S)
+	if err != nil {
+		t.Fatalf("error parsing %v vlan mode: %v", mode, err)
+	}
+	if mode != netlink.IPVLAN_MODE_L3S {
+		t.Fatalf("expected %d got %d", netlink.IPVLAN_MODE_L3S, mode)
+	}
 	// test invalid mode
 	mode, err = setIPVlanMode("foo")
 	if err == nil {
@@ -85,5 +93,49 @@ func TestSetIPVlanMode(t *testing.T) {
 	}
 	if mode != 0 {
 		t.Fatalf("expected 0 got %d", mode)
+	}
+}
+
+// TestSetIPVlanFlag tests the ipvlan flag setter
+func TestSetIPVlanFlag(t *testing.T) {
+	// test ipvlan bridge flag
+	flag, err := setIPVlanFlag(flagBridge)
+	if err != nil {
+		t.Fatalf("error parsing %v vlan flag: %v", flag, err)
+	}
+	if flag != netlink.IPVLAN_FLAG_BRIDGE {
+		t.Fatalf("expected %d got %d", netlink.IPVLAN_FLAG_BRIDGE, flag)
+	}
+	// test ipvlan private flag
+	flag, err = setIPVlanFlag(flagPrivate)
+	if err != nil {
+		t.Fatalf("error parsing %v vlan flag: %v", flag, err)
+	}
+	if flag != netlink.IPVLAN_FLAG_PRIVATE {
+		t.Fatalf("expected %d got %d", netlink.IPVLAN_FLAG_PRIVATE, flag)
+	}
+	// test ipvlan vepa flag
+	flag, err = setIPVlanFlag(flagVepa)
+	if err != nil {
+		t.Fatalf("error parsing %v vlan flag: %v", flag, err)
+	}
+	if flag != netlink.IPVLAN_FLAG_VEPA {
+		t.Fatalf("expected %d got %d", netlink.IPVLAN_FLAG_VEPA, flag)
+	}
+	// test invalid flag
+	flag, err = setIPVlanFlag("foo")
+	if err == nil {
+		t.Fatal("invalid ipvlan flag should have returned an error")
+	}
+	if flag != 0 {
+		t.Fatalf("expected 0 got %d", flag)
+	}
+	// test null flag
+	flag, err = setIPVlanFlag("")
+	if err == nil {
+		t.Fatal("invalid ipvlan flag should have returned an error")
+	}
+	if flag != 0 {
+		t.Fatalf("expected 0 got %d", flag)
 	}
 }

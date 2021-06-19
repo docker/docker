@@ -49,8 +49,22 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 		config.IpvlanMode = modeL2
 	case modeL3:
 		config.IpvlanMode = modeL3
+	case modeL3S:
+		config.IpvlanMode = modeL3S
 	default:
 		return fmt.Errorf("requested ipvlan mode '%s' is not valid, 'l2' mode is the ipvlan driver default", config.IpvlanMode)
+	}
+	// verify the ipvlan flag from -o ipvlan_flag option
+	switch config.IpvlanFlag {
+	case "", flagBridge:
+		// default to bridge if -o ipvlan_flag is empty
+		config.IpvlanFlag = flagBridge
+	case flagPrivate:
+		config.IpvlanFlag = flagPrivate
+	case flagVepa:
+		config.IpvlanFlag = flagVepa
+	default:
+		return fmt.Errorf("requested ipvlan flag '%s' is not valid, 'bridge' is the ipvlan driver default", config.IpvlanFlag)
 	}
 	// loopback is not a valid parent link
 	if config.Parent == "lo" {
@@ -233,6 +247,9 @@ func (config *configuration) fromOptions(labels map[string]string) error {
 		case driverModeOpt:
 			// parse driver option '-o ipvlan_mode'
 			config.IpvlanMode = value
+		case driverFlagOpt:
+			// parse driver option '-o ipvlan_flag'
+			config.IpvlanFlag = value
 		}
 	}
 	return nil
