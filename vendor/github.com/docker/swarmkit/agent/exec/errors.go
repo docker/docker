@@ -29,6 +29,11 @@ var (
 	// ErrTaskNoop returns when the a subsequent call to Do will not result in
 	// advancing the task. Callers should avoid calling Do until the task has been updated.
 	ErrTaskNoop = errors.New("exec: task noop")
+
+	// ErrDependencyNotReady is returned if a given dependency can be accessed
+	// through the Getter, but is not yet ready to be used. This is most
+	// relevant for Volumes, which must be staged and published on the node.
+	ErrDependencyNotReady error = errors.New("dependency not ready")
 )
 
 // ExitCoder is implemented by errors that have an exit code.

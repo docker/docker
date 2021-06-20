@@ -17,6 +17,8 @@ const (
 	TypeTmpfs Type = "tmpfs"
 	// TypeNamedPipe is the type for mounting Windows named pipes
 	TypeNamedPipe Type = "npipe"
+	// TypeCluster is the type for Swarm Cluster Volumes.
+	TypeCluster = "csi"
 )
 
 // Mount represents a mount (volume).
@@ -30,9 +32,10 @@ type Mount struct {
 	ReadOnly    bool        `json:",omitempty"`
 	Consistency Consistency `json:",omitempty"`
 
-	BindOptions   *BindOptions   `json:",omitempty"`
-	VolumeOptions *VolumeOptions `json:",omitempty"`
-	TmpfsOptions  *TmpfsOptions  `json:",omitempty"`
+	BindOptions    *BindOptions    `json:",omitempty"`
+	VolumeOptions  *VolumeOptions  `json:",omitempty"`
+	TmpfsOptions   *TmpfsOptions   `json:",omitempty"`
+	ClusterOptions *ClusterOptions `json:",omitempty"`
 }
 
 // Propagation represents the propagation of a mount.
@@ -128,4 +131,9 @@ type TmpfsOptions struct {
 	//
 	// Some of these may be straightforward to add, but others, such as
 	// uid/gid have implications in a clustered system.
+}
+
+// ClusterOptions specifies options for a Cluster volume.
+type ClusterOptions struct {
+	// intentionally empty
 }

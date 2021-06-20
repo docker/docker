@@ -42,6 +42,13 @@ service Dispatcher { // maybe dispatch, al likes this
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-worker" roles: "swarm-manager" };
 	};
 
+	// UpdateVolumeStatus updates the status of a Volume. Like
+	// UpdateTaskStatus, the node should send such updates on every status
+	// change of its volumes.
+	rpc UpdateVolumeStatus(UpdateVolumeStatusRequest) returns (UpdateVolumeStatusResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-worker" roles: "swarm-manager" };
+	};
+
 	// Tasks is a stream of tasks state for node. Each message contains full list
 	// of tasks which should be run on node, if task is not present in that list,
 	// it should be terminated.
@@ -129,6 +136,13 @@ message SessionMessage {
 
 	// Which root certificates to trust
 	bytes RootCA = 5;
+
+	// CSINodePlugins represents all known CSI Node Plugins and the unix socket
+	// they can be accessed on. This may include CSI plugins that do not and
+	// will not run on this Node. The Node must check for the existence of the
+	// plugin, and only report in its NodeDescription plugins which it can
+	// successfully reach.
+	repeated CSINodePlugin csi_node_plugins = 6 [(gogoproto.customname) = "CSINodePlugins"];
 }
 
 // HeartbeatRequest provides identifying properties for a single heartbeat.
@@ -155,8 +169,33 @@ message UpdateTaskStatusRequest {
 	repeated TaskStatusUpdate updates = 3;
 }
 
-message  UpdateTaskStatusResponse{
+message UpdateTaskStatusResponse{
 	// void
+}
+
+message UpdateVolumeStatusRequest {
+	string session_id = 1;
+
+	message VolumeStatusUpdate {
+		// ID is the ID of the volume being updated. This is the Swarmkit ID,
+		// not the CSI VolumeID.
+		string id = 1;
+		// Unpublished is set to true when the volume is affirmatively
+		// unpublished on the Node side. We don't need to report that a Volume
+		// is published on the the node; as soon as the Volume is assigned to
+		// the Node, we must assume that it has been published until informed
+		// otherwise.
+		//
+		// Further, the Node must not send unpublished = true unless it will
+		// definitely no longer attempt to call NodePublishVolume.
+		bool unpublished = 2;
+	}
+
+	repeated VolumeStatusUpdate updates = 2;
+}
+
+message UpdateVolumeStatusResponse {
+	// empty on purpose
 }
 
 message TasksRequest {
@@ -178,6 +217,7 @@ message Assignment {
 		Task task = 1;
 		Secret secret = 2;
 		Config config = 3;
+		VolumeAssignment volume = 4;
 	}
 }
 

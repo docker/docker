@@ -122,6 +122,9 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 		}
 	}
 
+	// TODO(dperny): don't ignore the error here
+	csiInfo, _ := e.Volumes().Plugins().NodeInfo(ctx)
+
 	description := &api.NodeDescription{
 		Hostname: info.Name,
 		Platform: &api.Platform{
@@ -138,6 +141,7 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 			MemoryBytes: info.MemTotal,
 			Generic:     convert.GenericResourcesToGRPC(info.GenericResources),
 		},
+		CSIInfo: csiInfo,
 	}
 
 	// Save the node information in the executor field
@@ -348,12 +352,21 @@ func (e *executor) SetNetworkBootstrapKeys(keys []*api.EncryptionKey) error {
 	return nil
 }
 
+func (e *executor) SetCSINodePlugins(plugins []*api.CSINodePlugin) error {
+	pm := e.dependencies.Volumes().Plugins()
+	return pm.Set(plugins)
+}
+
 func (e *executor) Secrets() exec.SecretsManager {
 	return e.dependencies.Secrets()
 }
 
 func (e *executor) Configs() exec.ConfigsManager {
 	return e.dependencies.Configs()
+}
+
+func (e *executor) Volumes() exec.VolumesManager {
+	return e.dependencies.Volumes()
 }
 
 type sortedPlugins []api.PluginDescription

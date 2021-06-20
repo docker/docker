@@ -204,20 +204,31 @@ func (s *subscription) watch(ch <-chan events.Event) error {
 	}
 
 	add := func(t *api.Task) {
+		// this mutex does not have a deferred unlock, because there is work
+		// we need to do after we release it.
 		s.mu.Lock()
-		defer s.mu.Unlock()
 
 		// Un-allocated task.
 		if t.NodeID == "" {
 			s.pendingTasks[t.ID] = struct{}{}
+			s.mu.Unlock()
 			return
 		}
 
 		delete(s.pendingTasks, t.ID)
 		if _, ok := s.nodes[t.NodeID]; !ok {
 			s.nodes[t.NodeID] = struct{}{}
+
+			s.mu.Unlock()
+
+			// if we try to call Publish before we release the lock, we can end
+			// up in a situation where the receiver is trying to acquire a read
+			// lock on it. it's hard to explain.
 			s.changed.Publish(s)
+			return
 		}
+
+		s.mu.Unlock()
 	}
 
 	for {

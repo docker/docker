@@ -23,6 +23,7 @@ message StoreSnapshot {
 	repeated Resource resources = 7;
 	repeated Extension extensions = 8;
 	repeated Config configs = 9;
+	repeated Volume volumes = 10;
 }
 
 // ClusterSnapshot stores cluster membership information in snapshots.

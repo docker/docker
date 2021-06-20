@@ -5,13 +5,15 @@ import "github.com/docker/docker/api/server/router"
 // volumeRouter is a router to talk with the volumes controller
 type volumeRouter struct {
 	backend Backend
+	cluster ClusterBackend
 	routes  []router.Route
 }
 
 // NewRouter initializes a new volume router
-func NewRouter(b Backend) router.Router {
+func NewRouter(b Backend, cb ClusterBackend) router.Router {
 	r := &volumeRouter{
 		backend: b,
+		cluster: cb,
 	}
 	r.initRoutes()
 	return r
@@ -30,6 +32,7 @@ func (r *volumeRouter) initRoutes() {
 		// POST
 		router.NewPostRoute("/volumes/create", r.postVolumesCreate),
 		router.NewPostRoute("/volumes/prune", r.postVolumesPrune),
+		router.NewPostRoute("/volumes/{name:.*}/update", r.postVolumesUpdate),
 		// DELETE
 		router.NewDeleteRoute("/volumes/{name:.*}", r.deleteVolumes),
 	}

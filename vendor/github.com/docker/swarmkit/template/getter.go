@@ -98,6 +98,7 @@ func (t templatedConfigGetter) GetAndFlagSecretData(configID string) (*api.Confi
 type templatedDependencyGetter struct {
 	secrets exec.SecretGetter
 	configs TemplatedConfigGetter
+	volumes exec.VolumeGetter
 }
 
 // NewTemplatedDependencyGetter returns a DependencyGetter that evaluates templates.
@@ -105,6 +106,7 @@ func NewTemplatedDependencyGetter(dependencies exec.DependencyGetter, t *api.Tas
 	return templatedDependencyGetter{
 		secrets: NewTemplatedSecretGetter(dependencies, t, node),
 		configs: NewTemplatedConfigGetter(dependencies, t, node),
+		volumes: dependencies.Volumes(),
 	}
 }
 
@@ -114,4 +116,11 @@ func (t templatedDependencyGetter) Secrets() exec.SecretGetter {
 
 func (t templatedDependencyGetter) Configs() exec.ConfigGetter {
 	return t.configs
+}
+
+func (t templatedDependencyGetter) Volumes() exec.VolumeGetter {
+	// volumes are not templated, but we include that call (and pass it
+	// straight through to the underlying getter) in order to fulfill the
+	// DependencyGetter interface.
+	return t.volumes
 }

@@ -269,6 +269,10 @@ message Task {
 	// JobIteration is the iteration number of the Job-mode Service that this
 	// task belongs to.
 	Version job_iteration = 16;
+
+	// Volumes is a list of VolumeAttachments for this task. It specifies which
+	// volumes this task is allocated.
+	repeated VolumeAttachment volumes = 17;
 }
 
 // NetworkAttachment specifies the network parameters of attachment to
@@ -509,4 +513,44 @@ message Extension {
 	//
 	// // Indices, with values expressed as Go templates.
 	//repeated IndexEntry index_templates = 6;
+}
+
+// Volume is the top-level object describing a volume usable by Swarmkit. The
+// Volume contains the user's VolumeSpec, the Volume's status, and the Volume
+// object that was returned by the CSI Plugin when the volume was created.
+message Volume {
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
+
+	// ID is the swarmkit-internal ID for this volume object. This has no
+	// relation to the CSI volume identifier provided by the CSI Plugin.
+	string id = 1;
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	// Spec is the desired state of the Volume, as provided by the user.
+	VolumeSpec spec = 3 [(gogoproto.nullable) = false];
+
+	// PublishStatus is the status of the volume as it pertains to the various
+	// nodes it is in use on.
+	repeated VolumePublishStatus publish_status = 4;
+
+	// VolumeInfo contains information about the volume originating from the
+	// CSI plugin when the volume is created.
+	VolumeInfo volume_info = 5;
+
+	// PendingDelete indicates that this Volume is being removed from Swarm.
+	// Before a Volume can be removed, we must call the DeleteVolume on the
+	// Controller. Because of this, we cannot immediately remove the Volume
+	// when a user wishes to delete it. Instead, we will mark a Volume with
+	// PendingDelete = true, which instructs Swarm to go through the work of
+	// removing the volume and then delete it when finished.
+	bool pending_delete = 6;
 }

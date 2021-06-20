@@ -244,3 +244,39 @@ func getNetwork(ctx context.Context, c swarmapi.ControlClient, input string) (*s
 
 	return rl.Networks[0], nil
 }
+
+func getVolume(ctx context.Context, c swarmapi.ControlClient, input string) (*swarmapi.Volume, error) {
+	// GetVolume to match via full ID
+	if v, err := c.GetVolume(ctx, &swarmapi.GetVolumeRequest{VolumeID: input}); err == nil {
+		return v.Volume, nil
+	}
+
+	// If any error (including NotFound), list volumes to match via ID prefix
+	// and full name
+	resp, err := c.ListVolumes(ctx, &swarmapi.ListVolumesRequest{
+		Filters: &swarmapi.ListVolumesRequest_Filters{
+			Names: []string{input},
+		},
+	})
+
+	if err != nil || len(resp.Volumes) == 0 {
+		resp, err = c.ListVolumes(ctx, &swarmapi.ListVolumesRequest{
+			Filters: &swarmapi.ListVolumesRequest_Filters{
+				IDPrefixes: []string{input},
+			},
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.Volumes) == 0 {
+		return nil, errdefs.NotFound(fmt.Errorf("volume %s not found", input))
+	}
+
+	if l := len(resp.Volumes); l > 1 {
+		return nil, errdefs.InvalidParameter(fmt.Errorf("volume %s is ambiguous (%d matches found)", input, l))
+	}
+
+	return resp.Volumes[0], nil
+}

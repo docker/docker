@@ -384,3 +384,64 @@ func (f *MaxReplicasFilter) Check(n *NodeInfo) bool {
 func (f *MaxReplicasFilter) Explain(nodes int) string {
 	return "max replicas per node limit exceed"
 }
+
+type VolumesFilter struct {
+	vs *volumeSet
+	t  *api.Task
+
+	// requestedVolumes is a set of volumes requested by the task. This can
+	// include either volume names or volume groups. Volume groups, as in the
+	// Mount.Source field, are prefixed with "group:"
+	requestedVolumes []*api.Mount
+}
+
+func (f *VolumesFilter) SetTask(t *api.Task) bool {
+	// if there is no volume Manager, skip this filter always
+	if f.vs == nil {
+		return false
+	}
+	f.t = t
+	// reset requestedVolumes every time we set a task, so we don't
+	// accidentally append to the last task's set of requested volumes.
+	f.requestedVolumes = []*api.Mount{}
+
+	// t should never be nil, but we should ensure that it is not just in case
+	// we make mistakes in the future.
+	if t == nil {
+		return false
+	}
+
+	c := t.Spec.GetContainer()
+	if c == nil {
+		return false
+	}
+
+	// hasCSI will be set true if one of the mounts is a CSI-type mount.
+	hasCSI := false
+	for _, mount := range c.Mounts {
+		if mount.Type == api.MountTypeCSI {
+			hasCSI = true
+			f.requestedVolumes = append(f.requestedVolumes, &mount)
+		}
+	}
+	return hasCSI
+}
+
+func (f *VolumesFilter) Check(nodeInfo *NodeInfo) bool {
+	for _, mount := range f.requestedVolumes {
+		if f.vs.isVolumeAvailableOnNode(mount, nodeInfo) != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (f *VolumesFilter) Explain(nodes int) string {
+	if nodes == 1 {
+		return "cannot fulfill requested CSI volume mounts on 1 node"
+	}
+	return fmt.Sprintf(
+		"cannot fulfill requested CSI volume mounts on %d nodes", nodes,
+	)
+}

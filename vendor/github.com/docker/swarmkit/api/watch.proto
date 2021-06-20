@@ -19,6 +19,7 @@ message Object {
 		Resource resource = 7;
 		Extension extension = 8;
 		Config config = 9;
+		Volume volume = 10;
 	}
 }
 

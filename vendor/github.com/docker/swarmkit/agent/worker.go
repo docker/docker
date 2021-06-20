@@ -23,11 +23,11 @@ type Worker interface {
 	// It is not safe to call any worker function after that.
 	Close()
 
-	// Assign assigns a complete set of tasks and configs/secrets to a
+	// Assign assigns a complete set of tasks and configs/secrets/volumes to a
 	// worker. Any items not included in this set will be removed.
 	Assign(ctx context.Context, assignments []*api.AssignmentChange) error
 
-	// Updates updates an incremental set of tasks or configs/secrets of
+	// Updates updates an incremental set of tasks or configs/secrets/volumes of
 	// the worker. Any items not included either in added or removed will
 	// remain untouched.
 	Update(ctx context.Context, assignments []*api.AssignmentChange) error
@@ -37,7 +37,7 @@ type Worker interface {
 	// by the worker.
 	//
 	// The listener will be removed if the context is cancelled.
-	Listen(ctx context.Context, reporter StatusReporter)
+	Listen(ctx context.Context, reporter Reporter)
 
 	// Report resends the status of all tasks controlled by this worker.
 	Report(ctx context.Context, reporter StatusReporter)
@@ -51,7 +51,7 @@ type Worker interface {
 
 // statusReporterKey protects removal map from panic.
 type statusReporterKey struct {
-	StatusReporter
+	Reporter
 }
 
 type worker struct {
@@ -152,7 +152,12 @@ func (w *worker) Assign(ctx context.Context, assignments []*api.AssignmentChange
 		return err
 	}
 
-	return reconcileTaskState(ctx, w, assignments, true)
+	err = reconcileTaskState(ctx, w, assignments, true)
+	if err != nil {
+		return err
+	}
+
+	return reconcileVolumes(ctx, w, assignments)
 }
 
 // Update updates the set of tasks, configs, and secrets for the worker.
@@ -184,7 +189,12 @@ func (w *worker) Update(ctx context.Context, assignments []*api.AssignmentChange
 		return err
 	}
 
-	return reconcileTaskState(ctx, w, assignments, false)
+	err = reconcileTaskState(ctx, w, assignments, false)
+	if err != nil {
+		return err
+	}
+
+	return reconcileVolumes(ctx, w, assignments)
 }
 
 func reconcileTaskState(ctx context.Context, w *worker, assignments []*api.AssignmentChange, fullSnapshot bool) error {
@@ -409,7 +419,57 @@ func reconcileConfigs(ctx context.Context, w *worker, assignments []*api.Assignm
 	return nil
 }
 
-func (w *worker) Listen(ctx context.Context, reporter StatusReporter) {
+// reconcileVolumes reconciles the CSI volumes on this node. It does not need
+// fullSnapshot like other reconcile functions because volumes are non-trivial
+// and are never reset.
+func reconcileVolumes(ctx context.Context, w *worker, assignments []*api.AssignmentChange) error {
+	var (
+		updatedVolumes []api.VolumeAssignment
+		removedVolumes []api.VolumeAssignment
+	)
+	for _, a := range assignments {
+		if r := a.Assignment.GetVolume(); r != nil {
+			switch a.Action {
+			case api.AssignmentChange_AssignmentActionUpdate:
+				updatedVolumes = append(updatedVolumes, *r)
+			case api.AssignmentChange_AssignmentActionRemove:
+				removedVolumes = append(removedVolumes, *r)
+			}
+
+		}
+	}
+
+	volumesProvider, ok := w.executor.(exec.VolumesProvider)
+	if !ok {
+		if len(updatedVolumes) != 0 || len(removedVolumes) != 0 {
+			log.G(ctx).Warn("volumes update ignored; executor does not support volumes")
+		}
+		return nil
+	}
+
+	volumes := volumesProvider.Volumes()
+
+	log.G(ctx).WithFields(logrus.Fields{
+		"len(updatedVolumes)": len(updatedVolumes),
+		"len(removedVolumes)": len(removedVolumes),
+	}).Debug("(*worker).reconcileVolumes")
+
+	volumes.Remove(removedVolumes, func(id string) {
+		w.mu.RLock()
+		defer w.mu.RUnlock()
+
+		for key := range w.listeners {
+			if err := key.Reporter.ReportVolumeUnpublished(ctx, id); err != nil {
+				log.G(ctx).WithError(err).Errorf("failed reporting volume unpublished for reporter %v", key.Reporter)
+			}
+		}
+	})
+	volumes.Add(updatedVolumes...)
+
+	return nil
+}
+
+func (w *worker) Listen(ctx context.Context, reporter Reporter) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -526,8 +586,8 @@ func (w *worker) updateTaskStatus(ctx context.Context, tx *bolt.Tx, taskID strin
 
 	// broadcast the task status out.
 	for key := range w.listeners {
-		if err := key.StatusReporter.UpdateTaskStatus(ctx, taskID, status); err != nil {
-			log.G(ctx).WithError(err).Errorf("failed updating status for reporter %v", key.StatusReporter)
+		if err := key.Reporter.UpdateTaskStatus(ctx, taskID, status); err != nil {
+			log.G(ctx).WithError(err).Errorf("failed updating status for reporter %v", key.Reporter)
 		}
 	}
 

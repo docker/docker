@@ -1717,6 +1717,8 @@ definitions:
         default: "local"
         x-nullable: false
         enum: ["local", "global"]
+      ClusterVolume:
+        $ref: "#/definitions/ClusterVolume"
       Options:
         type: "object"
         description: |
@@ -5198,6 +5200,241 @@ definitions:
         type: "object"
         additionalProperties:
           type: "string"
+
+  ClusterVolume:
+    type: "object"
+    description: |
+      Options and information specific to, and only present on, Swarm CSI
+      cluster volumes.
+    properties:
+      ID:
+        type: "string"
+        description: |
+          The Swarm ID of this volume. Because cluster volumes are Swarm
+          objects, they have an ID, unlike non-cluster volumes. This ID can
+          be used to refer to the Volume instead of the name.
+      Version:
+        $ref: "#/definitions/ObjectVersion"
+      CreatedAt:
+        type: "string"
+        format: "dateTime"
+      UpdatedAt:
+        type: "string"
+        format: "dateTime"
+      Spec:
+        $ref: "#/definitions/ClusterVolumeSpec"
+      Info:
+        type: "object"
+        description: |
+          Information about the global status of the volume.
+        properties:
+          CapacityBytes:
+            type: "integer"
+            description: |
+              The capacity of the volume in bytes. A value of 0 indicates that
+              the capacity is unknown.
+          VolumeContext:
+            type: "object"
+            description: |
+              A map of strings to strings returned from the storage plugin when
+              the volume is created.
+            additionalProperties:
+              type: "string"
+          VolumeID:
+            type: "string"
+            description: |
+              The ID of the volume as returned by the CSI storage plugin. This
+              is distinct from the volume's ID as provided by Docker. This ID
+              is never used by the user when communicating with Docker to refer
+              to this volume. If the ID is blank, then the Volume has not been
+              successfully created in the plugin yet.
+          AccessibleTopology:
+            type: "array"
+            description: |
+              The topology this volume is actually accessible from.
+            items:
+              $ref: "#/definitions/Topology"
+      PublishStatus:
+        type: "array"
+        description: |
+          The status of the volume as it pertains to its publishing and use on
+          specific nodes
+        items:
+          type: "object"
+          properties:
+            NodeID:
+              type: "string"
+              description: |
+                The ID of the Swarm node the volume is published on.
+            State:
+              type: "string"
+              description: |
+                The published state of the volume.
+                * `pending publish` The volume should be published to this node, but the call to the controller plugin to do so has not yet been successfully completed.
+                * `published` The volume is published successfully to the node.
+                * `pending node unpublish` The volume should be unpublished from the node, and the manager is awaiting confirmation from the worker that it has done so.
+                * `pending controller unpublish` The volume is successfully unpublished from the node, but has not yet been successfully unpublished on the controller.
+              enum:
+                - "pending publish"
+                - "published"
+                - "pending node unpublish"
+                - "pending controller unpublish"
+            PublishContext:
+              type: "object"
+              description: |
+                A map of strings to strings returned by the CSI controller
+                plugin when a volume is published.
+              additionalProperties:
+                type: "string"
+
+  ClusterVolumeSpec:
+    type: "object"
+    description: |
+      Cluster-specific options used to create the volume.
+    properties:
+      Group:
+        type: "string"
+        description: |
+          Group defines the volume group of this volume. Volumes belonging to
+          the same group can be referred to by group name when creating
+          Services.  Referring to a volume by group instructs Swarm to treat
+          volumes in that group interchangeably for the purpose of scheduling.
+          Volumes with an empty string for a group technically all belong to
+          the same, emptystring group.
+      AccessMode:
+        type: "object"
+        description: |
+          Defines how the volume is used by tasks.
+        properties:
+          Scope:
+            type: "string"
+            description: |
+              The set of nodes this volume can be used on at one time.
+              - `single` The volume may only be scheduled to one node at a time.
+              - `multi` the volume may be scheduled to any supported number of nodes at a time.
+            default: "single"
+            enum: ["single", "multi"]
+            x-nullable: false
+          Sharing:
+            type: "string"
+            description: |
+              The number and way that different tasks can use this volume
+              at one time.
+              - `none` The volume may only be used by one task at a time.
+              - `readonly` The volume may be used by any number of tasks, but they all must mount the volume as readonly
+              - `onewriter` The volume may be used by any number of tasks, but only one may mount it as read/write.
+              - `all` The volume may have any number of readers and writers.
+            default: "none"
+            enum: ["none", "readonly", "onewriter", "all"]
+            x-nullable: false
+          MountVolume:
+            type: "object"
+            description: |
+              Options for using this volume as a Mount-type volume.
+
+                  Either MountVolume or BlockVolume, but not both, must be
+                  present.
+                properties:
+                  FsType:
+                    type: "string"
+                    description: |
+                      Specifies the filesystem type for the mount volume.
+                      Optional.
+                  MountFlags:
+                    type: "array"
+                    description: |
+                      Flags to pass when mounting the volume. Optional.
+                    items:
+                      type: "string"
+              BlockVolume:
+                type: "object"
+                description: |
+                  Options for using this volume as a Block-type volume.
+                  Intentionally empty.
+          Secrets:
+            type: "array"
+            description: |
+              Swarm Secrets that are passed to the CSI storage plugin when
+              operating on this volume.
+            items:
+              type: "object"
+              description: |
+                One cluster volume secret entry. Defines a key-value pair that
+                is passed to the plugin.
+              properties:
+                Key:
+                  type: "string"
+                  description: |
+                    Key is the name of the key of the key-value pair passed to
+                    the plugin.
+                Secret:
+                  type: "string"
+                  description: |
+                    Secret is the swarm Secret object from which to read data.
+                    This can be a Secret name or ID. The Secret data is
+                    retrieved by swarm and used as the value of the key-value
+                    pair passed to the plugin.
+          AccessibilityRequirements:
+            type: "object"
+            description: |
+              Requirements for the accessible topology of the volume. These
+              fields are optional. For an in-depth description of what these
+              fields mean, see the CSI specification.
+            properties:
+              Requisite:
+                type: "array"
+                description: |
+                  A list of required topologies, at least one of which the
+                  volume must be accessible from.
+                items:
+                  $ref: "#/definitions/Topology"
+              Preferred:
+                type: "array"
+                description: |
+                  A list of topologies that the volume should attempt to be
+                  provisioned in.
+                items:
+                  $ref: "#/definitions/Topology"
+          CapacityRange:
+            type: "object"
+            description: |
+              The desired capacity that the volume should be created with. If
+              empty, the plugin will decide the capacity.
+            properties:
+              RequiredBytes:
+                type: "integer"
+                format: "uint64"
+                description: |
+                  The volume must be at least this big. The value of 0
+                  indicates an unspecified minimum
+              LimitBytes:
+                type: "integer"
+                format: "uint64"
+                description: |
+                  The volume must not be bigger than this. The value of 0
+                  indicates an unspecified maximum.
+          Availability:
+            type: "string"
+            description: |
+              The availability of the volume for use in tasks.
+              - `active` The volume is fully available for scheduling on the cluster
+              - `pause` No new workloads should use the volume, but existing workloads are not stopped.
+              - `drain` All workloads using this volume should be stopped and rescheduled, and no new ones should be started.
+            default: "active"
+            x-nullable: false
+            enum:
+              - "active"
+              - "pause"
+              - "drain"
+
+  Topology:
+    description: |
+      A map of topological domains to topological segments. For in depth
+      details, see documentation for the Topology object in the CSI
+      specification.
+    type: "object"
+    additionalProperties:
+      type: "string"
 
 paths:
   /containers/json:
@@ -8815,6 +9052,8 @@ paths:
                 type: "object"
                 additionalProperties:
                   type: "string"
+              ClusterVolumeSpec:
+                $ref: "#/definitions/ClusterVolumeSpec"
             example:
               Name: "tardis"
               Labels:
@@ -8879,6 +9118,65 @@ paths:
           description: "Force the removal of the volume"
           type: "boolean"
           default: false
+      tags: ["Volume"]
+
+  /volumes/{name}/update:
+    post:
+      summary: |
+        "Update a volume. Valid only for Swarm cluster volumes"
+      operationId: "VolumeUpdate"
+      consumes: ["application/json"]
+      produces: ["application/json"]
+      responses:
+        200:
+          description: "no error"
+        400:
+          description: "bad parameter"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        404:
+          description: "no such volume"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        503:
+          description: "node is not part of a swarm"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "name"
+          in: "path"
+          description: "The name or ID of the volume"
+          type: "string"
+          required: true
+        - name: "body"
+          in: "body"
+          schema:
+            # though the schema for is an object that contains only a
+            # ClusterVolumeSpec, wrapping the ClusterVolumeSpec in this object
+            # means that if, later on, we support things like changing the
+            # labels, we can do so without duplicating that information to the
+            # ClusterVolumeSpec.
+            type: "object"
+            description: "Volume configuration"
+            properties:
+              Spec:
+                $ref: "#/definitions/ClusterVolumeSpec"
+          description: |
+            The spec of the volume to update. Currently, only Availability may
+            change. All other fields must remain unchanged.
+        - name: "version"
+          in: "query"
+          description: |
+            The version number of the volume being updated. This is required to
+            avoid conflicting writes. Found in the volume's `ClusterVolume`
+            field.
+          type: "integer"
+          format: "int64"
+          required: true
       tags: ["Volume"]
   /volumes/prune:
     post:
