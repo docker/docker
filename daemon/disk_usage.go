@@ -26,7 +26,11 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 	}
 
 	// Get all top images with extra attributes
-	allImages, err := daemon.imageService.Images(filters.NewArgs(), false, true)
+	allImages, err := daemon.imageService.Images(ctx, types.ImageListOptions{
+		Filters:        filters.NewArgs(),
+		SharedSize:     true,
+		ContainerCount: true,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve image list: %v", err)
 	}

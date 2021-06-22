@@ -229,13 +229,17 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 
 	version := httputils.VersionFromContext(ctx)
 	if versions.LessThan(version, "1.41") {
+		// NOTE: filter is a shell glob string applied to repository names.
 		filterParam := r.Form.Get("filter")
 		if filterParam != "" {
 			imageFilters.Add("reference", filterParam)
 		}
 	}
 
-	images, err := s.backend.Images(imageFilters, httputils.BoolValue(r, "all"), false)
+	images, err := s.backend.Images(ctx, types.ImageListOptions{
+		Filters: imageFilters,
+		All:     httputils.BoolValue(r, "all"),
+	})
 	if err != nil {
 		return err
 	}
