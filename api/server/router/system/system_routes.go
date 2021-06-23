@@ -16,7 +16,7 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
-	pkgerrors "github.com/pkg/errors"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
@@ -90,24 +90,45 @@ func (s *systemRouter) getVersion(ctx context.Context, w http.ResponseWriter, r 
 }
 
 func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	var objectTypes map[types.DiskUsageObject]struct{}
+	if typeStrs, ok := r.Form["types"]; ok {
+		objectTypes = make(map[types.DiskUsageObject]struct{}, 4)
+		for _, ts := range typeStrs {
+			switch typ := types.DiskUsageObject(ts); typ {
+			case types.ContainerObject, types.ImageObject, types.VolumeObject, types.BuildCacheObject:
+				objectTypes[typ] = struct{}{}
+			default:
+				return invalidRequestError{fmt.Errorf("unknown object type: %s", typ)}
+			}
+		}
+	}
+
 	eg, ctx := errgroup.WithContext(ctx)
 
 	var du *types.DiskUsage
 	eg.Go(func() error {
 		var err error
-		du, err = s.backend.SystemDiskUsage(ctx)
+		du, err = s.backend.SystemDiskUsage(ctx, DiskUsageOptions{
+			ObjectTypes: objectTypes,
+		})
 		return err
 	})
 
 	var buildCache []*types.BuildCache
-	eg.Go(func() error {
-		var err error
-		buildCache, err = s.builder.DiskUsage(ctx)
-		if err != nil {
-			return pkgerrors.Wrap(err, "error getting build cache usage")
-		}
-		return nil
-	})
+	if _, ok := objectTypes[types.BuildCacheObject]; ok || len(objectTypes) == 0 {
+		eg.Go(func() error {
+			var err error
+			buildCache, err = s.builder.DiskUsage(ctx)
+			if err != nil {
+				return errors.Wrap(err, "error getting build cache usage")
+			}
+			return nil
+		})
+	}
 
 	if err := eg.Wait(); err != nil {
 		return err
