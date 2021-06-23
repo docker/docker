@@ -21,6 +21,16 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+type invalidRequestError struct {
+	Err error
+}
+
+func (e invalidRequestError) Error() string {
+	return e.Err.Error()
+}
+
+func (invalidRequestError) InvalidParameter() {}
+
 func optionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	w.WriteHeader(http.StatusOK)
 	return nil
@@ -123,16 +133,6 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 
 	return httputils.WriteJSON(w, http.StatusOK, du)
 }
-
-type invalidRequestError struct {
-	Err error
-}
-
-func (e invalidRequestError) Error() string {
-	return e.Err.Error()
-}
-
-func (e invalidRequestError) InvalidParameter() {}
 
 func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
