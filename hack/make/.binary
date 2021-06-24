@@ -67,6 +67,14 @@ hash_files() {
 				export CC="${CC:-x86_64-linux-gnu-gcc}"
 				export CGO_ENABLED=1
 				;;
+			linux/ppc64le)
+				export CC="${CC:-powerpc64le-linux-gnu-gcc}"
+				export CGO_ENABLED=1
+				;;
+			linux/s390x)
+				export CC="${CC:-s390x-linux-gnu-gcc}"
+				export CGO_ENABLED=1
+				;;
 		esac
 	fi
 

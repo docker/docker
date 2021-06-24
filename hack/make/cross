@@ -12,7 +12,7 @@ if [ -x "${DEST}/../binary-daemon/dockerd-${VERSION}" ]; then
 	echo "Created symlinks:" "${DEST}/linux/${arch}/"*
 fi
 
-DOCKER_CROSSPLATFORMS=${DOCKER_CROSSPLATFORMS:-"linux/amd64 windows/amd64"}
+DOCKER_CROSSPLATFORMS=${DOCKER_CROSSPLATFORMS:-"linux/amd64 windows/amd64 linux/ppc64le linux/s390x"}
 
 for platform in ${DOCKER_CROSSPLATFORMS}; do
 	(
