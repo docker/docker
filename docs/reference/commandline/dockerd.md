@@ -104,6 +104,7 @@ Options:
       --userland-proxy                        Use userland proxy for loopback traffic (default true)
       --userland-proxy-path string            Path to the userland proxy binary
       --userns-remap string                   User/Group setting for user namespaces
+      --validate                              Validate daemon configuration and exit
   -v, --version                               Print version information and quit
 ```
 
@@ -1333,6 +1334,25 @@ silently ignore changes introduced in configuration reloads.
 For example, the daemon fails to start if you set daemon labels
 in the configuration file and also set daemon labels via the `--label` flag.
 Options that are not present in the file are ignored when the daemon starts.
+
+The `--validate` option allows to validate a configuration file without
+starting the Docker daemon. A non-zero exit code is returned for invalid
+configuration files.
+
+```console
+$ dockerd --validate --config-file=/tmp/valid-config.json
+configuration OK
+
+$ echo $?
+0
+
+$ dockerd --validate --config-file /tmp/invalid-config.json
+unable to configure the Docker daemon with file /tmp/invalid-config.json: the following directives don't match any configuration option: unknown-option
+
+$ echo $?
+1
+```
+
 
 ##### On Linux
 
