@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/compute"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/service/opts"
@@ -241,7 +242,13 @@ func newTestService(t *testing.T, ds *volumedrivers.Store) (*VolumesService, fun
 
 	store, err := NewStore(dir, ds)
 	assert.NilError(t, err)
-	s := &VolumesService{vs: store, eventLogger: dummyEventLogger{}}
+	s := &VolumesService{
+		vs:          store,
+		eventLogger: dummyEventLogger{},
+	}
+	s.localVolumesSizeSingleton = compute.NewSingleton(func(ctx context.Context) (interface{}, error) {
+		return s.localVolumesSize(ctx)
+	})
 	return s, func() {
 		assert.Check(t, s.Shutdown())
 		assert.Check(t, os.RemoveAll(dir))
