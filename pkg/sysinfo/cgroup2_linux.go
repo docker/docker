@@ -2,11 +2,13 @@ package sysinfo // import "github.com/docker/docker/pkg/sysinfo"
 
 import (
 	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 
 	cgroupsV2 "github.com/containerd/cgroups/v2"
 	"github.com/containerd/containerd/sys"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/sirupsen/logrus"
 )
 
@@ -66,6 +68,24 @@ func newV2(quiet bool, opts *opts) *SysInfo {
 	return sysInfo
 }
 
+func getSwapLimitV2() bool {
+	groups, err := cgroups.ParseCgroupFile("/proc/self/cgroup")
+	if err != nil {
+		return false
+	}
+
+	g := groups[""]
+	if g == "" {
+		return false
+	}
+
+	cGroupPath := path.Join("/sys/fs/cgroup", g, "memory.swap.max")
+	if _, err = os.Stat(cGroupPath); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+
 func applyMemoryCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ string) []string {
 	var warnings []string
 	if _, ok := controllers["memory"]; !ok {
@@ -74,7 +94,7 @@ func applyMemoryCgroupInfoV2(info *SysInfo, controllers map[string]struct{}, _ s
 	}
 
 	info.MemoryLimit = true
-	info.SwapLimit = true
+	info.SwapLimit = getSwapLimitV2()
 	info.MemoryReservation = true
 	info.OomKillDisable = false
 	info.MemorySwappiness = false
