@@ -296,6 +296,18 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	return nil
 }
 
+func (br *buildRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	du, err := br.builder.DiskUsage(ctx)
+	if err != nil {
+		return err
+	}
+	return httputils.WriteJSON(w, http.StatusOK, du)
+}
+
 func getAuthConfigs(header http.Header) map[string]types.AuthConfig {
 	authConfigs := map[string]types.AuthConfig{}
 	authConfigsEncoded := header.Get("X-Registry-Config")

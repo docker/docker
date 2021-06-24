@@ -29,6 +29,7 @@ func (r *imageRouter) initRoutes() {
 		router.NewGetRoute("/images/json", r.getImagesJSON),
 		router.NewGetRoute("/images/search", r.getImagesSearch),
 		router.NewGetRoute("/images/get", r.getImagesGet),
+		router.NewGetRoute("/images/usage", r.getImagesDiskUsage),
 		router.NewGetRoute("/images/{name:.*}/get", r.getImagesGet),
 		router.NewGetRoute("/images/{name:.*}/history", r.getImagesHistory),
 		router.NewGetRoute("/images/{name:.*}/json", r.getImagesByName),

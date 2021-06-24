@@ -37,6 +37,7 @@ func (r *buildRouter) initRoutes() {
 		router.NewPostRoute("/build", r.postBuild),
 		router.NewPostRoute("/build/prune", r.postPrune),
 		router.NewPostRoute("/build/cancel", r.postCancel),
+		router.NewPostRoute("/build/usage", r.getDiskUsage),
 	}
 }
 

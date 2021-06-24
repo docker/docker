@@ -26,6 +26,7 @@ func (r *volumeRouter) initRoutes() {
 	r.routes = []router.Route{
 		// GET
 		router.NewGetRoute("/volumes", r.getVolumesList),
+		router.NewGetRoute("/volumes/usage", r.getVolumesDiskUsage),
 		router.NewGetRoute("/volumes/{name:.*}", r.getVolumeByName),
 		// POST
 		router.NewPostRoute("/volumes/create", r.postVolumesCreate),
