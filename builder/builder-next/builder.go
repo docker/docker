@@ -125,7 +125,7 @@ func (b *Builder) Cancel(ctx context.Context, id string) error {
 func (b *Builder) DiskUsage(ctx context.Context) ([]*types.BuildCache, error) {
 	duResp, err := b.controller.DiskUsage(ctx, &controlapi.DiskUsageRequest{})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error getting build cache usage")
 	}
 
 	var items []*types.BuildCache

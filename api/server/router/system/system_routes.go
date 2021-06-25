@@ -17,7 +17,6 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
-	pkgerrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
@@ -160,10 +159,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		eg.Go(func() error {
 			var err error
 			buildCache, err = s.builder.DiskUsage(ctx)
-			if err != nil {
-				return pkgerrors.Wrap(err, "error getting build cache usage")
-			}
-			return nil
+			return err
 		})
 	}
 
