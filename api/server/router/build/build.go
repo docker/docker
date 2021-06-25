@@ -3,6 +3,7 @@ package build // import "github.com/docker/docker/api/server/router/build"
 import (
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/types"
+	buildkit "github.com/docker/docker/builder/builder-next"
 )
 
 // buildRouter is a router to talk with the build controller
@@ -10,14 +11,16 @@ type buildRouter struct {
 	backend  Backend
 	daemon   experimentalProvider
 	routes   []router.Route
+	builder  *buildkit.Builder
 	features *map[string]bool
 }
 
 // NewRouter initializes a new build router
-func NewRouter(b Backend, d experimentalProvider, features *map[string]bool) router.Router {
+func NewRouter(b Backend, d experimentalProvider, builder *buildkit.Builder, features *map[string]bool) router.Router {
 	r := &buildRouter{
 		backend:  b,
 		daemon:   d,
+		builder:  builder,
 		features: features,
 	}
 	r.initRoutes()
