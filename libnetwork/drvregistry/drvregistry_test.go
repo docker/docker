@@ -97,7 +97,7 @@ func (m *mockDriver) DecodeTableEntry(tablename string, key string, value []byte
 }
 
 func getNew(t *testing.T) *DrvRegistry {
-	reg, err := New(nil, nil, nil, nil, nil)
+	reg, err := New(nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

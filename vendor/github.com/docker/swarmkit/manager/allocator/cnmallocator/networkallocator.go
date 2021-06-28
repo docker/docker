@@ -110,7 +110,7 @@ func New(pg plugingetter.PluginGetter, netConfig *NetworkConfig) (networkallocat
 
 	// There are no driver configurations and notification
 	// functions as of now.
-	reg, err := drvregistry.New(nil, nil, nil, nil, pg)
+	reg, err := drvregistry.New(nil, nil, pg)
 	if err != nil {
 		return nil, err
 	}

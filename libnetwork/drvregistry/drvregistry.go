@@ -55,7 +55,7 @@ type IPAMNotifyFunc func(name string, driver ipamapi.Ipam, cap *ipamapi.Capabili
 type DriverNotifyFunc func(name string, driver driverapi.Driver, capability driverapi.Capability) error
 
 // New returns a new driver registry handle.
-func New(lDs, gDs interface{}, dfn DriverNotifyFunc, ifn IPAMNotifyFunc, pg plugingetter.PluginGetter) (*DrvRegistry, error) {
+func New(dfn DriverNotifyFunc, ifn IPAMNotifyFunc, pg plugingetter.PluginGetter) (*DrvRegistry, error) {
 	r := &DrvRegistry{
 		drivers:      make(driverTable),
 		ipamDrivers:  make(ipamTable),
