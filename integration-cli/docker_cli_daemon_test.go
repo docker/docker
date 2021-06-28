@@ -853,6 +853,7 @@ func (s *DockerDaemonSuite) TestDaemonIP(c *testing.T) {
 
 func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 	testRequires(c, bridgeNfIptables)
+	d := s.d
 
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.1.1/24"
@@ -860,7 +861,6 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 	createInterface(c, "bridge", bridgeName, bridgeIP)
 	defer deleteInterface(c, bridgeName)
 
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 	d.StartWithBusybox(c, "--bridge", bridgeName, "--icc=false")
 	defer d.Restart(c)
 
@@ -886,13 +886,14 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *testing.T) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *testing.T) {
+	d := s.d
+
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.1.1/24"
 
 	createInterface(c, "bridge", bridgeName, bridgeIP)
 	defer deleteInterface(c, bridgeName)
 
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 	d.StartWithBusybox(c, "--bridge", bridgeName, "--icc=false")
 	defer d.Restart(c)
 
