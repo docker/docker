@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 Status     | Feature                                                                                                                            | Deprecated | Remove
 -----------|------------------------------------------------------------------------------------------------------------------------------------|------------|------------
+Deprecated | [Kubernetes stack support](#kubernetes-stack-support)                                                                              | v20.10     | -
 Deprecated | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | -
 Deprecated | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | -
 Deprecated | [BLKIO weight options with cgroups v1](#blkio-weight-options–with-cgroups-v1)                                                      | v20.10     | -
@@ -96,6 +97,13 @@ Removed    | [Old Command Line Options](#old-command-line-options)              
 Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09
 Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13
 Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12
+
+### Kubernetes stack support
+
+**Deprecated in Release: v20.10**
+
+Following the deprecation of [Compose on Kubernetes](https://github.com/docker/compose-on-kubernetes), support for
+Kubernetes in the `stack` command in the docker CLI is now marked as deprecated as well.
 
 ### Pulling images from non-compliant image registries
 
