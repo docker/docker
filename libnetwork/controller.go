@@ -217,7 +217,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 			dcfg = c.makeDriverConfig(i.ntype)
 		}
 
-		if err := drvRegistry.AddDriver(i.ntype, i.fn, dcfg); err != nil {
+		if err := drvRegistry.AddDriver(i.fn, dcfg); err != nil {
 			return nil, err
 		}
 	}

@@ -68,7 +68,7 @@ func New(lDs, gDs interface{}, dfn DriverNotifyFunc, ifn IPAMNotifyFunc, pg plug
 }
 
 // AddDriver adds a network driver to the registry.
-func (r *DrvRegistry) AddDriver(ntype string, fn InitFunc, config map[string]interface{}) error {
+func (r *DrvRegistry) AddDriver(fn InitFunc, config map[string]interface{}) error {
 	return fn(r, config)
 }
 
