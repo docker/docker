@@ -236,9 +236,16 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 		}
 	}
 
+	var sharedSize bool
+	if versions.GreaterThanOrEqualTo(version, "1.42") {
+		// NOTE: Support for the "shared-size" parameter was added in API 1.42.
+		sharedSize = httputils.BoolValue(r, "shared-size")
+	}
+
 	images, err := s.backend.Images(ctx, types.ImageListOptions{
-		Filters: imageFilters,
-		All:     httputils.BoolValue(r, "all"),
+		All:        httputils.BoolValue(r, "all"),
+		Filters:    imageFilters,
+		SharedSize: sharedSize,
 	})
 	if err != nil {
 		return err

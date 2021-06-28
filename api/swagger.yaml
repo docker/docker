@@ -7202,6 +7202,11 @@ paths:
             - `reference`=(`<image-name>[:<tag>]`)
             - `since`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
           type: "string"
+        - name: "shared-size"
+          in: "query"
+          description: "Compute and show shared size as a `SharedSize` field on each image."
+          type: "boolean"
+          default: false
         - name: "digests"
           in: "query"
           description: "Show digest information as a `RepoDigests` field on each image."
