@@ -546,21 +546,6 @@ func (c *controller) clusterHostID() string {
 	return addr[0]
 }
 
-func (c *controller) activeCallback() {
-	ds := c.getStore(datastore.GlobalScope)
-	if ds != nil && !ds.Active() {
-		ds.RestartWatch()
-	}
-}
-
-func (c *controller) hostJoinCallback(nodes []net.IP) {
-	c.processNodeDiscovery(nodes, true)
-}
-
-func (c *controller) hostLeaveCallback(nodes []net.IP) {
-	c.processNodeDiscovery(nodes, false)
-}
-
 func (c *controller) processNodeDiscovery(nodes []net.IP, add bool) {
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
 		c.pushNodeDiscovery(driver, capability, nodes, add)
