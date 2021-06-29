@@ -38,6 +38,20 @@ func (i *ImageService) Map() map[image.ID]*image.Image {
 	return i.imageStore.Map()
 }
 
+// rangeImageLayerChainIDs calls f sequentially for chain ID of each layer image consists of.
+// If f returns false, range stops the iteration.
+func rangeImageLayerChainIDs(img *image.Image, f func(layer.ChainID) bool) {
+	rootFS := image.RootFS{
+		Type: img.RootFS.Type,
+	}
+	for _, id := range img.RootFS.DiffIDs {
+		rootFS.Append(id)
+		if !f(rootFS.ChainID()) {
+			return
+		}
+	}
+}
+
 // Images returns a filtered list of images. filterArgs is a JSON-encoded set
 // of filter arguments which will be interpreted by api/types/filters.
 // filter is a shell glob string applied to repository names. The argument
@@ -228,36 +242,40 @@ imageLoop:
 		}
 		// Count layer references across all known images
 		for _, img := range allImages {
-			rootFS := *img.RootFS
-			rootFS.DiffIDs = nil
-			for _, id := range img.RootFS.DiffIDs {
-				rootFS.Append(id)
-				layerRefs[rootFS.ChainID()]++
-			}
+			rangeImageLayerChainIDs(img, func(chid layer.ChainID) bool {
+				layerRefs[chid]++
+				return true
+			})
 		}
 
 		// Get Shared sizes
 		for img, summary := range summaryMap {
-			rootFS := *img.RootFS
-			rootFS.DiffIDs = nil
-
-			// Indicate that we collected shared size information (default is -1, or "not set")
-			summary.SharedSize = 0
-			for _, id := range img.RootFS.DiffIDs {
-				rootFS.Append(id)
-				chid := rootFS.ChainID()
-
-				if layerRefs[chid] > 1 {
-					if _, ok := allLayers[chid]; !ok {
-						return nil, fmt.Errorf("layer %v was not found (corruption?)", chid)
-					}
-					diffSize, err := allLayers[chid].DiffSize()
-					if err != nil {
-						return nil, err
-					}
-					summary.SharedSize += diffSize
+			var (
+				sharedSize int64
+				err        error
+			)
+			rangeImageLayerChainIDs(img, func(chid layer.ChainID) bool {
+				if layerRefs[chid] <= 1 {
+					return true
 				}
+				if _, ok := allLayers[chid]; !ok {
+					err = fmt.Errorf("layer %v was not found (corruption?)", chid)
+					return false
+				}
+
+				var diffSize int64
+				diffSize, err = allLayers[chid].DiffSize()
+				if err != nil {
+					return false
+				}
+				sharedSize += diffSize
+				return true
+			})
+			if err != nil {
+				return nil, err
 			}
+			// NOTE: By default, SharedSize is -1, or "not set"
+			summary.SharedSize = sharedSize
 		}
 	}
 
