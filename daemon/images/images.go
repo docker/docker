@@ -140,9 +140,10 @@ imageLoop:
 			}
 		}
 
-		summary := newImageSummary(img, size)
-
-		for _, ref := range i.referenceStore.References(id.Digest()) {
+		references := i.referenceStore.References(id.Digest())
+		var repoDigests []string
+		var repoTags []string
+		for i, ref := range references {
 			if imageFilters.Contains("reference") {
 				var found bool
 				var matchErr error
@@ -160,32 +161,37 @@ imageLoop:
 				}
 			}
 			if _, ok := ref.(reference.Canonical); ok {
-				summary.RepoDigests = append(summary.RepoDigests, reference.FamiliarString(ref))
+				if repoDigests == nil {
+					// Lazily init repoDigests
+					repoDigests = make([]string, 0, len(references)-i) // i references were skipped
+				}
+				repoDigests = append(repoDigests, reference.FamiliarString(ref))
 			}
 			if _, ok := ref.(reference.NamedTagged); ok {
 				if danglingOnly {
 					continue imageLoop
 				}
-				summary.RepoTags = append(summary.RepoTags, reference.FamiliarString(ref))
+				if repoTags == nil {
+					// Lazily init repoTags
+					repoTags = make([]string, 0, len(references)-i) // i references were skipped
+				}
+				repoTags = append(repoTags, reference.FamiliarString(ref))
 			}
 		}
-		if summary.RepoDigests == nil && summary.RepoTags == nil {
-			if all || len(i.imageStore.Children(id)) == 0 {
-
-				if imageFilters.Contains("dangling") && !danglingOnly {
-					// dangling=false case, so dangling image is not needed
-					continue
-				}
-				if imageFilters.Contains("reference") { // skip images with no references if filtering by reference
-					continue
-				}
-				summary.RepoDigests = []string{"<none>@<none>"}
-				summary.RepoTags = []string{"<none>:<none>"}
-			} else {
+		if len(repoDigests) == 0 && len(repoTags) == 0 {
+			switch {
+			case !all && len(i.imageStore.Children(id)) > 0, // all=false and image is not a head, skip
+				imageFilters.Contains("dangling") && !danglingOnly, // image is dangling and dangling=false, skip
+				imageFilters.Contains("reference"):                 // image has no references and filtering by reference requested, skip
 				continue
+
+			default:
+				repoDigests = []string{"<none>@<none>"}
+				repoTags = []string{"<none>:<none>"}
 			}
 		}
 
+		summary := newImageSummary(img, size, repoDigests, repoTags)
 		if withExtraAttrs {
 			// Lazily init summaryMap and allContainers
 			if summaryMap == nil {
@@ -347,7 +353,7 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 	return string(newImgID), nil
 }
 
-func newImageSummary(image *image.Image, size int64) *types.ImageSummary {
+func newImageSummary(image *image.Image, size int64, repoDigests, repoTags []string) *types.ImageSummary {
 	summary := &types.ImageSummary{
 		ParentID:    image.Parent.String(),
 		ID:          image.ID().String(),
@@ -360,6 +366,9 @@ func newImageSummary(image *image.Image, size int64) *types.ImageSummary {
 		// consider both "0" and "nil" to be "empty".
 		SharedSize: -1,
 		Containers: -1,
+
+		RepoDigests: repoDigests,
+		RepoTags:    repoTags,
 	}
 	if image.Config != nil {
 		summary.Labels = image.Config.Labels
