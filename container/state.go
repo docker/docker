@@ -207,7 +207,7 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 	// actually stopped.
 	waitRemove := s.waitRemove
 
-	resultC := make(chan StateStatus)
+	resultC := make(chan StateStatus, 1)
 
 	go func() {
 		select {
