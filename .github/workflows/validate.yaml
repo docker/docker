@@ -1,0 +1,72 @@
+name: validate
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - 'v**'
+  pull_request:
+    branches:
+      - master
+      - 'v**'
+
+jobs:
+  #
+  # golangci-lint
+  #
+  linters:
+    name: Linters
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        go-version: [1.16.4]
+        # TODO Fix linting on Windows (fails because of autogen)
+        # typechecking error: D:\a\docker\docker\src\github.com\docker\docker\cmd\dockerd\docker_windows.go:8:4:
+        # could not import github.com/docker/docker/autogen/winresources/dockerd
+        # os: [ubuntu-20.04, windows-2019]
+        os: [ubuntu-20.04]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: src/github.com/docker/docker
+      - name: install dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get -q update
+          sudo apt-get -q -y install \
+            libapparmor-dev \
+            libbtrfs-dev \
+            libdevmapper-dev \
+            libseccomp-dev \
+            libsystemd-dev
+
+      - name: Set env
+        shell: bash
+        run: |
+          echo "CGO_ENABLED=1" >> $GITHUB_ENV
+          echo "GOGC=75" >> $GITHUB_ENV
+          echo "GO111MODULE=off" >> $GITHUB_ENV
+          echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+      - uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.40.1
+          working-directory: src/github.com/docker/docker
+          # TODO use --out-format=junit-xml and store artifacts
+          args: --print-resources-usage --timeout=10m --verbose
+
+          # Optional: show only new issues if it's a pull request. The default value is `false`.
+          # only-new-issues: true
+
+          # Optional: if set to true then the action will use pre-installed Go.
+          # skip-go-installation: true
+
+          # Optional: if set to true then the action don't cache or restore ~/go/pkg.
+          # skip-pkg-cache: true
+
+          # Optional: if set to true then the action don't cache or restore ~/.cache/go-build.
+          # skip-build-cache: true

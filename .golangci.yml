@@ -2,12 +2,12 @@ linters:
   enable:
     - deadcode
     - goimports
-    - golint
     - gosec
     - gosimple
     - govet
     - ineffassign
     - misspell
+    - revive
     - staticcheck
     - structcheck
     - typecheck
@@ -19,6 +19,9 @@ linters:
     - errcheck
 
   run:
+    build-tags:
+      - journald
+      - seccomp
     concurrency: 2
     modules-download-mode: vendor
 
@@ -31,42 +34,30 @@ linters:
 linters-settings:
   govet:
     check-shadowing: false
+  gosec:
+    # Available rules: https://github.com/securego/gosec#available-rules
+    excludes:
+      - G103 # Audit the use of unsafe block
+      - G104 # Audit errors not checked
+      - G201 # SQL query construction using format string
+      - G202 # SQL query construction using string concatenation
+      - G204 # Audit use of command execution
+      - G301 # Poor file permissions used when creating a directory
+      - G302 # Poor file permissions used with chmod
+      - G304 # Potential file inclusion via variable
+      - G306 # Poor file permissions used when writing to a new file
+      - G307 # Deferring a method which returns an error
 
 issues:
   # The default exclusion rules are a bit too permissive, so copying the relevant ones below
   exclude-use-default: false
 
-  exclude-rules:
-    # These are copied from the default exclude rules, except for "ineffective break statement"
-    # and GoDoc checks.
-    # https://github.com/golangci/golangci-lint/blob/0cc87df732aaf1d5ad9ce9ca538d38d916918b36/pkg/config/config.go#L36
-    - text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*printf?|os\\.(Un)?Setenv). is not checked"
-      linters:
-        - errcheck
-    - text: "func name will be used as test\\.Test.* by other packages, and that stutters; consider calling this"
-      linters:
-        - golint
-    - text: "G103: Use of unsafe calls should be audited"
-      linters:
-        - gosec
-    - text: "G104: Errors unhandled"
-      linters:
-        - gosec
-    - text: "G204: Subprocess launch(ed with (variable|function call)|ing should be audited)"
-      linters:
-        - gosec
-    - text: "(G301|G302): (Expect directory permissions to be 0750 or less|Expect file permissions to be 0600 or less)"
-      linters:
-        - gosec
-    - text: "G304: Potential file inclusion via variable"
-      linters:
-        - gosec
-    - text: "G306: Expect WriteFile permissions to be 0600 or less"
-      linters:
-        - gosec
-    - text: 'G307: Deferring unsafe method "Close" on type "*os.File"'
-      linters: gosec
+  # Cherry-pick some of the default exclusion rules to disable
+  exclude:
+    - EXC0001 # Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*printf?|os\\.(Un)?Setenv). is not checked
+    - EXC0003 # func name will be used as test\.Test.* by other packages, and that stutters; consider calling this
 
+  exclude-rules:
     # Exclude some linters from running on tests files.
     - path: _test\.go
       linters:
@@ -78,13 +69,6 @@ issues:
       path: "api/types/(volume|container)/"
       linters:
         - golint
-    - text: "(G201|G202): SQL string (formatting|concatenation)"
-      linters:
-        - gosec
-    # FIXME: evaluate these and fix where needed: G307: Deferring unsafe method "*os.File" on type "Close" (gosec)
-    - text: "G307: Deferring unsafe method"
-      linters:
-        - gosec
     # FIXME temporarily suppress these. See #39924
     - text: "SA1019: .*\\.Xattrs is deprecated: Use PAXRecords instead"
       linters:

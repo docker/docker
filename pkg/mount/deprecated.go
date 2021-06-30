@@ -7,7 +7,6 @@ import (
 	"github.com/moby/sys/mountinfo"
 )
 
-//nolint:golint
 type (
 	// FilterFunc is a type.
 	// Deprecated: use github.com/moby/sys/mountinfo instead.
@@ -22,7 +21,6 @@ type (
 )
 
 // Deprecated: use github.com/moby/sys/mountinfo instead.
-//nolint:golint
 var (
 	Mounted           = mountinfo.Mounted
 	PrefixFilter      = mountinfo.PrefixFilter
@@ -34,7 +32,6 @@ var (
 // GetMounts is a function.
 //
 // Deprecated: use github.com/moby/sys/mountinfo.GetMounts() instead.
-//nolint:golint
 func GetMounts(f FilterFunc) ([]*Info, error) {
 	fi := func(i *mountinfo.Info) (skip, stop bool) {
 		return f(toLegacyInfo(i))

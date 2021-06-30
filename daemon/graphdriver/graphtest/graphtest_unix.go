@@ -307,7 +307,7 @@ func writeRandomFile(path string, size uint64) error {
 	header.Cap *= 8
 	data := *(*[]byte)(unsafe.Pointer(&header)) //nolint:govet // FIXME: unsafeptr: possible misuse of reflect.SliceHeader (govet) see https://github.com/moby/moby/issues/42444
 
-	return ioutil.WriteFile(path, data, 0700)
+	return ioutil.WriteFile(path, data, 0600)
 }
 
 // DriverTestSetQuota Create a driver and test setting quota.

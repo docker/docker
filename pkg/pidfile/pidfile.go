@@ -40,7 +40,7 @@ func New(path string) (*PIDFile, error) {
 	if err := system.MkdirAll(filepath.Dir(path), os.FileMode(0755)); err != nil {
 		return nil, err
 	}
-	if err := ioutil.WriteFile(path, []byte(fmt.Sprintf("%d", os.Getpid())), 0644); err != nil {
+	if err := ioutil.WriteFile(path, []byte(fmt.Sprintf("%d", os.Getpid())), 0600); err != nil {
 		return nil, err
 	}
 

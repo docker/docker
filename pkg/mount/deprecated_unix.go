@@ -10,7 +10,6 @@ import (
 )
 
 // Deprecated: use github.com/moby/sys/mount instead.
-//nolint:golint
 var (
 	Mount            = sysmount.Mount
 	ForceMount       = sysmount.Mount // a deprecated synonym
@@ -19,7 +18,6 @@ var (
 )
 
 // Deprecated: use github.com/moby/sys/mount instead.
-//nolint:golint
 const (
 	RDONLY      = sysmount.RDONLY
 	NOSUID      = sysmount.NOSUID
@@ -46,7 +44,6 @@ const (
 )
 
 // Deprecated: use github.com/moby/sys/mount instead.
-//nolint:golint
 var (
 	MergeTmpfsOptions = sysmount.MergeTmpfsOptions
 )

@@ -96,8 +96,7 @@ func (f *Fake) addFile(file string, content []byte) error {
 			return err
 		}
 	}
-	return ioutil.WriteFile(fp, content, 0644)
-
+	return ioutil.WriteFile(fp, content, 0600)
 }
 
 // Delete a file at a path
