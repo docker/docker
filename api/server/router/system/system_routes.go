@@ -126,6 +126,14 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		du.BuildCache = []*types.BuildCache{}
 	}
 
+	version := httputils.VersionFromContext(ctx)
+	if versions.LessThan(version, "1.42") {
+		// Platform information was added in API 1.42
+		for _, c := range du.Containers {
+			c.Platform = nil
+		}
+	}
+
 	return httputils.WriteJSON(w, http.StatusOK, du)
 }
 

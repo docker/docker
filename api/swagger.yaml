@@ -4090,6 +4090,7 @@ definitions:
           type: "string"
         Platform:
           $ref: "#/definitions/ImagePlatform"
+          x-nullable: true
         Command:
           description: "Command to run when starting the container"
           type: "string"
