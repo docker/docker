@@ -79,6 +79,8 @@ func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.
 		return c.ImageID == imgID
 	}
 
+	i.imageSizeCache.Delete(imgID)
+
 	var removedRepositoryRef bool
 	if !isImageIDPrefix(imgID.String(), imageRef) {
 		// A repository reference was given and should be removed

@@ -3,6 +3,7 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"os"
+	"sync"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/leases"
@@ -86,6 +87,8 @@ type ImageService struct {
 	leases                    leases.Manager
 	content                   content.Store
 	contentNamespace          string
+
+	imageSizeCache sync.Map // image.ID -> int64
 }
 
 // DistributionServices provides daemon image storage services
