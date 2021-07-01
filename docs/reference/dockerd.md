@@ -1057,9 +1057,9 @@ $ echo $?
 
 ##### On Linux
 
-The default location of the configuration file on Linux is
-`/etc/docker/daemon.json`. Use the `--config-file` flag to specify a
-non-default location.
+The default location of the configuration file on Linux is `/etc/docker/daemon.json`.
+If the file does not exist, you need to create it first. Use the `--config-file`
+flag to specify a non-default location.
 
 The following is a full example of the allowed configuration options on Linux:
 
@@ -1208,8 +1208,9 @@ The following is a full example of the allowed configuration options on Linux:
 ##### On Windows
 
 The default location of the configuration file on Windows is
-`%programdata%\docker\config\daemon.json`. Use the `--config-file` flag
-to specify a non-default location.
+`%programdata%\docker\config\daemon.json`. If the file does not exist, you need
+to create it first. Use the `--config-file` flag to specify a non-default
+location.
 
 The following is a full example of the allowed configuration options on Windows:
 
