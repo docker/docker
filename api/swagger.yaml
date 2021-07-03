@@ -8029,6 +8029,13 @@ paths:
             Docker-Experimental:
               type: "boolean"
               description: "If the server is running with experimental mode enabled"
+            Swarm:
+              type: "string"
+              enum: ["inactive", "pending", "error", "locked", "active (worker)", "active (manager)"]
+              description: |
+                Contains information about Swarm status of the daemon,
+                and if the daemon is acting as a manager or worker node.
+              default: "inactive"
             Cache-Control:
               type: "string"
               default: "no-cache, no-store, must-revalidate"
@@ -8068,6 +8075,13 @@ paths:
             Docker-Experimental:
               type: "boolean"
               description: "If the server is running with experimental mode enabled"
+            Swarm:
+              type: "string"
+              enum: ["inactive", "pending", "error", "locked", "active (worker)", "active (manager)"]
+              description: |
+                Contains information about Swarm status of the daemon,
+                and if the daemon is acting as a manager or worker node.
+              default: "inactive"
             Cache-Control:
               type: "string"
               default: "no-cache, no-store, must-revalidate"

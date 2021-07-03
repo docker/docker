@@ -492,6 +492,23 @@ func (c *Cluster) Info() types.Info {
 	return info
 }
 
+// Status returns a textual representation of the node's swarm status and role (manager/worker)
+func (c *Cluster) Status() string {
+	c.mu.RLock()
+	s := c.currentNodeState()
+	c.mu.RUnlock()
+
+	state := string(s.status)
+	if s.status == types.LocalNodeStateActive {
+		if s.IsActiveManager() || s.IsManager() {
+			state += " (manager)"
+		} else {
+			state += " (worker)"
+		}
+	}
+	return state
+}
+
 func validateAndSanitizeInitRequest(req *types.InitRequest) error {
 	var err error
 	req.ListenAddr, err = validateAddr(req.ListenAddr)

@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/api/types/swarm"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
@@ -34,6 +35,9 @@ func (s *systemRouter) pingHandler(ctx context.Context, w http.ResponseWriter, r
 	if bv := builderVersion; bv != "" {
 		w.Header().Set("Builder-Version", string(bv))
 	}
+
+	w.Header().Set("Swarm", s.swarmStatus())
+
 	if r.Method == http.MethodHead {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Content-Length", "0")
@@ -41,6 +45,15 @@ func (s *systemRouter) pingHandler(ctx context.Context, w http.ResponseWriter, r
 	}
 	_, err := w.Write([]byte{'O', 'K'})
 	return err
+}
+
+func (s *systemRouter) swarmStatus() string {
+	if s.cluster != nil {
+		if p, ok := s.cluster.(StatusProvider); ok {
+			return p.Status()
+		}
+	}
+	return string(swarm.LocalNodeStateInactive)
 }
 
 func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

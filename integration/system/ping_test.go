@@ -1,11 +1,14 @@
 package system // import "github.com/docker/docker/integration/system"
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
@@ -48,6 +51,46 @@ func TestPingHead(t *testing.T) {
 	assert.Equal(t, 0, len(b))
 	assert.Equal(t, res.StatusCode, http.StatusOK)
 	assert.Check(t, hdr(res, "API-Version") != "")
+}
+
+func TestPingSwarmHeader(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+
+	defer setupTest(t)()
+	d := daemon.New(t)
+	d.Start(t)
+	defer d.Stop(t)
+	client := d.NewClientT(t)
+	defer client.Close()
+	ctx := context.TODO()
+
+	t.Run("before swarm init", func(t *testing.T) {
+		res, _, err := request.Get("/_ping")
+		assert.NilError(t, err)
+		assert.Equal(t, res.StatusCode, http.StatusOK)
+		assert.Equal(t, hdr(res, "Swarm"), "inactive")
+	})
+
+	_, err := client.SwarmInit(ctx, swarm.InitRequest{ListenAddr: "127.0.0.1", AdvertiseAddr: "127.0.0.1:2377"})
+	assert.NilError(t, err)
+
+	t.Run("after swarm init", func(t *testing.T) {
+		res, _, err := request.Get("/_ping", request.Host(d.Sock()))
+		assert.NilError(t, err)
+		assert.Equal(t, res.StatusCode, http.StatusOK)
+		assert.Equal(t, hdr(res, "Swarm"), "active (manager)")
+	})
+
+	err = client.SwarmLeave(ctx, true)
+	assert.NilError(t, err)
+
+	t.Run("after swarm leave", func(t *testing.T) {
+		res, _, err := request.Get("/_ping", request.Host(d.Sock()))
+		assert.NilError(t, err)
+		assert.Equal(t, res.StatusCode, http.StatusOK)
+		assert.Equal(t, hdr(res, "Swarm"), "inactive")
+	})
 }
 
 func hdr(res *http.Response, name string) string {
