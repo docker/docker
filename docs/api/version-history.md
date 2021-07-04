@@ -13,6 +13,12 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.42 API changes
+
+[Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.42/) documentation
+
+* `POST /exec/{id}/kill` is a new endpoint that can be used for sending a signal to an exec instance.
+
 ## v1.41 API changes
 
 [Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.41/) documentation

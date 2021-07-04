@@ -139,3 +139,38 @@ func TestExecUser(t *testing.T) {
 
 	assert.Assert(t, is.Contains(result.Stdout(), "uid=1(daemon) gid=1(daemon)"), "exec command not running as uid/gid 1")
 }
+
+func TestContainerExecKillNoSuchExec(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "skip test from new feature")
+	ctx := context.Background()
+	client := testEnv.APIClient()
+	err := client.ContainerExecKill(ctx, "nil", "TERM")
+	assert.ErrorContains(t, err, "No such exec instance")
+}
+
+func TestContainerExecKill(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "skip test from new feature")
+	defer setupTest(t)()
+	ctx := context.Background()
+	client := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, client)
+	id, err := client.ContainerExecCreate(ctx, cID,
+		types.ExecConfig{
+			WorkingDir:   "/tmp",
+			Env:          strslice.StrSlice([]string{"FOO=BAR"}),
+			AttachStdout: true,
+			Cmd:          strslice.StrSlice([]string{"sleep", "999"}),
+		},
+	)
+	assert.NilError(t, err)
+
+	client.ContainerExecStart(context.Background(), id.ID, types.ExecStartCheck{
+		Detach: true,
+		Tty:    false,
+	})
+
+	err = client.ContainerExecKill(ctx, id.ID, "TERM")
+	assert.NilError(t, err)
+
+}
