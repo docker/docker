@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/platforms"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
@@ -162,15 +163,14 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	base.OS = operatingSystem
 	if img != nil {
 		base.ImageID = img.ID()
-		// TODO do we need a "fallback" here for images that have empty OS/Arch/etc (in which case, use runtime.GOARCH?)
-		//      would be nice if img had methods for this with that implemented (img.OS(), img.Architecture(), img.Platform())
-		base.Platform = ocispec.Platform{
+		// TODO should we add a "img.Platform()" method to do this?
+		base.Platform = platforms.Normalize(ocispec.Platform{
 			Architecture: img.Architecture,
 			OS:           img.OS,
 			OSVersion:    img.OSVersion,
 			OSFeatures:   img.OSFeatures,
 			Variant:      img.Variant,
-		}
+		})
 	}
 	return base, err
 }
