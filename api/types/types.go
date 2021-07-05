@@ -78,6 +78,24 @@ type ImagePlatform struct {
 	Variant string `json:"variant,omitempty"`
 }
 
+// String implements the fmt.Stringer interface, and returns a formatted string
+// representing the container image's platform (e.g. linux/arm/v7).
+//
+// Similar to containerd's platforms.Format(), but returns an empty string
+// instead of "unknown" if no OS is present: https://github.com/containerd/containerd/blob/v1.5.2/platforms/platforms.go#L243-L263
+func (platform *ImagePlatform) String() string {
+	if platform == nil || platform.OS == "" {
+		return ""
+	}
+	var ss []string
+	for _, s := range []string{platform.OS, platform.Architecture, platform.Variant} {
+		if s != "" {
+			ss = append(ss, s)
+		}
+	}
+	return strings.Join(ss, "/")
+}
+
 // Container contains response of Engine API:
 // GET "/containers/json"
 type Container struct {
