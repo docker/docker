@@ -46,7 +46,7 @@ func TestCheckRouteOverlaps(t *testing.T) {
 		routes := []netlink.Route{}
 		for _, addr := range routesData {
 			_, netX, _ := net.ParseCIDR(addr)
-			routes = append(routes, netlink.Route{Dst: netX})
+			routes = append(routes, netlink.Route{Dst: netX, Scope: netlink.SCOPE_LINK})
 		}
 		return routes, nil
 	}
