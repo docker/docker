@@ -84,6 +84,12 @@ if [ -z $_DOCKERD_ROOTLESS_CHILD ]; then
 		echo "This script must be executed as a non-privileged user"
 		exit 1
 	fi
+	# `selinuxenabled` always returns false in RootlessKit child, so we execute `selinuxenabled` in the parent.
+	# https://github.com/rootless-containers/rootlesskit/issues/94
+	if command -v selinuxenabled > /dev/null 2>&1 && selinuxenabled; then
+		_DOCKERD_ROOTLESS_SELINUX=1
+		export _DOCKERD_ROOTLESS_SELINUX
+	fi
 	# Re-exec the script via RootlessKit, so as to create unprivileged {user,mount,network} namespaces.
 	#
 	# --copy-up allows removing/creating files in the directories by creating tmpfs and symlinks
@@ -105,5 +111,22 @@ else
 	# remove the symlinks for the existing files in the parent namespace if any,
 	# so that we can create our own files in our mount namespace.
 	rm -f /run/docker /run/containerd /run/xtables.lock
+
+	if [ -n "$_DOCKERD_ROOTLESS_SELINUX" ]; then
+		# iptables requires /run in the child to be relabeled. The actual /run in the parent is unaffected.
+		# https://github.com/containers/podman/blob/e6fc34b71aa9d876b1218efe90e14f8b912b0603/libpod/networking_linux.go#L396-L401
+		# https://github.com/moby/moby/issues/41230
+		chcon system_u:object_r:iptables_var_run_t:s0 /run
+	fi
+
+	if [ "$(stat -c %T -f /etc)" = "tmpfs" ] && [ -L "/etc/ssl" ]; then
+		# Workaround for "x509: certificate signed by unknown authority" on openSUSE Tumbleweed.
+		# https://github.com/rootless-containers/rootlesskit/issues/225
+		realpath_etc_ssl=$(realpath /etc/ssl)
+		rm -f /etc/ssl
+		mkdir /etc/ssl
+		mount --rbind ${realpath_etc_ssl} /etc/ssl
+	fi
+
 	exec dockerd $@
 fi

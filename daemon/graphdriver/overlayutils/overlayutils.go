@@ -37,6 +37,16 @@ func ErrDTypeNotSupported(driver, backingFs string) error {
 // checkMultipleLowers parameter enables check for multiple lowerdirs,
 // which is required for the overlay2 driver.
 func SupportsOverlay(d string, checkMultipleLowers bool) error {
+	// We can't rely on go-selinux.GetEnabled() to detect whether SELinux is enabled,
+	// because RootlessKit doesn't mount /sys/fs/selinux in the child: https://github.com/rootless-containers/rootlesskit/issues/94
+	// So we check $_DOCKERD_ROOTLESS_SELINUX, which is set by dockerd-rootless.sh .
+	if os.Getenv("_DOCKERD_ROOTLESS_SELINUX") == "1" {
+		// Kernel 5.11 introduced support for rootless overlayfs, but incompatible with SELinux,
+		// so fallback to fuse-overlayfs.
+		// https://github.com/moby/moby/issues/42333
+		return errors.New("overlay is not supported for Rootless with SELinux")
+	}
+
 	td, err := ioutil.TempDir(d, "check-overlayfs-support")
 	if err != nil {
 		return err
