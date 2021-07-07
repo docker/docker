@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -102,10 +103,12 @@ func (i *ImageService) ImportImage(src string, repository, os string, tag string
 		V1Image: image.V1Image{
 			DockerVersion: dockerversion.Version,
 			Config:        config,
-			Architecture:  runtime.GOARCH,
-			OS:            os,
-			Created:       created,
-			Comment:       msg,
+			Platform: ocispec.Platform{
+				Architecture: runtime.GOARCH,
+				OS:           os,
+			},
+			Created: created,
+			Comment: msg,
 		},
 		RootFS: &image.RootFS{
 			Type:    "layers",

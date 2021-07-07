@@ -87,9 +87,11 @@ func (m *imageSources) Add(im *imageMount, platform *specs.Platform) {
 		}
 
 		im.image = &dockerimage.Image{V1Image: dockerimage.V1Image{
-			OS:           os,
-			Architecture: platform.Architecture,
-			Variant:      platform.Variant,
+			Platform: specs.Platform{
+				OS:           os,
+				Architecture: platform.Architecture,
+				Variant:      platform.Variant,
+			},
 		}}
 	default:
 		m.byImageID[im.image.ImageID()] = im

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/layer"
 	"github.com/google/go-cmp/cmp"
@@ -38,9 +40,9 @@ func TestNewFromJSONWithInvalidJSON(t *testing.T) {
 func TestMarshalKeyOrder(t *testing.T) {
 	b, err := json.Marshal(&Image{
 		V1Image: V1Image{
-			Comment:      "a",
-			Author:       "b",
-			Architecture: "c",
+			Comment:  "a",
+			Author:   "b",
+			Platform: ocispec.Platform{Architecture: "c"},
 		},
 	})
 	assert.Check(t, err)
@@ -105,9 +107,11 @@ func TestImageOSNotEmpty(t *testing.T) {
 	os := "os"
 	img := &Image{
 		V1Image: V1Image{
-			OS: os,
+			Platform: ocispec.Platform{
+				OS:        os,
+				OSVersion: "osversion",
+			},
 		},
-		OSVersion: "osversion",
 	}
 	assert.Check(t, is.Equal(os, img.OperatingSystem()))
 }

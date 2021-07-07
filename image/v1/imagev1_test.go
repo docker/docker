@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/image"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 func TestMakeV1ConfigFromConfig(t *testing.T) {
@@ -12,9 +13,11 @@ func TestMakeV1ConfigFromConfig(t *testing.T) {
 		V1Image: image.V1Image{
 			ID:     "v2id",
 			Parent: "v2parent",
-			OS:     "os",
+			Platform: ocispec.Platform{
+				OS:        "os",
+				OSVersion: "osversion",
+			},
 		},
-		OSVersion: "osversion",
 		RootFS: &image.RootFS{
 			Type: "layers",
 		},

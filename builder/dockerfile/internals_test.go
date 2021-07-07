@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
@@ -208,9 +209,11 @@ func TestExportImage(t *testing.T) {
 	layer := &MockRWLayer{}
 	parentImage := &image.Image{
 		V1Image: image.V1Image{
-			OS:           "linux",
-			Architecture: "arm64",
-			Variant:      "v8",
+			Platform: ocispec.Platform{
+				OS:           "linux",
+				Architecture: "arm64",
+				Variant:      "v8",
+			},
 		},
 	}
 	runConfig := &container.Config{}
