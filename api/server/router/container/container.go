@@ -36,6 +36,7 @@ func (r *containerRouter) initRoutes() {
 		router.NewHeadRoute("/containers/{name:.*}/archive", r.headContainersArchive),
 		// GET
 		router.NewGetRoute("/containers/json", r.getContainersJSON),
+		router.NewGetRoute("/containers/usage", r.getContainersDiskUsage),
 		router.NewGetRoute("/containers/{name:.*}/export", r.getContainersExport),
 		router.NewGetRoute("/containers/{name:.*}/changes", r.getContainersChanges),
 		router.NewGetRoute("/containers/{name:.*}/json", r.getContainersByName),
