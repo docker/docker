@@ -5583,12 +5583,12 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
         404:
-          description: "no such container"
+          description: "no such image"
           schema:
             $ref: "#/definitions/ErrorResponse"
           examples:
             application/json:
-              message: "No such container: c2ada9df5af8"
+              message: "No such image: c2ada9df5af8"
         409:
           description: "conflict"
           schema:
