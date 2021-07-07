@@ -173,9 +173,6 @@ func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInf
 	}
 	if sysInfo.Seccomp && supportsSeccomp {
 		profile := daemon.seccompProfilePath
-		if profile == "" {
-			profile = config.SeccompProfileDefault
-		}
 		if profile != config.SeccompProfileDefault {
 			v.Warnings = append(v.Warnings, "WARNING: daemon is not using the default seccomp profile")
 		}
