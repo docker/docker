@@ -60,7 +60,7 @@ var (
 	// ErrVmcomputeOperationInvalidState is an error encountered when the compute system is not in a valid state for the requested operation
 	ErrVmcomputeOperationInvalidState = syscall.Errno(0xc0370105)
 
-	// ErrProcNotFound is an error encountered when the the process cannot be found
+	// ErrProcNotFound is an error encountered when a procedure look up fails.
 	ErrProcNotFound = syscall.Errno(0x7f)
 
 	// ErrVmcomputeOperationAccessIsDenied is an error which can be encountered when enumerating compute systems in RS1/RS2
@@ -242,12 +242,11 @@ func makeProcessError(process *Process, op string, err error, events []ErrorEven
 // IsNotExist checks if an error is caused by the Container or Process not existing.
 // Note: Currently, ErrElementNotFound can mean that a Process has either
 // already exited, or does not exist. Both IsAlreadyStopped and IsNotExist
-// will currently return true when the error is ErrElementNotFound or ErrProcNotFound.
+// will currently return true when the error is ErrElementNotFound.
 func IsNotExist(err error) bool {
 	err = getInnerError(err)
 	return err == ErrComputeSystemDoesNotExist ||
-		err == ErrElementNotFound ||
-		err == ErrProcNotFound
+		err == ErrElementNotFound
 }
 
 // IsAlreadyClosed checks if an error is caused by the Container or Process having been
@@ -278,12 +277,11 @@ func IsTimeout(err error) bool {
 // a Container or Process being already stopped.
 // Note: Currently, ErrElementNotFound can mean that a Process has either
 // already exited, or does not exist. Both IsAlreadyStopped and IsNotExist
-// will currently return true when the error is ErrElementNotFound or ErrProcNotFound.
+// will currently return true when the error is ErrElementNotFound.
 func IsAlreadyStopped(err error) bool {
 	err = getInnerError(err)
 	return err == ErrVmcomputeAlreadyStopped ||
-		err == ErrElementNotFound ||
-		err == ErrProcNotFound
+		err == ErrElementNotFound
 }
 
 // IsNotSupported returns a boolean indicating whether the error is caused by

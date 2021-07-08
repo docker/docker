@@ -9,10 +9,10 @@ import (
 	"syscall"
 
 	"github.com/Microsoft/hcsshim/internal/cow"
+	"github.com/Microsoft/hcsshim/internal/hcs/schema1"
+	hcsschema "github.com/Microsoft/hcsshim/internal/hcs/schema2"
 	"github.com/Microsoft/hcsshim/internal/log"
 	"github.com/Microsoft/hcsshim/internal/oc"
-	"github.com/Microsoft/hcsshim/internal/schema1"
-	hcsschema "github.com/Microsoft/hcsshim/internal/schema2"
 	"github.com/Microsoft/hcsshim/internal/timeout"
 	"github.com/Microsoft/hcsshim/internal/vmcompute"
 	"go.opencensus.io/trace"
@@ -40,7 +40,7 @@ func newSystem(id string) *System {
 
 // CreateComputeSystem creates a new compute system with the given configuration but does not start it.
 func CreateComputeSystem(ctx context.Context, id string, hcsDocumentInterface interface{}) (_ *System, err error) {
-	operation := "hcsshim::CreateComputeSystem"
+	operation := "hcs::CreateComputeSystem"
 
 	// hcsCreateComputeSystemContext is an async operation. Start the outer span
 	// here to measure the full create time.
@@ -96,7 +96,7 @@ func CreateComputeSystem(ctx context.Context, id string, hcsDocumentInterface in
 
 // OpenComputeSystem opens an existing compute system by ID.
 func OpenComputeSystem(ctx context.Context, id string) (*System, error) {
-	operation := "hcsshim::OpenComputeSystem"
+	operation := "hcs::OpenComputeSystem"
 
 	computeSystem := newSystem(id)
 	handle, resultJSON, err := vmcompute.HcsOpenComputeSystem(ctx, id)
@@ -148,7 +148,7 @@ func (computeSystem *System) IsOCI() bool {
 
 // GetComputeSystems gets a list of the compute systems on the system that match the query
 func GetComputeSystems(ctx context.Context, q schema1.ComputeSystemQuery) ([]schema1.ContainerProperties, error) {
-	operation := "hcsshim::GetComputeSystems"
+	operation := "hcs::GetComputeSystems"
 
 	queryb, err := json.Marshal(q)
 	if err != nil {
@@ -174,7 +174,7 @@ func GetComputeSystems(ctx context.Context, q schema1.ComputeSystemQuery) ([]sch
 
 // Start synchronously starts the computeSystem.
 func (computeSystem *System) Start(ctx context.Context) (err error) {
-	operation := "hcsshim::System::Start"
+	operation := "hcs::System::Start"
 
 	// hcsStartComputeSystemContext is an async operation. Start the outer span
 	// here to measure the full start time.
@@ -209,7 +209,7 @@ func (computeSystem *System) Shutdown(ctx context.Context) error {
 	computeSystem.handleLock.RLock()
 	defer computeSystem.handleLock.RUnlock()
 
-	operation := "hcsshim::System::Shutdown"
+	operation := "hcs::System::Shutdown"
 
 	if computeSystem.handle == 0 {
 		return nil
@@ -230,7 +230,7 @@ func (computeSystem *System) Terminate(ctx context.Context) error {
 	computeSystem.handleLock.RLock()
 	defer computeSystem.handleLock.RUnlock()
 
-	operation := "hcsshim::System::Terminate"
+	operation := "hcs::System::Terminate"
 
 	if computeSystem.handle == 0 {
 		return nil
@@ -252,7 +252,7 @@ func (computeSystem *System) Terminate(ctx context.Context) error {
 // This MUST be called exactly once per `computeSystem.handle` but `Wait` is
 // safe to call multiple times.
 func (computeSystem *System) waitBackground() {
-	operation := "hcsshim::System::waitBackground"
+	operation := "hcs::System::waitBackground"
 	ctx, span := trace.StartSpan(context.Background(), operation)
 	defer span.End()
 	span.AddAttributes(trace.StringAttribute("cid", computeSystem.id))
@@ -300,7 +300,7 @@ func (computeSystem *System) Properties(ctx context.Context, types ...schema1.Pr
 	computeSystem.handleLock.RLock()
 	defer computeSystem.handleLock.RUnlock()
 
-	operation := "hcsshim::System::Properties"
+	operation := "hcs::System::Properties"
 
 	queryBytes, err := json.Marshal(schema1.PropertyQuery{PropertyTypes: types})
 	if err != nil {
@@ -329,7 +329,7 @@ func (computeSystem *System) PropertiesV2(ctx context.Context, types ...hcsschem
 	computeSystem.handleLock.RLock()
 	defer computeSystem.handleLock.RUnlock()
 
-	operation := "hcsshim::System::PropertiesV2"
+	operation := "hcs::System::PropertiesV2"
 
 	queryBytes, err := json.Marshal(hcsschema.PropertyQuery{PropertyTypes: types})
 	if err != nil {
@@ -355,7 +355,7 @@ func (computeSystem *System) PropertiesV2(ctx context.Context, types ...hcsschem
 
 // Pause pauses the execution of the computeSystem. This feature is not enabled in TP5.
 func (computeSystem *System) Pause(ctx context.Context) (err error) {
-	operation := "hcsshim::System::Pause"
+	operation := "hcs::System::Pause"
 
 	// hcsPauseComputeSystemContext is an async peration. Start the outer span
 	// here to measure the full pause time.
@@ -382,7 +382,7 @@ func (computeSystem *System) Pause(ctx context.Context) (err error) {
 
 // Resume resumes the execution of the computeSystem. This feature is not enabled in TP5.
 func (computeSystem *System) Resume(ctx context.Context) (err error) {
-	operation := "hcsshim::System::Resume"
+	operation := "hcs::System::Resume"
 
 	// hcsResumeComputeSystemContext is an async operation. Start the outer span
 	// here to measure the full restore time.
@@ -409,7 +409,7 @@ func (computeSystem *System) Resume(ctx context.Context) (err error) {
 
 // Save the compute system
 func (computeSystem *System) Save(ctx context.Context, options interface{}) (err error) {
-	operation := "hcsshim::System::Save"
+	operation := "hcs::System::Save"
 
 	// hcsSaveComputeSystemContext is an async peration. Start the outer span
 	// here to measure the full save time.
@@ -465,7 +465,7 @@ func (computeSystem *System) createProcess(ctx context.Context, operation string
 
 // CreateProcess launches a new process within the computeSystem.
 func (computeSystem *System) CreateProcess(ctx context.Context, c interface{}) (cow.Process, error) {
-	operation := "hcsshim::System::CreateProcess"
+	operation := "hcs::System::CreateProcess"
 	process, processInfo, err := computeSystem.createProcess(ctx, operation, c)
 	if err != nil {
 		return nil, err
@@ -498,7 +498,7 @@ func (computeSystem *System) OpenProcess(ctx context.Context, pid int) (*Process
 	computeSystem.handleLock.RLock()
 	defer computeSystem.handleLock.RUnlock()
 
-	operation := "hcsshim::System::OpenProcess"
+	operation := "hcs::System::OpenProcess"
 
 	if computeSystem.handle == 0 {
 		return nil, makeSystemError(computeSystem, operation, ErrAlreadyClosed, nil)
@@ -521,7 +521,7 @@ func (computeSystem *System) OpenProcess(ctx context.Context, pid int) (*Process
 
 // Close cleans up any state associated with the compute system but does not terminate or wait for it.
 func (computeSystem *System) Close() (err error) {
-	operation := "hcsshim::System::Close"
+	operation := "hcs::System::Close"
 	ctx, span := trace.StartSpan(context.Background(), operation)
 	defer span.End()
 	defer func() { oc.SetSpanStatus(span, err) }()
@@ -554,7 +554,7 @@ func (computeSystem *System) Close() (err error) {
 }
 
 func (computeSystem *System) registerCallback(ctx context.Context) error {
-	callbackContext := &notifcationWatcherContext{
+	callbackContext := &notificationWatcherContext{
 		channels: newSystemChannels(),
 		systemID: computeSystem.id,
 	}
@@ -615,7 +615,7 @@ func (computeSystem *System) Modify(ctx context.Context, config interface{}) err
 	computeSystem.handleLock.RLock()
 	defer computeSystem.handleLock.RUnlock()
 
-	operation := "hcsshim::System::Modify"
+	operation := "hcs::System::Modify"
 
 	if computeSystem.handle == 0 {
 		return makeSystemError(computeSystem, operation, ErrAlreadyClosed, nil)
