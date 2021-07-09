@@ -1,4 +1,4 @@
-package signal // import "github.com/docker/docker/pkg/signal"
+package signal
 
 import (
 	"fmt"
@@ -10,8 +10,6 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 // Trap sets up a simplified signal "trap", appropriate for common
@@ -58,7 +56,7 @@ func Trap(cleanup func(), logger interface {
 						logger.Info("Forcing docker daemon shutdown without cleanup; 3 interrupts received")
 					}
 				case syscall.SIGQUIT:
-					DumpStacks("")
+					_, _ = DumpStacks("")
 					logger.Info("Forcing docker daemon shutdown without cleanup on SIGQUIT")
 				}
 				// for the SIGINT/TERM, and SIGQUIT non-clean shutdown case, exit with 128 + signal #
@@ -90,15 +88,15 @@ func DumpStacks(dir string) (string, error) {
 		var err error
 		f, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
-			return "", errors.Wrap(err, "failed to open file to write the goroutine stacks")
+			return "", fmt.Errorf("failed to open file to write the goroutine stacks: %w", err)
 		}
-		defer f.Close()
-		defer f.Sync()
+		defer f.Close() //nolint: errcheck
+		defer f.Sync()  //nolint: errcheck
 	} else {
 		f = os.Stderr
 	}
 	if _, err := f.Write(buf); err != nil {
-		return "", errors.Wrap(err, "failed to write goroutine stacks")
+		return "", fmt.Errorf("failed to write goroutine stacks: %w", err)
 	}
 	return f.Name(), nil
 }
