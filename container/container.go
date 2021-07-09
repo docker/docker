@@ -666,14 +666,14 @@ func (container *Container) StderrPipe() io.ReadCloser {
 }
 
 // CloseStreams closes the container's stdio streams
-func (container *Container) CloseStreams() error {
-	return container.StreamConfig.CloseStreams()
+func (container *Container) CloseStreams(ctx context.Context) error {
+	return container.StreamConfig.CloseStreams(ctx)
 }
 
 // InitializeStdio is called by libcontainerd to connect the stdio.
 func (container *Container) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
 	if err := container.startLogging(); err != nil {
-		container.Reset(false)
+		container.Reset(context.Background(), false)
 		return nil, err
 	}
 
@@ -771,7 +771,7 @@ type rio struct {
 func (i *rio) Close() error {
 	i.IO.Close()
 
-	return i.sc.CloseStreams()
+	return i.sc.CloseStreams(context.Background())
 }
 
 func (i *rio) Wait() {

@@ -1,6 +1,7 @@
 package container // import "github.com/docker/docker/container"
 
 import (
+	"context"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -11,13 +12,13 @@ const (
 )
 
 // Reset puts a container into a state where it can be restarted again.
-func (container *Container) Reset(lock bool) {
+func (container *Container) Reset(ctx context.Context, lock bool) {
 	if lock {
 		container.Lock()
 		defer container.Unlock()
 	}
 
-	if err := container.CloseStreams(); err != nil {
+	if err := container.CloseStreams(ctx); err != nil {
 		logrus.Errorf("%s: %s", container.ID, err)
 	}
 
