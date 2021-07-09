@@ -111,11 +111,6 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 		return errdefs.Conflict(errors.New("container is marked for removal and cannot be started"))
 	}
 
-	if checkpointDir != "" {
-		// TODO(mlaventure): how would we support that?
-		return errdefs.Forbidden(errors.New("custom checkpointdir is not supported"))
-	}
-
 	// if we encounter an error during start we need to ensure that any other
 	// setup has been cleaned up properly
 	defer func() {
