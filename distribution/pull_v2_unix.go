@@ -47,6 +47,11 @@ func checkImageCompatibility(imageOS, imageOSVersion string) error {
 	return nil
 }
 
+// checkImageCompatibility is a Windows-specific function. No-op on Linux
+func getComparableOSVersion() uint32 {
+	return 0
+}
+
 func withDefault(p specs.Platform) specs.Platform {
 	def := platforms.DefaultSpec()
 	if p.OS == "" {

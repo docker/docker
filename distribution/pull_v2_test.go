@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/reference"
 	digest "github.com/opencontainers/go-digest"
@@ -203,5 +204,86 @@ func TestFormatPlatform(t *testing.T) {
 		if !matches {
 			t.Fatal(fmt.Sprintf("expected formatPlatform to show windows platform with a version, but got '%s'", result))
 		}
+	}
+}
+
+func TestCheckImageCompatibility(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	v := getComparableOSVersion()
+	if checkImageCompatibility("windows", fmt.Sprintf("10.0.%d.2222", v>>16)) != nil {
+		t.Fatal("expected image version to be compatible with os version")
+	}
+	if checkImageCompatibility("windows", fmt.Sprintf("10.0.%d.2222", (v>>16)-1)) != nil {
+		t.Fatal("expected lesser image version to be compatible with os version")
+	}
+	if checkImageCompatibility("windows", fmt.Sprintf("10.0.%d.2222", (v>>16)+1)) == nil {
+		t.Fatal("expected larger image version to be not compatible with os version")
+	}
+}
+
+func TestFilterManifests(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	v := getComparableOSVersion()
+	manifests := []manifestlist.ManifestDescriptor{
+		manifestlist.ManifestDescriptor{
+			Platform: manifestlist.PlatformSpec{
+				OS: "linux",
+			},
+		},
+		manifestlist.ManifestDescriptor{
+			Platform: manifestlist.PlatformSpec{
+				OS:           "windows",
+				OSVersion:    fmt.Sprintf("10.0.%d.%d", (v>>16)+1, 0),
+				Architecture: runtime.GOARCH,
+			},
+		},
+		manifestlist.ManifestDescriptor{
+			Platform: manifestlist.PlatformSpec{
+				OS:           "windows",
+				OSVersion:    fmt.Sprintf("10.0.%d.%d", (v>>16 - 1), 0),
+				Architecture: runtime.GOARCH,
+			},
+		},
+		manifestlist.ManifestDescriptor{
+			Platform: manifestlist.PlatformSpec{
+				OS:           "windows",
+				OSVersion:    fmt.Sprintf("10.0.%d.%d", v>>16, (v&0xffff)-1),
+				Architecture: runtime.GOARCH,
+			},
+		},
+		manifestlist.ManifestDescriptor{
+			Platform: manifestlist.PlatformSpec{
+				OS:           "windows",
+				OSVersion:    fmt.Sprintf("10.0.%d.%d", v>>16, (v&0xffff)+1),
+				Architecture: runtime.GOARCH,
+			},
+		},
+		manifestlist.ManifestDescriptor{
+			Platform: manifestlist.PlatformSpec{
+				OS:           "windows",
+				OSVersion:    fmt.Sprintf("10.0.%d.%d", v>>16, v&0xffff),
+				Architecture: runtime.GOARCH,
+			},
+		},
+	}
+	platform := specs.Platform{
+		OS: "windows",
+	}
+	matches := filterManifests(manifests, platform)
+	if len(matches) != len(manifests)-2 {
+		t.Fatal(fmt.Sprintf("expected filter list to of len %d, but got %d", len(manifests)-2, len(matches)))
+	}
+	if matches[0].Platform.OSVersion != manifests[5].Platform.OSVersion {
+		t.Fatal(fmt.Sprintf("expected first filtered oversion to be %s, but got %s", manifests[5].Platform.OSVersion, matches[0].Platform.OSVersion))
+	}
+	if matches[1].Platform.OSVersion != manifests[4].Platform.OSVersion {
+		t.Fatal(fmt.Sprintf("expected second filtered oversion to be %s, but got %s", manifests[4].Platform.OSVersion, matches[1].Platform.OSVersion))
+	}
+	if matches[len(matches)-1].Platform.OSVersion != manifests[2].Platform.OSVersion {
+		t.Fatal(fmt.Sprintf("expected last filtered oversion to be %s, but got %s", manifests[2].Platform.OSVersion, matches[len(matches)-1].Platform.OSVersion))
 	}
 }

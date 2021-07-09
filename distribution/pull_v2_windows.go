@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/containerd/containerd/platforms"
@@ -20,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/windows/registry"
 )
 
 var _ distribution.Describable = &v2LayerDescriptor{}
@@ -89,27 +91,32 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p specs.Platfo
 		}
 	}
 	if foundWindowsMatch {
-		sort.Stable(manifestsByVersion{osVersion, matches})
+		sort.Stable(manifestsByVersion{getComparableOSVersion(), matches})
 	}
 	return matches
 }
 
-func versionMatch(actual, expected string) bool {
-	// Check whether the version matches up to the build, ignoring UBR
-	return strings.HasPrefix(actual, expected+".")
+type manifestsByVersion struct {
+	comparableOSVersion uint32
+	list                []manifestlist.ManifestDescriptor
 }
 
-type manifestsByVersion struct {
-	version string
-	list    []manifestlist.ManifestDescriptor
+func (mbv manifestsByVersion) getVersion(i int) uint64 {
+	v := getComparableImageVersion(mbv.list[i].Platform.OSVersion)
+	if v == mbv.comparableOSVersion { // prefer matching build and UBR
+		return uint64(v) | 2<<32
+	}
+	if v>>16 == mbv.comparableOSVersion>>16 { // prefer compatible versions
+		return uint64(v) | 1<<32
+	}
+	return uint64(v)
 }
 
 func (mbv manifestsByVersion) Less(i, j int) bool {
-	// TODO: Split version by parts and compare
-	// TODO: Prefer versions which have a greater version number
-	// Move compatible versions to the top, with no other ordering changes
+	// Prefer versions which have a greater version number
+	// Move compatible versions to the top, prefer UBR match
 	return (strings.EqualFold("windows", mbv.list[i].Platform.OS) && !strings.EqualFold("windows", mbv.list[j].Platform.OS)) ||
-		(versionMatch(mbv.list[i].Platform.OSVersion, mbv.version) && !versionMatch(mbv.list[j].Platform.OSVersion, mbv.version))
+		mbv.getVersion(j) < mbv.getVersion(i)
 }
 
 func (mbv manifestsByVersion) Len() int {
@@ -125,15 +132,10 @@ func (mbv manifestsByVersion) Swap(i, j int) {
 func checkImageCompatibility(imageOS, imageOSVersion string) error {
 	if imageOS == "windows" {
 		hostOSV := osversion.Get()
-		splitImageOSVersion := strings.Split(imageOSVersion, ".") // eg 10.0.16299.nnnn
-		if len(splitImageOSVersion) >= 3 {
-			if imageOSBuild, err := strconv.Atoi(splitImageOSVersion[2]); err == nil {
-				if imageOSBuild > int(hostOSV.Build) {
-					errMsg := fmt.Sprintf("a Windows version %s.%s.%s-based image is incompatible with a %s host", splitImageOSVersion[0], splitImageOSVersion[1], splitImageOSVersion[2], hostOSV.ToString())
-					logrus.Debugf(errMsg)
-					return errors.New(errMsg)
-				}
-			}
+		if uint16(getComparableImageVersion(imageOSVersion)>>16) > hostOSV.Build {
+			errMsg := fmt.Sprintf("a Windows version %s image is incompatible with a %s host", imageOSVersion, hostOSV.ToString())
+			logrus.Debugf(errMsg)
+			return errors.New(errMsg)
 		}
 	}
 	return nil
@@ -144,4 +146,43 @@ func formatPlatform(platform specs.Platform) string {
 		platform = platforms.DefaultSpec()
 	}
 	return fmt.Sprintf("%s %s", platforms.Format(platform), osversion.Get().ToString())
+}
+
+// return build.ubr as uint32
+func getComparableImageVersion(imageOSVersion string) uint32 {
+	version := uint32(0)
+	splitImageOSVersion := strings.Split(imageOSVersion, ".") // eg 10.0.16299.nnnn
+	if len(splitImageOSVersion) >= 3 {
+		if imageOSBuild, err := strconv.Atoi(splitImageOSVersion[2]); err == nil {
+			version = uint32(imageOSBuild) << 16
+		}
+	}
+	if len(splitImageOSVersion) >= 4 {
+		if ubr, err := strconv.Atoi(splitImageOSVersion[3]); err == nil {
+			version |= uint32(ubr)
+		}
+	}
+	return version
+}
+
+var (
+	osv  uint32
+	once sync.Once
+)
+
+func getComparableOSVersion() uint32 {
+	once.Do(func() {
+		osv = uint32(osversion.Get().Build) << 16
+		k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
+		if err != nil {
+			return
+		}
+		defer k.Close()
+		d, _, err := k.GetIntegerValue("UBR")
+		if err != nil {
+			return
+		}
+		osv |= uint32(d & 0xffff)
+	})
+	return osv
 }
