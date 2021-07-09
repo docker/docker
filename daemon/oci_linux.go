@@ -712,6 +712,21 @@ func sysctlExists(s string) bool {
 	return err == nil
 }
 
+// WithDefaultCapabilities sets the default capabilities for the container
+func WithDefaultCapabilities() coci.SpecOpts {
+	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		s.Process = &specs.Process{
+			Capabilities: &specs.LinuxCapabilities{
+				Bounding:    caps.DefaultCapabilities(),
+				Permitted:   caps.DefaultCapabilities(),
+				Inheritable: caps.DefaultCapabilities(),
+				Effective:   caps.DefaultCapabilities(),
+			},
+		}
+		return nil
+	}
+}
+
 // WithCommonOptions sets common docker options
 func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
@@ -1017,6 +1032,8 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		s    = oci.DefaultSpec()
 	)
 	opts = append(opts,
+		WithDefaultCapabilities(),
+		coci.WithDefaultUnixDevices,
 		WithCommonOptions(daemon, c),
 		WithCgroups(daemon, c),
 		WithResources(c),
