@@ -1,6 +1,7 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -38,22 +38,18 @@ func (i *ImageService) Map() map[image.ID]*image.Image {
 	return i.imageStore.Map()
 }
 
-// Images returns a filtered list of images. filterArgs is a JSON-encoded set
-// of filter arguments which will be interpreted by api/types/filters.
-// filter is a shell glob string applied to repository names. The argument
-// named all controls whether all images in the graph are filtered, or just
-// the heads.
-func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
-	if err := imageFilters.Validate(acceptedImageFilterTags); err != nil {
+// Images returns a filtered list of images.
+func (i *ImageService) Images(_ context.Context, opts types.ImageListOptions) ([]*types.ImageSummary, error) {
+	if err := opts.Filters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
 	}
 
 	var danglingOnly bool
-	if imageFilters.Contains("dangling") {
-		if imageFilters.ExactMatch("dangling", "true") {
+	if opts.Filters.Contains("dangling") {
+		if opts.Filters.ExactMatch("dangling", "true") {
 			danglingOnly = true
-		} else if !imageFilters.ExactMatch("dangling", "false") {
-			return nil, invalidFilter{"dangling", imageFilters.Get("dangling")}
+		} else if !opts.Filters.ExactMatch("dangling", "false") {
+			return nil, invalidFilter{"dangling", opts.Filters.Get("dangling")}
 		}
 	}
 
@@ -61,7 +57,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 		beforeFilter, sinceFilter *image.Image
 		err                       error
 	)
-	err = imageFilters.WalkValues("before", func(value string) error {
+	err = opts.Filters.WalkValues("before", func(value string) error {
 		beforeFilter, err = i.GetImage(value, nil)
 		return err
 	})
@@ -69,7 +65,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 		return nil, err
 	}
 
-	err = imageFilters.WalkValues("since", func(value string) error {
+	err = opts.Filters.WalkValues("since", func(value string) error {
 		sinceFilter, err = i.GetImage(value, nil)
 		return err
 	})
@@ -102,13 +98,13 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 			}
 		}
 
-		if imageFilters.Contains("label") {
+		if opts.Filters.Contains("label") {
 			// Very old image that do not have image.Config (or even labels)
 			if img.Config == nil {
 				continue
 			}
 			// We are now sure image.Config is not nil
-			if !imageFilters.MatchKVList("label", img.Config.Labels) {
+			if !opts.Filters.MatchKVList("label", img.Config.Labels) {
 				continue
 			}
 		}
@@ -142,10 +138,10 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 		summary := newImageSummary(img, size)
 
 		for _, ref := range i.referenceStore.References(id.Digest()) {
-			if imageFilters.Contains("reference") {
+			if opts.Filters.Contains("reference") {
 				var found bool
 				var matchErr error
-				for _, pattern := range imageFilters.Get("reference") {
+				for _, pattern := range opts.Filters.Get("reference") {
 					found, matchErr = reference.FamiliarMatch(pattern, ref)
 					if matchErr != nil {
 						return nil, matchErr
@@ -166,13 +162,13 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 			}
 		}
 		if summary.RepoDigests == nil && summary.RepoTags == nil {
-			if all || len(i.imageStore.Children(id)) == 0 {
+			if opts.All || len(i.imageStore.Children(id)) == 0 {
 
-				if imageFilters.Contains("dangling") && !danglingOnly {
+				if opts.Filters.Contains("dangling") && !danglingOnly {
 					// dangling=false case, so dangling image is not needed
 					continue
 				}
-				if imageFilters.Contains("reference") { // skip images with no references if filtering by reference
+				if opts.Filters.Contains("reference") { // skip images with no references if filtering by reference
 					continue
 				}
 				summary.RepoDigests = []string{"<none>@<none>"}
@@ -184,10 +180,9 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 			continue
 		}
 
-		if withExtraAttrs {
-			// Lazily init summaryMap and allContainers
-			if summaryMap == nil {
-				summaryMap = make(map[*image.Image]*types.ImageSummary, len(selectedImages))
+		if opts.ContainerCount {
+			// Lazily init allContainers.
+			if allContainers == nil {
 				allContainers = i.containers.List()
 			}
 
@@ -200,13 +195,19 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 			}
 			// NOTE: By default, Containers is -1, or "not set"
 			summary.Containers = containers
+		}
 
+		if opts.ContainerCount || opts.SharedSize {
+			// Lazily init summaryMap.
+			if summaryMap == nil {
+				summaryMap = make(map[*image.Image]*types.ImageSummary, len(selectedImages))
+			}
 			summaryMap[img] = summary
 		}
 		summaries = append(summaries, summary)
 	}
 
-	if withExtraAttrs {
+	if opts.SharedSize {
 		allLayers := i.layerStore.Map()
 		layerRefs := make(map[layer.ChainID]int, len(allLayers))
 
