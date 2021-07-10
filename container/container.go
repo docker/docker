@@ -39,6 +39,7 @@ import (
 	units "github.com/docker/go-units"
 	agentexec "github.com/docker/swarmkit/agent/exec"
 	"github.com/moby/sys/symlink"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -79,7 +80,8 @@ type Container struct {
 	LogPath         string
 	Name            string
 	Driver          string
-	OS              string
+	OS              string // Deprecated: kept for backward-compatibility. Use Platform.OS instead.
+	Platform        ocispec.Platform
 	// MountLabel contains the options for the 'mount' command
 	MountLabel             string
 	ProcessLabel           string

@@ -118,10 +118,9 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 // Create creates a new container from the given configuration with a given name.
 func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr error) {
 	var (
-		ctr   *container.Container
-		img   *image.Image
-		imgID image.ID
-		err   error
+		ctr *container.Container
+		img *image.Image
+		err error
 	)
 
 	os := runtime.GOOS
@@ -138,23 +137,25 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 				os = "linux"
 			}
 		}
-		imgID = img.ID()
 
 		if isWindows && img.OS == "linux" && !system.LCOWSupported() {
 			return nil, errors.New("operating system on which parent image was created is not Windows")
 		}
+
+		// On WCOW, if are not being invoked by the builder to create this container (where
+		// ignoreImagesArgEscaped will be true) - if the image already has its arguments escaped,
+		// ensure that this is replicated across to the created container to avoid double-escaping
+		// of the arguments/command line when the runtime attempts to run the container.
+		if os == "windows" && !opts.ignoreImagesArgsEscaped && img.RunConfig().ArgsEscaped {
+			opts.params.Config.ArgsEscaped = true
+		}
 	} else {
+		// TODO instead of a "nil" image, perhaps we should have a "scratch" dummy image that
+		//     - Returns an empty `.ID()`
+		//     - Returns "linux" as OS, and a sensible "architecture" (always runtime.GOARCH?)
 		if isWindows {
 			os = "linux" // 'scratch' case.
 		}
-	}
-
-	// On WCOW, if are not being invoked by the builder to create this container (where
-	// ignoreImagesArgEscaped will be true) - if the image already has its arguments escaped,
-	// ensure that this is replicated across to the created container to avoid double-escaping
-	// of the arguments/command line when the runtime attempts to run the container.
-	if os == "windows" && !opts.ignoreImagesArgsEscaped && img != nil && img.RunConfig().ArgsEscaped {
-		opts.params.Config.ArgsEscaped = true
 	}
 
 	if err := daemon.mergeAndVerifyConfig(opts.params.Config, img); err != nil {
@@ -165,7 +166,7 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	if ctr, err = daemon.newContainer(opts.params.Name, os, opts.params.Config, opts.params.HostConfig, imgID, opts.managed); err != nil {
+	if ctr, err = daemon.newContainer(opts.params.Name, os, opts.params.Config, opts.params.HostConfig, img, opts.managed); err != nil {
 		return nil, err
 	}
 	defer func() {

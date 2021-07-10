@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/platforms"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
@@ -23,6 +24,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/go-connections/nat"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -125,7 +127,7 @@ func (daemon *Daemon) Register(c *container.Container) error {
 	return c.CheckpointTo(daemon.containersReplica)
 }
 
-func (daemon *Daemon) newContainer(name string, operatingSystem string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
+func (daemon *Daemon) newContainer(name string, operatingSystem string, config *containertypes.Config, hostConfig *containertypes.HostConfig, img *image.Image, managed bool) (*container.Container, error) {
 	var (
 		id             string
 		err            error
@@ -155,11 +157,21 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	base.Args = args // FIXME: de-duplicate from config
 	base.Config = config
 	base.HostConfig = &containertypes.HostConfig{}
-	base.ImageID = imgID
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
 	base.Driver = daemon.imageService.GraphDriverName()
 	base.OS = operatingSystem
+	if img != nil {
+		base.ImageID = img.ID()
+		// TODO should we add a "img.Platform()" method to do this?
+		base.Platform = platforms.Normalize(ocispec.Platform{
+			Architecture: img.Architecture,
+			OS:           img.OS,
+			OSVersion:    img.OSVersion,
+			OSFeatures:   img.OSFeatures,
+			Variant:      img.Variant,
+		})
+	}
 	return base, err
 }
 

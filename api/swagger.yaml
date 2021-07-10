@@ -4021,6 +4021,53 @@ definitions:
     example:
       Warning: "unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"
 
+  ImagePlatform:
+    type: "object"
+    x-nullable: true
+    description: |
+      Platform information of the image that the container was created from.
+    properties:
+      architecture:
+        type: "string"
+        description: |
+          The CPU architecture, for example `amd64` or `ppc64`.
+        example: "arm"
+      os:
+        type: "string"
+        description: |
+          The operating system, for example `linux` or `windows`.
+        example: "linux"
+      os.version:
+        type: "string"
+        description: |
+          Optional field specifying the operating system version of the image
+          This field is propagated for Windows containers containers, and empty
+          otherwise. For example on Windows `10.0.14393.1066`.
+
+          This field is omitted when empty.
+        example: ""
+        x-nullable: true
+      os.features:
+        type: "array"
+        items:
+          type: "string"
+        description: |
+          Optional field specifying an array of strings, each listing a required
+          OS feature (for example on Windows `win32k`) for the image.
+
+          This field is omitted when empty.
+        x-nullable: true
+        example: []
+      variant:
+        type: "string"
+        description: |
+          Optional field specifying the CPU variant image, for example `v7` to
+          specify ARMv7 when architecture is `arm`.
+
+          This field is omitted when empty.
+        x-nullable: true
+        example: "v7"
+
   ContainerSummary:
     type: "array"
     items:
@@ -4041,6 +4088,9 @@ definitions:
         ImageID:
           description: "The ID of the image that this container was created from"
           type: "string"
+        Platform:
+          $ref: "#/definitions/ImagePlatform"
+          x-nullable: true
         Command:
           description: "Command to run when starting the container"
           type: "string"

@@ -2,6 +2,7 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -45,4 +46,27 @@ func TestPsFilter(t *testing.T) {
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(containerIDs(q2), prev))
+}
+
+// TestPsPlatform verifies that containers have a platform set
+func TestPsPlatform(t *testing.T) {
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	container.Create(ctx, t, client)
+
+	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
+		All: true,
+	})
+	assert.NilError(t, err)
+	assert.Check(t, len(containers) > 0)
+
+	ctr := containers[0]
+	if assert.Check(t, ctr.Platform != nil) {
+		// Check that at least OS and Architecture have a value. Other values
+		// depend on the platform on which we're running the test.
+		assert.Equal(t, ctr.Platform.OS, runtime.GOOS)
+		assert.Check(t, ctr.Platform.Architecture != "")
+	}
 }
