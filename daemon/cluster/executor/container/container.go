@@ -39,6 +39,7 @@ const (
 // components.
 type containerConfig struct {
 	task                *api.Task
+	node                *api.NodeDescription
 	networksAttachments map[string]*api.NetworkAttachment
 }
 
@@ -72,6 +73,7 @@ func (c *containerConfig) setTask(t *api.Task, node *api.NodeDescription) error 
 	}
 
 	c.task = t
+	c.node = node
 
 	if t.Spec.GetContainer() != nil {
 		preparedSpec, err := template.ExpandContainerSpec(node, t)
@@ -226,12 +228,13 @@ func (c *containerConfig) config() *enginecontainer.Config {
 func (c *containerConfig) labels() map[string]string {
 	var (
 		system = map[string]string{
-			"task":         "", // mark as cluster task
-			"task.id":      c.task.ID,
-			"task.name":    c.name(),
-			"node.id":      c.task.NodeID,
-			"service.id":   c.task.ServiceID,
-			"service.name": c.task.ServiceAnnotations.Name,
+			"task":          "", // mark as cluster task
+			"task.id":       c.task.ID,
+			"task.name":     c.name(),
+			"node.id":       c.task.NodeID,
+			"node.hostname": c.node.Hostname,
+			"service.id":    c.task.ServiceID,
+			"service.name":  c.task.ServiceAnnotations.Name,
 		}
 		labels = make(map[string]string)
 	)
