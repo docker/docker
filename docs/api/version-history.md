@@ -17,6 +17,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.42](https://docs.docker.com/engine/api/v1.42/) documentation
 
+* `GET /info` now includes a `DNSDefaults` struct, providing the default DNS
+  configuration that is used when creating new containers (`DNS`, `DNSOptions`,
+  `DNSSearch`).
+
 ## v1.41 API changes
 
 [Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.41/) documentation
