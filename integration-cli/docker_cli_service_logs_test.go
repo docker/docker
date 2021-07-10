@@ -169,6 +169,8 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *testing.T) {
 	args := []string{"service", "logs", "-f", name}
 	cmd := exec.Command(dockerBinary, d.PrependHostArg(args)...)
 	r, w := io.Pipe()
+	defer r.Close()
+	defer w.Close()
 	cmd.Stdout = w
 	cmd.Stderr = w
 	assert.NilError(c, cmd.Start())
