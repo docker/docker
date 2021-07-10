@@ -40,8 +40,8 @@ func TestContainerTop(t *testing.T) {
 			}
 			query := req.URL.Query()
 			args := query.Get("ps_args")
-			if args != "arg1 arg2" {
-				return nil, fmt.Errorf("args not set in URL query properly. Expected 'arg1 arg2', got %v", args)
+			if args != "[\"arg1\",\"arg2\"]" {
+				return nil, fmt.Errorf("args not set in URL query properly. Expected '[\"arg1\",\"arg2\"]', got %v", args)
 			}
 
 			b, err := json.Marshal(container.ContainerTopOKBody{

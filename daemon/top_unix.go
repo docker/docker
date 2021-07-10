@@ -5,6 +5,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -135,12 +136,19 @@ func psPidsArg(pids []uint32) string {
 // "-ef" if no args are given.  An error is returned if the container
 // is not found, or is not running, or if there are any problems
 // running ps, or parsing the output.
-func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error) {
-	if psArgs == "" {
-		psArgs = "-ef"
+// to deal with `docker top redisstor -C "sto redis-server"`,
+// we change the second arg to json format
+func (daemon *Daemon) ContainerTop(name string, psArgsJSON string) (*container.ContainerTopOKBody, error) {
+	var args []string
+	if err := json.Unmarshal([]byte(psArgsJSON), &args); err != nil {
+		// It's just to be compatible with docker/cli with old api version
+		args = fieldsASCII(psArgsJSON)
+	}
+	if len(args) == 0 {
+		args = append(args, "-ef")
 	}
 
-	if err := validatePSArgs(psArgs); err != nil {
+	if err := validatePSArgs(strings.Join(args, " ")); err != nil {
 		return nil, err
 	}
 
@@ -162,7 +170,6 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 		return nil, err
 	}
 
-	args := strings.Split(psArgs, " ")
 	pids := psPidsArg(procs)
 	output, err := exec.Command("ps", append(args, pids)...).Output()
 	if err != nil {
