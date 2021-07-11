@@ -267,6 +267,9 @@ var (
 		// Gerty Theresa Cori - American biochemist who became the third woman—and first American woman—to win a Nobel Prize in science, and the first woman to be awarded the Nobel Prize in Physiology or Medicine. Cori was born in Prague. https://en.wikipedia.org/wiki/Gerty_Cori
 		"cori",
 
+		// Thomas H. Cormen - American computer scientist and professor. Co-author of the book Introduction To Algorithms. https://en.wikipedia.org/wiki/Thomas_H._Cormen
+		"cormen",
+
 		// Seymour Roger Cray was an American electrical engineer and supercomputer architect who designed a series of computers that were the fastest in the world for decades. https://en.wikipedia.org/wiki/Seymour_Cray
 		"cray",
 
@@ -352,6 +355,9 @@ var (
 
 		// Benjamin Franklin is famous for his experiments in electricity and the invention of the lightning rod.
 		"franklin",
+
+		// Elizebeth Smith Friedman was dubbed as "America's first female cryptanalyst". During World War II she solved numerous cipher systems used by the Germans. https://en.wikipedia.org/wiki/Elizebeth_Smith_Friedman
+		"friedman",
 
 		// Yuri Alekseyevich Gagarin - Soviet pilot and cosmonaut, best known as the first human to journey into outer space. https://en.wikipedia.org/wiki/Yuri_Gagarin
 		"gagarin",
