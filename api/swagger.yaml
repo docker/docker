@@ -7502,6 +7502,12 @@ paths:
             Refer to the [authentication section](#section/Authentication) for
             details.
           type: "string"
+        - name: "changes"
+          in: "query"
+          description: "Apply Dockerfile instruction to the created image."
+          type: "array"
+          items:
+            type: "string"
         - name: "platform"
           in: "query"
           description: "Platform in the format os[/arch[/variant]]"
