@@ -101,7 +101,7 @@ the contributors guide.
     <td>
       <p>
         Register for the Docker Community Slack at
-	<a href="https://community.docker.com/registrations/groups/4316" target="_blank">https://community.docker.com/registrations/groups/4316</a>.
+	<a href="https://dockr.ly/slack" target="_blank">https://dockr.ly/slack</a>.
         We use the #moby-project channel for general discussion, and there are separate channels for other Moby projects such as #containerd.
 	Archives are available at <a href="https://dockercommunity.slackarchive.io/" target="_blank">https://dockercommunity.slackarchive.io/</a>.
       </p>
