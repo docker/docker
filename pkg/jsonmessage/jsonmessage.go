@@ -125,9 +125,11 @@ func (p *JSONProgress) width() int {
 	if p.winSize != 0 {
 		return p.winSize
 	}
-	ws, err := term.GetWinsize(p.terminalFd)
-	if err == nil {
-		return int(ws.Width)
+	if p.terminalFd != 0 {
+		ws, err := term.GetWinsize(p.terminalFd)
+		if err == nil {
+			return int(ws.Width)
+		}
 	}
 	return 200
 }
