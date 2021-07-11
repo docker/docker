@@ -8,7 +8,7 @@ install_dockercli() {
 
 	arch=$(uname -m)
 	# No official release of these platforms
-	if [ "$arch" != "x86_64" ] && [ "$arch" != "s390x" ] && [ "$arch" != "armhf" ]; then
+	if [ "$arch" != "x86_64" ] && [ "$arch" != "s390x" ] && [ "$arch" != "aarch64" ] && [ "$arch" != "armhf" ]; then
 		build_dockercli
 		return
 	fi
