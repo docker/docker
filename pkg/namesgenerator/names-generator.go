@@ -135,6 +135,9 @@ var (
 		// Maria Gaetana Agnesi - Italian mathematician, philosopher, theologian and humanitarian. She was the first woman to write a mathematics handbook and the first woman appointed as a Mathematics Professor at a University. https://en.wikipedia.org/wiki/Maria_Gaetana_Agnesi
 		"agnesi",
 
+		// Agnodice - First female midwife or physician in ancient Athens. https://en.wikipedia.org/wiki/Agnodice
+		"agnodice",
+
 		// Archimedes was a physicist, engineer and mathematician who invented too many things to list them here. https://en.wikipedia.org/wiki/Archimedes
 		"archimedes",
 
@@ -161,6 +164,9 @@ var (
 
 		// Jean Bartik, born Betty Jean Jennings, was one of the original programmers for the ENIAC computer. https://en.wikipedia.org/wiki/Jean_Bartik
 		"bartik",
+
+		// Clara Barton - Founder of the American Red Cross, hospital nurse during the American Civil War, and civil rights advocate. https://en.wikipedia.org/wiki/Clara_Barton
+		"barton",
 
 		// Laura Bassi, the world's first female professor https://en.wikipedia.org/wiki/Laura_Bassi
 		"bassi",
@@ -212,6 +218,9 @@ var (
 
 		// Walter Houser Brattain co-invented the transistor - https://en.wikipedia.org/wiki/Walter_Houser_Brattain
 		"brattain",
+
+		// Harriet Brooks - Canadian Nuclear Physicist. Famous for her research on nuclear transmutations and radioactivity. Among the first persons to discover radon and to try to determine its atomic mass. https://en.wikipedia.org/wiki/Harriet_Brooks
+		"brooks",
 
 		// Emmett Brown invented time travel. https://en.wikipedia.org/wiki/Emmett_Brown (thanks Brian Goff)
 		"brown",
@@ -283,6 +292,9 @@ var (
 
 		// Leonardo Da Vinci invented too many things to list here. https://en.wikipedia.org/wiki/Leonardo_da_Vinci.
 		"davinci",
+
+		// Democritus - a pre-socratic philosopher who was one of the founders of the Atomist school of philosophy. https://en.wikipedia.org/wiki/Democritus
+		"democritus",
 
 		// A. K. (Alexander Keewatin) Dewdney, Canadian mathematician, computer scientist, author and filmmaker. Contributor to Scientific American's "Computer Recreations" from 1984 to 1991. Author of Core War (program), The Planiverse, The Armchair Universe, The Magic Machine, The New Turing Omnibus, and more. https://en.wikipedia.org/wiki/Alexander_Dewdney
 		"dewdney",
@@ -373,6 +385,9 @@ var (
 
 		// Marie-Sophie Germain - French mathematician, physicist and philosopher. Known for her work on elasticity theory, number theory and philosophy. https://en.wikipedia.org/wiki/Sophie_Germain
 		"germain",
+
+		// Maria Goeppert Mayer - German-American theoretical physicist and Nobel Laureate in Physics. Known for her discovery of the nuclear shell model of the atomic nucleus. https://en.wikipedia.org/wiki/Maria_Goeppert_Mayer
+		"goeppert",
 
 		// Adele Goldberg, was one of the designers and developers of the Smalltalk language. https://en.wikipedia.org/wiki/Adele_Goldberg_(computer_scientist)
 		"goldberg",
@@ -530,6 +545,9 @@ var (
 		// Inge Lehmann - Danish seismologist and geophysicist. Known for discovering in 1936 that the Earth has a solid inner core inside a molten outer core. https://en.wikipedia.org/wiki/Inge_Lehmann
 		"lehmann",
 
+		// Leucippus - Believed to be the founder of the Atomist school of philosophy. Mentor to Democritus. https://en.wikipedia.org/wiki/Leucippus
+		"leucippus",
+
 		// Daniel Lewin - Mathematician, Akamai co-founder, soldier, 9/11 victim-- Developed optimization techniques for routing traffic on the internet. Died attempting to stop the 9-11 hijackers. https://en.wikipedia.org/wiki/Daniel_Lewin
 		"lewin",
 
@@ -541,6 +559,9 @@ var (
 
 		// Ada Lovelace invented the first algorithm. https://en.wikipedia.org/wiki/Ada_Lovelace (thanks James Turnbull)
 		"lovelace",
+
+		// Lucretius - ancient greek philosopher whose ideas about the natural world were early precursors to Darwin's Theory of Evolution. Also a proponent of Atomism and Empiricism. https://en.wikipedia.org/wiki/Lucretius
+		"lucretius",
 
 		// Auguste and Louis Lumière - the first filmmakers in history - https://en.wikipedia.org/wiki/Auguste_and_Louis_Lumi%C3%A8re
 		"lumiere",
