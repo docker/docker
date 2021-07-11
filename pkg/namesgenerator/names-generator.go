@@ -255,6 +255,9 @@ var (
 		// Bram Cohen - American computer programmer and author of the BitTorrent peer-to-peer protocol. https://en.wikipedia.org/wiki/Bram_Cohen
 		"cohen",
 
+		// Fernando Corbató - American computer scientist instrumental in developing the first time-sharing systems (which directly inspired Unix). https://en.wikipedia.org/wiki/Fernando_J._Corbat%C3%B3
+		"corbato",
+
 		// David Lee Chaum - American computer scientist and cryptographer. Known for his seminal contributions in the field of anonymous communication. https://en.wikipedia.org/wiki/David_Chaum
 		"chaum",
 
@@ -595,6 +598,9 @@ var (
 
 		// Maryam Mirzakhani - an Iranian mathematician and the first woman to win the Fields Medal. https://en.wikipedia.org/wiki/Maryam_Mirzakhani
 		"mirzakhani",
+
+		// Maria Mitchell - first female professional astronomer in the US, discoverer of "Miss Mitchell's Comet". https://en.wikipedia.org/wiki/Maria_Mitchell
+		"mitchell",
 
 		// Rita Levi-Montalcini - Won Nobel Prize in Physiology or Medicine jointly with colleague Stanley Cohen for the discovery of nerve growth factor (https://en.wikipedia.org/wiki/Rita_Levi-Montalcini)
 		"montalcini",
