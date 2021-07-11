@@ -6238,6 +6238,11 @@ paths:
           in: "header"
           description: "A base64-encoded auth configuration. [See the authentication section for details.](#section/Authentication)"
           type: "string"
+        - name: "platform"
+          in: "query"
+          description: "Platform in the format os[/arch[/variant]]"
+          type: "string"
+          default: ""
       tags: ["Image"]
   /images/{name}/json:
     get:

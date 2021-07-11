@@ -244,6 +244,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.32](https://docs.docker.com/engine/api/v1.32/) documentation
 
+* `POST /images/create` now accepts a `platform` parameter in the form of `os[/arch[/variant]]`.
 * `POST /containers/create` now accepts additional values for the
   `HostConfig.IpcMode` property. New values are `private`, `shareable`,
   and `none`.
