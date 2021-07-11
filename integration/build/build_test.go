@@ -695,6 +695,37 @@ func TestBuildPlatformInvalid(t *testing.T) {
 	assert.Assert(t, errdefs.IsInvalidParameter(err))
 }
 
+// Test case in #40591
+func TestBuildWithCopyEmptyDir(t *testing.T) {
+	dockerfile := `
+                FROM    busybox
+                COPY    emptydir /var
+                COPY    dir /opt
+        `
+	ctx := context.Background()
+	source := fakecontext.New(t, "",
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithDir("emptydir"),
+		fakecontext.WithFile("dir/emptydirtest", "emptydirtest"))
+	defer source.Close()
+
+	apiclient := testEnv.APIClient()
+	resp, err := apiclient.ImageBuild(ctx,
+		source.AsTarReader(t),
+		types.ImageBuildOptions{
+			Remove:      true,
+			ForceRemove: true,
+			NoCache:     true,
+		})
+	assert.NilError(t, err)
+
+	out := bytes.NewBuffer(nil)
+	_, err = io.Copy(out, resp.Body)
+	resp.Body.Close()
+	assert.NilError(t, err)
+	assert.Check(t, is.Contains(out.String(), "Successfully built"))
+}
+
 func writeTarRecord(t *testing.T, w *tar.Writer, fn, contents string) {
 	err := w.WriteHeader(&tar.Header{
 		Name:     fn,
