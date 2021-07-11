@@ -356,7 +356,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	defer func() {
 		// Clean up on failure
 		if retErr != nil {
-			os.RemoveAll(dir)
+			d.Remove(id)
 		}
 	}()
 
