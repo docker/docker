@@ -159,7 +159,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 			networkName: {},
 		}
 		c.HostConfig.NetworkMode = containertypes.NetworkMode(networkName)
-	}, container.WithCmd("ping", count, "1", container1Name))
+	}, container.WithCmd("ping", "-4", count, "1", container1Name))
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	inspect, err := client.ContainerInspect(ctx, cID)
