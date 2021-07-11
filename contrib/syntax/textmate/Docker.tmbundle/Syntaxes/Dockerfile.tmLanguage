@@ -8,6 +8,16 @@
 	</array>
 	<key>name</key>
 	<string>Dockerfile</string>
+	<key>repository</key>
+	<dict>
+		<key>string-character-escape</key>
+	    <dict>
+	        <key>name</key>
+	        <string>constant.character.escaped.dockerfile</string>
+	        <key>match</key>
+	        <string>\\.</string>
+	    </dict>
+	</dict>
 	<key>patterns</key>
 	<array>
 		<dict>
@@ -62,6 +72,10 @@
 			<string>^\s*(?i:(ONBUILD)\s+)?(?i:(CMD|ENTRYPOINT))\s</string>
 		</dict>
 		<dict>
+			<key>include</key>
+			<string>#string-character-escape</string>
+		</dict>
+		<dict>
 			<key>begin</key>
 			<string>"</string>
 			<key>beginCaptures</key>
@@ -87,10 +101,8 @@
 			<key>patterns</key>
 			<array>
 				<dict>
-					<key>match</key>
-					<string>\\.</string>
-					<key>name</key>
-					<string>constant.character.escaped.dockerfile</string>
+					<key>include</key>
+					<string>#string-character-escape</string>
 				</dict>
 			</array>
 		</dict>
@@ -120,10 +132,8 @@
 			<key>patterns</key>
 			<array>
 				<dict>
-					<key>match</key>
-					<string>\\.</string>
-					<key>name</key>
-					<string>constant.character.escaped.dockerfile</string>
+					<key>include</key>
+					<string>#string-character-escape</string>
 				</dict>
 			</array>
 		</dict>
