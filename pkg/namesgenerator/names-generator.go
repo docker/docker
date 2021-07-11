@@ -135,6 +135,9 @@ var (
 		// Maria Gaetana Agnesi - Italian mathematician, philosopher, theologian and humanitarian. She was the first woman to write a mathematics handbook and the first woman appointed as a Mathematics Professor at a University. https://en.wikipedia.org/wiki/Maria_Gaetana_Agnesi
 		"agnesi",
 
+		// Virginia Apgar - an American anesthesiologist, the inventor of the Apgar Score, a way to quickly assess the health of a newborn child. https://en.wikipedia.org/wiki/Virginia_Apgar
+		"apgar",
+
 		// Archimedes was a physicist, engineer and mathematician who invented too many things to list them here. https://en.wikipedia.org/wiki/Archimedes
 		"archimedes",
 
@@ -143,6 +146,9 @@ var (
 
 		// Aryabhata - Ancient Indian mathematician-astronomer during 476-550 CE https://en.wikipedia.org/wiki/Aryabhata
 		"aryabhata",
+
+		// Barbara S. Askins - American chemist who invented a method to enhance underexposed photographic negatives (used by NASA and the medical industry). https://en.wikipedia.org/wiki/Barbara_Askins
+		"askins",
 
 		// Wanda Austin - Wanda Austin is the President and CEO of The Aerospace Corporation, a leading architect for the US security space programs. https://en.wikipedia.org/wiki/Wanda_Austin
 		"austin",
@@ -263,6 +269,9 @@ var (
 
 		// Jane Colden - American botanist widely considered the first female American botanist - https://en.wikipedia.org/wiki/Jane_Colden
 		"colden",
+
+		// Nicolaus Copernicus - Renaissance-era polymath, the author of theory of the universe with the Sun rather than Earth at the center. https://en.wikipedia.org/wiki/Nicolaus_Copernicus
+		"copernicus",
 
 		// Gerty Theresa Cori - American biochemist who became the third woman—and first American woman—to win a Nobel Prize in science, and the first woman to be awarded the Nobel Prize in Physiology or Medicine. Cori was born in Prague. https://en.wikipedia.org/wiki/Gerty_Cori
 		"cori",
@@ -509,6 +518,9 @@ var (
 		// Sophie Kowalevski - Russian mathematician responsible for important original contributions to analysis, differential equations and mechanics - https://en.wikipedia.org/wiki/Sofia_Kovalevskaya
 		"kowalevski",
 
+		// Stephanie Louise Kwolek - American chemist who invented Kevlar. https://en.wikipedia.org/wiki/Stephanie_Kwolek
+		"kwolek",
+
 		// Marie-Jeanne de Lalande - French astronomer, mathematician and cataloguer of stars - https://en.wikipedia.org/wiki/Marie-Jeanne_de_Lalande
 		"lalande",
 
@@ -602,14 +614,17 @@ var (
 		// Gordon Earle Moore - American engineer, Silicon Valley founding father, author of Moore's law. https://en.wikipedia.org/wiki/Gordon_Moore
 		"moore",
 
+		// Mary Sherman Morgan - American rocket fuel scientist who invented the liquid rocket fuel Hydyne. https://en.wikipedia.org/wiki/Mary_Sherman_Morgan
+		"morgan",
+
 		// Samuel Morse - contributed to the invention of a single-wire telegraph system based on European telegraphs and was a co-developer of the Morse code - https://en.wikipedia.org/wiki/Samuel_Morse
 		"morse",
 
-		// Ian Murdock - founder of the Debian project - https://en.wikipedia.org/wiki/Ian_Murdock
-		"murdock",
-
 		// May-Britt Moser - Nobel prize winner neuroscientist who contributed to the discovery of grid cells in the brain. https://en.wikipedia.org/wiki/May-Britt_Moser
 		"moser",
+
+		// Ian Murdock - founder of the Debian project - https://en.wikipedia.org/wiki/Ian_Murdock
+		"murdock",
 
 		// John Napier of Merchiston - Scottish landowner known as an astronomer, mathematician and physicist. Best known for his discovery of logarithms. https://en.wikipedia.org/wiki/John_Napier
 		"napier",
@@ -677,6 +692,9 @@ var (
 		// Srinivasa Ramanujan - Indian mathematician and autodidact who made extraordinary contributions to mathematical analysis, number theory, infinite series, and continued fractions. - https://en.wikipedia.org/wiki/Srinivasa_Ramanujan
 		"ramanujan",
 
+		// Marian Adam Rejewski - Polish mathematician and cryptologist who (together with Jerzy Rozycki and Henryk Zygalski) solved the German military Enigma cipher machine. https://en.wikipedia.org/wiki/Marian_Rejewski
+		"rejewski",
+
 		// Sally Kristen Ride was an American physicist and astronaut. She was the first American woman in space, and the youngest American astronaut. https://en.wikipedia.org/wiki/Sally_Ride
 		"ride",
 
@@ -694,6 +712,9 @@ var (
 
 		// Rosalind Franklin - British biophysicist and X-ray crystallographer whose research was critical to the understanding of DNA - https://en.wikipedia.org/wiki/Rosalind_Franklin
 		"rosalind",
+
+		// Jerzy Witold Rozycki - Polish mathematician and cryptologist who (together with Marian Rejewski and Henryk Zygalski) solved the German military Enigma cipher machine. https://en.wikipedia.org/wiki/Jerzy_R%C3%B3%C5%BCycki
+		"rozycki",
 
 		// Vera Rubin - American astronomer who pioneered work on galaxy rotation rates. https://en.wikipedia.org/wiki/Vera_Rubin
 		"rubin",
@@ -832,6 +853,9 @@ var (
 
 		// Nikolay Yegorovich Zhukovsky (Russian: Никола́й Его́рович Жуко́вский, January 17 1847 – March 17, 1921) was a Russian scientist, mathematician and engineer, and a founding father of modern aero- and hydrodynamics. Whereas contemporary scientists scoffed at the idea of human flight, Zhukovsky was the first to undertake the study of airflow. He is often called the Father of Russian Aviation. https://en.wikipedia.org/wiki/Nikolay_Yegorovich_Zhukovsky
 		"zhukovsky",
+
+		// Henryk Zygalski - Polish mathematician and cryptologist who (together with Marian Rejewski and Jerzy Rozycki) solved the German military Enigma cipher machine. https://en.wikipedia.org/wiki/Henryk_Zygalski
+		"zygalski",
 	}
 )
 
