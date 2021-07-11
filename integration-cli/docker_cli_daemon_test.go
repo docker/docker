@@ -2133,7 +2133,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *testing.T) {
 	infoLog := "\x1b[36mINFO\x1b"
 
 	b := bytes.NewBuffer(nil)
-	done := make(chan bool)
+	done := make(chan bool, 1)
 
 	p, tty, err := pty.Open()
 	assert.NilError(c, err)
