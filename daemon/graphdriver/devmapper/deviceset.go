@@ -1106,12 +1106,12 @@ func (devices *DeviceSet) thinPoolExists(thinPoolDevice string) (bool, error) {
 		return false, nil
 	}
 
-	_, _, deviceType, _, err := devicemapper.GetStatus(thinPoolDevice)
+	targetLines, err := devicemapper.GetStatus(thinPoolDevice)
 	if err != nil {
 		return false, fmt.Errorf("devmapper: GetStatus() on device %s failed: %v", thinPoolDevice, err)
 	}
 
-	if deviceType != "thin-pool" {
+	if targetLines[0].TargetType != "thin-pool" {
 		return false, fmt.Errorf("devmapper: Device %s is not a thin pool", thinPoolDevice)
 	}
 
@@ -1567,14 +1567,14 @@ func getLoopFileDeviceMajMin(filename string) (string, uint64, uint64, error) {
 
 // Get the major/minor numbers of thin pool data and metadata devices
 func (devices *DeviceSet) getThinPoolDataMetaMajMin() (uint64, uint64, uint64, uint64, error) {
-	var params, poolDataMajMin, poolMetadataMajMin string
+	var poolDataMajMin, poolMetadataMajMin string
 
-	_, _, _, params, err := devicemapper.GetTable(devices.getPoolName())
+	lines, err := devicemapper.GetTable(devices.getPoolName())
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
 
-	if _, err = fmt.Sscanf(params, "%s %s", &poolMetadataMajMin, &poolDataMajMin); err != nil {
+	if _, err = fmt.Sscanf(lines[0].Params, "%s %s", &poolMetadataMajMin, &poolDataMajMin); err != nil {
 		return 0, 0, 0, 0, err
 	}
 
@@ -2463,12 +2463,13 @@ func (devices *DeviceSet) List() []string {
 }
 
 func (devices *DeviceSet) deviceStatus(devName string) (sizeInSectors, mappedSectors, highestMappedSector uint64, err error) {
-	var params string
-	_, sizeInSectors, _, params, err = devicemapper.GetStatus(devName)
+	var targetLines []devicemapper.TargetLine
+
+	targetLines, err = devicemapper.GetStatus(devName)
 	if err != nil {
 		return
 	}
-	if _, err = fmt.Sscanf(params, "%d %d", &mappedSectors, &highestMappedSector); err == nil {
+	if _, err = fmt.Sscanf(targetLines[0].Params, "%d %d", &mappedSectors, &highestMappedSector); err == nil {
 		return
 	}
 	return
@@ -2511,9 +2512,9 @@ func (devices *DeviceSet) GetDeviceStatus(hash string) (*DevStatus, error) {
 }
 
 func (devices *DeviceSet) poolStatus() (totalSizeInSectors, transactionID, dataUsed, dataTotal, metadataUsed, metadataTotal uint64, err error) {
-	var params string
-	if _, totalSizeInSectors, _, params, err = devicemapper.GetStatus(devices.getPoolName()); err == nil {
-		_, err = fmt.Sscanf(params, "%d %d/%d %d/%d", &transactionID, &metadataUsed, &metadataTotal, &dataUsed, &dataTotal)
+	var targetLines []devicemapper.TargetLine
+	if targetLines, err = devicemapper.GetStatus(devices.getPoolName()); err == nil {
+		_, err = fmt.Sscanf(targetLines[0].Params, "%d %d/%d %d/%d", &transactionID, &metadataUsed, &metadataTotal, &dataUsed, &dataTotal)
 	}
 	return
 }

@@ -105,6 +105,14 @@ type (
 	AddNodeType int
 )
 
+// TargetLine represents a single line of a DM target
+type TargetLine struct {
+	Start      uint64
+	Length     uint64
+	TargetType string
+	Params     string
+}
+
 // DeviceIDExists returns whether error conveys the information about device Id already
 // exist or not. This will be true if device creation or snap creation
 // operation fails if device or snap device already exists in pool.
@@ -547,56 +555,74 @@ func GetDriverVersion() (string, error) {
 
 // GetStatus is the programmatic example of "dmsetup status".
 // It outputs status information for the specified device name.
-func GetStatus(name string) (uint64, uint64, string, string, error) {
+func GetStatus(name string) (lines []TargetLine, err error) {
 	task, err := TaskCreateNamed(deviceStatus, name)
 	if task == nil {
 		logrus.Debugf("devicemapper: GetStatus() Error TaskCreateNamed: %s", err)
-		return 0, 0, "", "", err
+		return nil, err
 	}
 	if err := task.run(); err != nil {
 		logrus.Debugf("devicemapper: GetStatus() Error Run: %s", err)
-		return 0, 0, "", "", err
+		return nil, err
 	}
 
 	devinfo, err := task.getInfo()
 	if err != nil {
 		logrus.Debugf("devicemapper: GetStatus() Error GetInfo: %s", err)
-		return 0, 0, "", "", err
+		return nil, err
 	}
 	if devinfo.Exists == 0 {
 		logrus.Debugf("devicemapper: GetStatus() Non existing device %s", name)
-		return 0, 0, "", "", fmt.Errorf("devicemapper: Non existing device %s", name)
+		return nil, fmt.Errorf("devicemapper: Non existing device %s", name)
 	}
 
-	_, start, length, targetType, params := task.getNextTarget(unsafe.Pointer(nil))
-	return start, length, targetType, params, nil
+	ptr := unsafe.Pointer(nil)
+	for {
+		tl := new(TargetLine)
+		ptr, tl.Start, tl.Length, tl.TargetType, tl.Params = task.getNextTarget(ptr)
+		lines = append(lines, *tl)
+
+		if ptr == nil {
+			break
+		}
+	}
+	return lines, nil
 }
 
 // GetTable is the programmatic example for "dmsetup table".
 // It outputs the current table for the specified device name.
-func GetTable(name string) (uint64, uint64, string, string, error) {
+func GetTable(name string) (lines []TargetLine, err error) {
 	task, err := TaskCreateNamed(deviceTable, name)
 	if task == nil {
 		logrus.Debugf("devicemapper: GetTable() Error TaskCreateNamed: %s", err)
-		return 0, 0, "", "", err
+		return nil, err
 	}
 	if err := task.run(); err != nil {
 		logrus.Debugf("devicemapper: GetTable() Error Run: %s", err)
-		return 0, 0, "", "", err
+		return nil, err
 	}
 
 	devinfo, err := task.getInfo()
 	if err != nil {
 		logrus.Debugf("devicemapper: GetTable() Error GetInfo: %s", err)
-		return 0, 0, "", "", err
+		return nil, err
 	}
 	if devinfo.Exists == 0 {
 		logrus.Debugf("devicemapper: GetTable() Non existing device %s", name)
-		return 0, 0, "", "", fmt.Errorf("devicemapper: Non existing device %s", name)
+		return nil, fmt.Errorf("devicemapper: Non existing device %s", name)
 	}
 
-	_, start, length, targetType, params := task.getNextTarget(unsafe.Pointer(nil))
-	return start, length, targetType, params, nil
+	ptr := unsafe.Pointer(nil)
+	for {
+		tl := new(TargetLine)
+		ptr, tl.Start, tl.Length, tl.TargetType, tl.Params = task.getNextTarget(ptr)
+		lines = append(lines, *tl)
+
+		if ptr == nil {
+			break
+		}
+	}
+	return lines, nil
 }
 
 // SetTransactionID sets a transaction id for the specified device name.
