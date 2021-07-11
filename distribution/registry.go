@@ -71,14 +71,11 @@ func NewV2Repository(
 		DualStack: true,
 	}
 
-	// TODO(dmcgowan): Call close idle connections when complete, use keep alive
 	base := &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
 		DialContext:         direct.DialContext,
 		TLSHandshakeTimeout: 10 * time.Second,
 		TLSClientConfig:     endpoint.TLSConfig,
-		// TODO(dmcgowan): Call close idle connections when complete and use keep alive
-		DisableKeepAlives: true,
 	}
 
 	modifiers := registry.Headers(dockerversion.DockerUserAgent(ctx), metaHeaders)
