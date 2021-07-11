@@ -168,6 +168,7 @@ func (s *VolumesService) Remove(ctx context.Context, name string, rmOpts ...opts
 var acceptedPruneFilters = map[string]bool{
 	"label":  true,
 	"label!": true,
+	"dryRun": true,
 }
 
 var acceptedListFilters = map[string]bool{
@@ -229,10 +230,16 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*types
 		if err != nil {
 			logrus.WithField("volume", v.Name()).WithError(err).Warn("could not determine size of volume")
 		}
-		if err := s.vs.Remove(ctx, v); err != nil {
-			logrus.WithError(err).WithField("volume", v.Name()).Warnf("Could not determine size of volume")
-			continue
+
+		if isDryRun(filter) {
+			logrus.WithField("volume", v.Name()).Info("running in dry-run mode")
+		} else {
+			if err := s.vs.Remove(ctx, v); err != nil {
+				logrus.WithError(err).WithField("volume", v.Name()).Warnf("Could not determine size of volume")
+				continue
+			}
 		}
+
 		rep.SpaceReclaimed += uint64(vSize)
 		rep.VolumesDeleted = append(rep.VolumesDeleted, v.Name())
 	}
@@ -261,4 +268,9 @@ func (s *VolumesService) List(ctx context.Context, filter filters.Args) (volumes
 // Shutdown shuts down the image service and dependencies
 func (s *VolumesService) Shutdown() error {
 	return s.vs.Shutdown()
+}
+
+func isDryRun(args filters.Args) bool {
+	return args.Contains("dryRun") &&
+		(args.ExactMatch("dryRun", "true") || args.ExactMatch("dryRun", "0"))
 }
