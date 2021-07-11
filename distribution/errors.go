@@ -58,7 +58,7 @@ func (e notFoundError) Error() string {
 	switch e.cause.Code {
 	case errcode.ErrorCodeDenied:
 		// ErrorCodeDenied is used when access to the repository was denied
-		return errors.Wrapf(e.cause, "pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(e.ref)).Error()
+		return errors.Wrapf(e.cause, "pull access denied for %s, the repository does not exist or may require 'docker login'", reference.FamiliarName(e.ref)).Error()
 	case v2.ErrorCodeManifestUnknown:
 		return errors.Wrapf(e.cause, "manifest for %s not found", reference.FamiliarString(e.ref)).Error()
 	case v2.ErrorCodeNameUnknown:

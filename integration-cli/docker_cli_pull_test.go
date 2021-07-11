@@ -100,11 +100,11 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *testing.T) {
 	for record := range recordChan {
 		if len(record.option) == 0 {
 			assert.ErrorContains(c, record.err, "", "expected non-zero exit status when pulling non-existing image: %s", record.out)
-			assert.Assert(c, strings.Contains(record.out, fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", record.e.repo)), "expected image not found error messages")
+			assert.Assert(c, strings.Contains(record.out, fmt.Sprintf("pull access denied for %s, the repository does not exist or may require 'docker login'", record.e.repo)), "expected image not found error messages")
 		} else {
 			// pull -a on a nonexistent registry should fall back as well
 			assert.ErrorContains(c, record.err, "", "expected non-zero exit status when pulling non-existing image: %s", record.out)
-			assert.Assert(c, strings.Contains(record.out, fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", record.e.repo)), "expected image not found error messages")
+			assert.Assert(c, strings.Contains(record.out, fmt.Sprintf("pull access denied for %s, the repository does not exist or may require 'docker login'", record.e.repo)), "expected image not found error messages")
 			assert.Assert(c, !strings.Contains(record.out, "unauthorized"), `message should not contain "unauthorized"`)
 		}
 	}
