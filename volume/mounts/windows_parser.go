@@ -146,6 +146,27 @@ func windowsValidateNotRoot(p string) error {
 	return nil
 }
 
+func checkBindSourceExists(mnt *mount.Mount) error {
+	if mnt.Type != mount.TypeBind {
+		return nil
+	}
+
+	exists, isDir, err := currentFileInfoProvider.fileInfo(mnt.Source)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return errBindSourceDoesNotExist(mnt.Source)
+	}
+
+	if !isDir {
+		return errBindSourceMustBeDir(mnt.Source)
+	}
+
+	return nil
+}
+
 var windowsSpecificValidators mountValidator = func(mnt *mount.Mount) error {
 	return windowsValidateNotRoot(mnt.Target)
 }
@@ -190,7 +211,7 @@ func (p *windowsParser) ValidateVolumeName(name string) error {
 	return nil
 }
 func (p *windowsParser) ValidateMountConfig(mnt *mount.Mount) error {
-	return p.validateMountConfigReg(mnt, rxDestination, windowsSpecificValidators)
+	return p.validateMountConfigReg(mnt, rxDestination, true, windowsSpecificValidators)
 }
 
 type fileInfoProvider interface {
@@ -213,13 +234,13 @@ func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err err
 
 var currentFileInfoProvider fileInfoProvider = defaultFileInfoProvider{}
 
-func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex string, additionalValidators ...mountValidator) error {
-
+func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex string, validateBindSourceExists bool, additionalValidators ...mountValidator) error {
 	for _, v := range additionalValidators {
 		if err := v(mnt); err != nil {
 			return &errMountConfig{mnt, err}
 		}
 	}
+
 	if len(mnt.Target) == 0 {
 		return &errMountConfig{mnt, errMissingField("Target")}
 	}
@@ -233,12 +254,14 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex strin
 		if len(mnt.Source) == 0 {
 			return &errMountConfig{mnt, errMissingField("Source")}
 		}
+
 		// Don't error out just because the propagation mode is not supported on the platform
 		if opts := mnt.BindOptions; opts != nil {
 			if len(opts.Propagation) > 0 {
 				return &errMountConfig{mnt, fmt.Errorf("invalid propagation mode: %s", opts.Propagation)}
 			}
 		}
+
 		if mnt.VolumeOptions != nil {
 			return &errMountConfig{mnt, errExtraField("VolumeOptions")}
 		}
@@ -247,17 +270,15 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex strin
 			return &errMountConfig{mnt, err}
 		}
 
-		exists, isdir, err := currentFileInfoProvider.fileInfo(mnt.Source)
-		if err != nil {
-			return &errMountConfig{mnt, err}
-		}
-		if !exists {
-			return &errMountConfig{mnt, errBindSourceDoesNotExist(mnt.Source)}
-		}
-		if !isdir {
-			return &errMountConfig{mnt, fmt.Errorf("source path must be a directory")}
+		if validateBindSourceExists {
+			if err := checkBindSourceExists(mnt); err != nil {
+				return err
+			}
 		}
 
+		if windowsDetectMountType(mnt.Target) == mount.TypeNamedPipe {
+			return &errMountConfig{mnt, fmt.Errorf("'%s' is a pipe path", mnt.Target)}
+		}
 	case mount.TypeVolume:
 		if mnt.BindOptions != nil {
 			return &errMountConfig{mnt, errExtraField("BindOptions")}
@@ -355,7 +376,7 @@ func (p *windowsParser) parseMountRaw(raw, volumeDriver, destRegex string, conve
 		spec.VolumeOptions.NoCopy = !copyData
 	}
 
-	mp, err := p.parseMountSpec(spec, destRegex, convertTargetToBackslash, additionalValidators...)
+	mp, err := p.parseMountSpec(spec, destRegex, convertTargetToBackslash, false, additionalValidators...)
 	if mp != nil {
 		mp.Mode = mode
 	}
@@ -366,10 +387,11 @@ func (p *windowsParser) parseMountRaw(raw, volumeDriver, destRegex string, conve
 }
 
 func (p *windowsParser) ParseMountSpec(cfg mount.Mount) (*MountPoint, error) {
-	return p.parseMountSpec(cfg, rxDestination, true, windowsSpecificValidators)
+	return p.parseMountSpec(cfg, rxDestination, true, true, windowsSpecificValidators)
 }
-func (p *windowsParser) parseMountSpec(cfg mount.Mount, destRegex string, convertTargetToBackslash bool, additionalValidators ...mountValidator) (*MountPoint, error) {
-	if err := p.validateMountConfigReg(&cfg, destRegex, additionalValidators...); err != nil {
+
+func (p *windowsParser) parseMountSpec(cfg mount.Mount, destRegex string, convertTargetToBackslash bool, validateBindSourceExists bool, additionalValidators ...mountValidator) (*MountPoint, error) {
+	if err := p.validateMountConfigReg(&cfg, destRegex, validateBindSourceExists, additionalValidators...); err != nil {
 		return nil, err
 	}
 	mp := &MountPoint{

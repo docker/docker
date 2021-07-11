@@ -20,9 +20,14 @@ func errBindSourceDoesNotExist(path string) error {
 	return errors.Errorf("bind source path does not exist: %s", path)
 }
 
+func errBindSourceMustBeDir(path string) error {
+	return errors.Errorf("source path must be a directory %s", path)
+}
+
 func errExtraField(name string) error {
 	return errors.Errorf("field %s must not be specified", name)
 }
+
 func errMissingField(name string) error {
 	return errors.Errorf("field %s must not be empty", name)
 }

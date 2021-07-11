@@ -11,7 +11,21 @@ import (
 	"github.com/docker/docker/api/types/mount"
 )
 
+type testValidateMountFiProvider struct{}
+
+func (testValidateMountFiProvider) fileInfo(path string) (exist, isDir bool, err error) {
+	if path == testSourcePathDoesNotExist {
+		return false, false, nil
+	}
+
+	return true, true, nil
+}
+
 func TestValidateMount(t *testing.T) {
+	previousProvider := currentFileInfoProvider
+	defer func() { currentFileInfoProvider = previousProvider }()
+	currentFileInfoProvider = testValidateMountFiProvider{}
+
 	testDir, err := ioutil.TempDir("", "test-validate-mount")
 	if err != nil {
 		t.Fatal(err)
@@ -31,7 +45,7 @@ func TestValidateMount(t *testing.T) {
 
 		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath}, nil},
 		{mount.Mount{Type: "invalid", Target: testDestinationPath}, errors.New("mount type unknown")},
-		{mount.Mount{Type: mount.TypeBind, Source: testSourcePath, Target: testDestinationPath}, errBindSourceDoesNotExist(testSourcePath)},
+		{mount.Mount{Type: mount.TypeBind, Source: testSourcePathDoesNotExist, Target: testDestinationPath}, errBindSourceDoesNotExist(testSourcePathDoesNotExist)},
 	}
 
 	lcowCases := []struct {
@@ -44,7 +58,7 @@ func TestValidateMount(t *testing.T) {
 		{mount.Mount{Type: mount.TypeBind}, errMissingField("Target")},
 		{mount.Mount{Type: mount.TypeBind, Target: "/foo"}, errMissingField("Source")},
 		{mount.Mount{Type: mount.TypeBind, Target: "/foo", Source: "c:\\foo", VolumeOptions: &mount.VolumeOptions{}}, errExtraField("VolumeOptions")},
-		{mount.Mount{Type: mount.TypeBind, Source: "c:\\foo", Target: "/foo"}, errBindSourceDoesNotExist("c:\\foo")},
+		{mount.Mount{Type: mount.TypeBind, Source: testSourcePathDoesNotExist, Target: "/foo"}, errBindSourceDoesNotExist(testSourcePathDoesNotExist)},
 		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: "/foo"}, nil},
 		{mount.Mount{Type: "invalid", Target: "/foo"}, errors.New("mount type unknown")},
 	}

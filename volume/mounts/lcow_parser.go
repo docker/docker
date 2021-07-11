@@ -22,7 +22,7 @@ type lcowParser struct {
 }
 
 func (p *lcowParser) ValidateMountConfig(mnt *mount.Mount) error {
-	return p.validateMountConfigReg(mnt, rxLCOWDestination, lcowSpecificValidators)
+	return p.validateMountConfigReg(mnt, rxLCOWDestination, true, lcowSpecificValidators)
 }
 
 func (p *lcowParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, error) {
@@ -30,5 +30,5 @@ func (p *lcowParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, error
 }
 
 func (p *lcowParser) ParseMountSpec(cfg mount.Mount) (*MountPoint, error) {
-	return p.parseMountSpec(cfg, rxLCOWDestination, false, lcowSpecificValidators)
+	return p.parseMountSpec(cfg, rxLCOWDestination, false, true, lcowSpecificValidators)
 }
