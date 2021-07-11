@@ -38,8 +38,18 @@ func fixPermissions(source, destination string, identity idtools.Identity, overr
 			return err
 		}
 
+		srcSt, err := os.Stat(source)
+		if err != nil {
+			return err
+		}
+
 		fullpath = filepath.Join(destination, cleaned)
-		return os.Lchown(fullpath, identity.UID, identity.GID)
+		err = os.Lchown(fullpath, identity.UID, identity.GID)
+		if err != nil {
+			return err
+		}
+
+		return os.Chmod(fullpath, srcSt.Mode())
 	})
 }
 
