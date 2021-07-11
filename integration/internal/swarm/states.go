@@ -163,3 +163,61 @@ func JobComplete(client client.CommonAPIClient, service swarmtypes.Service) func
 		}
 	}
 }
+
+// FailedTasksCount verifies there are `instances` tasks running for `serviceID`
+func FailedTasksCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		filter := filters.NewArgs()
+		filter.Add("service", serviceID)
+		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
+			Filters: filter,
+		})
+		if err != nil {
+			return poll.Error(err)
+		}
+
+		var failed uint64
+		for _, task := range tasks {
+			switch task.Status.State {
+			case swarmtypes.TaskStateFailed:
+				failed++
+			}
+		}
+
+		switch {
+		case failed == instances:
+			return poll.Success()
+		default:
+			return poll.Continue("waiting for %v more tasks to fail.", (instances - failed))
+		}
+	}
+}
+
+// CompletedTasksCount verifies there are `instances` tasks running for `serviceID`
+func CompletedTasksCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		filter := filters.NewArgs()
+		filter.Add("service", serviceID)
+		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
+			Filters: filter,
+		})
+		if err != nil {
+			return poll.Error(err)
+		}
+
+		var completed uint64
+		for _, task := range tasks {
+			switch task.Status.State {
+			case swarmtypes.TaskStateComplete:
+				completed++
+			}
+		}
+
+		switch {
+		case completed == instances:
+			return poll.Success()
+		default:
+			return poll.Continue("waiting for %v more tasks to complete.", (instances - completed))
+		}
+	}
+}

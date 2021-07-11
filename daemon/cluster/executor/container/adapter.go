@@ -531,3 +531,14 @@ func isUnknownContainer(err error) bool {
 func isStoppedContainer(err error) bool {
 	return strings.Contains(err.Error(), "is already stopped")
 }
+
+func isErrContainerUnhealthy(err error) bool {
+	if err == nil {
+		return false
+	}
+	var e *exitError
+	if errors.As(err, &e) {
+		return e.Cause() == ErrContainerUnhealthy
+	}
+	return false
+}

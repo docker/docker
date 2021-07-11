@@ -185,7 +185,7 @@ func (r *controller) Prepare(ctx context.Context) error {
 }
 
 // Start the container. An error will be returned if the container is already started.
-func (r *controller) Start(ctx context.Context) error {
+func (r *controller) Start(ctx context.Context) (retErr error) {
 	if err := r.checkClosed(); err != nil {
 		return err
 	}
@@ -217,17 +217,33 @@ func (r *controller) Start(ctx context.Context) error {
 
 				continue
 			}
-
+			log.G(ctx).WithError(err).Debugf("Removing networks after container %s failed to start.", r.adapter.container.name())
+			r.adapter.removeNetworks(ctx)
 			return errors.Wrap(err, "starting container failed")
 		}
 
 		break
 	}
 
+	// At this time, the container is started via containerd, and container.State.Running is true
+	// However, there is still possible errors from now on in this Start() function, and swarmkit will not
+	// call Shutdown() after task state is FAIL. We must clean up here.
+	defer func() {
+		// We need remove networks if there's an error and the error is NOT from unhealthy container on which
+		// Shutdown() has been called.
+		if retErr != nil && !isErrContainerUnhealthy(retErr) {
+			log.G(ctx).WithError(retErr).Debugf("Removing networks after container %s started but then failed.", r.adapter.container.name())
+			r.adapter.removeNetworks(ctx)
+		}
+	}()
+
 	// no health check
 	if ctnr.Config == nil || ctnr.Config.Healthcheck == nil || len(ctnr.Config.Healthcheck.Test) == 0 || ctnr.Config.Healthcheck.Test[0] == "NONE" {
 		if err := r.adapter.activateServiceBinding(); err != nil {
 			log.G(ctx).WithError(err).Errorf("failed to activate service binding for container %s which has no healthcheck config", r.adapter.container.name())
+			if serr := r.adapter.shutdown(ctx); serr != nil {
+				log.G(ctx).WithError(serr).Errorf("failed to shutdown container %s", r.adapter.container.name())
+			}
 			return err
 		}
 		return nil
@@ -252,7 +268,9 @@ func (r *controller) Start(ctx context.Context) error {
 				} else if ctnr.State.ExitCode != 0 {
 					return &exitError{code: ctnr.State.ExitCode, cause: healthErr}
 				}
-
+				log.G(ctx).Warningf("Task container %s died before reaching healthy status.", r.adapter.container.name())
+				// We don't need remove networks here because the task will change to RUNNING state and
+				// Wait() will be called then complete. Networks will be removed in Wait().
 				return nil
 			case "destroy":
 				// If we get here, something has gone wrong but we want to exit
@@ -260,6 +278,7 @@ func (r *controller) Start(ctx context.Context) error {
 				return ErrContainerDestroyed
 			case "health_status: unhealthy":
 				// in this case, we stop the container and report unhealthy status
+				log.G(ctx).Debugf("Shutdown unhealthy container %s", r.adapter.container.name())
 				if err := r.Shutdown(ctx); err != nil {
 					return errors.Wrap(err, "unhealthy container shutdown failed")
 				}
@@ -268,6 +287,9 @@ func (r *controller) Start(ctx context.Context) error {
 			case "health_status: healthy":
 				if err := r.adapter.activateServiceBinding(); err != nil {
 					log.G(ctx).WithError(err).Errorf("failed to activate service binding for container %s after healthy event", r.adapter.container.name())
+					if serr := r.adapter.shutdown(ctx); serr != nil {
+						log.G(ctx).WithError(serr).Errorf("failed to shutdown container %s", r.adapter.container.name())
+					}
 					return err
 				}
 				return nil
@@ -281,7 +303,7 @@ func (r *controller) Start(ctx context.Context) error {
 }
 
 // Wait on the container to exit.
-func (r *controller) Wait(pctx context.Context) error {
+func (r *controller) Wait(pctx context.Context) (retErr error) {
 	if err := r.checkClosed(); err != nil {
 		return err
 	}
@@ -305,6 +327,17 @@ func (r *controller) Wait(pctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// Remove networks after container exits itself.
+	// This also makes sure removeNetworks is called when the user manually stop or restart the task container.
+	defer func() {
+		if !isErrContainerUnhealthy(retErr) {
+			// We need remove networks if err is nil or err is NOT from unhealthy container on which Shutdown()
+			// has been called.
+			log.G(ctx).WithError(retErr).Debugf("Removing networks after container %s exited itself.", r.adapter.container.name())
+			r.adapter.removeNetworks(ctx)
+		}
+	}()
 
 	if status := <-waitC; status.ExitCode() != 0 {
 		exitErr := &exitError{
@@ -370,6 +403,12 @@ func (r *controller) Shutdown(ctx context.Context) error {
 	}
 
 	if err := r.adapter.shutdown(ctx); err != nil {
+		// The container is already stopped or not even started.
+		// don't need to removeNetworks.
+		if isStoppedContainer(err) {
+			log.G(ctx).Debugf("Shutdown(): container %s already stopped.", r.adapter.container.name())
+			return nil
+		}
 		if !(isUnknownContainer(err) || isStoppedContainer(err)) {
 			return err
 		}
