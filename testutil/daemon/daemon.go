@@ -707,7 +707,7 @@ func (d *Daemon) LoadBusybox(t testing.TB) {
 	defer clientHost.Close()
 
 	ctx := context.Background()
-	reader, err := clientHost.ImageSave(ctx, []string{"busybox:latest"})
+	reader, err := clientHost.ImageSave(ctx, []string{"busybox:latest", "busybox:glibc"})
 	assert.NilError(t, err, "[%s] failed to download busybox", d.id)
 	defer reader.Close()
 
