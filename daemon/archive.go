@@ -220,32 +220,22 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 		return nil, nil, err
 	}
 
-	// We need to rebase the archive entries if the last element of the
-	// resolved path was a symlink that was evaluated and is now different
-	// than the requested path. For example, if the given path was "/foo/bar/",
-	// but it resolved to "/var/lib/docker/containers/{id}/foo/baz/", we want
-	// to ensure that the archive entries start with "bar" and not "baz". This
-	// also catches the case when the root directory of the container is
-	// requested: we want the archive entries to start with "/" and not the
-	// container ID.
 	driver := container.BaseFS
 
 	// Get the source and the base paths of the container resolved path in order
 	// to get the proper tar options for the rebase tar.
+	// Comes from pkg/archive.SplitPathDirEntry
 	resolvedPath = driver.Clean(resolvedPath)
 	if driver.Base(resolvedPath) == "." {
 		resolvedPath += string(driver.Separator()) + "."
 	}
 
-	sourceDir := resolvedPath
-	sourceBase := "."
-
-	if stat.Mode&os.ModeDir == 0 { // not dir
-		sourceDir, sourceBase = driver.Split(resolvedPath)
+	var opts *archive.TarOptions
+	if stat.Mode&os.ModeSymlink != 0 {
+		opts = archive.TarResourceRebaseOpts(driver.Base(resolvedPath), driver.Base(absPath))
 	}
-	opts := archive.TarResourceRebaseOpts(sourceBase, driver.Base(absPath))
 
-	data, err := archivePath(driver, sourceDir, opts, container.BaseFS.Path())
+	data, err := archivePath(driver, resolvedPath, opts, driver.Path())
 	if err != nil {
 		return nil, nil, err
 	}
