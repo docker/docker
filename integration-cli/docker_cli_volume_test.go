@@ -65,13 +65,10 @@ func (s *DockerSuite) TestVolumeCLIInspectMulti(c *testing.T) {
 }
 
 func (s *DockerSuite) TestVolumeCLILs(c *testing.T) {
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	dockerCmd(c, "volume", "create", "aaa")
-
 	dockerCmd(c, "volume", "create", "test")
-
 	dockerCmd(c, "volume", "create", "soo")
-	dockerCmd(c, "run", "-v", "soo:"+prefix+"/foo", "busybox", "ls", "/")
+	dockerCmd(c, "run", "-v", "soo:"+dPath("/foo"), "busybox", "ls", "/")
 
 	out, _ := dockerCmd(c, "volume", "ls", "-q")
 	assertVolumesInList(c, out, []string{"aaa", "soo", "test"})
@@ -120,15 +117,14 @@ func assertVolumesInList(c *testing.T, out string, expected []string) {
 }
 
 func (s *DockerSuite) TestVolumeCLILsFilterDangling(c *testing.T) {
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	dockerCmd(c, "volume", "create", "testnotinuse1")
 	dockerCmd(c, "volume", "create", "testisinuse1")
 	dockerCmd(c, "volume", "create", "testisinuse2")
 
 	// Make sure both "created" (but not started), and started
 	// containers are included in reference counting
-	dockerCmd(c, "run", "--name", "volume-test1", "-v", "testisinuse1:"+prefix+"/foo", "busybox", "true")
-	dockerCmd(c, "create", "--name", "volume-test2", "-v", "testisinuse2:"+prefix+"/foo", "busybox", "true")
+	dockerCmd(c, "run", "--name", "volume-test1", "-v", "testisinuse1:"+dPath("/foo"), "busybox", "true")
+	dockerCmd(c, "create", "--name", "volume-test2", "-v", "testisinuse2:"+dPath("/foo"), "busybox", "true")
 
 	out, _ := dockerCmd(c, "volume", "ls")
 
@@ -177,7 +173,6 @@ func (s *DockerSuite) TestVolumeCLILsWithIncorrectFilterValue(c *testing.T) {
 }
 
 func (s *DockerSuite) TestVolumeCLIRm(c *testing.T) {
-	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	out, _ := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)
 
@@ -186,7 +181,7 @@ func (s *DockerSuite) TestVolumeCLIRm(c *testing.T) {
 	dockerCmd(c, "volume", "rm", "test")
 
 	volumeID := "testing"
-	dockerCmd(c, "run", "-v", volumeID+":"+prefix+"/foo", "--name=test", "busybox", "sh", "-c", "echo hello > /foo/bar")
+	dockerCmd(c, "run", "-v", volumeID+":"+dPath("/foo"), "--name=test", "busybox", "sh", "-c", "echo hello > /foo/bar")
 
 	icmd.RunCommand(dockerBinary, "volume", "rm", "testing").Assert(c, icmd.Expected{
 		ExitCode: 1,
@@ -199,7 +194,7 @@ func (s *DockerSuite) TestVolumeCLIRm(c *testing.T) {
 	dockerCmd(c, "volume", "inspect", volumeID)
 	dockerCmd(c, "rm", "-f", "test")
 
-	out, _ = dockerCmd(c, "run", "--name=test2", "-v", volumeID+":"+prefix+"/foo", "busybox", "sh", "-c", "cat /foo/bar")
+	out, _ = dockerCmd(c, "run", "--name=test2", "-v", volumeID+":"+dPath("/foo"), "busybox", "sh", "-c", "cat /foo/bar")
 	assert.Equal(c, strings.TrimSpace(out), "hello", "volume data was removed")
 	dockerCmd(c, "rm", "test2")
 
@@ -399,8 +394,7 @@ func (s *DockerSuite) TestVolumeCLIRmForceInUse(c *testing.T) {
 	id := strings.TrimSpace(out)
 	assert.Equal(c, id, name)
 
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	out, _ = dockerCmd(c, "create", "-v", "testvolume:"+prefix+slash+"foo", "busybox")
+	out, _ = dockerCmd(c, "create", "-v", "testvolume:"+dPath("/foo"), "busybox")
 	cid := strings.TrimSpace(out)
 
 	_, _, err := dockerCmdWithError("volume", "rm", "-f", name)

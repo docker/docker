@@ -1649,9 +1649,8 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 		msg        string
 	}
 
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	destPath := prefix + slash + "foo"
-	notExistPath := prefix + slash + "notexist"
+	destPath := dPath("/foo")
+	notExistPath := dPath("/notexist")
 
 	cases := []testCase{
 		{
@@ -1938,8 +1937,6 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *testing.T) {
 func (s *DockerSuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 	testRequires(c, NotUserNamespace, testEnv.IsLocalDaemon)
 	// also with data in the host side
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	destPath := prefix + slash + "foo"
 	tmpDir, err := ioutil.TempDir("", "test-mounts-api-bind")
 	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
@@ -1951,7 +1948,7 @@ func (s *DockerSuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 	}
 	hostConfig := containertypes.HostConfig{
 		Mounts: []mounttypes.Mount{
-			{Type: "bind", Source: tmpDir, Target: destPath},
+			{Type: "bind", Source: tmpDir, Target: dPath("/foo")},
 		},
 	}
 	cli, err := client.NewClientWithOpts(client.FromEnv)
@@ -1967,18 +1964,17 @@ func (s *DockerSuite) TestContainerAPICreateMountsBindRead(c *testing.T) {
 
 // Test Mounts comes out as expected for the MountPoint
 func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	destPath := prefix + slash + "foo"
-
 	var (
-		testImg string
+		testImg  string
+		destPath = dPath("/foo")
+		destFile = dPath("/foo/bar")
 	)
 	if testEnv.OSType != "windows" {
 		testImg = "test-mount-config"
 		buildImageSuccessfully(c, testImg, build.WithDockerfile(`
 	FROM busybox
-	RUN mkdir `+destPath+` && touch `+destPath+slash+`bar
-	CMD cat `+destPath+slash+`bar
+	RUN mkdir `+destPath+` && touch `+destFile+`
+	CMD cat `+destFile+`
 	`))
 	} else {
 		testImg = "busybox"
@@ -1999,6 +1995,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *testing.T) {
 		}
 	}
 
+	_, slash := getPrefixAndSlashFromDaemonPlatform()
 	cases := []testCase{
 		// use literal strings here for `Type` instead of the defined constants in the volume package to keep this honest
 		// Validation of the actual `Mount` struct is done in another test is not needed here

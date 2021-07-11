@@ -206,14 +206,13 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *testing.T) {
 
 func (s *DockerSuite) TestInspectBindMountPoint(c *testing.T) {
 	modifier := ",z"
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	if testEnv.OSType == "windows" {
 		modifier = ""
 		// Linux creates the host directory if it doesn't exist. Windows does not.
 		os.Mkdir(`c:\data`, os.ModeDir)
 	}
 
-	dockerCmd(c, "run", "-d", "--name", "test", "-v", prefix+slash+"data:"+prefix+slash+"data:ro"+modifier, "busybox", "cat")
+	dockerCmd(c, "run", "-d", "--name", "test", "-v", dPath("/data")+":"+dPath("/data")+":ro"+modifier, "busybox", "cat")
 
 	vol := inspectFieldJSON(c, "test", "Mounts")
 
@@ -228,8 +227,8 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *testing.T) {
 
 	assert.Equal(c, m.Name, "")
 	assert.Equal(c, m.Driver, "")
-	assert.Equal(c, m.Source, prefix+slash+"data")
-	assert.Equal(c, m.Destination, prefix+slash+"data")
+	assert.Equal(c, m.Source, dPath("/data"))
+	assert.Equal(c, m.Destination, dPath("/data"))
 	if testEnv.OSType != "windows" { // Windows does not set mode
 		assert.Equal(c, m.Mode, "ro"+modifier)
 	}
@@ -237,9 +236,7 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *testing.T) {
 }
 
 func (s *DockerSuite) TestInspectNamedMountPoint(c *testing.T) {
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-
-	dockerCmd(c, "run", "-d", "--name", "test", "-v", "data:"+prefix+slash+"data", "busybox", "cat")
+	dockerCmd(c, "run", "-d", "--name", "test", "-v", "data:"+dPath("/data"), "busybox", "cat")
 
 	vol := inspectFieldJSON(c, "test", "Mounts")
 
@@ -255,7 +252,7 @@ func (s *DockerSuite) TestInspectNamedMountPoint(c *testing.T) {
 	assert.Equal(c, m.Name, "data")
 	assert.Equal(c, m.Driver, "local")
 	assert.Assert(c, m.Source != "")
-	assert.Equal(c, m.Destination, prefix+slash+"data")
+	assert.Equal(c, m.Destination, dPath("/data"))
 	assert.Equal(c, m.RW, true)
 }
 
