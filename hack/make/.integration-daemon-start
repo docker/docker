@@ -101,8 +101,18 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		)
 	fi
 
-	# "pwd" tricks to make sure $DEST is an absolute path, not a relative one
-	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock"
+	if [ -n "${DOCKER_ROOTLESS}" ]; then
+		# "pwd" tricks to make sure $DEST is an absolute path, not a relative one
+		export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock"
+	else
+		# Put socket in /run because:
+		# 1. That's the normal place for such things
+		# 2. When running on Docker For Mac, if you need to run tests with the bundles dir mounted (e.g. to poke through test artifacts).
+		#    the socket will not work because it will be over osxfs.
+		mkdir -p /run/docker
+		local sock_dir=$(mktemp -d -p /run/docker)
+		export DOCKER_HOST="unix://${sock_dir}/docker.sock"
+	fi
 	(
 		echo "Starting dockerd"
 		[ -n "$TESTDEBUG" ] && set -x
