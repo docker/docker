@@ -27,17 +27,26 @@ type applyLayerResponse struct {
 // used on Windows as it does not support chroot, hence no point sandboxing
 // through chroot and rexec.
 func applyLayer() {
-
 	var (
 		tmpDir  string
 		err     error
 		options *archive.TarOptions
 	)
+
 	runtime.LockOSThread()
+
+	if err := setupMountNS(); err != nil {
+		fatal(err)
+	}
+
 	flag.Parse()
 
 	inUserns := userns.RunningInUserNS()
 	if err := chroot(flag.Arg(0)); err != nil {
+		fatal(err)
+	}
+
+	if err := dropCapabilities(); err != nil {
 		fatal(err)
 	}
 
@@ -111,6 +120,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 	cmd := reexec.Command("docker-applyLayer", dest)
 	cmd.Stdin = layer
 	cmd.Env = append(cmd.Env, fmt.Sprintf("OPT=%s", data))
+	configureSysProc(cmd)
 
 	outBuf, errBuf := new(bytes.Buffer), new(bytes.Buffer)
 	cmd.Stdout, cmd.Stderr = outBuf, errBuf

@@ -24,6 +24,10 @@ import (
 // chroot and rexec.
 func untar() {
 	runtime.LockOSThread()
+	if err := setupMountNS(); err != nil {
+		fatal(err)
+	}
+
 	flag.Parse()
 
 	var options archive.TarOptions
@@ -44,6 +48,10 @@ func untar() {
 	}
 
 	if err := chroot(root); err != nil {
+		fatal(err)
+	}
+
+	if err := dropCapabilities(); err != nil {
 		fatal(err)
 	}
 
@@ -89,6 +97,7 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 
 	cmd := reexec.Command("docker-untar", dest, root)
 	cmd.Stdin = decompressedArchive
+	configureSysProc(cmd)
 
 	cmd.ExtraFiles = append(cmd.ExtraFiles, r)
 	output := bytes.NewBuffer(nil)
@@ -120,6 +129,11 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 
 func tar() {
 	runtime.LockOSThread()
+
+	if err := setupMountNS(); err != nil {
+		fatal(err)
+	}
+
 	flag.Parse()
 
 	src := flag.Arg(0)
@@ -134,6 +148,10 @@ func tar() {
 
 	if err := realChroot(root); err != nil {
 		fatal(err)
+	}
+
+	if err := dropCapabilities(); err != nil {
+		fatal(errors.Wrap(err, "error dropping capabilities"))
 	}
 
 	var options archive.TarOptions
@@ -176,6 +194,7 @@ func invokePack(srcPath string, options *archive.TarOptions, root string) (io.Re
 	}
 
 	cmd := reexec.Command("docker-tar", relSrc, root)
+	configureSysProc(cmd)
 
 	errBuff := bytes.NewBuffer(nil)
 	cmd.Stderr = errBuff
