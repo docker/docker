@@ -319,7 +319,6 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 		newImage.History[i] = hi
 	}
 
-	now := time.Now()
 	var historyComment string
 	if len(parent) > 0 {
 		historyComment = fmt.Sprintf("merge %s to %s", id, parent)
@@ -327,6 +326,7 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 		historyComment = fmt.Sprintf("create new from %s", id)
 	}
 
+	now := time.Now().UTC()
 	newImage.History = append(newImage.History, image.History{
 		Created: now,
 		Comment: historyComment,
