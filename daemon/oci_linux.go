@@ -1011,6 +1011,19 @@ func WithUser(c *container.Container) coci.SpecOpts {
 	}
 }
 
+// WithLabels sets the container's annotations
+func WithLabels(c *container.Container) coci.SpecOpts {
+	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		if s.Annotations == nil {
+			s.Annotations = make(map[string]string)
+		}
+		for k, v := range c.Config.Labels {
+			s.Annotations[k] = v
+		}
+		return nil
+	}
+}
+
 func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, err error) {
 	var (
 		opts []coci.SpecOpts
@@ -1031,6 +1044,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		WithLibnetwork(daemon, c),
 		WithApparmor(c),
 		WithSelinux(c),
+		WithLabels(c),
 		WithOOMScore(&c.HostConfig.OomScoreAdj),
 	)
 	if c.NoNewPrivileges {
