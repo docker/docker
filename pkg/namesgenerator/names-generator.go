@@ -304,6 +304,9 @@ var (
 
 		// Donna Dubinsky - played an integral role in the development of personal digital assistants (PDAs) serving as CEO of Palm, Inc. and co-founding Handspring. https://en.wikipedia.org/wiki/Donna_Dubinsky
 		"dubinsky",
+		
+		// Sylvia Earle - American oceanographer and marine biologist known for her research on marine algae and her books and documentaries designed to raise awareness of the threats that overfishing and pollution pose to the world’s oceans. https://en.wikipedia.org/wiki/Sylvia_Earle
+		"earle",
 
 		// Annie Easley - She was a leading member of the team which developed software for the Centaur rocket stage and one of the first African-Americans in her field. https://en.wikipedia.org/wiki/Annie_Easley
 		"easley",
