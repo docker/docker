@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/tailfile"
 	"github.com/docker/docker/testutil/request"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
@@ -293,10 +294,41 @@ func (d *Daemon) Cleanup(t testing.TB) {
 	cleanupNetworkNamespace(t, d)
 }
 
+// TailLogsT attempts to tail N lines from the daemon logs.
+// If there is an error the error is only logged, it does not cause an error with the test.
+func (d *Daemon) TailLogsT(t LogT, n int) {
+	lines, err := d.TailLogs(n)
+	if err != nil {
+		t.Logf("[%s] %v", d.id, err)
+		return
+	}
+	for _, l := range lines {
+		t.Logf("[%s] %s", d.id, string(l))
+	}
+}
+
+// TailLogs tails N lines from the daemon logs
+func (d *Daemon) TailLogs(n int) ([][]byte, error) {
+	logF, err := os.Open(d.logFile.Name())
+	if err != nil {
+		return nil, errors.Wrap(err, "error opening daemon log file after failed start")
+	}
+
+	defer logF.Close()
+	lines, err := tailfile.TailFile(logF, n)
+	if err != nil {
+		return nil, errors.Wrap(err, "error tailing log daemon logs")
+	}
+
+	return lines, nil
+
+}
+
 // Start starts the daemon and return once it is ready to receive requests.
 func (d *Daemon) Start(t testing.TB, args ...string) {
 	t.Helper()
 	if err := d.StartWithError(args...); err != nil {
+		d.TailLogsT(t, 20)
 		d.DumpStackAndQuit() // in case the daemon is stuck
 		t.Fatalf("[%s] failed to start daemon with arguments %v : %v", d.id, d.args, err)
 	}
