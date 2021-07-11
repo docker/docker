@@ -16,6 +16,7 @@ import (
 
 // Bring up a daemon with the specified default cgroup namespace mode, and then create a container with the container options
 func testRunWithCgroupNs(t *testing.T, daemonNsMode string, containerOpts ...func(*container.TestContainerConfig)) (string, string) {
+	t.Helper()
 	d := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
 	client := d.NewClientT(t)
 	ctx := context.Background()
@@ -59,6 +60,7 @@ func TestCgroupNamespacesRunPrivileged(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
 	skip.If(t, testEnv.DaemonInfo.CgroupVersion == "2", "on cgroup v2, privileged containers use private cgroupns")
+	skip.If(t, testEnv.IsUserNamespace, "privileged is not supported with user namespaces")
 
 	// When the daemon defaults to private cgroup namespaces, privileged containers
 	// launched should not be inside their own cgroup namespaces
@@ -103,6 +105,7 @@ func TestCgroupNamespacesRunPrivilegedAndPrivate(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
+	skip.If(t, testEnv.IsUserNamespace, "privileged is not supported with user namespaces")
 
 	containerCgroup, daemonCgroup := testRunWithCgroupNs(t, "private", container.WithPrivileged(true), container.WithCgroupnsMode("private"))
 	assert.Assert(t, daemonCgroup != containerCgroup)

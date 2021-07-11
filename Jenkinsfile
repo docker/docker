@@ -11,6 +11,7 @@ pipeline {
         booleanParam(name: 'unit_validate', defaultValue: true, description: 'amd64 (x86_64) unit tests and vendor check')
         booleanParam(name: 'validate_force', defaultValue: false, description: 'force validation steps to be run, even if no changes were detected')
         booleanParam(name: 'amd64', defaultValue: true, description: 'amd64 (x86_64) Build/Test')
+        booleanParam(name: 'userns', defaultValue: true, description: 'amd64 (x86_64) Build/Test (Userns enabled mode)')
         booleanParam(name: 'rootless', defaultValue: true, description: 'amd64 (x86_64) Build/Test (Rootless mode)')
         booleanParam(name: 'cgroup2', defaultValue: true, description: 'amd64 (x86_64) Build/Test (cgroup v2)')
         booleanParam(name: 'arm64', defaultValue: true, description: 'ARM (arm64) Build/Test')
@@ -365,6 +366,134 @@ pipeline {
                             catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
                                 sh '''
                                 bundleName=amd64
+                                echo "Creating ${bundleName}-bundles.tar.gz"
+                                # exclude overlay2 directories
+                                find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz
+                                '''
+
+                                archiveArtifacts artifacts: '*-bundles.tar.gz', allowEmptyArchive: true
+                            }
+                        }
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
+                        }
+                    }
+                }
+                stage('userns') {
+                    when {
+                        expression { params.userns }
+                    }
+                    agent { label 'amd64 && ubuntu-1804 && overlay2' }
+                    stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                                sh '''
+                                echo "check-config.sh version: ${CHECK_CONFIG_COMMIT}"
+                                curl -fsSL -o ${WORKSPACE}/check-config.sh "https://raw.githubusercontent.com/moby/moby/${CHECK_CONFIG_COMMIT}/contrib/check-config.sh" \
+                                && bash ${WORKSPACE}/check-config.sh || true
+                                '''
+                            }
+                        }
+                        stage("Build dev image") {
+                            steps {
+                                sh '''
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} .
+                                '''
+                            }
+                        }
+                        stage("Integration tests") {
+                            environment {
+                                DOCKER_REMAP_ROOT = 'default'
+                            }
+                            steps {
+                                sh '''#!/bin/bash
+                                # bash is needed so 'jobs -p' works properly
+                                # it also accepts setting inline envvars for functions without explicitly exporting
+                                set -x
+
+                                run_tests() {
+                                        [ -n "$TESTDEBUG" ] && rm= || rm=--rm;
+                                        docker run $rm -t --privileged \
+                                          -v "$WORKSPACE/bundles/${TEST_INTEGRATION_DEST}:/go/src/github.com/docker/docker/bundles" \
+                                          -v "$WORKSPACE/bundles/dynbinary-daemon:/go/src/github.com/docker/docker/bundles/dynbinary-daemon" \
+                                          -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                          --name "$CONTAINER_NAME" \
+                                          -e KEEPBUNDLE=1 \
+                                          -e TESTDEBUG \
+                                          -e TESTFLAGS \
+                                          -e TEST_SKIP_INTEGRATION \
+                                          -e TEST_SKIP_INTEGRATION_CLI \
+                                          -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                          -e DOCKER_GRAPHDRIVER \
+                                          -e DOCKER_REMAP_ROOT \
+                                          -e TIMEOUT \
+                                          -e VALIDATE_REPO=${GIT_URL} \
+                                          -e VALIDATE_BRANCH=${CHANGE_TARGET} \
+                                          docker:${GIT_COMMIT} \
+                                          hack/make.sh \
+                                            "$1" \
+                                            test-integration
+                                }
+
+                                trap "exit" INT TERM
+                                trap 'pids=$(jobs -p); echo "Remaining pids to kill: [$pids]"; [ -z "$pids" ] || kill $pids' EXIT
+
+                                CONTAINER_NAME=docker-pr$BUILD_NUMBER
+
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                  --name ${CONTAINER_NAME}-build \
+                                  -e DOCKER_EXPERIMENTAL \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh \
+                                    dynbinary-daemon
+
+
+                                # flaky + integration
+                                TEST_INTEGRATION_DEST=1 CONTAINER_NAME=${CONTAINER_NAME}-1 TEST_SKIP_INTEGRATION_CLI=1 run_tests test-integration-flaky &
+
+                                # integration-cli first set
+                                TEST_INTEGRATION_DEST=2 CONTAINER_NAME=${CONTAINER_NAME}-2 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-test.run Test(DockerSuite|DockerNetworkSuite|DockerHubPullSuite|DockerRegistrySuite|DockerSchema1RegistrySuite|DockerRegistryAuthTokenSuite|DockerRegistryAuthHtpasswdSuite)/" run_tests &
+
+                                # integration-cli second set
+                                TEST_INTEGRATION_DEST=3 CONTAINER_NAME=${CONTAINER_NAME}-3 TEST_SKIP_INTEGRATION=1 TESTFLAGS="-test.run Test(DockerSwarmSuite|DockerDaemonSuite|DockerExternalVolumeSuite)/" run_tests &
+
+                                c=0
+                                for job in $(jobs -p); do
+                                        wait ${job} || c=$?
+                                done
+                                exit $c
+                                '''
+                            }
+                            post {
+                                always {
+                                    junit testResults: 'bundles/**/*-report.xml', allowEmptyResults: true
+                                }
+                            }
+                        }
+                    }
+
+                    post {
+                        always {
+                            sh '''
+                            echo "Ensuring container killed."
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
+                            '''
+
+                            sh '''
+                            echo "Chowning /workspace to jenkins user"
+                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+                            '''
+
+                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE', message: 'Failed to create bundles.tar.gz') {
+                                sh '''
+                                bundleName=amd64-userns
                                 echo "Creating ${bundleName}-bundles.tar.gz"
                                 # exclude overlay2 directories
                                 find bundles -path '*/root/*overlay2' -prune -o -type f \\( -name '*-report.json' -o -name '*.log' -o -name '*.prof' -o -name '*-report.xml' \\) -print | xargs tar -czf ${bundleName}-bundles.tar.gz

@@ -22,6 +22,7 @@ func TestNISDomainname(t *testing.T) {
 	// `foobar.baz.cyphar.com` as hostname.
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "skip test from new feature")
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsUserNamespace, "setting domain is not supported with user namespaces: https://github.com/docker/for-linux/issues/743")
 
 	// Rootless supports custom Hostname but doesn't support custom Domainname
 	//  OCI runtime create failed: container_linux.go:349: starting container process caused "process_linux.go:449: container init caused \

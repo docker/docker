@@ -48,6 +48,7 @@ func create(ctx context.Context, t *testing.T, client client.APIClient, ops ...f
 
 // Create creates a container with the specified options, asserting that there was no error
 func Create(ctx context.Context, t *testing.T, client client.APIClient, ops ...func(*TestContainerConfig)) string {
+	t.Helper()
 	c, err := create(ctx, t, client, ops...)
 	assert.NilError(t, err)
 

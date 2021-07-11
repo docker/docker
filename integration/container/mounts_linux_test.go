@@ -216,6 +216,7 @@ func TestContainerBindMountNonRecursive(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "BindOptions.NonRecursive requires API v1.40")
 	skip.If(t, testEnv.IsRootless, "cannot be tested because RootlessKit executes the daemon in private mount namespace (https://github.com/rootless-containers/rootlesskit/issues/97)")
+	skip.If(t, testEnv.IsUserNamespace, "Bind mounting a dir which has submounts without recusively doing so returns EINVAL from the kernel: https://man7.org/linux/man-pages/man2/mount.2.html")
 
 	defer setupTest(t)()
 
