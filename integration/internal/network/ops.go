@@ -19,6 +19,13 @@ func WithIPv6() func(*types.NetworkCreate) {
 	}
 }
 
+// WithScope sets the Scope
+func WithScope(scope string) func(*types.NetworkCreate) {
+	return func(n *types.NetworkCreate) {
+		n.Scope = scope
+	}
+}
+
 // WithCheckDuplicate sets the CheckDuplicate field on create network request
 func WithCheckDuplicate() func(*types.NetworkCreate) {
 	return func(n *types.NetworkCreate) {

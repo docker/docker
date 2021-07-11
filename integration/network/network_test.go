@@ -9,9 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	"fmt"
+
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
+	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/testutil/daemon"
 	"github.com/docker/docker/testutil/request"
 	"gotest.tools/v3/assert"
@@ -146,4 +150,32 @@ func TestHostIPv4BridgeLabel(t *testing.T) {
 	assert.Assert(t, len(out.IPAM.Config) > 0)
 	// Make sure the SNAT rule exists
 	icmd.RunCommand("iptables", "-t", "nat", "-C", "POSTROUTING", "-s", out.IPAM.Config[0].Subnet, "!", "-o", bridgeName, "-j", "SNAT", "--to-source", ipv4SNATAddr).Assert(t, icmd.Success)
+}
+
+func TestSwarmNetworkFilter(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
+
+	d := swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+	ctx := context.Background()
+
+	netName := "test_hello"
+	netNamePrefix := "test"
+
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithScope("swarm"), network.WithDriver("bridge"))
+
+	// List the network by its prefix
+	kvPair := filters.Arg("name", netNamePrefix)
+	args := filters.NewArgs(kvPair)
+	networkResources, err := c.NetworkList(ctx, types.NetworkListOptions{Filters: args})
+	assert.NilError(t, err)
+	// should be found by its prefix
+	assert.Assert(t, len(networkResources) == 1,
+		fmt.Sprintf("%s should be filtered by %s", netName, netNamePrefix))
+	assert.Assert(t, networkResources[0].Name == netName)
 }
