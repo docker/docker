@@ -279,13 +279,15 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 		if osversion.Build() < osversion.RS5 {
 			return errors.New("device assignment requires Windows builds RS5 (17763+) or later")
 		}
+		listDevicePathTypes := []string{"class", "gpu", "vpci-location-path", "vpci-class-guid"}
+		_strTypeCheck := strings.Join(append([]string{""}, append(listDevicePathTypes, "")...), "||")
 		for _, deviceMapping := range c.HostConfig.Devices {
 			srcParts := strings.SplitN(deviceMapping.PathOnHost, "/", 2)
 			if len(srcParts) != 2 {
 				return errors.New("invalid device assignment path")
 			}
-			if srcParts[0] != "class" {
-				return errors.Errorf("invalid device assignment type: '%s' should be 'class'", srcParts[0])
+			if strings.Contains(_strTypeCheck, "||"+srcParts[0]+"||") {
+				return errors.Errorf("invalid device assignment type: '%s' should be in '%s'", srcParts[0], strings.Join(listDevicePathTypes, ", "))
 			}
 			wd := specs.WindowsDevice{
 				ID:     srcParts[1],
