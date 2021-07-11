@@ -141,6 +141,9 @@ var (
 		// Maria Ardinghelli - Italian translator, mathematician and physicist - https://en.wikipedia.org/wiki/Maria_Ardinghelli
 		"ardinghelli",
 
+		// Neil Armstrong - American astronaut, aeronautical engineer, and the first person to walk on the Moon. - https://en.wikipedia.org/wiki/Neil_Armstrong
+		"armstrong",
+
 		// Aryabhata - Ancient Indian mathematician-astronomer during 476-550 CE https://en.wikipedia.org/wiki/Aryabhata
 		"aryabhata",
 
