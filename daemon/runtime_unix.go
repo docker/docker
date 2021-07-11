@@ -36,13 +36,18 @@ func configureRuntimes(conf *config.Config) {
 		conf.Runtimes = make(map[string]types.Runtime)
 	}
 	conf.Runtimes[config.LinuxV1RuntimeName] = types.Runtime{Path: defaultRuntimeName, Shim: defaultV1ShimConfig(conf, defaultRuntimeName)}
-	conf.Runtimes[config.LinuxV2RuntimeName] = types.Runtime{Path: defaultRuntimeName, Shim: defaultV2ShimConfig(conf, defaultRuntimeName)}
+	conf.Runtimes[config.LinuxV2RuntimeName] = types.Runtime{Path: defaultRuntimeName, Shim: defaultV2ShimConfig(conf, linuxShimV2, defaultRuntimeName)}
 	conf.Runtimes[config.StockRuntimeName] = conf.Runtimes[config.LinuxV2RuntimeName]
 }
 
-func defaultV2ShimConfig(conf *config.Config, runtimePath string) *types.ShimConfig {
+func defaultV2ShimConfig(conf *config.Config, shimRuntime, runtimePath string) *types.ShimConfig {
+	// non-empty runtime path means using an OCI compatible runtime implementation.
+	// otherwise a shim v2 compatible runtime will be set
+	if runtimePath != "" {
+		shimRuntime = linuxShimV2
+	}
 	return &types.ShimConfig{
-		Binary: linuxShimV2,
+		Binary: shimRuntime,
 		Opts: &v2runcoptions.Options{
 			BinaryName:    runtimePath,
 			Root:          filepath.Join(conf.ExecRoot, "runtime-"+defaultRuntimeName),
@@ -106,7 +111,7 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 			}
 		}
 		if rt.Shim == nil {
-			rt.Shim = defaultV2ShimConfig(daemon.configStore, rt.Path)
+			rt.Shim = defaultV2ShimConfig(daemon.configStore, name, rt.Path)
 		}
 	}
 	return nil
@@ -144,7 +149,7 @@ func (daemon *Daemon) getRuntime(name string) (*types.Runtime, error) {
 	}
 
 	if rt.Shim == nil {
-		rt.Shim = defaultV2ShimConfig(daemon.configStore, rt.Path)
+		rt.Shim = defaultV2ShimConfig(daemon.configStore, name, rt.Path)
 	}
 
 	if rt.Shim.Binary == linuxShimV1 {
