@@ -371,6 +371,9 @@ var (
 		// Johann Carl Friedrich Gauss - German mathematician who made significant contributions to many fields, including number theory, algebra, statistics, analysis, differential geometry, geodesy, geophysics, mechanics, electrostatics, magnetic fields, astronomy, matrix theory, and optics. https://en.wikipedia.org/wiki/Carl_Friedrich_Gauss
 		"gauss",
 
+		// Maiju Gebhard - developed and popularized the dish drying cabinet which have become a standard accessory in virtually every Finnish home saving approximately 50% of the time related to doing dishes. https://en.wikipedia.org/wiki/Dish_drying_cabinet
+		"gebhard",
+
 		// Marie-Sophie Germain - French mathematician, physicist and philosopher. Known for her work on elasticity theory, number theory and philosophy. https://en.wikipedia.org/wiki/Sophie_Germain
 		"germain",
 
@@ -793,6 +796,9 @@ var (
 
 		// Cédric Villani - French mathematician, won Fields Medal, Fermat Prize and Poincaré Price for his work in differential geometry and statistical mechanics. https://en.wikipedia.org/wiki/C%C3%A9dric_Villani
 		"villani",
+
+		// Artturi Ilmari Virtanen - Finnish chemist and recipient of the 1945 Nobel Prize in Chemistry "for his research and inventions in agricultural and nutrition chemistry, especially for his fodder preservation method". https://en.wikipedia.org/wiki/Artturi_Ilmari_Virtanen
+		"virtanen",
 
 		// Marlyn Wescoff - one of the original programmers of the ENIAC. https://en.wikipedia.org/wiki/ENIAC - https://en.wikipedia.org/wiki/Marlyn_Meltzer
 		"wescoff",
