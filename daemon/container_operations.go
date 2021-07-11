@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	apitypes "github.com/docker/docker/api/types"
+
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
@@ -407,20 +409,31 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 	}
 
 	for {
+		var nr apitypes.NetworkResource
+
 		// In all other cases, attempt to attach to the network to
 		// trigger attachment in the swarm cluster manager.
 		if daemon.clusterProvider != nil {
 			var err error
-			config, err = daemon.clusterProvider.AttachNetwork(id, container.ID, addresses)
+			nr, err = daemon.cluster.GetNetwork(id)
+			if err != nil {
+				return nil, nil, err
+			}
+			config, err = daemon.clusterProvider.AttachNetwork(nr.ID, container.ID, addresses)
 			if err != nil {
 				return nil, nil, err
 			}
 		}
 
-		n, err = daemon.FindNetwork(id)
+		if daemon.clusterProvider != nil {
+			n, err = daemon.GetNetworkByID(nr.ID)
+		} else {
+			n, err = daemon.FindNetwork(id)
+		}
+
 		if err != nil {
 			if daemon.clusterProvider != nil {
-				if err := daemon.clusterProvider.DetachNetwork(id, container.ID); err != nil {
+				if err := daemon.clusterProvider.DetachNetwork(nr.ID, container.ID); err != nil {
 					logrus.Warnf("Could not rollback attachment for container %s to network %s: %v", container.ID, idOrName, err)
 				}
 			}
