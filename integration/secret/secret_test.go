@@ -79,6 +79,11 @@ func TestSecretList(t *testing.T) {
 		filters  filters.Args
 		expected []string
 	}{
+		// test filter by name `secret ls --filter names=xxx`
+		{
+			filters:  filters.NewArgs(filters.Arg("names", testName0)),
+			expected: []string{testName0},
+		},
 		// test filter by name `secret ls --filter name=xxx`
 		{
 			filters:  filters.NewArgs(filters.Arg("name", testName0)),

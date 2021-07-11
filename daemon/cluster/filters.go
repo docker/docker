@@ -110,6 +110,7 @@ func newListSecretsFilters(filter filters.Args) (*swarmapi.ListSecretsRequest_Fi
 
 func newListConfigsFilters(filter filters.Args) (*swarmapi.ListConfigsRequest_Filters, error) {
 	accepted := map[string]bool{
+		"names": true,
 		"name":  true,
 		"id":    true,
 		"label": true,
@@ -118,6 +119,7 @@ func newListConfigsFilters(filter filters.Args) (*swarmapi.ListConfigsRequest_Fi
 		return nil, err
 	}
 	return &swarmapi.ListConfigsRequest_Filters{
+		Names:        filter.Get("names"),
 		NamePrefixes: filter.Get("name"),
 		IDPrefixes:   filter.Get("id"),
 		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
