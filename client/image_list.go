@@ -17,7 +17,7 @@ func (cli *Client) ImageList(ctx context.Context, options types.ImageListOptions
 
 	optionFilters := options.Filters
 	referenceFilters := optionFilters.Get("reference")
-	if versions.LessThan(cli.version, "1.25") && len(referenceFilters) > 0 {
+	if versions.LessThan(cli.ClientVersion(), "1.25") && len(referenceFilters) > 0 {
 		query.Set("filter", referenceFilters[0])
 		for _, filterValue := range referenceFilters {
 			optionFilters.Del("reference", filterValue)
@@ -25,7 +25,7 @@ func (cli *Client) ImageList(ctx context.Context, options types.ImageListOptions
 	}
 	if optionFilters.Len() > 0 {
 		//nolint:staticcheck // ignore SA1019 for old code
-		filterJSON, err := filters.ToParamWithVersion(cli.version, optionFilters)
+		filterJSON, err := filters.ToParamWithVersion(cli.ClientVersion(), optionFilters)
 		if err != nil {
 			return images, err
 		}

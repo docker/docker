@@ -17,7 +17,7 @@ import (
 func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options types.ServiceCreateOptions) (types.ServiceCreateResponse, error) {
 	var response types.ServiceCreateResponse
 	headers := map[string][]string{
-		"version": {cli.version},
+		"version": {cli.ClientVersion()},
 	}
 
 	if options.EncodedRegistryAuth != "" {

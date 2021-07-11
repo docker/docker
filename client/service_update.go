@@ -20,7 +20,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 	)
 
 	headers := map[string][]string{
-		"version": {cli.version},
+		"version": {cli.ClientVersion()},
 	}
 
 	if options.EncodedRegistryAuth != "" {

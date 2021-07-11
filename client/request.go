@@ -224,7 +224,7 @@ func (cli *Client) checkResponseErr(serverResp serverResponse) error {
 	}
 
 	var errorMessage string
-	if (cli.version == "" || versions.GreaterThan(cli.version, "1.23")) && ct == "application/json" {
+	if v := cli.ClientVersion(); (v == "" || versions.GreaterThan(v, "1.23")) && ct == "application/json" {
 		var errorResponse types.ErrorResponse
 		if err := json.Unmarshal(body, &errorResponse); err != nil {
 			return errors.Wrap(err, "Error reading JSON")
@@ -241,7 +241,7 @@ func (cli *Client) addHeaders(req *http.Request, headers headers) *http.Request 
 	// Add CLI Config's HTTP Headers BEFORE we set the Docker headers
 	// then the user can't change OUR headers
 	for k, v := range cli.customHTTPHeaders {
-		if versions.LessThan(cli.version, "1.25") && k == "User-Agent" {
+		if versions.LessThan(cli.ClientVersion(), "1.25") && k == "User-Agent" {
 			continue
 		}
 		req.Header.Set(k, v)
