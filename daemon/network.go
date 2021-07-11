@@ -1083,6 +1083,11 @@ func buildJoinOptions(networkSettings *internalnetwork.Settings, n interface {
 		for k, v := range epConfig.DriverOpts {
 			joinOptions = append(joinOptions, libnetwork.EndpointOptionGeneric(options.Generic{k: v}))
 		}
+		prio := epConfig.Priority
+		//priority default to 0, so no set required
+		if prio != 0 {
+			joinOptions = append(joinOptions, libnetwork.JoinOptionPriority(prio))
+		}
 	}
 
 	return joinOptions, nil
