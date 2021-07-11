@@ -184,7 +184,7 @@ func TestValidateLabel(t *testing.T) {
 		expectedErr    string
 	}{
 		{
-			name:        "lable with bad attribute format",
+			name:        "label with bad attribute format",
 			label:       "label",
 			expectedErr: "bad attribute format: label",
 		},
@@ -265,6 +265,86 @@ func TestValidateLabel(t *testing.T) {
 			}
 		})
 
+	}
+}
+
+func TestIsReservedLabelNamespace(t *testing.T) {
+	tests := []struct {
+		label    string
+		expected bool
+	}{
+		{
+			label:    "my-label",
+			expected: false,
+		},
+		{
+			label:    "com.dockerpsychnotreserved.label",
+			expected: false,
+		},
+		{
+			label:    "io.dockerproject.not",
+			expected: false,
+		},
+		{
+			label:    "org.docker.not",
+			expected: false,
+		},
+		{
+			label:    "com.docker",
+			expected: true,
+		},
+		{
+			label:    "com.docker.",
+			expected: true,
+		},
+		{
+			label:    "com.docker.feature",
+			expected: true,
+		},
+		{
+			label:    "COM.docker.feature",
+			expected: true,
+		},
+		{
+			label:    "io.docker",
+			expected: true,
+		},
+		{
+			label:    "io.docker.",
+			expected: true,
+		},
+		{
+			label:    "io.docker.feature",
+			expected: true,
+		},
+		{
+			label:    "io.docker.feature",
+			expected: true,
+		},
+		{
+			label:    "org.dockerproject",
+			expected: true,
+		},
+		{
+			label:    "org.dockerproject.",
+			expected: true,
+		},
+		{
+			label:    "org.dockerproject.feature",
+			expected: true,
+		},
+		{
+			label:    "org.dockerproject.feature",
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		testCase := tc
+		t.Run(testCase.label, func(t *testing.T) {
+			result := IsReservedLabelNamespace(testCase.label)
+			assert.Equal(t, result, testCase.expected)
+		})
 	}
 }
 

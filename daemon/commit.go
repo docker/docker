@@ -10,15 +10,20 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/opts"
 	"github.com/pkg/errors"
 )
+
+type mergeOptions struct {
+	keepReservedLabels bool
+}
 
 // merge merges two Config, the image container configuration (defaults values),
 // and the user container configuration, either passed by the API or generated
 // by the cli.
 // It will mutate the specified user configuration (userConf) with the image
 // configuration where the user configuration is incomplete.
-func merge(userConf, imageConf *containertypes.Config) error {
+func merge(userConf, imageConf *containertypes.Config, options mergeOptions) error {
 	if userConf.User == "" {
 		userConf.User = imageConf.User
 	}
@@ -60,6 +65,9 @@ func merge(userConf, imageConf *containertypes.Config) error {
 		userConf.Labels = map[string]string{}
 	}
 	for l, v := range imageConf.Labels {
+		if !options.keepReservedLabels && opts.IsReservedLabelNamespace(l) {
+			continue
+		}
 		if _, ok := userConf.Labels[l]; !ok {
 			userConf.Labels[l] = v
 		}
@@ -150,7 +158,7 @@ func (daemon *Daemon) CreateImageFromContainer(name string, c *backend.CreateIma
 	if err != nil {
 		return "", err
 	}
-	if err := merge(newConfig, container.Config); err != nil {
+	if err := merge(newConfig, container.Config, mergeOptions{}); err != nil {
 		return "", err
 	}
 

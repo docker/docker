@@ -259,19 +259,33 @@ func validateDomain(val string) (string, error) {
 // and returns it.
 // Labels are in the form on key=value.
 func ValidateLabel(val string) (string, error) {
-	if strings.Count(val, "=") < 1 {
+	kv := strings.SplitN(val, "=", 2)
+	if len(kv) != 2 {
 		return "", fmt.Errorf("bad attribute format: %s", val)
 	}
 
-	lowered := strings.ToLower(val)
-	if strings.HasPrefix(lowered, "com.docker.") || strings.HasPrefix(lowered, "io.docker.") ||
-		strings.HasPrefix(lowered, "org.dockerproject.") {
+	if IsReservedLabelNamespace(kv[0]) {
 		return "", fmt.Errorf(
 			"label %s is not allowed: the namespaces com.docker.*, io.docker.*, and org.dockerproject.* are reserved for internal use",
 			val)
 	}
 
 	return val, nil
+}
+
+var reservedLabelNamespaces = []string{"com.docker", "io.docker", "org.dockerproject"}
+
+// IsReservedLabelNamespace checks if a given label uses a reserved namespace
+// Reserved namespaces are com.docker.*, io.docker.*, and org.dockerproject.*
+// (case insensitive).
+func IsReservedLabelNamespace(name string) bool {
+	lowered := strings.ToLower(name)
+	for _, ns := range reservedLabelNamespaces {
+		if lowered == ns || strings.HasPrefix(lowered, ns+".") {
+			return true
+		}
+	}
+	return false
 }
 
 // ValidateSingleGenericResource validates that a single entry in the
