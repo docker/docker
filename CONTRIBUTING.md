@@ -74,6 +74,9 @@ quickly. If your pull request is not accepted on the first try,
 don't get discouraged! Our contributor's guide explains [the review process we
 use for simple changes](https://docs.docker.com/opensource/workflow/make-a-contribution/).
 
+*Note*: Pull requests are only merged during a merge window. See
+[RELEASES.md](RELEASES.md#merge-windows) for more details on merge windows
+
 ### Design and cleanup proposals
 
 You can propose new designs for existing Docker features. You can also design
