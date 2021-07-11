@@ -95,9 +95,26 @@ func verifyDefaultCgroupNsMode(mode string) error {
 	return nil
 }
 
+func VerifyUlimits(ulimits map[string]*units.Ulimit) error {
+	for _, v := range ulimits {
+		if _, err := v.GetRlimit(); err != nil {
+			return err
+		}
+		if v.Soft > v.Hard {
+			return fmt.Errorf("ulimit soft limit must be less than or equal to hard limit: %v > %v", v.Soft, v.Hard)
+		}
+	}
+
+	return nil
+}
+
 // ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
 func (conf *Config) ValidatePlatformConfig() error {
 	if err := verifyDefaultIpcMode(conf.IpcMode); err != nil {
+		return err
+	}
+
+	if err := VerifyUlimits(conf.Ulimits); err != nil {
 		return err
 	}
 

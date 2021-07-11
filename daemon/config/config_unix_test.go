@@ -132,3 +132,40 @@ func TestDaemonConfigurationMergeShmSize(t *testing.T) {
 	expectedValue := 1 * 1024 * 1024 * 1024
 	assert.Check(t, is.Equal(int64(expectedValue), cc.ShmSize.Value()))
 }
+
+func TestVerifyUlimits(t *testing.T) {
+	assert.NilError(
+		t,
+		VerifyUlimits(map[string]*units.Ulimit{
+			"nofile": {
+				Name: "nofile",
+				Hard: 2048,
+				Soft: 1024,
+			},
+		}),
+	)
+
+	assert.Error(
+		t,
+		VerifyUlimits(map[string]*units.Ulimit{
+			"nofile": {
+				Name: "nofile",
+				Hard: 2048,
+				Soft: 4096,
+			},
+		}),
+		"ulimit soft limit must be less than or equal to hard limit: 4096 > 2048",
+	)
+
+	assert.Error(
+		t,
+		VerifyUlimits(map[string]*units.Ulimit{
+			"nosuchulimit": {
+				Name: "nosuchulimit",
+				Hard: 2048,
+				Soft: 1024,
+			},
+		}),
+		"invalid ulimit name nosuchulimit",
+	)
+}
