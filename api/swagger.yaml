@@ -1025,7 +1025,7 @@ definitions:
           SecurityOpt:
             type: "array"
             description: "A list of string values to customize labels for MLS
-            systems, such as SELinux."
+              systems, such as SELinux."
             items:
               type: "string"
           StorageOpt:
