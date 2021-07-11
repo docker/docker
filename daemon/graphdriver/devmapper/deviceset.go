@@ -1995,14 +1995,7 @@ func (devices *DeviceSet) markForDeferredDeletion(info *devInfo) error {
 }
 
 // Should be called with devices.Lock() held.
-func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) error {
-	if err := devices.openTransaction(info.Hash, info.DeviceID); err != nil {
-		logrus.WithField("storage-driver", "devicemapper").Debugf("Error opening transaction hash = %s deviceId = %d", "", info.DeviceID)
-		return err
-	}
-
-	defer devices.closeTransaction()
-
+func (devices *DeviceSet) deleteDeviceNoLock(info *devInfo, syncDelete bool) error {
 	err := devicemapper.DeleteDevice(devices.getPoolDevName(), info.DeviceID)
 	if err != nil {
 		// If syncDelete is true, we want to return error. If deferred
@@ -2066,6 +2059,13 @@ func (devices *DeviceSet) issueDiscard(info *devInfo) error {
 
 // Should be called with devices.Lock() held.
 func (devices *DeviceSet) deleteDevice(info *devInfo, syncDelete bool) error {
+	if err := devices.openTransaction(info.Hash, info.DeviceID); err != nil {
+		logrus.WithField("storage-driver", "devicemapper").Debugf("Error opening transaction hash = %s deviceId = %d", info.Hash, info.DeviceID)
+		return err
+	}
+
+	defer devices.closeTransaction()
+
 	if devices.doBlkDiscard {
 		devices.issueDiscard(info)
 	}
@@ -2085,7 +2085,7 @@ func (devices *DeviceSet) deleteDevice(info *devInfo, syncDelete bool) error {
 		return err
 	}
 
-	return devices.deleteTransaction(info, syncDelete)
+	return devices.deleteDeviceNoLock(info, syncDelete)
 }
 
 // DeleteDevice will return success if device has been marked for deferred
