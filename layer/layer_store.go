@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/distribution"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/stringid"
@@ -794,18 +795,34 @@ type naiveDiffPathDriver struct {
 
 type fileGetPutter struct {
 	storage.FileGetter
-	driver graphdriver.Driver
-	id     string
+	driver     graphdriver.Driver
+	id         string
+	isOverlay2 bool
 }
 
 func (w *fileGetPutter) Close() error {
+	if w.isOverlay2 {
+		//do nothing
+		return nil
+	}
 	return w.driver.Put(w.id)
 }
 
 func (n *naiveDiffPathDriver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
-	p, err := n.Driver.Get(id, "")
-	if err != nil {
-		return nil, err
+
+	var p containerfs.ContainerFS
+	isOverlay2 := false
+	if inter, ok := n.Driver.(interface {
+		GetDiffPath(id string) containerfs.ContainerFS
+	}); ok {
+		p = inter.GetDiffPath(id)
+		isOverlay2 = true
+	} else {
+		var err error
+		p, err = n.Driver.Get(id, "")
+		if err != nil {
+			return nil, err
+		}
 	}
-	return &fileGetPutter{storage.NewPathFileGetter(p.Path()), n.Driver, id}, nil
+	return &fileGetPutter{storage.NewPathFileGetter(p.Path()), n.Driver, id, isOverlay2}, nil
 }
