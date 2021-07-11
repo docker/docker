@@ -58,8 +58,10 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
 	assert.Equal(c, spec.CAConfig.NodeCertExpiry, 30*time.Hour)
 
 	// passing an external CA (this is without starting a root rotation) does not fail
-	cli.Docker(cli.Args("swarm", "update", "--external-ca", "protocol=cfssl,url=https://something.org",
-		"--external-ca", "protocol=cfssl,url=https://somethingelse.org,cacert=fixtures/https/ca.pem"),
+	cli.Docker(cli.Args("swarm", "update", 
+		"--ca-cert", "fixtures/https/ca.pem"
+		"--external-ca", "protocol=cfssl,url=https://something.org",
+		"--external-ca", "protocol=cfssl,url=https://somethingelse.org"),
 		cli.Daemon(d)).Assert(c, icmd.Success)
 
 	expected, err := ioutil.ReadFile("fixtures/https/ca.pem")
@@ -67,7 +69,7 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
 
 	spec = getSpec()
 	assert.Equal(c, len(spec.CAConfig.ExternalCAs), 2)
-	assert.Equal(c, spec.CAConfig.ExternalCAs[0].CACert, "")
+	assert.Equal(c, spec.CAConfig.ExternalCAs[0].CACert, string(expected))
 	assert.Equal(c, spec.CAConfig.ExternalCAs[1].CACert, string(expected))
 
 	// passing an invalid external CA fails
@@ -75,7 +77,8 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *testing.T) {
 	defer tempFile.Remove()
 
 	result := cli.Docker(cli.Args("swarm", "update",
-		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://something.org,cacert=%s", tempFile.Path())),
+		"--ca-cert", fmt.Sprintf("%s", tempFile.Path())
+		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://something.org")),
 		cli.Daemon(d))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 125,
@@ -96,7 +99,8 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 	defer tempFile.Remove()
 
 	result := cli.Docker(cli.Args("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s",
-		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://somethingelse.org,cacert=%s", tempFile.Path())),
+		"--ca-cert", fmt.Sprintf("%s", tempFile.Path())
+		"--external-ca", fmt.Sprintf("protocol=cfssl,url=https://somethingelse.org")),
 		cli.Daemon(d))
 	result.Assert(c, icmd.Expected{
 		ExitCode: 125,
@@ -104,8 +108,9 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 	})
 
 	cli.Docker(cli.Args("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s",
+		"--ca-cert", "fixtures/https/ca.pem"
 		"--external-ca", "protocol=cfssl,url=https://something.org",
-		"--external-ca", "protocol=cfssl,url=https://somethingelse.org,cacert=fixtures/https/ca.pem"),
+		"--external-ca", "protocol=cfssl,url=https://somethingelse.org"),
 		cli.Daemon(d)).Assert(c, icmd.Success)
 
 	expected, err := ioutil.ReadFile("fixtures/https/ca.pem")
@@ -115,7 +120,7 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *testing.T) {
 	assert.Equal(c, spec.CAConfig.NodeCertExpiry, 30*time.Hour)
 	assert.Equal(c, spec.Dispatcher.HeartbeatPeriod, 11*time.Second)
 	assert.Equal(c, len(spec.CAConfig.ExternalCAs), 2)
-	assert.Equal(c, spec.CAConfig.ExternalCAs[0].CACert, "")
+	assert.Equal(c, spec.CAConfig.ExternalCAs[0].CACert, string(expected))
 	assert.Equal(c, spec.CAConfig.ExternalCAs[1].CACert, string(expected))
 
 	assert.Assert(c, d.SwarmLeave(c, true) == nil)
