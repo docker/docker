@@ -109,7 +109,8 @@ type TmpfsOptions struct {
 	SizeBytes int64 `json:",omitempty"`
 	// Mode of the tmpfs upon creation
 	Mode os.FileMode `json:",omitempty"`
-
+	// Options passed directly to the tmpfs mount
+	Options string `json:",omitempty"`
 	// TODO(stevvooe): There are several more tmpfs flags, specified in the
 	// daemon, that are accepted. Only the most basic are added for now.
 	//

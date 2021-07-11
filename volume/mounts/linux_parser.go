@@ -198,6 +198,22 @@ func linuxValidMountMode(mode string) bool {
 	return true
 }
 
+var validTmpfsOptions = map[string]bool{
+	"exec":   true,
+	"noexec": true,
+}
+
+func validateTmpfsOptions(rawOptions string) ([]string, error) {
+	var options []string
+	for _, opt := range strings.Split(rawOptions, ",") {
+		if _, ok := validTmpfsOptions[opt]; !ok {
+			return nil, errors.New("invalid option: " + opt)
+		}
+		options = append(options, opt)
+	}
+	return options, nil
+}
+
 func (p *linuxParser) ReadWrite(mode string) bool {
 	if !linuxValidMountMode(mode) {
 		return false
@@ -401,6 +417,15 @@ func (p *linuxParser) ConvertTmpfsOptions(opt *mount.TmpfsOptions, readOnly bool
 
 		rawOpts = append(rawOpts, fmt.Sprintf("size=%d%s", size, suffix))
 	}
+
+	if opt != nil && len(opt.Options) > 0 {
+		tmpfsOpts, err := validateTmpfsOptions(opt.Options)
+		if err != nil {
+			return "", err
+		}
+		rawOpts = append(rawOpts, tmpfsOpts...)
+	}
+
 	return strings.Join(rawOpts, ","), nil
 }
 

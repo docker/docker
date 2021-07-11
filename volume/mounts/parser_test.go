@@ -24,6 +24,7 @@ func TestConvertTmpfsOptions(t *testing.T) {
 		readOnly             bool
 		expectedSubstrings   []string
 		unexpectedSubstrings []string
+		err                  bool
 	}
 	cases := []testCase{
 		{
@@ -38,10 +39,26 @@ func TestConvertTmpfsOptions(t *testing.T) {
 			expectedSubstrings:   []string{"ro"},
 			unexpectedSubstrings: []string{},
 		},
+		{
+			opt:                  mount.TmpfsOptions{Options: "exec"},
+			readOnly:             true,
+			expectedSubstrings:   []string{"ro", "exec"},
+			unexpectedSubstrings: []string{"noexec"},
+		},
+		{
+			opt: mount.TmpfsOptions{Options: "INVALID"},
+			err: true,
+		},
 	}
 	p := &linuxParser{}
 	for _, c := range cases {
 		data, err := p.ConvertTmpfsOptions(&c.opt, c.readOnly)
+		if c.err {
+			if err == nil {
+				t.Fatalf("expected error for %+v, got nil", c.opt)
+			}
+			continue
+		}
 		if err != nil {
 			t.Fatalf("could not convert %+v (readOnly: %v) to string: %v",
 				c.opt, c.readOnly, err)

@@ -88,6 +88,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /services/{id}` now returns `Ulimits` as part of `ContainerSpec`.
 * `POST /services/create` now accepts `Ulimits` as part of `ContainerSpec`.
 * `POST /services/{id}/update` now accepts `Ulimits` as part of `ContainerSpec`.
+* `POST /containers/create` now takes `Options` as part of `HostConfig.Mounts` to set options for tmpfs mounts.
 
 ## v1.40 API changes
 

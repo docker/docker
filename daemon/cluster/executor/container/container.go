@@ -328,6 +328,7 @@ func convertMount(m api.Mount) enginemount.Mount {
 		mount.TmpfsOptions = &enginemount.TmpfsOptions{
 			SizeBytes: m.TmpfsOptions.SizeBytes,
 			Mode:      m.TmpfsOptions.Mode,
+			Options:   m.TmpfsOptions.Options,
 		}
 	}
 

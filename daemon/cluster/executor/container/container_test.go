@@ -4,8 +4,10 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	swarmapi "github.com/docker/swarmkit/api"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestIsolationConversion(t *testing.T) {
@@ -114,6 +116,7 @@ func TestCredentialSpecConversion(t *testing.T) {
 			to: []string{"credentialspec=registry://testing"},
 		},
 	}
+
 	for _, c := range cases {
 		c := c
 		t.Run(c.name, func(t *testing.T) {
@@ -130,6 +133,78 @@ func TestCredentialSpecConversion(t *testing.T) {
 			}
 			config := containerConfig{task: &task}
 			assert.DeepEqual(t, c.to, config.hostConfig().SecurityOpt)
+		})
+	}
+}
+
+func TestTmpfsConversion(t *testing.T) {
+	cases := []struct {
+		name string
+		from []swarmapi.Mount
+		to   []mount.Mount
+	}{
+		{
+			name: "tmpfs-exec",
+			from: []swarmapi.Mount{
+				{
+					Source: "/foo",
+					Target: "/bar",
+					Type:   swarmapi.MountTypeTmpfs,
+					TmpfsOptions: &swarmapi.Mount_TmpfsOptions{
+						Options: "exec",
+					},
+				},
+			},
+			to: []mount.Mount{
+				{
+					Source: "/foo",
+					Target: "/bar",
+					Type:   mount.TypeTmpfs,
+					TmpfsOptions: &mount.TmpfsOptions{
+						Options: "exec",
+					},
+				},
+			},
+		},
+		{
+			name: "tmpfs-noexec",
+			from: []swarmapi.Mount{
+				{
+					Source: "/foo",
+					Target: "/bar",
+					Type:   swarmapi.MountTypeTmpfs,
+					TmpfsOptions: &swarmapi.Mount_TmpfsOptions{
+						Options: "noexec",
+					},
+				},
+			},
+			to: []mount.Mount{
+				{
+					Source: "/foo",
+					Target: "/bar",
+					Type:   mount.TypeTmpfs,
+					TmpfsOptions: &mount.TmpfsOptions{
+						Options: "noexec",
+					},
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			task := swarmapi.Task{
+				Spec: swarmapi.TaskSpec{
+					Runtime: &swarmapi.TaskSpec_Container{
+						Container: &swarmapi.ContainerSpec{
+							Image:  "alpine:latest",
+							Mounts: c.from,
+						},
+					},
+				},
+			}
+			config := containerConfig{task: &task}
+			assert.Check(t, is.DeepEqual(c.to, config.hostConfig().Mounts))
 		})
 	}
 }

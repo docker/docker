@@ -368,6 +368,9 @@ definitions:
           Mode:
             description: "The permission mode for the tmpfs mount in an integer."
             type: "integer"
+          Options:
+            description: "The list of options to be passed to the tmpfs mount in a string."
+            type: "string"
 
   RestartPolicy:
     description: |
