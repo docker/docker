@@ -1,4 +1,8 @@
+// Package archive handles making container tar archives
 package archive // import "github.com/docker/docker/pkg/archive"
+// BUG(justincormack): This package does not handle symlink escapes safely in
+// general, as we only use it in a chroot environment where symlink espcapes are not
+// possible. Be careful using this code in a different environment.
 
 import (
 	"archive/tar"
