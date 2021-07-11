@@ -65,6 +65,9 @@ type Request struct {
 	// RequestPeerCertificates stores the request's TLS peer certificates in PEM format
 	RequestPeerCertificates []*PeerCertificate `json:"RequestPeerCertificates,omitempty"`
 
+	// RequestID stores the unique ID of the request, linking daemon request and daemon response authorization requests
+	RequestID string `json:"RequestID,omitempty"`
+
 	// ResponseStatusCode stores the status code returned from docker daemon
 	ResponseStatusCode int `json:"ResponseStatusCode,omitempty"`
 

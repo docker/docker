@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -74,6 +75,7 @@ func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 		RequestMethod:   ctx.requestMethod,
 		RequestURI:      ctx.requestURI,
 		RequestBody:     body,
+		RequestID:       uuid.New(),
 		RequestHeaders:  headers(r.Header),
 	}
 

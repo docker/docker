@@ -8,6 +8,7 @@ package authorization // import "github.com/docker/docker/pkg/authorization"
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -259,6 +260,53 @@ func TestResponseModifierOverride(t *testing.T) {
 	if r.Code != http.StatusNotFound {
 		t.Fatalf("Status code must be correct %d", r.Code)
 	}
+}
+
+func TestAuthZRequestID(t *testing.T) {
+	plugins := []Plugin{newAuthZPluginRequestID()}
+	authCtx := NewCtx(plugins, "", "", "GET", "request_URI_foo")
+
+	r, err := http.NewRequest("GET", "request_URI_foo", &bytes.Buffer{})
+	if err != nil {
+		t.Fatalf("Error creating http request: %s", err)
+	}
+
+	w := httptest.NewRecorder()
+	if err := authCtx.AuthZRequest(w, r); err != nil {
+		t.Fatalf("Unexpected error from the plugin: %s", err)
+	}
+
+	m := NewResponseModifier(w)
+	if err := authCtx.AuthZResponse(m, r); err != nil {
+		t.Fatalf("Unexpected error from the plugin: %s", err)
+	}
+}
+
+type authZPluginRequestID struct {
+	requestID string
+}
+
+func newAuthZPluginRequestID() Plugin {
+	return &authZPluginRequestID{}
+}
+
+func (a *authZPluginRequestID) Name() string {
+	return "authorization_plugin_to_verify_request_id"
+}
+
+func (a *authZPluginRequestID) AuthZRequest(authReq *Request) (*Response, error) {
+	if authReq.RequestID == "" {
+		return nil, fmt.Errorf("expected non-empty RequestID field")
+	}
+	a.requestID = authReq.RequestID
+	return &Response{Allow: true}, nil
+}
+
+func (a *authZPluginRequestID) AuthZResponse(authReq *Request) (*Response, error) {
+	if authReq.RequestID != a.requestID {
+		return nil, fmt.Errorf("expected RequestID %s, got %s", a.requestID, authReq.RequestID)
+	}
+	return &Response{Allow: true}, nil
 }
 
 // createTestPlugin creates a new sample authorization plugin
