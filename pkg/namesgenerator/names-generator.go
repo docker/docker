@@ -189,6 +189,9 @@ var (
 		// Elizabeth Blackwell - American doctor and first American woman to receive a medical degree - https://en.wikipedia.org/wiki/Elizabeth_Blackwell
 		"blackwell",
 
+		// Susanne Bødker - Researcher and author focued on human-computer interaction https://en.wikipedia.org/wiki/Susanne_B%C3%B8dker
+		"Bodker",
+
 		// Niels Bohr is the father of quantum theory. https://en.wikipedia.org/wiki/Niels_Bohr.
 		"bohr",
 
@@ -742,6 +745,9 @@ var (
 
 		// Michael Stonebraker is a database research pioneer and architect of Ingres, Postgres, VoltDB and SciDB. Winner of 2014 ACM Turing Award. https://en.wikipedia.org/wiki/Michael_Stonebraker
 		"stonebraker",
+
+		// Bjarne Stroustrup - Creator of C++. https://en.wikipedia.org/wiki/Bjarne_Stroustrup
+		"stroustrup",
 
 		// Ivan Edward Sutherland - American computer scientist and Internet pioneer, widely regarded as the father of computer graphics. https://en.wikipedia.org/wiki/Ivan_Sutherland
 		"sutherland",
