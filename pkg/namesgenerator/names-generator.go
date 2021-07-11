@@ -374,6 +374,9 @@ var (
 		// Marie-Sophie Germain - French mathematician, physicist and philosopher. Known for her work on elasticity theory, number theory and philosophy. https://en.wikipedia.org/wiki/Sophie_Germain
 		"germain",
 
+		// Ruth Bader Ginsburg served as associate justice of the Supreme Court of the United States and spent much of her career as an advocate for gender equality and women's rights. https://en.wikipedia.org/wiki/Ruth_Bader_Ginsburg
+		"ginsburg",
+
 		// Adele Goldberg, was one of the designers and developers of the Smalltalk language. https://en.wikipedia.org/wiki/Adele_Goldberg_(computer_scientist)
 		"goldberg",
 
@@ -793,6 +796,9 @@ var (
 
 		// Cédric Villani - French mathematician, won Fields Medal, Fermat Prize and Poincaré Price for his work in differential geometry and statistical mechanics. https://en.wikipedia.org/wiki/C%C3%A9dric_Villani
 		"villani",
+
+		// James Nolan Weirich - was a software developer, speaker, teacher, and contributor to the Ruby programming language community and invented Rake. https://en.wikipedia.org/wiki/Jim_Weirich
+		"weirich",
 
 		// Marlyn Wescoff - one of the original programmers of the ENIAC. https://en.wikipedia.org/wiki/ENIAC - https://en.wikipedia.org/wiki/Marlyn_Meltzer
 		"wescoff",
