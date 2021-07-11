@@ -1,7 +1,7 @@
 #!/bin/sh
 
 : ${DOCKERCLI_CHANNEL:=stable}
-: ${DOCKERCLI_VERSION:=17.06.2-ce}
+: ${DOCKERCLI_VERSION:=19.03.8}
 
 install_dockercli() {
 	echo "Install docker/cli version $DOCKERCLI_VERSION from $DOCKERCLI_CHANNEL"
