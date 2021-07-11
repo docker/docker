@@ -49,6 +49,36 @@ func TestServiceCreate(t *testing.T) {
 
 }
 
+type spyEventLogger struct{}
+
+var logCount = 0
+
+func (l spyEventLogger) LogVolumeEvent(_, _ string, _ map[string]string) {
+	logCount++
+}
+
+func TestServiceCreateLogs(t *testing.T) {
+	t.Parallel()
+
+	ds := volumedrivers.NewStore(nil)
+	assert.Assert(t, ds.Register(testutils.NewFakeDriver("d1"), "d1"))
+	assert.Assert(t, ds.Register(testutils.NewFakeDriver("d2"), "d2"))
+
+	ctx := context.Background()
+	service, cleanup := newTestService(t, ds)
+	service.eventLogger = spyEventLogger{}
+	defer cleanup()
+
+	v, err := service.Create(ctx, "v1", "d1")
+	assert.NilError(t, err)
+
+	vCopy, err := service.Create(ctx, "v1", "d1")
+	assert.NilError(t, err)
+	assert.Assert(t, is.DeepEqual(v, vCopy))
+
+	assert.Assert(t, logCount == 1)
+}
+
 func TestServiceList(t *testing.T) {
 	t.Parallel()
 
