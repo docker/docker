@@ -239,12 +239,12 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 	if err := validateHostConfig(hostConfig, platform); err != nil {
 		return warnings, err
 	}
-
 	// Now do platform-specific verification
 	warnings, err = verifyPlatformContainerSettings(daemon, hostConfig, update)
 	for _, w := range warnings {
 		logrus.Warn(w)
 	}
+	
 	return warnings, err
 }
 
@@ -289,6 +289,9 @@ func validateHostConfig(hostConfig *containertypes.HostConfig, platform string) 
 		if _, err := opts.ValidateExtraHost(extraHost); err != nil {
 			return err
 		}
+	}
+    if len(hostConfig.PortBindings) > 0 && hostConfig.NetworkMode.IsHost() {
+		return errors.New("cannot bind ports in host network mode")
 	}
 	if err := validatePortBindings(hostConfig.PortBindings); err != nil {
 		return err

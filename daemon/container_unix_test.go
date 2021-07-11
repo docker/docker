@@ -12,34 +12,58 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-// TestContainerWarningHostAndPublishPorts that a warning is returned when setting network mode to host and specifying published ports.
+// TestContainerErrorHostAndPublishPorts asserts that an error is returned when binding ports while using network host mode upon starting a container.
 // This should not be tested on Windows because Windows doesn't support "host" network mode.
-func TestContainerWarningHostAndPublishPorts(t *testing.T) {
-	testCases := []struct {
-		ports    nat.PortMap
-		warnings []string
-	}{
-		{ports: nat.PortMap{}},
-		{ports: nat.PortMap{
+func TestContainerErrorHostAndPublishPorts(t *testing.T) {
+	// muteLogs()
+	hostConfig := &containertypes.HostConfig{
+		Runtime:     "runc",
+		NetworkMode: "host",
+		PortBindings: nat.PortMap{
 			"8080": []nat.PortBinding{{HostPort: "8989"}},
-		}, warnings: []string{"Published ports are discarded when using host network mode"}},
+		},
 	}
-	muteLogs()
+	cs := &config.Config{
+		CommonUnixConfig: config.CommonUnixConfig{
+			Runtimes: map[string]types.Runtime{"runc": {}},
+		},
+	}
+	d := &Daemon{configStore: cs}
+	_, err := d.verifyContainerSettings("", hostConfig, &containertypes.Config{}, false)
+	assert.Error(t, err, "cannot bind ports in host network mode")
+}
 
-	for _, tc := range testCases {
-		hostConfig := &containertypes.HostConfig{
-			Runtime:      "runc",
-			NetworkMode:  "host",
-			PortBindings: tc.ports,
-		}
-		cs := &config.Config{
-			CommonUnixConfig: config.CommonUnixConfig{
-				Runtimes: map[string]types.Runtime{"runc": {}},
-			},
-		}
-		d := &Daemon{configStore: cs}
-		wrns, err := d.verifyContainerSettings("", hostConfig, &containertypes.Config{}, false)
-		assert.NilError(t, err)
-		assert.DeepEqual(t, tc.warnings, wrns)
+// TestContainerHostAndNoPublishedPorts asserts that there are no errors returned when using network host mode with no publied ports.
+func TestContainerHostAndNoPublishedPorts(t *testing.T) {
+	// muteLogs()
+	hostConfig := &containertypes.HostConfig{
+		Runtime:     "runc",
+		NetworkMode: "host",
 	}
+	cs := &config.Config{
+		CommonUnixConfig: config.CommonUnixConfig{
+			Runtimes: map[string]types.Runtime{"runc": {}},
+		},
+	}
+	d := &Daemon{configStore: cs}
+	_, err := d.verifyContainerSettings("", hostConfig, &containertypes.Config{}, false)
+	assert.NilError(t, err)
+}
+
+// TestContainerHostAndNoPubliedPorts asserts that there are no errors returned when publishing ports without using network host mode.
+func TestContainerPublishedPortsAndNoHost(t *testing.T) {
+	hostConfig := &containertypes.HostConfig{
+		Runtime: "runc",
+		PortBindings: nat.PortMap{
+			"8080": []nat.PortBinding{{HostPort: "8989"}},
+		},
+	}
+	cs := &config.Config{
+		CommonUnixConfig: config.CommonUnixConfig{
+			Runtimes: map[string]types.Runtime{"runc": {}},
+		},
+	}
+	d := &Daemon{configStore: cs}
+	_, err := d.verifyContainerSettings("", hostConfig, &containertypes.Config{}, false)
+	assert.NilError(t, err)
 }

@@ -182,7 +182,11 @@ func (c *Cluster) GetService(input string, insertDefaults bool) (types.Service, 
 func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string, queryRegistry bool) (*apitypes.ServiceCreateResponse, error) {
 	var resp *apitypes.ServiceCreateResponse
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
-		err := c.populateNetworkID(ctx, state.controlClient, &s)
+		err := validateServiceSpec(&s)
+		if err != nil {
+			return err
+		}
+		err = c.populateNetworkID(ctx, state.controlClient, &s)
 		if err != nil {
 			return err
 		}
@@ -286,8 +290,11 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 	var resp *apitypes.ServiceUpdateResponse
 
 	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
-
-		err := c.populateNetworkID(ctx, state.controlClient, &spec)
+		err := validateServiceSpec(&spec)
+		if err != nil {
+			return err
+		}
+		err = c.populateNetworkID(ctx, state.controlClient, &spec)
 		if err != nil {
 			return err
 		}
@@ -658,4 +665,16 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 // formatting is hardcoded, but could me made smarter in the future
 func digestWarning(image string) string {
 	return fmt.Sprintf("image %s could not be accessed on a registry to record\nits digest. Each node will access %s independently,\npossibly leading to different nodes running different\nversions of the image.\n", image, image)
+}
+
+// validateServiceSpec validates that there are no published ports in network host mode
+func validateServiceSpec(s *types.ServiceSpec) error {
+	if len(s.EndpointSpec.Ports) > 0 {
+		for _, network := range s.TaskTemplate.Networks {
+			if network.Target == "host" {
+				return errdefs.Conflict(errors.New("cannot bind ports in host network mode"))
+			}
+		}
+	}
+	return nil
 }
