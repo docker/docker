@@ -35,6 +35,7 @@ const (
 	logGroupKey            = "awslogs-group"
 	logStreamKey           = "awslogs-stream"
 	logCreateGroupKey      = "awslogs-create-group"
+	logCreateStreamKey     = "awslogs-create-stream"
 	tagKey                 = "tag"
 	datetimeFormatKey      = "awslogs-datetime-format"
 	multilinePatternKey    = "awslogs-multiline-pattern"
@@ -71,6 +72,7 @@ type logStream struct {
 	logStreamName      string
 	logGroupName       string
 	logCreateGroup     bool
+	logCreateStream    bool
 	logNonBlocking     bool
 	forceFlushInterval time.Duration
 	multilinePattern   *regexp.Regexp
@@ -85,6 +87,7 @@ type logStreamConfig struct {
 	logStreamName      string
 	logGroupName       string
 	logCreateGroup     bool
+	logCreateStream    bool
 	logNonBlocking     bool
 	forceFlushInterval time.Duration
 	maxBufferedEvents  int
@@ -151,6 +154,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		logStreamName:      containerStreamConfig.logStreamName,
 		logGroupName:       containerStreamConfig.logGroupName,
 		logCreateGroup:     containerStreamConfig.logCreateGroup,
+		logCreateStream:    containerStreamConfig.logCreateStream,
 		logNonBlocking:     containerStreamConfig.logNonBlocking,
 		forceFlushInterval: containerStreamConfig.forceFlushInterval,
 		multilinePattern:   containerStreamConfig.multilinePattern,
@@ -237,6 +241,13 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 	if info.Config[logStreamKey] != "" {
 		logStreamName = info.Config[logStreamKey]
 	}
+	logCreateStream := true
+	if info.Config[logCreateStreamKey] != "" {
+		logCreateStream, err = strconv.ParseBool(info.Config[logCreateStreamKey])
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	multilinePattern, err := parseMultilineOptions(info)
 	if err != nil {
@@ -247,6 +258,7 @@ func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 		logStreamName:      logStreamName,
 		logGroupName:       logGroupName,
 		logCreateGroup:     logCreateGroup,
+		logCreateStream:    logCreateStream,
 		logNonBlocking:     logNonBlocking,
 		forceFlushInterval: forceFlushInterval,
 		maxBufferedEvents:  maxBufferedEvents,
@@ -480,6 +492,16 @@ func (l *logStream) createLogGroup() error {
 
 // createLogStream creates a log stream for the instance of the awslogs logging driver
 func (l *logStream) createLogStream() error {
+	// Directly return if we do not want to create log stream.
+	if !l.logCreateStream {
+		logrus.WithFields(logrus.Fields{
+			"logGroupName":    l.logGroupName,
+			"logStreamName":   l.logStreamName,
+			"logCreateStream": l.logCreateStream,
+		}).Info("Skipping creating log stream")
+		return nil
+	}
+
 	input := &cloudwatchlogs.CreateLogStreamInput{
 		LogGroupName:  aws.String(l.logGroupName),
 		LogStreamName: aws.String(l.logStreamName),
