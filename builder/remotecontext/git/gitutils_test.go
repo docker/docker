@@ -26,18 +26,26 @@ func TestParseRemoteURL(t *testing.T) {
 	}{
 		{
 			doc: "git scheme uppercase, no url-fragment",
-			url: "GIT://github.com/user/repo.git",
+			url: "GIT://github.com/moby/moby.git",
 			expected: gitRepo{
-				remote: "git://github.com/user/repo.git",
+				remote: "git://github.com/moby/moby.git",
 				ref:    "master",
 			},
 		},
 		{
 			doc: "git scheme, no url-fragment",
-			url: "git://github.com/user/repo.git",
+			url: "git://github.com/moby/moby.git",
 			expected: gitRepo{
-				remote: "git://github.com/user/repo.git",
+				remote: "git://github.com/moby/moby.git",
 				ref:    "master",
+			},
+		},
+		{
+			doc: "git scheme, no url-fragment, non-master branch",
+			url: "git://github.com/docker/compose-cli.git",
+			expected: gitRepo{
+				remote: "git://github.com/docker/compose-cli.git",
+				ref:    "main",
 			},
 		},
 		{
@@ -51,10 +59,18 @@ func TestParseRemoteURL(t *testing.T) {
 		},
 		{
 			doc: "https scheme, no url-fragment",
-			url: "https://github.com/user/repo.git",
+			url: "https://github.com/moby/moby.git",
 			expected: gitRepo{
-				remote: "https://github.com/user/repo.git",
+				remote: "https://github.com/moby/moby.git",
 				ref:    "master",
+			},
+		},
+		{
+			doc: "https scheme, no url-fragment, non-master branch",
+			url: "https://github.com/docker/compose-cli.git",
+			expected: gitRepo{
+				remote: "https://github.com/docker/compose-cli.git",
+				ref:    "main",
 			},
 		},
 		{
@@ -67,28 +83,12 @@ func TestParseRemoteURL(t *testing.T) {
 			},
 		},
 		{
-			doc: "git@, no url-fragment",
-			url: "git@github.com:user/repo.git",
-			expected: gitRepo{
-				remote: "git@github.com:user/repo.git",
-				ref:    "master",
-			},
-		},
-		{
 			doc: "git@, with url-fragment",
 			url: "git@github.com:user/repo.git#mybranch:mydir/mysubdir/",
 			expected: gitRepo{
 				remote: "git@github.com:user/repo.git",
 				ref:    "mybranch",
 				subdir: "mydir/mysubdir/",
-			},
-		},
-		{
-			doc: "ssh, no url-fragment",
-			url: "ssh://github.com/user/repo.git",
-			expected: gitRepo{
-				remote: "ssh://github.com/user/repo.git",
-				ref:    "master",
 			},
 		},
 		{

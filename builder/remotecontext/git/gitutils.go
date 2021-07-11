@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/moby/sys/symlink"
@@ -18,6 +19,8 @@ type gitRepo struct {
 	ref    string
 	subdir string
 }
+
+var defaultBranch = regexp.MustCompile(`refs/heads/(\S+)`)
 
 // Clone clones a repository into a newly created directory which
 // will be under "docker-build-git"
@@ -100,6 +103,13 @@ func parseRemoteURL(remoteURL string) (gitRepo, error) {
 		repo.ref, repo.subdir = getRefAndSubdir(u.Fragment)
 		u.Fragment = ""
 		repo.remote = u.String()
+
+		if repo.ref == "" {
+			repo.ref, err = getDefaultBranch(repo.remote)
+			if err != nil {
+				return repo, err
+			}
+		}
 	}
 
 	if strings.HasPrefix(repo.ref, "-") {
@@ -111,7 +121,7 @@ func parseRemoteURL(remoteURL string) (gitRepo, error) {
 
 func getRefAndSubdir(fragment string) (ref string, subdir string) {
 	refAndDir := strings.SplitN(fragment, ":", 2)
-	ref = "master"
+	ref = ""
 	if len(refAndDir[0]) != 0 {
 		ref = refAndDir[0]
 	}
@@ -224,4 +234,18 @@ func getScheme(address string) string {
 		return ""
 	}
 	return u.Scheme
+}
+
+// getDefaultBranch gets the default branch of a repository using ls-remote
+func getDefaultBranch(remoteURL string) (string, error) {
+	out, err := git("ls-remote", "--symref", remoteURL, "HEAD")
+	if err != nil {
+		return "", errors.Errorf("error fetching default branch for repository %s: %v", remoteURL, err)
+	}
+
+	ss := defaultBranch.FindAllStringSubmatch(string(out), -1)
+	if len(ss) == 0 || len(ss[0]) != 2 {
+		return "", errors.Errorf("could not find default branch for repository: %s", remoteURL)
+	}
+	return ss[0][1], nil
 }
