@@ -106,7 +106,7 @@ func FromStruct(m Manifest) (*DeserializedManifest, error) {
 
 // UnmarshalJSON populates a new Manifest struct from JSON data.
 func (m *DeserializedManifest) UnmarshalJSON(b []byte) error {
-	m.canonical = make([]byte, len(b))
+	m.canonical = make([]byte, len(b), len(b))
 	// store manifest in canonical
 	copy(m.canonical, b)
 
