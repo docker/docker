@@ -138,6 +138,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	selinux.ReleaseLabel(container.ProcessLabel)
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
+	daemon.releaseNetwork(container)
 	daemon.containersReplica.Delete(container)
 	if e := daemon.removeMountPoints(container, removeVolume); e != nil {
 		logrus.Error(e)

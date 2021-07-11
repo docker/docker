@@ -226,8 +226,6 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 // Cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (daemon *Daemon) Cleanup(container *container.Container) {
-	daemon.releaseNetwork(container)
-
 	if err := container.UnmountIpcMount(); err != nil {
 		logrus.Warnf("%s cleanup: failed to unmount IPC: %s", container.ID, err)
 	}
