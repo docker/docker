@@ -8,14 +8,20 @@ import (
 	"github.com/syndtr/gocapability/capability"
 )
 
-var capabilityList Capabilities
+var (
+	allCaps []string
+
+	// capabilityList maps linux capability name to its value of capability.Cap
+	// type. This list contains nil entries for capabilities that are known, but
+	// not supported by the current kernel.
+	// Capabilities is one of the security systems in Linux Security Module (LSM)
+	// framework provided by the kernel.
+	// For more details on capabilities, see http://man7.org/linux/man-pages/man7/capabilities.7.html
+	capabilityList map[string]*capability.Cap
+)
 
 func init() {
 	last := capability.CAP_LAST_CAP
-	// hack for RHEL6 which has no /proc/sys/kernel/cap_last_cap
-	if last == capability.Cap(63) {
-		last = capability.CAP_BLOCK_SUSPEND
-	}
 	if last > capability.CAP_AUDIT_READ {
 		// Prevents docker from setting CAP_PERFMON, CAP_BPF, and CAP_CHECKPOINT_RESTORE
 		// capabilities on privileged (or CAP_ALL) containers on Kernel 5.8 and up.
@@ -28,44 +34,30 @@ func init() {
 		//       (which ships with runc v1.0.0-rc92)
 		last = capability.CAP_AUDIT_READ
 	}
-	for _, cap := range capability.List() {
-		if cap > last {
+	rawCaps := capability.List()
+	allCaps = make([]string, min(int(last+1), len(rawCaps)))
+	capabilityList = make(map[string]*capability.Cap, len(rawCaps))
+	for i, c := range rawCaps {
+		capName := "CAP_" + strings.ToUpper(c.String())
+		if c > last {
+			capabilityList[capName] = nil
 			continue
 		}
-		capabilityList = append(capabilityList,
-			&CapabilityMapping{
-				Key:   "CAP_" + strings.ToUpper(cap.String()),
-				Value: cap,
-			},
-		)
+		allCaps[i] = capName
+		capabilityList[capName] = &c
 	}
 }
 
-type (
-	// CapabilityMapping maps linux capability name to its value of capability.Cap type
-	// Capabilities is one of the security systems in Linux Security Module (LSM)
-	// framework provided by the kernel.
-	// For more details on capabilities, see http://man7.org/linux/man-pages/man7/capabilities.7.html
-	CapabilityMapping struct {
-		Key   string         `json:"key,omitempty"`
-		Value capability.Cap `json:"value,omitempty"`
+func min(a, b int) int {
+	if a < b {
+		return a
 	}
-	// Capabilities contains all CapabilityMapping
-	Capabilities []*CapabilityMapping
-)
-
-// String returns <key> of CapabilityMapping
-func (c *CapabilityMapping) String() string {
-	return c.Key
+	return b
 }
 
 // GetAllCapabilities returns all of the capabilities
 func GetAllCapabilities() []string {
-	output := make([]string, len(capabilityList))
-	for i, capability := range capabilityList {
-		output[i] = capability.String()
-	}
-	return output
+	return allCaps
 }
 
 // inSlice tests whether a string is contained in a slice of strings or not.
@@ -87,7 +79,6 @@ const allCapabilities = "ALL"
 func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
 	var normalized []string
 
-	valids := GetAllCapabilities()
 	for _, c := range caps {
 		c = strings.ToUpper(c)
 		if c == allCapabilities {
@@ -97,8 +88,10 @@ func NormalizeLegacyCapabilities(caps []string) ([]string, error) {
 		if !strings.HasPrefix(c, "CAP_") {
 			c = "CAP_" + c
 		}
-		if !inSlice(valids, c) {
+		if v, ok := capabilityList[c]; !ok {
 			return nil, errdefs.InvalidParameter(fmt.Errorf("unknown capability: %q", c))
+		} else if v == nil {
+			return nil, errdefs.InvalidParameter(fmt.Errorf("capability not supported by your kernel: %q", c))
 		}
 		normalized = append(normalized, c)
 	}
