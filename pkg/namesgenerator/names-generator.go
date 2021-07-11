@@ -455,6 +455,9 @@ var (
 		// Yeong-Sil Jang was a Korean scientist and astronomer during the Joseon Dynasty; he invented the first metal printing press and water gauge. https://en.wikipedia.org/wiki/Jang_Yeong-sil
 		"jang",
 
+		// Frederick Jelinek - Czech-American scientist, father of statistical automatic speech recognition. https://en.wikipedia.org/wiki/Frederick_Jelinek
+		"jelinek", 
+
 		// Mae Carol Jemison -  is an American engineer, physician, and former NASA astronaut. She became the first black woman to travel in space when she served as a mission specialist aboard the Space Shuttle Endeavour - https://en.wikipedia.org/wiki/Mae_Jemison
 		"jemison",
 
@@ -697,6 +700,9 @@ var (
 
 		// Vera Rubin - American astronomer who pioneered work on galaxy rotation rates. https://en.wikipedia.org/wiki/Vera_Rubin
 		"rubin",
+
+		// Joanna Rutkowska - Polish computer security researcher. https://en.wikipedia.org/wiki/Joanna_Rutkowska
+		"rutkowska",
 
 		// Meghnad Saha - Indian astrophysicist best known for his development of the Saha equation, used to describe chemical and physical conditions in stars - https://en.wikipedia.org/wiki/Meghnad_Saha
 		"saha",
