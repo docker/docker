@@ -101,13 +101,14 @@ BIND_DIR := $(if $(BINDDIR),$(BINDDIR),$(if $(DOCKER_HOST),,bundles))
 
 # DOCKER_MOUNT can be overriden, but use at your own risk!
 ifndef DOCKER_MOUNT
-DOCKER_MOUNT := $(if $(BIND_DIR),-v "$(CURDIR)/$(BIND_DIR):/go/src/github.com/docker/docker/$(BIND_DIR)")
+CUR_DIR := $(shell bash -c 'echo $$(pwd)')
+DOCKER_MOUNT := $(if $(BIND_DIR),-v "$(CUR_DIR)/$(BIND_DIR):/go/src/github.com/docker/docker/$(BIND_DIR)")
 DOCKER_MOUNT := $(if $(DOCKER_BINDDIR_MOUNT_OPTS),$(DOCKER_MOUNT):$(DOCKER_BINDDIR_MOUNT_OPTS),$(DOCKER_MOUNT))
 
 # This allows the test suite to be able to run without worrying about the underlying fs used by the container running the daemon (e.g. aufs-on-aufs), so long as the host running the container is running a supported fs.
 # The volume will be cleaned up when the container is removed due to `--rm`.
 # Note that `BIND_DIR` will already be set to `bundles` if `DOCKER_HOST` is not set (see above BIND_DIR line), in such case this will do nothing since `DOCKER_MOUNT` will already be set.
-DOCKER_MOUNT := $(if $(DOCKER_MOUNT),$(DOCKER_MOUNT),-v /go/src/github.com/docker/docker/bundles) -v "$(CURDIR)/.git:/go/src/github.com/docker/docker/.git"
+DOCKER_MOUNT := $(if $(DOCKER_MOUNT),$(DOCKER_MOUNT),-v /go/src/github.com/docker/docker/bundles) -v "$(CUR_DIR)/.git:/go/src/github.com/docker/docker/.git"
 
 DOCKER_MOUNT_CACHE := -v docker-dev-cache:/root/.cache
 DOCKER_MOUNT_CLI := $(if $(DOCKER_CLI_PATH),-v $(shell dirname $(DOCKER_CLI_PATH)):/usr/local/cli,)
@@ -250,7 +251,7 @@ validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isol
 	$(DOCKER_RUN_DOCKER) hack/validate/all
 
 win: build ## cross build the binary for windows
-	$(DOCKER_RUN_DOCKER) DOCKER_CROSSPLATFORMS=windows/amd64 hack/make.sh cross
+	$(DOCKER_RUN_DOCKER) env DOCKER_CROSSPLATFORMS=windows/amd64 hack/make.sh cross
 
 .PHONY: swagger-gen
 swagger-gen:
