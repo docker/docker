@@ -12,8 +12,8 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 )
 
-// Events returns a stream of events in the daemon. It's up to the caller to close the stream
-// by cancelling the context. Once the stream has been completely read an io.EOF error will
+// Events returns a stream of events in the daemon. The stream will be closed when ctx canceled
+// or an error occured. Once the stream has been completely read an io.EOF error will
 // be sent over the error channel. If an error is sent all processing will be stopped. It's up
 // to the caller to reopen the stream in the event of an error by reinvoking this method.
 func (cli *Client) Events(ctx context.Context, options types.EventsOptions) (<-chan events.Message, <-chan error) {
@@ -24,6 +24,7 @@ func (cli *Client) Events(ctx context.Context, options types.EventsOptions) (<-c
 	started := make(chan struct{})
 	go func() {
 		defer close(errs)
+		defer close(messages)
 
 		query, err := buildEventsQueryParams(cli.version, options)
 		if err != nil {
