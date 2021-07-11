@@ -2264,6 +2264,9 @@ func (devices *DeviceSet) unmountAndDeactivateAll(dir string) {
 		// and the device will be released when that container dies.
 		if err := unix.Unmount(fullname, unix.MNT_DETACH); err != nil && err != unix.EINVAL {
 			logger.Warnf("Shutdown unmounting %s, error: %s", fullname, err)
+		} else if err == nil {
+			logger.Debugf("Remove %s", fullname)
+			os.RemoveAll(fullname)
 		}
 
 		if devInfo, err := devices.lookupDevice(name); err != nil {
