@@ -9963,6 +9963,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "SwarmInitRequest"
             properties:
               ListenAddr:
                 description: |
@@ -10061,6 +10062,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "SwarmJoinRequest"
             properties:
               ListenAddr:
                 description: |
@@ -10221,6 +10223,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "SwarmUnlockRequest"
             properties:
               UnlockKey:
                 description: "The swarm's unlock key."
