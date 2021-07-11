@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	apitime "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
@@ -576,11 +577,20 @@ func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, e
 	case 0:
 		// nothing to do
 	case 1:
-		var err error
-		until, err = time.ParseDuration(untilValues[0])
-		if err != nil {
-			return client.PruneInfo{}, errors.Wrapf(err, "%q filter expects a duration (e.g., '24h')", filterKey)
+		genErr := func(err error) (client.PruneInfo, error) {
+			return client.PruneInfo{}, errors.Wrapf(err,
+				"%q filter expects a duration or an RFC 3339 date-time (e.g., '24h', '2006-01-02T15:04:05')",
+				filterKey)
 		}
+		ts, err := apitime.GetTimestamp(untilValues[0], time.Now())
+		if err != nil {
+			return genErr(err)
+		}
+		secs, nsecs, err := apitime.ParseTimestamps(ts, -1)
+		if err != nil {
+			return genErr(err) 
+		}
+		until = time.Until(time.Unix(int64(secs), int64(nsecs)))
 	default:
 		return client.PruneInfo{}, errMultipleFilterValues{}
 	}
