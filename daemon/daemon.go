@@ -479,6 +479,8 @@ func (daemon *Daemon) restore() error {
 		return fmt.Errorf("Error initializing network controller: %v", err)
 	}
 
+	daemon.releaseExitedNetworks()
+
 	// Now that all the containers are registered, register the links
 	for _, c := range containers {
 		group.Add(1)
@@ -581,6 +583,34 @@ func (daemon *Daemon) restore() error {
 	logrus.Info("Loading containers: done.")
 
 	return nil
+}
+
+//In the case of live-restore==true, if a running containerexits before
+//initNetworkController() completes, the daemon will fail to call
+//releaseNetwork() for the container because daemon.netController == nil.
+func (daemon *Daemon) releaseExitedNetworks() {
+	if daemon.containers != nil {
+		daemon.containers.ApplyAll(func(c *container.Container) {
+			if c.IsRunning() || c.IsPaused() {
+				return
+			}
+			c.Lock()
+			defer c.Unlock()
+			sid := c.NetworkSettings.SandboxID
+			if sid == "" {
+				return
+			}
+			if _, err := daemon.netController.SandboxByID(sid); err != nil {
+				return
+			}
+			logrus.Infof("start to release network for stopped container %s", c.ID)
+			daemon.releaseNetwork(c)
+			if err := c.CheckpointTo(daemon.containersReplica); err != nil {
+				logrus.Errorf("Failed to update stopped container %s network state: %v", c.ID, err)
+			}
+		})
+	}
+
 }
 
 // RestartSwarmContainers restarts any autostart container which has a
