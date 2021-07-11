@@ -123,7 +123,7 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID D
 		return existingLayer.getReference(), nil
 	}
 
-	tx, err := ls.store.StartTransaction()
+	tx, err := ls.store.StartTransaction(layer.cacheID)
 	if err != nil {
 		return nil, err
 	}

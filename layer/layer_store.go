@@ -78,8 +78,7 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 }
 
 // newStoreFromGraphDriver creates a new Store instance using the provided
-// metadata store and graph driver. The metadata store will be used to restore
-// the Store.
+// root directory and graph driver. The data in the root directory will be used to restore the Store.
 func newStoreFromGraphDriver(root string, driver graphdriver.Driver, os string) (Store, error) {
 	if !system.IsOSSupported(os) {
 		return nil, fmt.Errorf("failed to initialize layer store as operating system '%s' is not supported", os)
@@ -125,6 +124,21 @@ func newStoreFromGraphDriver(root string, driver graphdriver.Driver, os string) 
 			logrus.Debugf("Failed to load mount %s: %s", mount, err)
 		}
 	}
+
+	// We just created the layer store, no new transactions could have been started.
+	// It's a good moment to run the clean up procedure.
+	txData, err := ls.store.ListExistingTransactions()
+	if err != nil {
+		return nil, err
+	}
+	// Data deletion can take time. So once we identify what needs to be deleted,
+	// we start the operation in background.
+	go func() {
+		deletedCacheIDs := ls.prune(txData)
+		if len(deletedCacheIDs) > 0 {
+			logrus.Infof("Pruned %d unused graph driver layers", len(deletedCacheIDs))
+		}
+	}()
 
 	return ls, nil
 }
@@ -321,12 +335,14 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 		descriptor:     descriptor,
 	}
 
-	if err = ls.driver.Create(layer.cacheID, pid, nil); err != nil {
+	// New transaction should be persisted before we do any operations with the graph driver
+	// to avoid a possibility of having an FS layer not referenced from the layer store.
+	tx, err := ls.store.StartTransaction(layer.cacheID)
+	if err != nil {
 		return nil, err
 	}
 
-	tx, err := ls.store.StartTransaction()
-	if err != nil {
+	if err = ls.driver.Create(layer.cacheID, pid, nil); err != nil {
 		return nil, err
 	}
 
@@ -786,6 +802,28 @@ func (ls *layerStore) DriverStatus() [][2]string {
 
 func (ls *layerStore) DriverName() string {
 	return ls.driver.String()
+}
+
+func (ls *layerStore) prune(txData []fileMetadataTxData) []string {
+	treatedCacheIDs := make([]string, 0, len(txData))
+
+	for _, tx := range txData {
+		if cacheID, err := tx.GetCacheID(); err == nil {
+			if err := ls.driver.Remove(cacheID); err == nil {
+				logrus.Debugf("Deleted layer %s", cacheID)
+				treatedCacheIDs = append(treatedCacheIDs, cacheID)
+			} else {
+				logrus.Debugf("Failed to delete layer %s: %s", cacheID, err)
+			}
+		} else {
+			logrus.Errorf("Failed to read cacheID from tx [%s] data: %s", tx, err)
+		}
+		if err := tx.Delete(); err != nil {
+			logrus.Errorf("Failed to delete tx [%s] data that should be pruned: %s", tx, err)
+		}
+	}
+
+	return treatedCacheIDs
 }
 
 type naiveDiffPathDriver struct {

@@ -132,9 +132,6 @@ func storeLayer(tx *fileMetadataTransaction, layer *roLayer) error {
 	if err := tx.SetSize(layer.size); err != nil {
 		return err
 	}
-	if err := tx.SetCacheID(layer.cacheID); err != nil {
-		return err
-	}
 	// Do not store empty descriptors
 	if layer.descriptor.Digest != "" {
 		if err := tx.SetDescriptor(layer.descriptor); err != nil {
