@@ -25,16 +25,18 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		v.CgroupVersion = "2"
 	}
 
-	v.MemoryLimit = sysInfo.MemoryLimit
-	v.SwapLimit = sysInfo.SwapLimit
-	v.KernelMemory = sysInfo.KernelMemory
-	v.KernelMemoryTCP = sysInfo.KernelMemoryTCP
-	v.OomKillDisable = sysInfo.OomKillDisable
-	v.CPUCfsPeriod = sysInfo.CPUCfs
-	v.CPUCfsQuota = sysInfo.CPUCfs
-	v.CPUShares = sysInfo.CPUShares
-	v.CPUSet = sysInfo.Cpuset
-	v.PidsLimit = sysInfo.PidsLimit
+	if v.CgroupDriver != cgroupNoneDriver {
+		v.MemoryLimit = sysInfo.MemoryLimit
+		v.SwapLimit = sysInfo.SwapLimit
+		v.KernelMemory = sysInfo.KernelMemory
+		v.KernelMemoryTCP = sysInfo.KernelMemoryTCP
+		v.OomKillDisable = sysInfo.OomKillDisable
+		v.CPUCfsPeriod = sysInfo.CPUCfs
+		v.CPUCfsQuota = sysInfo.CPUCfs
+		v.CPUShares = sysInfo.CPUShares
+		v.CPUSet = sysInfo.Cpuset
+		v.PidsLimit = sysInfo.PidsLimit
+	}
 	v.Runtimes = daemon.configStore.GetAllRuntimes()
 	v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
 	v.InitBinary = daemon.configStore.GetInitPath()
