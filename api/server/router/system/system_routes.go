@@ -90,24 +90,36 @@ func (s *systemRouter) getVersion(ctx context.Context, w http.ResponseWriter, r 
 }
 
 func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
 	eg, ctx := errgroup.WithContext(ctx)
 
 	var du *types.DiskUsage
 	eg.Go(func() error {
 		var err error
-		du, err = s.backend.SystemDiskUsage(ctx)
+		du, err = s.backend.SystemDiskUsage(
+			ctx,
+			httputils.BoolValueOrDefault(r, "containers", true),
+			httputils.BoolValueOrDefault(r, "images", true),
+			httputils.BoolValueOrDefault(r, "volumes", true),
+			httputils.BoolValueOrDefault(r, "layer-size", true),
+		)
 		return err
 	})
 
 	var buildCache []*types.BuildCache
-	eg.Go(func() error {
-		var err error
-		buildCache, err = s.builder.DiskUsage(ctx)
-		if err != nil {
-			return pkgerrors.Wrap(err, "error getting build cache usage")
-		}
-		return nil
-	})
+	if httputils.BoolValueOrDefault(r, "build-cache", true) {
+		eg.Go(func() error {
+			var err error
+			buildCache, err = s.builder.DiskUsage(ctx)
+			if err != nil {
+				return pkgerrors.Wrap(err, "error getting build cache usage")
+			}
+			return nil
+		})
+	}
 
 	if err := eg.Wait(); err != nil {
 		return err

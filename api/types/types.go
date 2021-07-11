@@ -530,6 +530,15 @@ type ShimConfig struct {
 	Opts   interface{}
 }
 
+// DiskUsageOptions holds parameters to filter the types of disk usage desired in the response.
+type DiskUsageOptions struct {
+	NoContainers bool
+	NoImages     bool
+	NoVolumes    bool
+	NoLayerSize  bool
+	NoBuildCache bool
+}
+
 // DiskUsage contains response of Engine API:
 // GET "/system/df"
 type DiskUsage struct {

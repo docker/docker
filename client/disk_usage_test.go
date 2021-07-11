@@ -26,10 +26,15 @@ func TestDiskUsageError(t *testing.T) {
 
 func TestDiskUsage(t *testing.T) {
 	expectedURL := "/system/df"
+	expectedRawQuery := ""
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+
+			if !strings.Contains(req.URL.RawQuery, expectedRawQuery) {
+				return nil, fmt.Errorf("Expected Query '%s', got '%s'", expectedRawQuery, req.URL.RawQuery)
 			}
 
 			du := types.DiskUsage{
@@ -37,6 +42,7 @@ func TestDiskUsage(t *testing.T) {
 				Images:     nil,
 				Containers: nil,
 				Volumes:    nil,
+				BuildCache: nil,
 			}
 
 			b, err := json.Marshal(du)
@@ -51,6 +57,49 @@ func TestDiskUsage(t *testing.T) {
 		}),
 	}
 	if _, err := client.DiskUsage(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDiskUsageWithOptions(t *testing.T) {
+	expectedURL := "/system/df"
+	expectedRawQuery := "build-cache=0&containers=0&images=0&layer-size=0&volumes=0"
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+
+			if !strings.Contains(req.URL.RawQuery, expectedRawQuery) {
+				return nil, fmt.Errorf("Expected Query '%s', got '%s'", expectedRawQuery, req.URL.RawQuery)
+			}
+
+			du := types.DiskUsage{
+				LayersSize: int64(100),
+				Images:     nil,
+				Containers: nil,
+				Volumes:    nil,
+				BuildCache: nil,
+			}
+
+			b, err := json.Marshal(du)
+			if err != nil {
+				return nil, err
+			}
+
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       ioutil.NopCloser(bytes.NewReader(b)),
+			}, nil
+		}),
+	}
+	if _, err := client.DiskUsageWithOptions(context.Background(), types.DiskUsageOptions{
+		NoContainers: true,
+		NoImages:     true,
+		NoVolumes:    true,
+		NoLayerSize:  true,
+		NoBuildCache: true,
+	}); err != nil {
 		t.Fatal(err)
 	}
 }

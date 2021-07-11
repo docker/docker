@@ -15,7 +15,7 @@ import (
 type Backend interface {
 	SystemInfo() *types.Info
 	SystemVersion() types.Version
-	SystemDiskUsage(ctx context.Context) (*types.DiskUsage, error)
+	SystemDiskUsage(ctx context.Context, containers, images, volumes, layerSize bool) (*types.DiskUsage, error)
 	SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{})
 	UnsubscribeFromEvents(chan interface{})
 	AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error)
