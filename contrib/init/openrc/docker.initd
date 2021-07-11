@@ -8,8 +8,14 @@ command_args="-p \"${pidfile}\" ${DOCKER_OPTS}"
 DOCKER_LOGFILE="${DOCKER_LOGFILE:-/var/log/${RC_SVCNAME}.log}"
 DOCKER_ERRFILE="${DOCKER_ERRFILE:-${DOCKER_LOGFILE}}"
 DOCKER_OUTFILE="${DOCKER_OUTFILE:-${DOCKER_LOGFILE}}"
+
+[ -z "${DOCKER_HTTP_PROXY}" ] || HTTP_PROXY_ENV="--env HTTP_PROXY=\"${DOCKER_HTTP_PROXY}\""
+[ -z "${DOCKER_HTTPS_PROXY}" ] || HTTPS_PROXY_ENV="--env HTTPS_PROXY=\"${DOCKER_HTTPS_PROXY}\""
+[ -z "${DOCKER_NO_PROXY}" ] || NO_PROXY_ENV="--env NO_PROXY=\"${DOCKER_NO_PROXY}\""
+
 start_stop_daemon_args="--background \
-	--stderr \"${DOCKER_ERRFILE}\" --stdout \"${DOCKER_OUTFILE}\""
+	--stderr \"${DOCKER_ERRFILE}\" --stdout \"${DOCKER_OUTFILE}\" \
+	${HTTP_PROXY_ENV} ${HTTPS_PROXY_ENV} ${NO_PROXY_ENV}"
 
 extra_started_commands="reload"
 
