@@ -942,11 +942,15 @@ func (daemon *Daemon) disconnectFromNetwork(container *container.Container, n li
 
 func (daemon *Daemon) tryDetachContainerFromClusterNetwork(network libnetwork.Network, container *container.Container) {
 	if daemon.clusterProvider != nil && network.Info().Dynamic() && !container.Managed {
+		// For container created from `docker run --net <attachable-overlay-network>`
 		if err := daemon.clusterProvider.DetachNetwork(network.Name(), container.ID); err != nil {
 			logrus.Warnf("error detaching from network %s: %v", network.Name(), err)
 			if err := daemon.clusterProvider.DetachNetwork(network.ID(), container.ID); err != nil {
 				logrus.Warnf("error detaching from network %s: %v", network.ID(), err)
 			}
+		}
+		if err := daemon.DeleteManagedNetwork(network.ID()); err != nil {
+			logrus.WithError(err).Warnf("error deleting network %s", network.ID())
 		}
 	}
 	attributes := map[string]string{

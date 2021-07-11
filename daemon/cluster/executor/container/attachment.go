@@ -64,9 +64,7 @@ func (nc *networkAttacherController) Terminate(ctx context.Context) error {
 }
 
 func (nc *networkAttacherController) Remove(ctx context.Context) error {
-	// Try removing the network referenced in this task in case this
-	// task is the last one referencing it
-	return nc.adapter.removeNetworks(ctx)
+	return nil
 }
 
 func (nc *networkAttacherController) Close() error {

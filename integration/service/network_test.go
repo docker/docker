@@ -3,6 +3,7 @@ package service // import "github.com/docker/docker/integration/service"
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
@@ -114,4 +115,36 @@ func TestDockerNetworkReConnect(t *testing.T) {
 	n2, err := client.ContainerInspect(ctx, c1)
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(n1, n2))
+}
+
+func TestDockerRestartWithAttachbleNetwork(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	defer setupTest(t)()
+	d := swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
+	client := d.NewClientT(t)
+	defer client.Close()
+	ctx := context.Background()
+
+	name := t.Name() + "dummyNet"
+	net.CreateNoError(ctx, t, client, name,
+		net.WithDriver("overlay"),
+		net.WithAttachable(),
+	)
+
+	c1 := container.Create(ctx, t, client, func(c *container.TestContainerConfig) {
+		c.NetworkingConfig = &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				name: {},
+			},
+		}
+	})
+
+	err := client.ContainerStart(ctx, c1, types.ContainerStartOptions{})
+	assert.NilError(t, err)
+
+	var timeout time.Duration = 20 * time.Second
+	err = client.ContainerRestart(ctx, c1, &timeout)
+	assert.NilError(t, err)
+
 }

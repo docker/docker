@@ -211,6 +211,7 @@ func (r *controller) Start(ctx context.Context) error {
 				// Retry network creation again if we
 				// failed because some of the networks
 				// were not found.
+				log.G(ctx).WithError(lnErr).Debugf("Network not found when starting container %s, will recreate the networks", r.adapter.container.name())
 				if err := r.adapter.createNetworks(ctx); err != nil {
 					return err
 				}
