@@ -28,9 +28,8 @@ DOCKERFILE := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $$
 DOCKER_GITCOMMIT := $(shell git rev-parse --short HEAD || echo unsupported)
 export DOCKER_GITCOMMIT
 
-# allow overriding the repository and branch that validation scripts are running
-# against these are used in hack/validate/.validate to check what changed in the PR.
-export VALIDATE_REPO
+# allow overriding the branch that validation scripts are running against. These
+# are used in hack/validate/.validate to check what changed in the PR.
 export VALIDATE_BRANCH
 export VALIDATE_ORIGIN_BRANCH
 
@@ -79,7 +78,6 @@ DOCKER_ENVS := \
 	-e TESTFLAGS_INTEGRATION_CLI \
 	-e TEST_FILTER \
 	-e TIMEOUT \
-	-e VALIDATE_REPO \
 	-e VALIDATE_BRANCH \
 	-e VALIDATE_ORIGIN_BRANCH \
 	-e HTTP_PROXY \
