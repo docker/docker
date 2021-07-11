@@ -11345,14 +11345,14 @@ paths:
                 description: |
                   A descriptor struct containing digest, media type, and size.
                 properties:
-                  MediaType:
+                  mediaType:
                     type: "string"
-                  Size:
+                  size:
                     type: "integer"
                     format: "int64"
-                  Digest:
+                  digest:
                     type: "string"
-                  URLs:
+                  urls:
                     type: "array"
                     items:
                       type: "string"
@@ -11363,17 +11363,17 @@ paths:
                 items:
                   type: "object"
                   properties:
-                    Architecture:
+                    architecture:
                       type: "string"
-                    OS:
+                    os:
                       type: "string"
-                    OSVersion:
+                    os.version:
                       type: "string"
-                    OSFeatures:
+                    os.features:
                       type: "array"
                       items:
                         type: "string"
-                    Variant:
+                    variant:
                       type: "string"
                     Features:
                       type: "array"
@@ -11388,12 +11388,12 @@ paths:
                 URLs:
                   - ""
               Platforms:
-                - Architecture: "amd64"
-                  OS: "linux"
-                  OSVersion: ""
-                  OSFeatures:
+                - architecture: "amd64"
+                  os: "linux"
+                  os.version: ""
+                  os.features:
                     - ""
-                  Variant: ""
+                  variant: ""
                   Features:
                     - ""
         401:
