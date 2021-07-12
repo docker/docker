@@ -3,7 +3,9 @@
 package main
 
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/config"
@@ -54,11 +56,23 @@ func installUnixConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.StringVar(&conf.BridgeConfig.IP, "bip", "", "Specify network bridge IP")
 	flags.StringVarP(&conf.BridgeConfig.Iface, "bridge", "b", "", "Attach containers to a network bridge")
 	flags.StringVar(&conf.BridgeConfig.FixedCIDR, "fixed-cidr", "", "IPv4 subnet for fixed IPs")
+	flags.Var(opts.NewMapOpts(conf.BridgeConfig.IPAMOptions, IPAMOptsValidator), "ipam-options", "IPAM options for default network driver")
 	flags.Var(opts.NewIPOpt(&conf.BridgeConfig.DefaultGatewayIPv4, ""), "default-gateway", "Container default gateway IPv4 address")
 	flags.Var(opts.NewIPOpt(&conf.BridgeConfig.DefaultGatewayIPv6, ""), "default-gateway-v6", "Container default gateway IPv6 address")
 	flags.BoolVar(&conf.BridgeConfig.InterContainerCommunication, "icc", true, "Enable inter-container communication")
 	flags.Var(opts.NewIPOpt(&conf.BridgeConfig.DefaultIP, "0.0.0.0"), "ip", "Default IP when binding container ports")
 	flags.Var(opts.NewNamedRuntimeOpt("runtimes", &conf.Runtimes, config.StockRuntimeName), "add-runtime", "Register an additional OCI compatible runtime")
 	flags.StringVar(&conf.DefaultRuntime, "default-runtime", config.StockRuntimeName, "Default OCI runtime for containers")
+}
 
+// IPAMOptsValidator validate val in allowed keys
+func IPAMOptsValidator(val string) (string, error) {
+	allowedKeys := map[string]struct{}{
+		"com.docker.network.ipam.serial": {},
+	}
+	vals := strings.Split(val, "=")
+	if _, ok := allowedKeys[vals[0]]; ok {
+		return val, nil
+	}
+	return "", fmt.Errorf("invalid key %s", vals[0])
 }
