@@ -36,7 +36,7 @@ func WithLocalCache(l logger.Logger, info logger.Info) (logger.Logger, error) {
 		return nil, errors.Wrap(err, "error initializing local log cache driver")
 	}
 
-	if info.Config["mode"] == container.LogModeUnset || container.LogMode(info.Config["mode"]) == container.LogModeNonBlock {
+	if container.LogMode(info.Config["mode"]) == container.LogModeUnset || container.LogMode(info.Config["mode"]) == container.LogModeNonBlock {
 		var size int64 = -1
 		if s, exists := info.Config["max-buffer-size"]; exists {
 			size, err = units.RAMInBytes(s)

@@ -347,9 +347,9 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	if hostConfig.IpcMode.IsEmpty() {
 		m := config.DefaultIpcMode
 		if daemon.configStore != nil {
-			m = daemon.configStore.IpcMode
+			m = containertypes.IpcMode(daemon.configStore.IpcMode)
 		}
-		hostConfig.IpcMode = containertypes.IpcMode(m)
+		hostConfig.IpcMode = m
 	}
 
 	// Set default cgroup namespace mode, if unset for container
@@ -357,16 +357,16 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		// for cgroup v2: unshare cgroupns even for privileged containers
 		// https://github.com/containers/libpod/pull/4374#issuecomment-549776387
 		if hostConfig.Privileged && cgroups.Mode() != cgroups.Unified {
-			hostConfig.CgroupnsMode = containertypes.CgroupnsMode("host")
+			hostConfig.CgroupnsMode = containertypes.CgroupnsModeHost
 		} else {
-			m := "host"
+			m := containertypes.CgroupnsModeHost
 			if cgroups.Mode() == cgroups.Unified {
-				m = "private"
+				m = containertypes.CgroupnsModePrivate
 			}
 			if daemon.configStore != nil {
-				m = daemon.configStore.CgroupNamespaceMode
+				m = containertypes.CgroupnsMode(daemon.configStore.CgroupNamespaceMode)
 			}
-			hostConfig.CgroupnsMode = containertypes.CgroupnsMode(m)
+			hostConfig.CgroupnsMode = m
 		}
 	}
 

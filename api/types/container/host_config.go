@@ -13,19 +13,26 @@ import (
 // CgroupnsMode represents the cgroup namespace mode of the container
 type CgroupnsMode string
 
+// cgroup namespace modes for containers
+const (
+	CgroupnsModeEmpty   CgroupnsMode = ""
+	CgroupnsModePrivate CgroupnsMode = "private"
+	CgroupnsModeHost    CgroupnsMode = "host"
+)
+
 // IsPrivate indicates whether the container uses its own private cgroup namespace
 func (c CgroupnsMode) IsPrivate() bool {
-	return c == "private"
+	return c == CgroupnsModePrivate
 }
 
 // IsHost indicates whether the container shares the host's cgroup namespace
 func (c CgroupnsMode) IsHost() bool {
-	return c == "host"
+	return c == CgroupnsModeHost
 }
 
 // IsEmpty indicates whether the container cgroup namespace mode is unset
 func (c CgroupnsMode) IsEmpty() bool {
-	return c == ""
+	return c == CgroupnsModeEmpty
 }
 
 // Valid indicates whether the cgroup namespace mode is valid
@@ -37,60 +44,69 @@ func (c CgroupnsMode) Valid() bool {
 // values are platform specific
 type Isolation string
 
+// Isolation modes for containers
+const (
+	IsolationEmpty   Isolation = ""        // IsolationEmpty is unspecified (same behavior as default)
+	IsolationDefault Isolation = "default" // IsolationDefault is the default isolation mode on current daemon
+	IsolationProcess Isolation = "process" // IsolationProcess is process isolation mode
+	IsolationHyperV  Isolation = "hyperv"  // IsolationHyperV is HyperV isolation mode
+)
+
 // IsDefault indicates the default isolation technology of a container. On Linux this
 // is the native driver. On Windows, this is a Windows Server Container.
 func (i Isolation) IsDefault() bool {
-	return strings.ToLower(string(i)) == "default" || string(i) == ""
+	// TODO consider making isolation-mode strict (case-sensitive)
+	v := Isolation(strings.ToLower(string(i)))
+	return v == IsolationDefault || v == IsolationEmpty
 }
 
 // IsHyperV indicates the use of a Hyper-V partition for isolation
 func (i Isolation) IsHyperV() bool {
-	return strings.ToLower(string(i)) == "hyperv"
+	// TODO consider making isolation-mode strict (case-sensitive)
+	return Isolation(strings.ToLower(string(i))) == IsolationHyperV
 }
 
 // IsProcess indicates the use of process isolation
 func (i Isolation) IsProcess() bool {
-	return strings.ToLower(string(i)) == "process"
+	// TODO consider making isolation-mode strict (case-sensitive)
+	return Isolation(strings.ToLower(string(i))) == IsolationProcess
 }
-
-const (
-	// IsolationEmpty is unspecified (same behavior as default)
-	IsolationEmpty = Isolation("")
-	// IsolationDefault is the default isolation mode on current daemon
-	IsolationDefault = Isolation("default")
-	// IsolationProcess is process isolation mode
-	IsolationProcess = Isolation("process")
-	// IsolationHyperV is HyperV isolation mode
-	IsolationHyperV = Isolation("hyperv")
-)
 
 // IpcMode represents the container ipc stack.
 type IpcMode string
 
+// IpcMode constants
+const (
+	IPCModeNone      IpcMode = "none"
+	IPCModeHost      IpcMode = "host"
+	IPCModeContainer IpcMode = "container"
+	IPCModePrivate   IpcMode = "private"
+	IPCModeShareable IpcMode = "shareable"
+)
+
 // IsPrivate indicates whether the container uses its own private ipc namespace which can not be shared.
 func (n IpcMode) IsPrivate() bool {
-	return n == "private"
+	return n == IPCModePrivate
 }
 
 // IsHost indicates whether the container shares the host's ipc namespace.
 func (n IpcMode) IsHost() bool {
-	return n == "host"
+	return n == IPCModeHost
 }
 
 // IsShareable indicates whether the container's ipc namespace can be shared with another container.
 func (n IpcMode) IsShareable() bool {
-	return n == "shareable"
+	return n == IPCModeShareable
 }
 
 // IsContainer indicates whether the container uses another container's ipc namespace.
 func (n IpcMode) IsContainer() bool {
-	parts := strings.SplitN(string(n), ":", 2)
-	return len(parts) > 1 && parts[0] == "container"
+	return strings.HasPrefix(string(n), string(IPCModeContainer)+":")
 }
 
 // IsNone indicates whether container IpcMode is set to "none".
 func (n IpcMode) IsNone() bool {
-	return n == "none"
+	return n == IPCModeNone
 }
 
 // IsEmpty indicates whether container IpcMode is empty
@@ -105,9 +121,8 @@ func (n IpcMode) Valid() bool {
 
 // Container returns the name of the container ipc stack is going to be used.
 func (n IpcMode) Container() string {
-	parts := strings.SplitN(string(n), ":", 2)
-	if len(parts) > 1 && parts[0] == "container" {
-		return parts[1]
+	if n.IsContainer() {
+		return strings.TrimPrefix(string(n), string(IPCModeContainer)+":")
 	}
 	return ""
 }
@@ -326,7 +341,7 @@ type LogMode string
 
 // Available logging modes
 const (
-	LogModeUnset            = ""
+	LogModeUnset    LogMode = ""
 	LogModeBlocking LogMode = "blocking"
 	LogModeNonBlock LogMode = "non-blocking"
 )

@@ -199,7 +199,7 @@ func TestAPIIpcModeHost(t *testing.T) {
 		Cmd:   []string{"top"},
 	}
 	hostCfg := containertypes.HostConfig{
-		IpcMode: containertypes.IpcMode("host"),
+		IpcMode: containertypes.IPCModeHost,
 	}
 	ctx := context.Background()
 

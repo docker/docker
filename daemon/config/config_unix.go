@@ -12,7 +12,13 @@ import (
 
 const (
 	// DefaultIpcMode is default for container's IpcMode, if not set otherwise
-	DefaultIpcMode = "private"
+	DefaultIpcMode = containertypes.IPCModePrivate
+
+	// DefaultCgroupNamespaceMode is the default mode for containers cgroup namespace when using cgroups v2.
+	DefaultCgroupNamespaceMode = containertypes.CgroupnsModePrivate
+
+	// DefaultCgroupV1NamespaceMode is the default mode for containers cgroup namespace when using cgroups v1.
+	DefaultCgroupV1NamespaceMode = containertypes.CgroupnsModeHost
 )
 
 // Config defines the configuration of a docker daemon.
