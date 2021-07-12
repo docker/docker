@@ -250,30 +250,6 @@ func TestParseNNPSecurityOptions(t *testing.T) {
 	}
 }
 
-func TestNetworkOptions(t *testing.T) {
-	daemon := &Daemon{}
-	dconfigCorrect := &config.Config{
-		CommonConfig: config.CommonConfig{
-			ClusterStore:     "consul://localhost:8500",
-			ClusterAdvertise: "192.168.0.1:8000",
-		},
-	}
-
-	if _, err := daemon.networkOptions(dconfigCorrect, nil, nil); err != nil {
-		t.Fatalf("Expect networkOptions success, got error: %v", err)
-	}
-
-	dconfigWrong := &config.Config{
-		CommonConfig: config.CommonConfig{
-			ClusterStore: "consul://localhost:8500://test://bbb",
-		},
-	}
-
-	if _, err := daemon.networkOptions(dconfigWrong, nil, nil); err == nil {
-		t.Fatal("Expected networkOptions error, got nil")
-	}
-}
-
 func TestVerifyPlatformContainerResources(t *testing.T) {
 	t.Parallel()
 	var (

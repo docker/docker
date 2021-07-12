@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/daemon/discovery"
 	"github.com/sirupsen/logrus"
 )
 
@@ -51,9 +50,6 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 	daemon.reloadShutdownTimeout(conf, attributes)
 	daemon.reloadFeatures(conf, attributes)
 
-	if err := daemon.reloadClusterDiscovery(conf, attributes); err != nil {
-		return err
-	}
 	if err := daemon.reloadLabels(conf, attributes); err != nil {
 		return err
 	}
@@ -146,81 +142,6 @@ func (daemon *Daemon) reloadShutdownTimeout(conf *config.Config, attributes map[
 
 	// prepare reload event attributes with updatable configurations
 	attributes["shutdown-timeout"] = fmt.Sprintf("%d", daemon.configStore.ShutdownTimeout)
-}
-
-// reloadClusterDiscovery updates configuration with cluster discovery options
-// and updates the passed attributes
-func (daemon *Daemon) reloadClusterDiscovery(conf *config.Config, attributes map[string]string) (err error) {
-	defer func() {
-		// prepare reload event attributes with updatable configurations
-		attributes["cluster-store"] = conf.ClusterStore
-		attributes["cluster-advertise"] = conf.ClusterAdvertise
-
-		attributes["cluster-store-opts"] = "{}"
-		if daemon.configStore.ClusterOpts != nil {
-			opts, err2 := json.Marshal(conf.ClusterOpts)
-			if err != nil {
-				err = err2
-			}
-			attributes["cluster-store-opts"] = string(opts)
-		}
-	}()
-
-	newAdvertise := conf.ClusterAdvertise
-	newClusterStore := daemon.configStore.ClusterStore
-	if conf.IsValueSet("cluster-advertise") {
-		if conf.IsValueSet("cluster-store") {
-			newClusterStore = conf.ClusterStore
-		}
-		newAdvertise, err = config.ParseClusterAdvertiseSettings(newClusterStore, conf.ClusterAdvertise)
-		if err != nil && err != discovery.ErrDiscoveryDisabled {
-			return err
-		}
-	}
-
-	if daemon.clusterProvider != nil {
-		if err := conf.IsSwarmCompatible(); err != nil {
-			return err
-		}
-	}
-
-	// check discovery modifications
-	if !config.ModifiedDiscoverySettings(daemon.configStore, newClusterStore, newAdvertise, conf.ClusterOpts) {
-		return nil
-	}
-
-	// enable discovery for the first time if it was not previously enabled
-	if daemon.discoveryWatcher == nil {
-		discoveryWatcher, err := discovery.Init(newClusterStore, newAdvertise, conf.ClusterOpts)
-		if err != nil {
-			return fmt.Errorf("failed to initialize discovery: %v", err)
-		}
-		daemon.discoveryWatcher = discoveryWatcher
-	} else if err == discovery.ErrDiscoveryDisabled {
-		// disable discovery if it was previously enabled and it's disabled now
-		daemon.discoveryWatcher.Stop()
-	} else if err = daemon.discoveryWatcher.Reload(conf.ClusterStore, newAdvertise, conf.ClusterOpts); err != nil {
-		// reload discovery
-		return err
-	}
-
-	daemon.configStore.ClusterStore = newClusterStore
-	daemon.configStore.ClusterOpts = conf.ClusterOpts
-	daemon.configStore.ClusterAdvertise = newAdvertise
-
-	if daemon.netController == nil {
-		return nil
-	}
-	netOptions, err := daemon.networkOptions(daemon.configStore, daemon.PluginStore, nil)
-	if err != nil {
-		logrus.WithError(err).Warn("failed to get options with network controller")
-		return nil
-	}
-	err = daemon.netController.ReloadConfiguration(netOptions...)
-	if err != nil {
-		logrus.Warnf("Failed to reload configuration with network controller: %v", err)
-	}
-	return nil
 }
 
 // reloadLabels updates configuration with engine labels

@@ -152,16 +152,10 @@ func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *testing.T) {
 	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
 	d.Stop(c)
 
-	// start a daemon with --cluster-store and --cluster-advertise
-	err := d.StartWithError("--cluster-store=consul://consuladdr:consulport/some/path", "--cluster-advertise=1.1.1.1:2375")
+	// start a daemon with --live-restore
+	err := d.StartWithError("--live-restore")
 	assert.ErrorContains(c, err, "")
 	content, err := d.ReadLogFile()
-	assert.NilError(c, err)
-	assert.Assert(c, strings.Contains(string(content), "--cluster-store and --cluster-advertise daemon configurations are incompatible with swarm mode"))
-	// start a daemon with --live-restore
-	err = d.StartWithError("--live-restore")
-	assert.ErrorContains(c, err, "")
-	content, err = d.ReadLogFile()
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(string(content), "--live-restore daemon configuration is incompatible with swarm mode"))
 	// restart for teardown

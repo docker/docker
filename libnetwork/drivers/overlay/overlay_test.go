@@ -5,13 +5,13 @@ package overlay
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
+	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
-
-	"golang.org/x/sys/unix"
 
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
@@ -19,12 +19,14 @@ import (
 	"github.com/docker/docker/libnetwork/netlabel"
 	_ "github.com/docker/docker/libnetwork/testutils"
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/libkv/store/consul"
+	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/boltdb"
 	"github.com/vishvananda/netlink/nl"
+	"golang.org/x/sys/unix"
 )
 
 func init() {
-	consul.Register()
+	boltdb.Register()
 }
 
 type driverTester struct {
@@ -37,10 +39,25 @@ const testNetworkType = "overlay"
 func setupDriver(t *testing.T) *driverTester {
 	dt := &driverTester{t: t}
 	config := make(map[string]interface{})
+
+	tmp, err := ioutil.TempFile("", "libnetwork-")
+	if err != nil {
+		t.Fatalf("Error creating temp file: %v", err)
+	}
+	err = tmp.Close()
+	if err != nil {
+		t.Fatalf("Error closing temp file: %v", err)
+	}
+	defaultPrefix := filepath.Join(os.TempDir(), "libnetwork", "test", "overlay")
+
 	config[netlabel.GlobalKVClient] = discoverapi.DatastoreConfigData{
 		Scope:    datastore.GlobalScope,
-		Provider: "consul",
-		Address:  "127.0.0.01:8500",
+		Provider: "boltdb",
+		Address:  filepath.Join(defaultPrefix, filepath.Base(tmp.Name())),
+		Config: &store.Config{
+			Bucket:            "libnetwork",
+			ConnectionTimeout: 3 * time.Second,
+		},
 	}
 
 	if err := Init(dt, config); err != nil {

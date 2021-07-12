@@ -64,9 +64,6 @@ type BridgeConfig struct {
 
 // IsSwarmCompatible defines if swarm mode can be enabled in this config
 func (conf *Config) IsSwarmCompatible() error {
-	if conf.ClusterStore != "" || conf.ClusterAdvertise != "" {
-		return fmt.Errorf("--cluster-store and --cluster-advertise daemon configurations are incompatible with swarm mode")
-	}
 	if conf.LiveRestoreEnabled {
 		return fmt.Errorf("--live-restore daemon configuration is incompatible with swarm mode")
 	}

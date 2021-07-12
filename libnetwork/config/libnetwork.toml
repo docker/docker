@@ -7,6 +7,3 @@ title = "LibNetwork Configuration file"
   Address = "Cluster-wide reachable Host IP"
 [datastore]
   embedded = false
-[datastore.client]
-  provider = "consul"
-  Address = "localhost:8500"

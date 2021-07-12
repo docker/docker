@@ -48,7 +48,6 @@ func TestLoadDaemonConfigWithNetwork(t *testing.T) {
 
 func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
 	content := `{
-		"cluster-store-opts": {"kv.cacertfile": "/var/lib/docker/discovery_certs/ca.pem"},
 		"log-opts": {"tag": "test"}
 }`
 	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
@@ -58,10 +57,6 @@ func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
 	loadedConfig, err := loadDaemonCliConfig(opts)
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
-	assert.Check(t, loadedConfig.ClusterOpts != nil)
-
-	expectedPath := "/var/lib/docker/discovery_certs/ca.pem"
-	assert.Check(t, is.Equal(expectedPath, loadedConfig.ClusterOpts["kv.cacertfile"]))
 	assert.Check(t, loadedConfig.LogConfig.Config != nil)
 	assert.Check(t, is.Equal("test", loadedConfig.LogConfig.Config["tag"]))
 }
