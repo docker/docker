@@ -46,8 +46,11 @@ func TestCheckRouteOverlaps(t *testing.T) {
 		routes := []netlink.Route{}
 		for _, addr := range routesData {
 			_, netX, _ := net.ParseCIDR(addr)
-			routes = append(routes, netlink.Route{Dst: netX})
+			routes = append(routes, netlink.Route{Dst: netX, Scope: netlink.SCOPE_LINK})
 		}
+		// Add a route with a scope which should not overlap
+		_, netX, _ := net.ParseCIDR("10.0.5.0/24")
+		routes = append(routes, netlink.Route{Dst: netX, Scope: netlink.SCOPE_UNIVERSE})
 		return routes, nil
 	}
 	defer func() { networkGetRoutesFct = nil }()
@@ -60,6 +63,11 @@ func TestCheckRouteOverlaps(t *testing.T) {
 	_, netX, _ = net.ParseCIDR("10.0.2.0/24")
 	if err := CheckRouteOverlaps(netX); err == nil {
 		t.Fatal("10.0.2.0/24 and 10.0.2.0 should overlap but it doesn't")
+	}
+
+	_, netX, _ = net.ParseCIDR("10.0.5.0/24")
+	if err := CheckRouteOverlaps(netX); err != nil {
+		t.Fatal("10.0.5.0/24 and 10.0.5.0 with scope UNIVERSE should not overlap but it does")
 	}
 }
 
