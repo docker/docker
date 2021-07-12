@@ -1303,7 +1303,6 @@ definitions:
 
       # TODO is SecondaryIPAddresses actually used?
       SecondaryIPAddresses:
-        description: ""
         type: "array"
         items:
           $ref: "#/definitions/Address"
@@ -1311,7 +1310,6 @@ definitions:
 
       # TODO is SecondaryIPv6Addresses actually used?
       SecondaryIPv6Addresses:
-        description: ""
         type: "array"
         items:
           $ref: "#/definitions/Address"
@@ -1470,7 +1468,7 @@ definitions:
       "53/udp":
         - HostIp: "0.0.0.0"
           HostPort: "53"
-      "2377/tcp": null
+      "2377/tcp": []
 
   PortBinding:
     description: |
@@ -1699,10 +1697,13 @@ definitions:
           Details are returned as a map with key/value pairs:
           `{"key":"value","key2":"value2"}`.
 
+          Values usually are strings, but other types can be returned.
+
           The `Status` field is optional, and is omitted if the volume driver
           does not support this feature.
         additionalProperties:
-          type: "object"
+          # status returns a map[string]interface{}, so type could be "any" here.
+          type: "string"
       Labels:
         type: "object"
         description: "User-defined key/value metadata."
@@ -1864,6 +1865,7 @@ definitions:
         type: "string"
       MacAddress:
         type: "string"
+        example: "02:42:ac:11:00:04"
       IPv4Address:
         type: "string"
       IPv6Address:
@@ -4831,7 +4833,7 @@ definitions:
             Size:
               description: "The network pool size"
               type: "integer"
-              example: "24"
+              example: 24
       Warnings:
         description: |
           List of warnings / informational messages about missing features, or
@@ -5442,7 +5444,7 @@ paths:
                 - "BAZ=quux"
               Cmd:
                 - "date"
-              Entrypoint: ""
+              Entrypoint: [""]
               Image: "ubuntu"
               Labels:
                 com.example.vendor: "Acme"
@@ -7377,6 +7379,7 @@ paths:
           in: "query"
           description: "BuildKit output configuration"
           type: "string"
+          x-nullable: true
           default: ""
       responses:
         200:

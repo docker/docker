@@ -919,7 +919,6 @@ definitions:
 
       # TODO is SecondaryIPAddresses actually used?
       SecondaryIPAddresses:
-        description: ""
         type: "array"
         items:
           $ref: "#/definitions/Address"
@@ -927,7 +926,6 @@ definitions:
 
       # TODO is SecondaryIPv6Addresses actually used?
       SecondaryIPv6Addresses:
-        description: ""
         type: "array"
         items:
           $ref: "#/definitions/Address"
