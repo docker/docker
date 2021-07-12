@@ -96,7 +96,7 @@ func VersionFromContext(ctx context.Context) string {
 // returns it in the response.
 func MakeErrorHandler(err error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		statusCode := errdefs.GetHTTPErrorStatusCode(err)
+		statusCode := GetHTTPErrorStatusCode(err)
 		vars := mux.Vars(r)
 		if apiVersionSupportsJSONErrors(vars["version"]) {
 			response := &types.ErrorResponse{
