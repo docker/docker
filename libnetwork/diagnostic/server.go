@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/docker/docker/libnetwork/internal/caller"
-	stackdump "github.com/docker/docker/pkg/signal"
+	stackdump "github.com/moby/sys/signal"
 	"github.com/sirupsen/logrus"
 )
 

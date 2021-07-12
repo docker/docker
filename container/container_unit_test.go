@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
-	"github.com/docker/docker/pkg/signal"
+	"github.com/moby/sys/signal"
 	"gotest.tools/v3/assert"
 )
 

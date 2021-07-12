@@ -5,7 +5,7 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/docker/docker/pkg/signal"
+	"github.com/moby/sys/signal"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 )
