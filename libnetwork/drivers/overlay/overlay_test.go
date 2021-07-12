@@ -1,25 +1,27 @@
-// +build linux
-
 package overlay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"syscall"
 	"testing"
 	"time"
+	"os/user"
+	"runtime"
 
 	"golang.org/x/sys/unix"
 
+	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/libkv/store/consul"
 	"github.com/docker/docker/libnetwork/datastore"
 	"github.com/docker/docker/libnetwork/discoverapi"
 	"github.com/docker/docker/libnetwork/driverapi"
 	"github.com/docker/docker/libnetwork/netlabel"
 	_ "github.com/docker/docker/libnetwork/testutils"
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/libkv/store/consul"
+	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 )
 
@@ -175,5 +177,50 @@ func TestNetlinkSocket(t *testing.T) {
 		{
 			t.Fatalf("Timeout expired")
 		}
+	}
+}
+
+func TestCreateVxlan(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Log("not linux OS, skip testing.")
+		return
+	}
+	user, err := user.Current()
+	if err != nil {
+		t.Fatalf("error getting current user: %v", err)
+	}
+	if user.Username != "root" {
+		t.Log("not root user, skip testing.")
+		return
+	}
+
+	err = deleteInterface("non-existing")
+	var e netlink.LinkNotFoundError
+	if !errors.As(err, &e) {
+		t.Fatalf("expected LinkNotFoundError, got %q", err)
+	}
+
+	vxlanName := "vx-001003-70qc4"
+	err = createVxlan(vxlanName, 4099, 1450)
+	if err != nil {
+		t.Fatalf("error creating vxlan: %v", err)
+	}
+	// create vxlan with duplicated name
+	err = createVxlan(vxlanName, 4099, 1450)
+	if err == nil || !errors.Is(err, os.ErrExist) {
+		deleteVxlan(t, vxlanName)
+		t.Fatalf("expected os.ErrExist, got %q", err)
+	}
+	deleteVxlan(t, vxlanName)
+	err = createVxlan(vxlanName, 4099, 1450)
+	if err != nil {
+		t.Fatalf("error re-creating vxlan: %v", err)
+	}
+	deleteVxlan(t, vxlanName)
+}
+
+func deleteVxlan(t *testing.T, vxlanName string) {
+	if err := deleteInterface(vxlanName); err != nil {
+		t.Errorf("error deleting vxlan: %v", err)
 	}
 }

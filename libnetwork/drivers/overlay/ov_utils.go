@@ -1,5 +1,3 @@
-// +build linux
-
 package overlay
 
 import (
@@ -11,6 +9,7 @@ import (
 	"github.com/docker/docker/libnetwork/netutils"
 	"github.com/docker/docker/libnetwork/ns"
 	"github.com/docker/docker/libnetwork/osl"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
@@ -71,7 +70,7 @@ func createVxlan(name string, vni uint32, mtu int) error {
 	}
 
 	if err := ns.NlHandle().LinkAdd(vxlan); err != nil {
-		return fmt.Errorf("error creating vxlan interface: %v", err)
+		return errors.Wrapf(err, "failed to create vxlan interface with name %q", name)
 	}
 
 	return nil
@@ -113,11 +112,11 @@ func deleteInterface(name string) error {
 
 	link, err := ns.NlHandle().LinkByName(name)
 	if err != nil {
-		return fmt.Errorf("failed to find interface with name %s: %v", name, err)
+		return errors.Wrapf(err, "failed to find interface with name %s", name)
 	}
 
 	if err := ns.NlHandle().LinkDel(link); err != nil {
-		return fmt.Errorf("error deleting interface with name %s: %v", name, err)
+		return errors.Wrapf(err, "error deleting interface with name %s", name)
 	}
 
 	return nil

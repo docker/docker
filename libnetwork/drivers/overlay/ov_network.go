@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -609,7 +610,16 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 
 	err := createVxlan(vxlanName, s.vni, n.maxMTU())
 	if err != nil {
-		return err
+		if !errors.Is(err, os.ErrExist) {
+			return err
+		}
+		logrus.Warnf("removing orphaned vxlan interface %s in host network namespace", vxlanName)
+		if err := deleteInterface(vxlanName); err != nil {
+			return err
+		}
+		if err := createVxlan(vxlanName, s.vni, n.maxMTU()); err != nil {
+			return err
+		}
 	}
 
 	if err := sbox.AddInterface(vxlanName, "vxlan",
