@@ -4,6 +4,7 @@ package stats // import "github.com/docker/docker/daemon/stats"
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -16,8 +17,9 @@ const (
 	// on Linux it's a constant which is safe to be hard coded,
 	// so we can avoid using cgo here. For details, see:
 	// https://github.com/containerd/cgroups/pull/12
-	clockTicksPerSecond  = 100
-	nanoSecondsPerSecond = 1e9
+	clockTicksPerSecond  uint64 = 100
+	nanoSecondsPerSecond        = 1e9
+	nanoSecondsPerTick          = nanoSecondsPerSecond / clockTicksPerSecond
 )
 
 // getSystemCPUUsage returns the host system's cpu usage in
@@ -29,15 +31,20 @@ const (
 // provided. See `man 5 proc` for details on specific field
 // information.
 func (s *Collector) getSystemCPUUsage() (uint64, error) {
-	f, err := os.Open("/proc/stat")
+	procStatFile, err := os.Open("/proc/stat")
 	if err != nil {
 		return 0, err
 	}
-	defer func() {
-		s.bufReader.Reset(nil)
-		f.Close()
-	}()
-	s.bufReader.Reset(f)
+	defer procStatFile.Close()
+
+	return s.cpuNanoSeconds(procStatFile)
+}
+
+// cpuNanoSeconds calculates and returns CPU time in nanoseconds
+// given a file in the same format as /proc/stat
+func (s *Collector) cpuNanoSeconds(procStatFile io.Reader) (uint64, error) {
+	defer s.bufReader.Reset(nil)
+	s.bufReader.Reset(procStatFile)
 
 	for {
 		line, err := s.bufReader.ReadString('\n')
@@ -54,15 +61,20 @@ func (s *Collector) getSystemCPUUsage() (uint64, error) {
 			for _, i := range parts[1:8] {
 				v, err := strconv.ParseUint(i, 10, 64)
 				if err != nil {
-					return 0, fmt.Errorf("Unable to convert value %s to int: %s", i, err)
+					return 0, fmt.Errorf("unable to convert value %s to int: %s", i, err)
 				}
 				totalClockTicks += v
 			}
-			return (totalClockTicks * nanoSecondsPerSecond) /
-				clockTicksPerSecond, nil
+
+			// This may result in a uint64 overflow which will result in an incorrect number
+			// being reported. However, since all CPU calculations are currently done
+			// in relation to one another, they will be correct after both points being
+			// compared have overflowed.
+			return totalClockTicks * nanoSecondsPerTick, nil
 		}
 	}
-	return 0, fmt.Errorf("invalid stat format. Error trying to parse the '/proc/stat' file")
+
+	return 0, fmt.Errorf("invalid format while trying to parse proc stat file")
 }
 
 func (s *Collector) getNumberOnlineCPUs() (uint32, error) {
