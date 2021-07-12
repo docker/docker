@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,!no_systemd
 
 package iptables
 
