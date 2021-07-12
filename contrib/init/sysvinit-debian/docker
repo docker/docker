@@ -2,14 +2,14 @@
 set -e
 
 ### BEGIN INIT INFO
-# Provides:           docker
-# Required-Start:     $syslog $remote_fs
-# Required-Stop:      $syslog $remote_fs
-# Should-Start:       cgroupfs-mount cgroup-lite
-# Should-Stop:        cgroupfs-mount cgroup-lite
-# Default-Start:      2 3 4 5
-# Default-Stop:       0 1 6
-# Short-Description:  Create lightweight, portable, self-sufficient containers.
+# Provides:          docker
+# Required-Start:    $syslog $remote_fs
+# Required-Stop:     $syslog $remote_fs
+# Should-Start:      cgroupfs-mount cgroup-lite
+# Should-Stop:       cgroupfs-mount cgroup-lite
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Create lightweight, portable, self-sufficient containers.
 # Description:
 #  Docker is an open-source project to easily create lightweight, portable,
 #  self-sufficient containers from any application. The same container that a
@@ -19,38 +19,28 @@ set -e
 
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
-BASE=docker
-
-# modify these in /etc/default/$BASE (/etc/default/docker)
-DOCKERD=/usr/bin/dockerd
+NAME=$(basename $(readlink -f "$0"))
+DAEMON=/usr/bin/dockerd
 # This is the pid file managed by docker itself
-DOCKER_PIDFILE=/var/run/$BASE.pid
+DOCKER_PIDFILE=/var/run/$NAME.pid
 # This is the pid file created/managed by start-stop-daemon
-DOCKER_SSD_PIDFILE=/var/run/$BASE-ssd.pid
-DOCKER_LOGFILE=/var/log/$BASE.log
+DOCKER_SSD_PIDFILE=/var/run/$NAME-ssd.pid
+DOCKER_LOGFILE=/var/log/$NAME.log
 DOCKER_OPTS=
 DOCKER_DESC="Docker"
 
 # Get lsb functions
 . /lib/lsb/init-functions
 
-if [ -f /etc/default/$BASE ]; then
-	. /etc/default/$BASE
+if [ -f /etc/default/$NAME ]; then
+	. /etc/default/$NAME
 fi
 
 # Check docker is present
-if [ ! -x $DOCKERD ]; then
-	log_failure_msg "$DOCKERD not present or not executable"
+if [ ! -x $DAEMON ]; then
+	log_failure_msg "$DAEMON not present or not executable"
 	exit 1
 fi
-
-check_init() {
-	# see also init_is_upstart in /lib/lsb/init-functions (which isn't available in Ubuntu 12.04, or we'd use it directly)
-	if [ -x /sbin/initctl ] && /sbin/initctl version 2> /dev/null | grep -q upstart; then
-		log_failure_msg "$DOCKER_DESC is managed via upstart, try using service $BASE $1"
-		exit 1
-	fi
-}
 
 fail_unless_root() {
 	if [ "$(id -u)" != '0' ]; then
@@ -84,8 +74,6 @@ cgroupfs_mount() {
 
 case "$1" in
 	start)
-		check_init
-
 		fail_unless_root
 
 		cgroupfs_mount
@@ -103,54 +91,50 @@ case "$1" in
 			ulimit -p unlimited
 		fi
 
-		log_begin_msg "Starting $DOCKER_DESC: $BASE"
+		log_begin_msg "Starting $DOCKER_DESC: $NAME"
 		start-stop-daemon --start --background \
 			--no-close \
-			--exec "$DOCKERD" \
+			--exec "$DAEMON" \
 			--pidfile "$DOCKER_SSD_PIDFILE" \
 			--make-pidfile \
 			-- \
-			-p "$DOCKER_PIDFILE" \
-			$DOCKER_OPTS \
-			>> "$DOCKER_LOGFILE" 2>&1
+				-p "$DOCKER_PIDFILE" \
+				$DOCKER_OPTS \
+					>> "$DOCKER_LOGFILE" 2>&1
 		log_end_msg $?
-		;;
+	;;
 
 	stop)
-		check_init
 		fail_unless_root
 		if [ -f "$DOCKER_SSD_PIDFILE" ]; then
-			log_begin_msg "Stopping $DOCKER_DESC: $BASE"
-			start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE" --retry 10
+			log_begin_msg "Stopping $DOCKER_DESC: $NAME"
+			start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE" --remove-pidfile --retry 10
 			log_end_msg $?
 		else
 			log_warning_msg "Docker already stopped - file $DOCKER_SSD_PIDFILE not found."
 		fi
-		;;
+	;;
 
 	restart)
-		check_init
 		fail_unless_root
 		docker_pid=$(cat "$DOCKER_SSD_PIDFILE" 2> /dev/null)
 		[ -n "$docker_pid" ] \
 			&& ps -p $docker_pid > /dev/null 2>&1 \
 			&& $0 stop
 		$0 start
-		;;
+	;;
 
 	force-reload)
-		check_init
 		fail_unless_root
 		$0 restart
-		;;
+	;;
 
 	status)
-		check_init
-		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKERD" "$DOCKER_DESC"
-		;;
+		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DAEMON" "$DOCKER_DESC"
+	;;
 
 	*)
 		echo "Usage: service docker {start|stop|restart|status}"
 		exit 1
-		;;
+	;;
 esac
