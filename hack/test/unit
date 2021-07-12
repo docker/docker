@@ -12,22 +12,5 @@
 #
 set -eux -o pipefail
 
-BUILDFLAGS=(-tags 'netgo seccomp libdm_no_deferred_remove')
-TESTFLAGS+=" -test.timeout=${TIMEOUT:-5m}"
-TESTDIRS="${TESTDIRS:-./...}"
-exclude_paths='/vendor/|/integration'
-pkg_list=$(go list $TESTDIRS | grep -vE "($exclude_paths)")
-
-echo "${pkg_list}" | grep --fixed-strings "libnetwork/drivers/bridge" \
-	&& if ! type docker-proxy; then
-		hack/make.sh binary-proxy install-proxy
-	fi
-
 mkdir -p bundles
-gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report.json --junitfile=bundles/junit-report.xml -- \
-	"${BUILDFLAGS[@]}" \
-	-cover \
-	-coverprofile=bundles/profile.out \
-	-covermode=atomic \
-	${TESTFLAGS} \
-	${pkg_list}
+gotestsum --format=standard-quiet --jsonfile=bundles/go-test-report.json --junitfile=bundles/junit-report.xml --raw-command -- go run ./hack/test/unit-run.go
