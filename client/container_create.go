@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
+	"strings"
 
-	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
@@ -37,8 +37,8 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 	}
 
 	query := url.Values{}
-	if platform != nil {
-		query.Set("platform", platforms.Format(*platform))
+	if p := formatPlatform(platform); p != "" {
+		query.Set("platform", p)
 	}
 
 	if containerName != "" {
@@ -59,4 +59,21 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 
 	err = json.NewDecoder(serverResp.body).Decode(&response)
 	return response, err
+}
+
+// formatPlatform returns a formatted string representing platform (e.g. linux/arm/v7).
+//
+// Similar to containerd's platforms.Format(), but returns an empty string
+// instead of "unknown" if no OS is present: https://github.com/containerd/containerd/blob/v1.5.2/platforms/platforms.go#L243-L263
+func formatPlatform(platform *specs.Platform) string {
+	if platform == nil || platform.OS == "" {
+		return ""
+	}
+	var ss []string
+	for _, s := range []string{platform.OS, platform.Architecture, platform.Variant} {
+		if s != "" {
+			ss = append(ss, s)
+		}
+	}
+	return strings.Join(ss, "/")
 }
