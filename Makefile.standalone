@@ -1,0 +1,52 @@
+
+## path configuration (FHS-style)
+PREFIX ?= /usr
+BINDIR ?= $(PREFIX)/bin
+SBINDIR ?= $(PREFIX)/sbin
+
+## toolchain commands
+export GO ?= go
+export INSTALL ?= install
+export LN_S ?= ln -s
+export MKDIR_P ?= mkdir -p
+
+BUILD_TMP ?= $(CURDIR)/tmp
+BUILD_OUT ?= $(BUILD_TMP)/build
+export GOCACHE ?= $(BUILD_TMP)/go-cache
+export LDFLAGS=-s -w
+
+BUILD_GO_ARCH := $(shell $(GO) env GOARCH | sed -e 's~^386~i386~;')
+BUILD_GO_OS := $(shell $(GO) env GOOS)
+
+EXEC_NAME=dockerd-$(BUILD_GO_OS)-$(BUILD_GO_ARCH)
+EXEC_OUT=$(BUILD_OUT)/$(EXEC_NAME)
+
+# make sure it fails ...
+export GOPATH=/proc/gopath
+export GOPROXY=127.0.0.1:29999
+
+all: compile
+
+compile: $(EXEC_OUT)
+
+## generate go.mod in order to use simpler module build mode
+$(CURDIR)/go.mod:
+	$(GO) mod init
+
+$(CURDIR)/vendor/modules.txt:
+	touch $@
+
+$(EXEC_OUT): $(CURDIR)/go.mod $(CURDIR)/vendor/modules.txt
+	$(GO) build -ldflags "$(LDFLAGS)" -mod=vendor -o $@ $(CURDIR)/cmd/dockerd
+
+clean:
+	rm -Rf $(CURDIR)/vendor/modules.txt $(CURDIR)/go.mod $(CURDIR)/tmp
+
+install: compile
+	$(INSTALL) -D -m644 $(CURDIR)/contrib/udev/80-docker.rules        $(DESTDIR)/lib/udev/rules.d/80-docker.rules
+	$(INSTALL) -D -m755 $(CURDIR)/contrib/init/sysvinit-debian/docker $(DESTDIR)/etc/init.d/docker
+	$(INSTALL) -D -m755 $(EXEC_OUT)                                   $(DESTDIR)/$(SBINDIR)/$(EXEC_NAME)
+	$(LN_S) $(EXEC_NAME) $(DESTDIR)/$(SBINDIR)/dockerd
+	$(MKDIR_P) $(DESTDIR)/etc/docker $(DESTDIR)/var/lib/docker $(DESTDIR)/etc/docker
+
+.PHONY: all
