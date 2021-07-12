@@ -1,5 +1,3 @@
-// +build linux,seccomp
-
 package system
 
 import (

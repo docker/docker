@@ -81,14 +81,8 @@ Please use our build script ("./hack/make.sh") for compilation.
 
 ### `DOCKER_BUILDTAGS`
 
-If you're building a binary that might be used on platforms that include
-seccomp, you will need to use the `seccomp` build tag:
-```bash
-export DOCKER_BUILDTAGS='seccomp'
-```
-
-There are build tags for disabling graphdrivers as well. By default, support
-for all graphdrivers are built in.
+There are build tags for disabling graphdrivers, if necessary. By default,
+support for all graphdrivers are built in.
 
 To disable btrfs:
 ```bash
