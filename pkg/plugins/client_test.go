@@ -242,7 +242,7 @@ func TestClientWithRequestTimeout(t *testing.T) {
 
 	timeout := 1 * time.Millisecond
 	testHandler := func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(timeout + 1*time.Millisecond)
+		time.Sleep(timeout + 10*time.Millisecond)
 		w.WriteHeader(http.StatusOK)
 	}
 
