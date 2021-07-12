@@ -1014,7 +1014,10 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 	if daemon.netController == nil {
 		return
 	}
-	if container.HostConfig.NetworkMode.IsContainer() || container.Config.NetworkDisabled {
+	if container.HostConfig.NetworkMode.IsContainer() {
+		return
+	}
+	if container.NetworkSettings == nil {
 		return
 	}
 
