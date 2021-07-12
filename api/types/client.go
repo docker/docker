@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"net"
+	"net/http"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -254,6 +255,8 @@ type ImagePullOptions struct {
 	RegistryAuth  string // RegistryAuth is the base64 encoded credentials for the registry
 	PrivilegeFunc RequestPrivilegeFunc
 	Platform      string
+	// Headers are additional HTTP headers to add for this operation.
+	Headers http.Header
 }
 
 // RequestPrivilegeFunc is a function interface that

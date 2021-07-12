@@ -11,6 +11,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestImagePullReferenceParseError(t *testing.T) {
@@ -196,4 +198,52 @@ func TestImagePullWithoutErrors(t *testing.T) {
 			t.Fatalf("expected '%s', got %s", expectedOutput, string(body))
 		}
 	}
+}
+
+func TestImagePullHeaders(t *testing.T) {
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			wantHeaders := http.Header{
+				"Content-Type":    []string{"text/plain"},
+				"X-Registry-Auth": []string{"", "auth-token"},
+				"X-Meta-Foo":      []string{"foo", "bar"},
+			}
+
+			if result := is.DeepEqual(wantHeaders, req.Header)(); !result.Success() {
+				return nil, fmt.Errorf("Mismatched headers, expected '%v', got %v", wantHeaders, req.Header)
+			}
+
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       ioutil.NopCloser(bytes.NewReader([]byte("hello world"))),
+			}, nil
+		}),
+	}
+
+	opts := types.ImagePullOptions{
+		Headers: map[string][]string{
+			"X-Registry-Auth": []string{"auth-token"},
+			"X-Meta-Foo":      []string{"foo", "bar"},
+		},
+	}
+
+	resp, err := client.ImagePull(context.Background(), "myimage:latest", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := ioutil.ReadAll(resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != "hello world" {
+		t.Fatalf("expected 'hello world', got %s", string(body))
+	}
+
+	// Ensure the passed header map wasn't modified.
+	expectedHeaders := http.Header{
+		"X-Registry-Auth": []string{"auth-token"},
+		"X-Meta-Foo":      []string{"foo", "bar"},
+	}
+	assert.Check(t, is.DeepEqual(expectedHeaders, opts.Headers))
 }
