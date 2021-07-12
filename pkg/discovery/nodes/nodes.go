@@ -39,7 +39,7 @@ func (s *Discovery) Initialize(uris string, _ time.Duration, _ time.Duration, _ 
 
 // Watch is exported
 func (s *Discovery) Watch(stopCh <-chan struct{}) (<-chan discovery.Entries, <-chan error) {
-	ch := make(chan discovery.Entries)
+	ch := make(chan discovery.Entries, 1)
 	go func() {
 		defer close(ch)
 		ch <- s.entries

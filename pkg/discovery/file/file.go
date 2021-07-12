@@ -60,8 +60,8 @@ func (s *Discovery) fetch() (discovery.Entries, error) {
 
 // Watch is exported
 func (s *Discovery) Watch(stopCh <-chan struct{}) (<-chan discovery.Entries, <-chan error) {
-	ch := make(chan discovery.Entries)
-	errCh := make(chan error)
+	ch := make(chan discovery.Entries, 1)
+	errCh := make(chan error, 1)
 	ticker := time.NewTicker(s.heartbeat)
 
 	go func() {

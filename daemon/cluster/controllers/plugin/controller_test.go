@@ -108,7 +108,7 @@ func TestWaitCancel(t *testing.T) {
 	}
 
 	ctxCancel, cancel := context.WithCancel(ctx)
-	chErr := make(chan error)
+	chErr := make(chan error, 1)
 	go func() {
 		chErr <- c.Wait(ctxCancel)
 	}()
@@ -134,7 +134,7 @@ func TestWaitDisabled(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	chErr := make(chan error)
+	chErr := make(chan error, 1)
 	go func() {
 		chErr <- c.Wait(ctx)
 	}()
@@ -215,7 +215,7 @@ func TestWaitEnabled(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	chErr := make(chan error)
+	chErr := make(chan error, 1)
 	go func() {
 		chErr <- c.Wait(ctx)
 	}()
