@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux"
@@ -61,31 +60,23 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 		return containertypes.ContainerCreateCreatedBody{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
 	}
 
-	os := runtime.GOOS
-	var img *image.Image
-	if opts.params.Config.Image != "" {
-		var err error
-		img, err = daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform)
-		if err == nil {
-			os = img.OS
-		}
-	}
-
-	warnings, err := daemon.verifyContainerSettings(os, opts.params.HostConfig, opts.params.Config, false)
+	warnings, err := daemon.verifyContainerSettings(opts.params.HostConfig, opts.params.Config, false)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	if img != nil && opts.params.Platform == nil {
-		p := platforms.DefaultSpec()
-		imgPlat := v1.Platform{
-			OS:           img.OS,
-			Architecture: img.Architecture,
-			Variant:      img.Variant,
-		}
+	if opts.params.Platform == nil && opts.params.Config.Image != "" {
+		if img, _ := daemon.imageService.GetImage(opts.params.Config.Image, opts.params.Platform); img != nil {
+			p := platforms.DefaultSpec()
+			imgPlat := v1.Platform{
+				OS:           img.OS,
+				Architecture: img.Architecture,
+				Variant:      img.Variant,
+			}
 
-		if !images.OnlyPlatformWithFallback(p).Match(imgPlat) {
-			warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.Format(imgPlat), platforms.Format(p)))
+			if !images.OnlyPlatformWithFallback(p).Match(imgPlat) {
+				warnings = append(warnings, fmt.Sprintf("The requested image's platform (%s) does not match the detected host platform (%s) and no specific platform was requested", platforms.Format(imgPlat), platforms.Format(p)))
+			}
 		}
 	}
 
@@ -132,21 +123,13 @@ func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr
 		}
 		if img.OS != "" {
 			os = img.OS
-		} else {
-			// default to the host OS except on Windows with LCOW
-			if isWindows && system.LCOWSupported() {
-				os = "linux"
-			}
 		}
 		imgID = img.ID()
-
-		if isWindows && img.OS == "linux" && !system.LCOWSupported() {
+		if isWindows && img.OS == "linux" {
 			return nil, errors.New("operating system on which parent image was created is not Windows")
 		}
-	} else {
-		if isWindows {
-			os = "linux" // 'scratch' case.
-		}
+	} else if isWindows {
+		os = "linux" // 'scratch' case.
 	}
 
 	// On WCOW, if are not being invoked by the builder to create this container (where

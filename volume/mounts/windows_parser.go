@@ -12,7 +12,15 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 )
 
+// NewWindowsParser creates a parser with Windows semantics.
+func NewWindowsParser() Parser {
+	return &windowsParser{
+		fi: defaultFileInfoProvider{},
+	}
+}
+
 type windowsParser struct {
+	fi fileInfoProvider
 }
 
 const (
@@ -63,12 +71,6 @@ const (
 	// rxDestination is the regex expression for the mount destination
 	rxDestination = `(?P<destination>((?:\\\\\?\\)?([a-z]):((?:[\\/][^\\/:*?"<>\r\n]+)*[\\/]?))|(` + rxPipe + `))`
 
-	rxLCOWDestination = `(?P<destination>/(?:[^\\/:*?"<>\r\n]+[/]?)*)`
-	// Destination (aka container path):
-	//    -  Variation on hostdir but can be a drive followed by colon as well
-	//    -  If a path, must be absolute. Can include spaces
-	//    -  Drive cannot be c: (explicitly checked in code, not RegEx)
-
 	// rxMode is the regex expression for the mode of the mount
 	// Mode (optional):
 	//    -  Hopefully self explanatory in comparison to above regex's.
@@ -78,7 +80,7 @@ const (
 
 type mountValidator func(mnt *mount.Mount) error
 
-func windowsSplitRawSpec(raw, destRegex string) ([]string, error) {
+func (p *windowsParser) windowsSplitRawSpec(raw, destRegex string) ([]string, error) {
 	specExp := regexp.MustCompile(`^` + rxSource + destRegex + rxMode + `$`)
 	match := specExp.FindStringSubmatch(strings.ToLower(raw))
 
@@ -121,8 +123,7 @@ func windowsSplitRawSpec(raw, destRegex string) ([]string, error) {
 				return nil, fmt.Errorf("volume name %q cannot be a reserved word for Windows filenames", matchgroups["destination"])
 			}
 		} else {
-
-			exists, isDir, _ := currentFileInfoProvider.fileInfo(matchgroups["destination"])
+			exists, isDir, _ := p.fi.fileInfo(matchgroups["destination"])
 			if exists && !isDir {
 				return nil, fmt.Errorf("file '%s' cannot be mapped. Only directories can be mapped on this platform", matchgroups["destination"])
 
@@ -136,8 +137,10 @@ func windowsValidMountMode(mode string) bool {
 	if mode == "" {
 		return true
 	}
+	// TODO should windows mounts produce an error if any mode was provided (they're a no-op on windows)
 	return rwModes[strings.ToLower(mode)]
 }
+
 func windowsValidateNotRoot(p string) error {
 	p = strings.ToLower(strings.Replace(p, `/`, `\`, -1))
 	if p == "c:" || p == `c:\` {
@@ -177,7 +180,7 @@ func (p *windowsParser) ReadWrite(mode string) bool {
 	return strings.ToLower(mode) != "ro"
 }
 
-// IsVolumeNameValid checks a volume name in a platform specific manner.
+// ValidateVolumeName checks a volume name in a platform specific manner.
 func (p *windowsParser) ValidateVolumeName(name string) error {
 	nameExp := regexp.MustCompile(`^` + rxName + `$`)
 	if !nameExp.MatchString(name) {
@@ -210,8 +213,6 @@ func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err err
 	}
 	return true, fi.IsDir(), nil
 }
-
-var currentFileInfoProvider fileInfoProvider = defaultFileInfoProvider{}
 
 func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex string, additionalValidators ...mountValidator) error {
 
@@ -247,7 +248,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex strin
 			return &errMountConfig{mnt, err}
 		}
 
-		exists, isdir, err := currentFileInfoProvider.fileInfo(mnt.Source)
+		exists, isdir, err := p.fi.fileInfo(mnt.Source)
 		if err != nil {
 			return &errMountConfig{mnt, err}
 		}
@@ -302,7 +303,7 @@ func (p *windowsParser) ParseMountRaw(raw, volumeDriver string) (*MountPoint, er
 }
 
 func (p *windowsParser) parseMountRaw(raw, volumeDriver, destRegex string, convertTargetToBackslash bool, additionalValidators ...mountValidator) (*MountPoint, error) {
-	arr, err := windowsSplitRawSpec(raw, destRegex)
+	arr, err := p.windowsSplitRawSpec(raw, destRegex)
 	if err != nil {
 		return nil, err
 	}
@@ -453,4 +454,8 @@ func (p *windowsParser) IsBackwardCompatible(m *MountPoint) bool {
 
 func (p *windowsParser) ValidateTmpfsMountDestination(dest string) error {
 	return errors.New("Platform does not support tmpfs")
+}
+
+func (p *windowsParser) HasResource(m *MountPoint, absolutePath string) bool {
+	return false
 }

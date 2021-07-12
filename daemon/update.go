@@ -13,12 +13,7 @@ import (
 func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error) {
 	var warnings []string
 
-	c, err := daemon.GetContainer(name)
-	if err != nil {
-		return container.ContainerUpdateOKBody{Warnings: warnings}, err
-	}
-
-	warnings, err = daemon.verifyContainerSettings(c.OS, hostConfig, nil, true)
+	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true)
 	if err != nil {
 		return container.ContainerUpdateOKBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}

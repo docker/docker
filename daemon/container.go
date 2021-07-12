@@ -3,10 +3,8 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
@@ -231,12 +229,12 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
+func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
 	// First perform verification of settings common across all platforms.
-	if err = validateContainerConfig(config, platform); err != nil {
+	if err = validateContainerConfig(config); err != nil {
 		return warnings, err
 	}
-	if err := validateHostConfig(hostConfig, platform); err != nil {
+	if err := validateHostConfig(hostConfig); err != nil {
 		return warnings, err
 	}
 
@@ -248,11 +246,11 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 	return warnings, err
 }
 
-func validateContainerConfig(config *containertypes.Config, platform string) error {
+func validateContainerConfig(config *containertypes.Config) error {
 	if config == nil {
 		return nil
 	}
-	if err := translateWorkingDir(config, platform); err != nil {
+	if err := translateWorkingDir(config); err != nil {
 		return err
 	}
 	if len(config.StopSignal) > 0 {
@@ -269,7 +267,7 @@ func validateContainerConfig(config *containertypes.Config, platform string) err
 	return validateHealthCheck(config.Healthcheck)
 }
 
-func validateHostConfig(hostConfig *containertypes.HostConfig, platform string) error {
+func validateHostConfig(hostConfig *containertypes.HostConfig) error {
 	if hostConfig == nil {
 		return nil
 	}
@@ -278,7 +276,7 @@ func validateHostConfig(hostConfig *containertypes.HostConfig, platform string) 
 		return errors.Errorf("can't create 'AutoRemove' container with restart policy")
 	}
 	// Validate mounts; check if host directories still exist
-	parser := volumemounts.NewParser(platform)
+	parser := volumemounts.NewParser()
 	for _, c := range hostConfig.Mounts {
 		cfg := c
 		if err := parser.ValidateMountConfig(&cfg); err != nil {
@@ -373,23 +371,13 @@ func validateRestartPolicy(policy containertypes.RestartPolicy) error {
 
 // translateWorkingDir translates the working-dir for the target platform,
 // and returns an error if the given path is not an absolute path.
-func translateWorkingDir(config *containertypes.Config, platform string) error {
+func translateWorkingDir(config *containertypes.Config) error {
 	if config.WorkingDir == "" {
 		return nil
 	}
-	wd := config.WorkingDir
-	switch {
-	case runtime.GOOS != platform:
-		// LCOW. Force Unix semantics
-		wd = strings.Replace(wd, string(os.PathSeparator), "/", -1)
-		if !path.IsAbs(wd) {
-			return fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
-		}
-	default:
-		wd = filepath.FromSlash(wd) // Ensure in platform semantics
-		if !system.IsAbs(wd) {
-			return fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
-		}
+	wd := filepath.FromSlash(config.WorkingDir) // Ensure in platform semantics
+	if !system.IsAbs(wd) {
+		return fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
 	}
 	config.WorkingDir = wd
 	return nil

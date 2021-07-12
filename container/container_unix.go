@@ -64,7 +64,7 @@ func (container *Container) BuildHostnameFile() error {
 func (container *Container) NetworkMounts() []Mount {
 	var mounts []Mount
 	shared := container.HostConfig.NetworkMode.IsContainer()
-	parser := volumemounts.NewParser(container.OS)
+	parser := volumemounts.NewParser()
 	if container.ResolvConfPath != "" {
 		if _, err := os.Stat(container.ResolvConfPath); err != nil {
 			logrus.Warnf("ResolvConfPath set to %q, but can't stat this filename (err = %v); skipping", container.ResolvConfPath, err)
@@ -199,7 +199,7 @@ func (container *Container) UnmountIpcMount() error {
 // IpcMounts returns the list of IPC mounts
 func (container *Container) IpcMounts() []Mount {
 	var mounts []Mount
-	parser := volumemounts.NewParser(container.OS)
+	parser := volumemounts.NewParser()
 
 	if container.HasMountFor("/dev/shm") {
 		return mounts
@@ -419,7 +419,6 @@ func copyExistingContents(source, destination string) error {
 
 // TmpfsMounts returns the list of tmpfs mounts
 func (container *Container) TmpfsMounts() ([]Mount, error) {
-	parser := volumemounts.NewParser(container.OS)
 	var mounts []Mount
 	for dest, data := range container.HostConfig.Tmpfs {
 		mounts = append(mounts, Mount{
@@ -428,6 +427,7 @@ func (container *Container) TmpfsMounts() ([]Mount, error) {
 			Data:        data,
 		})
 	}
+	parser := volumemounts.NewParser()
 	for dest, mnt := range container.MountPoints {
 		if mnt.Type == mounttypes.TypeTmpfs {
 			data, err := parser.ConvertTmpfsOptions(mnt.Spec.TmpfsOptions, mnt.Spec.ReadOnly)

@@ -28,7 +28,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 		}
 		hostConfig.Isolation = "hyperv"
 	}
-	parser := volumemounts.NewParser(container.OS)
+	parser := volumemounts.NewParser()
 	for spec := range config.Volumes {
 
 		mp, err := parser.ParseMountRaw(spec, hostConfig.VolumeDriver)
