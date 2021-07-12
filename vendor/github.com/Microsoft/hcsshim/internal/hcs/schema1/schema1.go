@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/Microsoft/go-winio/pkg/guid"
-	hcsschema "github.com/Microsoft/hcsshim/internal/schema2"
+	hcsschema "github.com/Microsoft/hcsshim/internal/hcs/schema2"
 )
 
 // ProcessConfig is used as both the input of Container.CreateProcess

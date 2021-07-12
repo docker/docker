@@ -49,7 +49,7 @@ func SetupBaseOSLayer(ctx context.Context, layerPath string, vhdHandle windows.H
 //
 // `options` are the options applied while processing the layer.
 func SetupBaseOSVolume(ctx context.Context, layerPath, volumePath string, options OsLayerOptions) (err error) {
-	if osversion.Get().Build < 19645 {
+	if osversion.Build() < 19645 {
 		return errors.New("SetupBaseOSVolume is not present on builds older than 19645")
 	}
 	title := "hcsshim.SetupBaseOSVolume"

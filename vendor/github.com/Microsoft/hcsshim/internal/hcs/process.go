@@ -118,7 +118,7 @@ func (process *Process) Signal(ctx context.Context, options interface{}) (bool, 
 	process.handleLock.RLock()
 	defer process.handleLock.RUnlock()
 
-	operation := "hcsshim::Process::Signal"
+	operation := "hcs::Process::Signal"
 
 	if process.handle == 0 {
 		return false, makeProcessError(process, operation, ErrAlreadyClosed, nil)
@@ -143,7 +143,7 @@ func (process *Process) Kill(ctx context.Context) (bool, error) {
 	process.handleLock.RLock()
 	defer process.handleLock.RUnlock()
 
-	operation := "hcsshim::Process::Kill"
+	operation := "hcs::Process::Kill"
 
 	if process.handle == 0 {
 		return false, makeProcessError(process, operation, ErrAlreadyClosed, nil)
@@ -164,7 +164,7 @@ func (process *Process) Kill(ctx context.Context) (bool, error) {
 // This MUST be called exactly once per `process.handle` but `Wait` is safe to
 // call multiple times.
 func (process *Process) waitBackground() {
-	operation := "hcsshim::Process::waitBackground"
+	operation := "hcs::Process::waitBackground"
 	ctx, span := trace.StartSpan(context.Background(), operation)
 	defer span.End()
 	span.AddAttributes(
@@ -229,7 +229,7 @@ func (process *Process) ResizeConsole(ctx context.Context, width, height uint16)
 	process.handleLock.RLock()
 	defer process.handleLock.RUnlock()
 
-	operation := "hcsshim::Process::ResizeConsole"
+	operation := "hcs::Process::ResizeConsole"
 
 	if process.handle == 0 {
 		return makeProcessError(process, operation, ErrAlreadyClosed, nil)
@@ -267,7 +267,7 @@ func (process *Process) ExitCode() (int, error) {
 		}
 		return process.exitCode, nil
 	default:
-		return -1, makeProcessError(process, "hcsshim::Process::ExitCode", ErrInvalidProcessState, nil)
+		return -1, makeProcessError(process, "hcs::Process::ExitCode", ErrInvalidProcessState, nil)
 	}
 }
 
@@ -275,7 +275,7 @@ func (process *Process) ExitCode() (int, error) {
 // these pipes does not close the underlying pipes. Once returned, these pipes
 // are the responsibility of the caller to close.
 func (process *Process) StdioLegacy() (_ io.WriteCloser, _ io.ReadCloser, _ io.ReadCloser, err error) {
-	operation := "hcsshim::Process::StdioLegacy"
+	operation := "hcs::Process::StdioLegacy"
 	ctx, span := trace.StartSpan(context.Background(), operation)
 	defer span.End()
 	defer func() { oc.SetSpanStatus(span, err) }()
@@ -327,7 +327,7 @@ func (process *Process) CloseStdin(ctx context.Context) error {
 	process.handleLock.RLock()
 	defer process.handleLock.RUnlock()
 
-	operation := "hcsshim::Process::CloseStdin"
+	operation := "hcs::Process::CloseStdin"
 
 	if process.handle == 0 {
 		return makeProcessError(process, operation, ErrAlreadyClosed, nil)
@@ -361,10 +361,59 @@ func (process *Process) CloseStdin(ctx context.Context) error {
 	return nil
 }
 
+func (process *Process) CloseStdout(ctx context.Context) (err error) {
+	ctx, span := trace.StartSpan(ctx, "hcs::Process::CloseStdout") //nolint:ineffassign,staticcheck
+	defer span.End()
+	defer func() { oc.SetSpanStatus(span, err) }()
+	span.AddAttributes(
+		trace.StringAttribute("cid", process.SystemID()),
+		trace.Int64Attribute("pid", int64(process.processID)))
+
+	process.handleLock.Lock()
+	defer process.handleLock.Unlock()
+
+	if process.handle == 0 {
+		return nil
+	}
+
+	process.stdioLock.Lock()
+	defer process.stdioLock.Unlock()
+	if process.stdout != nil {
+		process.stdout.Close()
+		process.stdout = nil
+	}
+	return nil
+}
+
+func (process *Process) CloseStderr(ctx context.Context) (err error) {
+	ctx, span := trace.StartSpan(ctx, "hcs::Process::CloseStderr") //nolint:ineffassign,staticcheck
+	defer span.End()
+	defer func() { oc.SetSpanStatus(span, err) }()
+	span.AddAttributes(
+		trace.StringAttribute("cid", process.SystemID()),
+		trace.Int64Attribute("pid", int64(process.processID)))
+
+	process.handleLock.Lock()
+	defer process.handleLock.Unlock()
+
+	if process.handle == 0 {
+		return nil
+	}
+
+	process.stdioLock.Lock()
+	defer process.stdioLock.Unlock()
+	if process.stderr != nil {
+		process.stderr.Close()
+		process.stderr = nil
+
+	}
+	return nil
+}
+
 // Close cleans up any state associated with the process but does not kill
 // or wait on it.
 func (process *Process) Close() (err error) {
-	operation := "hcsshim::Process::Close"
+	operation := "hcs::Process::Close"
 	ctx, span := trace.StartSpan(context.Background(), operation)
 	defer span.End()
 	defer func() { oc.SetSpanStatus(span, err) }()
@@ -414,7 +463,7 @@ func (process *Process) Close() (err error) {
 }
 
 func (process *Process) registerCallback(ctx context.Context) error {
-	callbackContext := &notifcationWatcherContext{
+	callbackContext := &notificationWatcherContext{
 		channels:  newProcessChannels(),
 		systemID:  process.SystemID(),
 		processID: process.processID,
