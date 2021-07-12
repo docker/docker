@@ -11,7 +11,11 @@ import (
 
 // Seccomp represents the config for a seccomp profile for syscall restriction.
 type Seccomp struct {
-	DefaultAction specs.LinuxSeccompAction `json:"defaultAction"`
+	DefaultAction    specs.LinuxSeccompAction `json:"defaultAction"`
+	DefaultErrnoRet  *uint                    `json:"defaultErrnoRet,omitempty"`
+	ListenerPath     string                   `json:"listenerPath,omitempty"`
+	ListenerMetadata string                   `json:"listenerMetadata,omitempty"`
+
 	// Architectures is kept to maintain backward compatibility with the old
 	// seccomp profile.
 	Architectures []specs.Arch   `json:"architectures,omitempty"`

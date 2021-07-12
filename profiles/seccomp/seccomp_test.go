@@ -59,6 +59,47 @@ func TestLoadProfile(t *testing.T) {
 	assert.DeepEqual(t, expected, *p)
 }
 
+func TestLoadProfileWithDefaultErrnoRet(t *testing.T) {
+	var profile = []byte(`{
+"defaultAction": "SCMP_ACT_ERRNO",
+"defaultErrnoRet": 6
+}`)
+	rs := createSpec()
+	p, err := LoadProfile(string(profile), &rs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedErrnoRet := uint(6)
+	expected := specs.LinuxSeccomp{
+		DefaultAction:   "SCMP_ACT_ERRNO",
+		DefaultErrnoRet: &expectedErrnoRet,
+	}
+
+	assert.DeepEqual(t, expected, *p)
+}
+
+func TestLoadProfileWithListenerPath(t *testing.T) {
+	var profile = []byte(`{
+"defaultAction": "SCMP_ACT_ERRNO",
+"listenerPath": "/var/run/seccompaget.sock",
+"listenerMetadata": "opaque-metadata"
+}`)
+	rs := createSpec()
+	p, err := LoadProfile(string(profile), &rs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := specs.LinuxSeccomp{
+		DefaultAction:    "SCMP_ACT_ERRNO",
+		ListenerPath:     "/var/run/seccompaget.sock",
+		ListenerMetadata: "opaque-metadata",
+	}
+
+	assert.DeepEqual(t, expected, *p)
+}
+
 // TestLoadLegacyProfile tests loading a seccomp profile in the old format
 // (before https://github.com/docker/docker/pull/24510)
 func TestLoadLegacyProfile(t *testing.T) {
