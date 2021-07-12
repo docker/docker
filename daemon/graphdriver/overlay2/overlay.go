@@ -530,13 +530,15 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	defer func() {
 		if retErr != nil {
 			if c := d.ctr.Decrement(mergedDir); c <= 0 {
-				if mntErr := unix.Unmount(mergedDir, 0); mntErr != nil {
-					logger.Errorf("error unmounting %v: %v", mergedDir, mntErr)
-				}
-				// Cleanup the created merged directory; see the comment in Put's rmdir
-				if rmErr := unix.Rmdir(mergedDir); rmErr != nil && !os.IsNotExist(rmErr) {
-					logger.Debugf("Failed to remove %s: %v: %v", id, rmErr, err)
-				}
+				go func() {
+					if mntErr := unix.Unmount(mergedDir, 0); mntErr != nil {
+						logger.Errorf("error unmounting %v: %v", mergedDir, mntErr)
+					}
+					// Cleanup the created merged directory; see the comment in Put's rmdir
+					if rmErr := unix.Rmdir(mergedDir); rmErr != nil && !os.IsNotExist(rmErr) {
+						logger.Debugf("Failed to remove %s: %v: %v", id, rmErr, err)
+					}
+				}()
 			}
 		}
 	}()
@@ -631,19 +633,21 @@ func (d *Driver) Put(id string) error {
 	if count := d.ctr.Decrement(mountpoint); count > 0 {
 		return nil
 	}
-	if err := unix.Unmount(mountpoint, unix.MNT_DETACH); err != nil {
-		logger.Debugf("Failed to unmount %s overlay: %s - %v", id, mountpoint, err)
-	}
-	// Remove the mountpoint here. Removing the mountpoint (in newer kernels)
-	// will cause all other instances of this mount in other mount namespaces
-	// to be unmounted. This is necessary to avoid cases where an overlay mount
-	// that is present in another namespace will cause subsequent mounts
-	// operations to fail with ebusy.  We ignore any errors here because this may
-	// fail on older kernels which don't have
-	// torvalds/linux@8ed936b5671bfb33d89bc60bdcc7cf0470ba52fe applied.
-	if err := unix.Rmdir(mountpoint); err != nil && !os.IsNotExist(err) {
-		logger.Debugf("Failed to remove %s overlay: %v", id, err)
-	}
+	go func() {
+		if err := unix.Unmount(mountpoint, unix.MNT_DETACH); err != nil {
+			logger.Debugf("Failed to unmount %s overlay: %s - %v", id, mountpoint, err)
+		}
+		// Remove the mountpoint here. Removing the mountpoint (in newer kernels)
+		// will cause all other instances of this mount in other mount namespaces
+		// to be unmounted. This is necessary to avoid cases where an overlay mount
+		// that is present in another namespace will cause subsequent mounts
+		// operations to fail with ebusy.  We ignore any errors here because this may
+		// fail on older kernels which don't have
+		// torvalds/linux@8ed936b5671bfb33d89bc60bdcc7cf0470ba52fe applied.
+		if err := unix.Rmdir(mountpoint); err != nil && !os.IsNotExist(err) {
+			logger.Debugf("Failed to remove %s overlay: %v", id, err)
+		}
+	}()
 	return nil
 }
 
