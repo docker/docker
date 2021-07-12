@@ -13,6 +13,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/docker/docker/rootless"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -216,6 +217,62 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version) {
 		}
 	} else {
 		logrus.Warnf("failed to retrieve %s version: %s", defaultInitBinary, err)
+	}
+
+	daemon.fillRootlessVersion(v)
+}
+
+func (daemon *Daemon) fillRootlessVersion(v *types.Version) {
+	if !rootless.RunningWithRootlessKit() {
+		return
+	}
+	rlc, err := rootless.GetRootlessKitClient()
+	if err != nil {
+		logrus.Warnf("failed to retrieve RootlessKit version: %s", err)
+		return
+	}
+	rlInfo, err := rlc.Info(context.TODO())
+	if err != nil {
+		logrus.Warnf("failed to retrieve RootlessKit version: %s", err)
+		return
+	}
+	v.Components = append(v.Components, types.ComponentVersion{
+		Name:    "rootlesskit",
+		Version: rlInfo.Version,
+		Details: map[string]string{
+			"ApiVersion":    rlInfo.APIVersion,
+			"StateDir":      rlInfo.StateDir,
+			"NetworkDriver": rlInfo.NetworkDriver.Driver,
+			"PortDriver":    rlInfo.PortDriver.Driver,
+		},
+	})
+
+	switch rlInfo.NetworkDriver.Driver {
+	case "slirp4netns":
+		if rv, err := exec.Command("slirp4netns", "--version").Output(); err == nil {
+			if _, ver, commit, err := parseRuntimeVersion(string(rv)); err != nil {
+				logrus.Warnf("failed to parse slirp4netns version: %v", err)
+			} else {
+				v.Components = append(v.Components, types.ComponentVersion{
+					Name:    "slirp4netns",
+					Version: ver,
+					Details: map[string]string{
+						"GitCommit": commit,
+					},
+				})
+			}
+		} else {
+			logrus.Warnf("failed to retrieve slirp4netns version: %v", err)
+		}
+	case "vpnkit":
+		if rv, err := exec.Command("vpnkit", "--version").Output(); err == nil {
+			v.Components = append(v.Components, types.ComponentVersion{
+				Name:    "vpnkit",
+				Version: strings.TrimSpace(string(rv)),
+			})
+		} else {
+			logrus.Warnf("failed to retrieve vpnkit version: %v", err)
+		}
 	}
 }
 
