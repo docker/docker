@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/containerd/containerd/runtime/v1/linux"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
@@ -64,12 +63,6 @@ func getDaemonConfDir(_ string) (string, error) {
 func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
 	opts := []supervisor.DaemonOpt{
 		supervisor.WithOOMScore(cli.Config.OOMScoreAdjust),
-		supervisor.WithPlugin("linux", &linux.Config{
-			Shim:        config.DefaultShimBinary,
-			Runtime:     config.DefaultRuntimeBinary,
-			RuntimeRoot: filepath.Join(cli.Config.Root, "runc"),
-			ShimDebug:   cli.Config.Debug,
-		}),
 	}
 
 	return opts, nil
