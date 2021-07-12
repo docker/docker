@@ -26,6 +26,20 @@ type RootFS struct {
 
 // ImageInspect contains response of Engine API:
 // GET "/images/{name:.*}/json"
+//
+// TODO can we swap Architecture, OS, etc for ocispec.Platform ?
+//
+// Need to think of this one, as this will have different output in JSON;
+//
+// - "Architecture" -> "architecture"
+// - "Os"           -> "os"
+// - "OsVersion"    -> "os.version"
+// - "Variant"      -> "variant"
+//
+// The "capitalised" vs "lowercase" changes should not be a problem when
+// (un)marshalling, as Golang handles these case-insensitive (although
+// other languages may treat the JSON case-sensitive), but the
+// "OsVersion" -> "os.version" will (likely) be an issue.
 type ImageInspect struct {
 	ID              string `json:"Id"`
 	RepoTags        []string

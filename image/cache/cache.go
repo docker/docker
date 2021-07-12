@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -118,15 +119,17 @@ func (ic *ImageCache) restoreCachedImage(parent, target *image.Image, cfg *conta
 		V1Image: image.V1Image{
 			DockerVersion: dockerversion.Version,
 			Config:        cfg,
-			Architecture:  target.Architecture,
-			OS:            target.OS,
-			Author:        target.Author,
-			Created:       history[len(history)-1].Created,
+			Platform: ocispec.Platform{
+				Architecture: target.Architecture,
+				OS:           target.OS,
+				OSFeatures:   target.OSFeatures,
+				OSVersion:    target.OSVersion,
+			},
+			Author:  target.Author,
+			Created: history[len(history)-1].Created,
 		},
-		RootFS:     rootFS,
-		History:    history,
-		OSFeatures: target.OSFeatures,
-		OSVersion:  target.OSVersion,
+		RootFS:  rootFS,
+		History: history,
 	})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to marshal image config")

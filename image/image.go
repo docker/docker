@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/layer"
 	digest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ID is the content-addressable ID of an image.
@@ -52,24 +53,19 @@ type V1Image struct {
 	Author string `json:"author,omitempty"`
 	// Config is the configuration of the container received from the client
 	Config *container.Config `json:"config,omitempty"`
-	// Architecture is the hardware that the image is built and runs on
-	Architecture string `json:"architecture,omitempty"`
-	// Variant is the CPU architecture variant (presently ARM-only)
-	Variant string `json:"variant,omitempty"`
-	// OS is the operating system used to build and run the image
-	OS string `json:"os,omitempty"`
+
+	ocispec.Platform
+
 	// Size is the total size of the image including all layers it is composed of
-	Size int64 `json:",omitempty"`
+	Size int64 `json:",omitempty"` // TODO: Size doesn't appear to be used anywhere: can we deprecate?
 }
 
 // Image stores the image configuration
 type Image struct {
 	V1Image
-	Parent     ID        `json:"parent,omitempty"` //nolint:govet
-	RootFS     *RootFS   `json:"rootfs,omitempty"`
-	History    []History `json:"history,omitempty"`
-	OSVersion  string    `json:"os.version,omitempty"`
-	OSFeatures []string  `json:"os.features,omitempty"`
+	Parent  ID        `json:"parent,omitempty"` //nolint:govet
+	RootFS  *RootFS   `json:"rootfs,omitempty"`
+	History []History `json:"history,omitempty"`
 
 	// rawJSON caches the immutable JSON associated with this image.
 	rawJSON []byte
@@ -174,20 +170,22 @@ func NewChildImage(img *Image, child ChildConfig, os string) *Image {
 
 	return &Image{
 		V1Image: V1Image{
-			DockerVersion:   dockerversion.Version,
-			Config:          child.Config,
-			Architecture:    img.BaseImgArch(),
-			Variant:         img.BaseImgVariant(),
-			OS:              os,
+			DockerVersion: dockerversion.Version,
+			Config:        child.Config,
+			Platform: ocispec.Platform{
+				Architecture: img.BaseImgArch(),
+				Variant:      img.BaseImgVariant(),
+				OS:           os,
+				OSFeatures:   img.OSFeatures,
+				OSVersion:    img.OSVersion,
+			},
 			Container:       child.ContainerID,
 			ContainerConfig: *child.ContainerConfig,
 			Author:          child.Author,
 			Created:         imgHistory.Created,
 		},
-		RootFS:     rootFS,
-		History:    append(img.History, imgHistory),
-		OSFeatures: img.OSFeatures,
-		OSVersion:  img.OSVersion,
+		RootFS:  rootFS,
+		History: append(img.History, imgHistory),
 	}
 }
 
