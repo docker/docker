@@ -1440,40 +1440,40 @@ func (daemon *Daemon) statsV1(s *types.StatsJSON, stats *statsV1.Metrics) (*type
 	}
 
 	if stats.Memory != nil {
-		raw := make(map[string]uint64)
-		raw["cache"] = stats.Memory.Cache
-		raw["rss"] = stats.Memory.RSS
-		raw["rss_huge"] = stats.Memory.RSSHuge
-		raw["mapped_file"] = stats.Memory.MappedFile
-		raw["dirty"] = stats.Memory.Dirty
-		raw["writeback"] = stats.Memory.Writeback
-		raw["pgpgin"] = stats.Memory.PgPgIn
-		raw["pgpgout"] = stats.Memory.PgPgOut
-		raw["pgfault"] = stats.Memory.PgFault
-		raw["pgmajfault"] = stats.Memory.PgMajFault
-		raw["inactive_anon"] = stats.Memory.InactiveAnon
-		raw["active_anon"] = stats.Memory.ActiveAnon
-		raw["inactive_file"] = stats.Memory.InactiveFile
-		raw["active_file"] = stats.Memory.ActiveFile
-		raw["unevictable"] = stats.Memory.Unevictable
-		raw["hierarchical_memory_limit"] = stats.Memory.HierarchicalMemoryLimit
-		raw["hierarchical_memsw_limit"] = stats.Memory.HierarchicalSwapLimit
-		raw["total_cache"] = stats.Memory.TotalCache
-		raw["total_rss"] = stats.Memory.TotalRSS
-		raw["total_rss_huge"] = stats.Memory.TotalRSSHuge
-		raw["total_mapped_file"] = stats.Memory.TotalMappedFile
-		raw["total_dirty"] = stats.Memory.TotalDirty
-		raw["total_writeback"] = stats.Memory.TotalWriteback
-		raw["total_pgpgin"] = stats.Memory.TotalPgPgIn
-		raw["total_pgpgout"] = stats.Memory.TotalPgPgOut
-		raw["total_pgfault"] = stats.Memory.TotalPgFault
-		raw["total_pgmajfault"] = stats.Memory.TotalPgMajFault
-		raw["total_inactive_anon"] = stats.Memory.TotalInactiveAnon
-		raw["total_active_anon"] = stats.Memory.TotalActiveAnon
-		raw["total_inactive_file"] = stats.Memory.TotalInactiveFile
-		raw["total_active_file"] = stats.Memory.TotalActiveFile
-		raw["total_unevictable"] = stats.Memory.TotalUnevictable
-
+		raw := map[string]uint64{
+			"cache":                     stats.Memory.Cache,
+			"rss":                       stats.Memory.RSS,
+			"rss_huge":                  stats.Memory.RSSHuge,
+			"mapped_file":               stats.Memory.MappedFile,
+			"dirty":                     stats.Memory.Dirty,
+			"writeback":                 stats.Memory.Writeback,
+			"pgpgin":                    stats.Memory.PgPgIn,
+			"pgpgout":                   stats.Memory.PgPgOut,
+			"pgfault":                   stats.Memory.PgFault,
+			"pgmajfault":                stats.Memory.PgMajFault,
+			"inactive_anon":             stats.Memory.InactiveAnon,
+			"active_anon":               stats.Memory.ActiveAnon,
+			"inactive_file":             stats.Memory.InactiveFile,
+			"active_file":               stats.Memory.ActiveFile,
+			"unevictable":               stats.Memory.Unevictable,
+			"hierarchical_memory_limit": stats.Memory.HierarchicalMemoryLimit,
+			"hierarchical_memsw_limit":  stats.Memory.HierarchicalSwapLimit,
+			"total_cache":               stats.Memory.TotalCache,
+			"total_rss":                 stats.Memory.TotalRSS,
+			"total_rss_huge":            stats.Memory.TotalRSSHuge,
+			"total_mapped_file":         stats.Memory.TotalMappedFile,
+			"total_dirty":               stats.Memory.TotalDirty,
+			"total_writeback":           stats.Memory.TotalWriteback,
+			"total_pgpgin":              stats.Memory.TotalPgPgIn,
+			"total_pgpgout":             stats.Memory.TotalPgPgOut,
+			"total_pgfault":             stats.Memory.TotalPgFault,
+			"total_pgmajfault":          stats.Memory.TotalPgMajFault,
+			"total_inactive_anon":       stats.Memory.TotalInactiveAnon,
+			"total_active_anon":         stats.Memory.TotalActiveAnon,
+			"total_inactive_file":       stats.Memory.TotalInactiveFile,
+			"total_active_file":         stats.Memory.TotalActiveFile,
+			"total_unevictable":         stats.Memory.TotalUnevictable,
+		}
 		if stats.Memory.Usage != nil {
 			s.MemoryStats = types.MemoryStats{
 				Stats:    raw,
@@ -1546,41 +1546,41 @@ func (daemon *Daemon) statsV2(s *types.StatsJSON, stats *statsV2.Metrics) (*type
 	}
 
 	if stats.Memory != nil {
-		raw := make(map[string]uint64)
-		raw["anon"] = stats.Memory.Anon
-		raw["file"] = stats.Memory.File
-		raw["kernel_stack"] = stats.Memory.KernelStack
-		raw["slab"] = stats.Memory.Slab
-		raw["sock"] = stats.Memory.Sock
-		raw["shmem"] = stats.Memory.Shmem
-		raw["file_mapped"] = stats.Memory.FileMapped
-		raw["file_dirty"] = stats.Memory.FileDirty
-		raw["file_writeback"] = stats.Memory.FileWriteback
-		raw["anon_thp"] = stats.Memory.AnonThp
-		raw["inactive_anon"] = stats.Memory.InactiveAnon
-		raw["active_anon"] = stats.Memory.ActiveAnon
-		raw["inactive_file"] = stats.Memory.InactiveFile
-		raw["active_file"] = stats.Memory.ActiveFile
-		raw["unevictable"] = stats.Memory.Unevictable
-		raw["slab_reclaimable"] = stats.Memory.SlabReclaimable
-		raw["slab_unreclaimable"] = stats.Memory.SlabUnreclaimable
-		raw["pgfault"] = stats.Memory.Pgfault
-		raw["pgmajfault"] = stats.Memory.Pgmajfault
-		raw["workingset_refault"] = stats.Memory.WorkingsetRefault
-		raw["workingset_activate"] = stats.Memory.WorkingsetActivate
-		raw["workingset_nodereclaim"] = stats.Memory.WorkingsetNodereclaim
-		raw["pgrefill"] = stats.Memory.Pgrefill
-		raw["pgscan"] = stats.Memory.Pgscan
-		raw["pgsteal"] = stats.Memory.Pgsteal
-		raw["pgactivate"] = stats.Memory.Pgactivate
-		raw["pgdeactivate"] = stats.Memory.Pgdeactivate
-		raw["pglazyfree"] = stats.Memory.Pglazyfree
-		raw["pglazyfreed"] = stats.Memory.Pglazyfreed
-		raw["thp_fault_alloc"] = stats.Memory.ThpFaultAlloc
-		raw["thp_collapse_alloc"] = stats.Memory.ThpCollapseAlloc
 		s.MemoryStats = types.MemoryStats{
 			// Stats is not compatible with v1
-			Stats: raw,
+			Stats: map[string]uint64{
+				"anon":                   stats.Memory.Anon,
+				"file":                   stats.Memory.File,
+				"kernel_stack":           stats.Memory.KernelStack,
+				"slab":                   stats.Memory.Slab,
+				"sock":                   stats.Memory.Sock,
+				"shmem":                  stats.Memory.Shmem,
+				"file_mapped":            stats.Memory.FileMapped,
+				"file_dirty":             stats.Memory.FileDirty,
+				"file_writeback":         stats.Memory.FileWriteback,
+				"anon_thp":               stats.Memory.AnonThp,
+				"inactive_anon":          stats.Memory.InactiveAnon,
+				"active_anon":            stats.Memory.ActiveAnon,
+				"inactive_file":          stats.Memory.InactiveFile,
+				"active_file":            stats.Memory.ActiveFile,
+				"unevictable":            stats.Memory.Unevictable,
+				"slab_reclaimable":       stats.Memory.SlabReclaimable,
+				"slab_unreclaimable":     stats.Memory.SlabUnreclaimable,
+				"pgfault":                stats.Memory.Pgfault,
+				"pgmajfault":             stats.Memory.Pgmajfault,
+				"workingset_refault":     stats.Memory.WorkingsetRefault,
+				"workingset_activate":    stats.Memory.WorkingsetActivate,
+				"workingset_nodereclaim": stats.Memory.WorkingsetNodereclaim,
+				"pgrefill":               stats.Memory.Pgrefill,
+				"pgscan":                 stats.Memory.Pgscan,
+				"pgsteal":                stats.Memory.Pgsteal,
+				"pgactivate":             stats.Memory.Pgactivate,
+				"pgdeactivate":           stats.Memory.Pgdeactivate,
+				"pglazyfree":             stats.Memory.Pglazyfree,
+				"pglazyfreed":            stats.Memory.Pglazyfreed,
+				"thp_fault_alloc":        stats.Memory.ThpFaultAlloc,
+				"thp_collapse_alloc":     stats.Memory.ThpCollapseAlloc,
+			},
 			Usage: stats.Memory.Usage,
 			// MaxUsage is not supported
 			Limit: stats.Memory.UsageLimit,
