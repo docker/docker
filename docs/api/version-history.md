@@ -17,6 +17,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.42](https://docs.docker.com/engine/api/v1.42/) documentation
 
+* `GET /system/df` now accepts query parameter `types`. When set,
+  computes and returns data only for the specified object types.
+  Supported values are: `container`, `image`, `volume`, `build-cache`.
+
 ## v1.41 API changes
 
 [Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.41/) documentation

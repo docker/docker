@@ -530,6 +530,20 @@ type ShimConfig struct {
 	Opts   interface{}
 }
 
+// DiskUsageObject represents an object type used for disk usage query filtering.
+type DiskUsageObject string
+
+const (
+	// ContainerObject represents a container DiskUsageObject.
+	ContainerObject DiskUsageObject = "container"
+	// ImageObject represents an image DiskUsageObject.
+	ImageObject DiskUsageObject = "image"
+	// VolumeObject represents a volume DiskUsageObject.
+	VolumeObject DiskUsageObject = "volume"
+	// BuildCacheObject represents a build-cache DiskUsageObject.
+	BuildCacheObject DiskUsageObject = "build-cache"
+)
+
 // DiskUsage contains response of Engine API:
 // GET "/system/df"
 type DiskUsage struct {
