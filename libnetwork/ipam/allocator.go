@@ -348,12 +348,15 @@ func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
 		return err
 	}
 
-	// Do not let network identifier address be reserved
-	// Do the same for IPv6 so that bridge ip starts with XXXX...::1
-	h.Set(0)
+	// Pre-reserve the network address on IPv4 networks large
+	// enough to have one (i.e., anything bigger than a /31.
+	if !(ipVer == v4 && numAddresses <= 2) {
+		h.Set(0)
+	}
 
-	// Do not let broadcast address be reserved
-	if ipVer == v4 {
+	// Pre-reserve the broadcast address on IPv4 networks large
+	// enough to have one (i.e., anything bigger than a /31).
+	if ipVer == v4 && numAddresses > 2 {
 		h.Set(numAddresses - 1)
 	}
 
