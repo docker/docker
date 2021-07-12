@@ -105,7 +105,7 @@ func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 	rm.active = true
 	rm.Unlock()
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 	go func() {
 		timeout := time.NewTimer(rm.timeout)
 		defer timeout.Stop()
