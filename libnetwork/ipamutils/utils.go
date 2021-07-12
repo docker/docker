@@ -8,17 +8,34 @@ import (
 )
 
 var (
-	// PredefinedLocalScopeDefaultNetworks contains a list of 31 IPv4 private networks with host size 16 and 12
-	// (172.17-31.x.x/16, 192.168.x.x/20) which do not overlap with the networks in `PredefinedGlobalScopeDefaultNetworks`
-	PredefinedLocalScopeDefaultNetworks []*net.IPNet
-	// PredefinedGlobalScopeDefaultNetworks contains a list of 64K IPv4 private networks with host size 8
-	// (10.x.x.x/24) which do not overlap with the networks in `PredefinedLocalScopeDefaultNetworks`
-	PredefinedGlobalScopeDefaultNetworks []*net.IPNet
-	mutex                                sync.Mutex
-	localScopeDefaultNetworks            = []*NetworkToSplit{{"172.17.0.0/16", 16}, {"172.18.0.0/16", 16}, {"172.19.0.0/16", 16},
-		{"172.20.0.0/14", 16}, {"172.24.0.0/14", 16}, {"172.28.0.0/14", 16},
-		{"192.168.0.0/16", 20}}
-	globalScopeDefaultNetworks = []*NetworkToSplit{{"10.0.0.0/8", 24}}
+	// initDefaults makes sure we initialize the defaults only once
+	initDefaults sync.Once
+
+	// predefinedLocalScopeDefaultNetworks contains a list of 31 IPv4 private
+	// networks with host size 16 and 12 (172.17-31.x.x/16, 192.168.x.x/20)
+	// which do not overlap with the networks in predefinedGlobalScopeDefaultNetworks
+	predefinedLocalScopeDefaultNetworks []*net.IPNet
+
+	// predefinedGlobalScopeDefaultNetworks contains a list of 64K IPv4 private
+	// networks with host size 8 (10.x.x.x/24) which do not overlap with the
+	// networks in predefinedLocalScopeDefaultNetworks
+	predefinedGlobalScopeDefaultNetworks []*net.IPNet
+
+	mutex sync.RWMutex
+
+	localScopeDefaultNetworks = []*NetworkToSplit{
+		{"172.17.0.0/16", 16},
+		{"172.18.0.0/16", 16},
+		{"172.19.0.0/16", 16},
+		{"172.20.0.0/14", 16},
+		{"172.24.0.0/14", 16},
+		{"172.28.0.0/14", 16},
+		{"192.168.0.0/16", 20},
+	}
+
+	globalScopeDefaultNetworks = []*NetworkToSplit{
+		{"10.0.0.0/8", 24},
+	}
 )
 
 // NetworkToSplit represent a network that has to be split in chunks with mask length Size.
@@ -31,16 +48,22 @@ type NetworkToSplit struct {
 	Size int    `json:"size"`
 }
 
-func init() {
+// initDefaultNetworks initializes the default address pools
+func initDefaultNetworks() {
 	var err error
-	if PredefinedGlobalScopeDefaultNetworks, err = splitNetworks(globalScopeDefaultNetworks); err != nil {
-		//we are going to panic in case of error as we should never get into this state
-		panic("InitAddressPools failed to initialize the global scope default address pool")
+	if len(predefinedLocalScopeDefaultNetworks) == 0 {
+		predefinedLocalScopeDefaultNetworks, err = splitNetworks(localScopeDefaultNetworks)
+		if err != nil {
+			// we are going to panic in case of error as we should never get into this state
+			panic("initDefaultNetworks failed to initialize the local scope default address pool")
+		}
 	}
-
-	if PredefinedLocalScopeDefaultNetworks, err = splitNetworks(localScopeDefaultNetworks); err != nil {
-		//we are going to panic in case of error as we should never get into this state
-		panic("InitAddressPools failed to initialize the local scope default address pool")
+	if len(predefinedGlobalScopeDefaultNetworks) == 0 {
+		predefinedGlobalScopeDefaultNetworks, err = splitNetworks(globalScopeDefaultNetworks)
+		if err != nil {
+			// we are going to panic in case of error as we should never get into this state
+			panic("initDefaultNetworks failed to initialize the global scope default address pool")
+		}
 	}
 }
 
@@ -56,18 +79,26 @@ func configDefaultNetworks(defaultAddressPool []*NetworkToSplit, result *[]*net.
 	return nil
 }
 
-// GetGlobalScopeDefaultNetworks returns PredefinedGlobalScopeDefaultNetworks
+// GetGlobalScopeDefaultNetworks returns a list of 64K IPv4 private networks with
+// host size 8 (10.x.x.x/24) which do not overlap with the networks returned by
+// GetLocalScopeDefaultNetworks
 func GetGlobalScopeDefaultNetworks() []*net.IPNet {
-	mutex.Lock()
-	defer mutex.Unlock()
-	return PredefinedGlobalScopeDefaultNetworks
+	mutex.RLock()
+	defer mutex.RUnlock()
+	initDefaults.Do(initDefaultNetworks)
+
+	return predefinedGlobalScopeDefaultNetworks
 }
 
-// GetLocalScopeDefaultNetworks returns PredefinedLocalScopeDefaultNetworks
+// GetLocalScopeDefaultNetworks returns a list of 31 IPv4 private networks with
+// host size 16 and 12 (172.17-31.x.x/16, 192.168.x.x/20) which do not overlap
+// with the networks returned by GetGlobalScopeDefaultNetworks.
 func GetLocalScopeDefaultNetworks() []*net.IPNet {
-	mutex.Lock()
-	defer mutex.Unlock()
-	return PredefinedLocalScopeDefaultNetworks
+	mutex.RLock()
+	defer mutex.RUnlock()
+	initDefaults.Do(initDefaultNetworks)
+
+	return predefinedLocalScopeDefaultNetworks
 }
 
 // ConfigGlobalScopeDefaultNetworks configures global default pool.
@@ -76,7 +107,11 @@ func ConfigGlobalScopeDefaultNetworks(defaultAddressPool []*NetworkToSplit) erro
 	if defaultAddressPool == nil {
 		defaultAddressPool = globalScopeDefaultNetworks
 	}
-	return configDefaultNetworks(defaultAddressPool, &PredefinedGlobalScopeDefaultNetworks)
+
+	// Prevent potential race conditions; first trigger setting the defaults
+	// if it was not run yet
+	initDefaults.Do(initDefaultNetworks)
+	return configDefaultNetworks(defaultAddressPool, &predefinedGlobalScopeDefaultNetworks)
 }
 
 // ConfigLocalScopeDefaultNetworks configures local default pool.
@@ -85,7 +120,10 @@ func ConfigLocalScopeDefaultNetworks(defaultAddressPool []*NetworkToSplit) error
 	if defaultAddressPool == nil {
 		return nil
 	}
-	return configDefaultNetworks(defaultAddressPool, &PredefinedLocalScopeDefaultNetworks)
+	// Prevent potential race conditions; first trigger setting the defaults
+	// if it was not run yet
+	initDefaults.Do(initDefaultNetworks)
+	return configDefaultNetworks(defaultAddressPool, &predefinedLocalScopeDefaultNetworks)
 }
 
 // splitNetworks takes a slice of networks, split them accordingly and returns them
