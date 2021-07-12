@@ -11,8 +11,8 @@ type BridgeConfig struct {
 }
 
 // Config defines the configuration of a docker daemon.
-// These are the configuration settings that you pass
-// to the docker daemon when you launch it with say: `dockerd -e windows`
+// It includes json tags to deserialize configuration from a file
+// using the same names that the flags in the command line uses.
 type Config struct {
 	CommonConfig
 
@@ -24,11 +24,6 @@ type Config struct {
 // runtime name
 func (conf *Config) GetRuntime(name string) *types.Runtime {
 	return nil
-}
-
-// GetInitPath returns the configure docker-init path
-func (conf *Config) GetInitPath() string {
-	return ""
 }
 
 // GetDefaultRuntimeName returns the current default runtime
@@ -46,6 +41,11 @@ func (conf *Config) GetExecRoot() string {
 	return ""
 }
 
+// GetInitPath returns the configured docker-init path
+func (conf *Config) GetInitPath() string {
+	return ""
+}
+
 // IsSwarmCompatible defines if swarm mode can be enabled in this config
 func (conf *Config) IsSwarmCompatible() error {
 	return nil
@@ -56,7 +56,7 @@ func (conf *Config) ValidatePlatformConfig() error {
 	return nil
 }
 
-// IsRootless returns conf.Rootless on Unix but false on Windows
+// IsRootless returns conf.Rootless on Linux but false on Windows
 func (conf *Config) IsRootless() bool {
 	return false
 }

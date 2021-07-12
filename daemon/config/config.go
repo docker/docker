@@ -282,10 +282,14 @@ func (conf *Config) IsValueSet(name string) bool {
 
 // New returns a new fully initialized Config struct
 func New() *Config {
-	config := Config{}
-	config.LogConfig.Config = make(map[string]string)
-	config.ClusterOpts = make(map[string]string)
-	return &config
+	return &Config{
+		CommonConfig: CommonConfig{
+			LogConfig: LogConfig{
+				Config: make(map[string]string),
+			},
+			ClusterOpts: make(map[string]string),
+		},
+	}
 }
 
 // ParseClusterAdvertiseSettings parses the specified advertise settings
