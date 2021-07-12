@@ -1,7 +1,9 @@
 package memberlist
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"sync"
@@ -47,6 +49,8 @@ type NetTransport struct {
 	udpListeners []*net.UDPConn
 	shutdown     int32
 }
+
+var _ NodeAwareTransport = (*NetTransport)(nil)
 
 // NewNetTransport returns a net transport with the given configuration. On
 // success all the network listeners will be created and listening.
@@ -170,6 +174,14 @@ func (t *NetTransport) FinalAdvertiseAddr(ip string, port int) (net.IP, int, err
 
 // See Transport.
 func (t *NetTransport) WriteTo(b []byte, addr string) (time.Time, error) {
+	a := Address{Addr: addr, Name: ""}
+	return t.WriteToAddress(b, a)
+}
+
+// See NodeAwareTransport.
+func (t *NetTransport) WriteToAddress(b []byte, a Address) (time.Time, error) {
+	addr := a.Addr
+
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return time.Time{}, err
@@ -188,8 +200,44 @@ func (t *NetTransport) PacketCh() <-chan *Packet {
 	return t.packetCh
 }
 
+// See IngestionAwareTransport.
+func (t *NetTransport) IngestPacket(conn net.Conn, addr net.Addr, now time.Time, shouldClose bool) error {
+	if shouldClose {
+		defer conn.Close()
+	}
+
+	// Copy everything from the stream into packet buffer.
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, conn); err != nil {
+		return fmt.Errorf("failed to read packet: %v", err)
+	}
+
+	// Check the length - it needs to have at least one byte to be a proper
+	// message. This is checked elsewhere for writes coming in directly from
+	// the UDP socket.
+	if n := buf.Len(); n < 1 {
+		return fmt.Errorf("packet too short (%d bytes) %s", n, LogAddress(addr))
+	}
+
+	// Inject the packet.
+	t.packetCh <- &Packet{
+		Buf:       buf.Bytes(),
+		From:      addr,
+		Timestamp: now,
+	}
+	return nil
+}
+
 // See Transport.
 func (t *NetTransport) DialTimeout(addr string, timeout time.Duration) (net.Conn, error) {
+	a := Address{Addr: addr, Name: ""}
+	return t.DialAddressTimeout(a, timeout)
+}
+
+// See NodeAwareTransport.
+func (t *NetTransport) DialAddressTimeout(a Address, timeout time.Duration) (net.Conn, error) {
+	addr := a.Addr
+
 	dialer := net.Dialer{Timeout: timeout}
 	return dialer.Dial("tcp", addr)
 }
@@ -197,6 +245,12 @@ func (t *NetTransport) DialTimeout(addr string, timeout time.Duration) (net.Conn
 // See Transport.
 func (t *NetTransport) StreamCh() <-chan net.Conn {
 	return t.streamCh
+}
+
+// See IngestionAwareTransport.
+func (t *NetTransport) IngestStream(conn net.Conn) error {
+	t.streamCh <- conn
+	return nil
 }
 
 // See Transport.
@@ -221,6 +275,16 @@ func (t *NetTransport) Shutdown() error {
 // and hands them off to the stream channel.
 func (t *NetTransport) tcpListen(tcpLn *net.TCPListener) {
 	defer t.wg.Done()
+
+	// baseDelay is the initial delay after an AcceptTCP() error before attempting again
+	const baseDelay = 5 * time.Millisecond
+
+	// maxDelay is the maximum delay after an AcceptTCP() error before attempting again.
+	// In the case that tcpListen() is error-looping, it will delay the shutdown check.
+	// Therefore, changes to maxDelay may have an effect on the latency of shutdown.
+	const maxDelay = 1 * time.Second
+
+	var loopDelay time.Duration
 	for {
 		conn, err := tcpLn.AcceptTCP()
 		if err != nil {
@@ -228,9 +292,22 @@ func (t *NetTransport) tcpListen(tcpLn *net.TCPListener) {
 				break
 			}
 
+			if loopDelay == 0 {
+				loopDelay = baseDelay
+			} else {
+				loopDelay *= 2
+			}
+
+			if loopDelay > maxDelay {
+				loopDelay = maxDelay
+			}
+
 			t.logger.Printf("[ERR] memberlist: Error accepting TCP connection: %v", err)
+			time.Sleep(loopDelay)
 			continue
 		}
+		// No error, reset loop delay
+		loopDelay = 0
 
 		t.streamCh <- conn
 	}

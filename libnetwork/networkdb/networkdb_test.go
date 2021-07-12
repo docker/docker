@@ -278,6 +278,8 @@ func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	err = dbs[1].JoinNetwork("network1")
 	assert.NilError(t, err)
 
+	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
+
 	n := 10
 	for i := 1; i <= n; i++ {
 		err = dbs[0].CreateEntry("test_table", "network1",
@@ -497,12 +499,7 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Wait for the propagation on db[0]
-	for i := 0; i < maxRetry; i++ {
-		if len(dbs[0].networkNodes["network1"]) == 2 {
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
+	dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, "network1", true)
 	if len(dbs[0].networkNodes["network1"]) != 2 {
 		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[0].networkNodes["network1"]), dbs[0].networkNodes["network1"])
 	}
@@ -511,12 +508,7 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	}
 
 	// Wait for the propagation on db[1]
-	for i := 0; i < maxRetry; i++ {
-		if len(dbs[1].networkNodes["network1"]) == 2 {
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
+	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 	if len(dbs[1].networkNodes["network1"]) != 2 {
 		t.Fatalf("The networkNodes list has to have be 2 instead of %d - %v", len(dbs[1].networkNodes["network1"]), dbs[1].networkNodes["network1"])
 	}
@@ -819,8 +811,24 @@ func TestParallelDelete(t *testing.T) {
 }
 
 func TestNetworkDBIslands(t *testing.T) {
+	pollTimeout := func() time.Duration {
+		const defaultTimeout = 120 * time.Second
+		dl, ok := t.Deadline()
+		if !ok {
+			return defaultTimeout
+		}
+		if d := time.Until(dl); d <= defaultTimeout {
+			return d
+		}
+		return defaultTimeout
+	}
+
 	logrus.SetLevel(logrus.DebugLevel)
-	dbs := createNetworkDBInstances(t, 5, "node", DefaultConfig())
+	conf := DefaultConfig()
+	// Shorten durations to speed up test execution.
+	conf.rejoinClusterDuration = conf.rejoinClusterDuration / 10
+	conf.rejoinClusterInterval = conf.rejoinClusterInterval / 10
+	dbs := createNetworkDBInstances(t, 5, "node", conf)
 
 	// Get the node IP used currently
 	node := dbs[0].nodes[dbs[0].config.NodeID]
@@ -868,7 +876,7 @@ func TestNetworkDBIslands(t *testing.T) {
 		}
 		return poll.Success()
 	}
-	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(120*time.Second))
+	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(pollTimeout()))
 
 	// Spawn again the first 3 nodes with different names but same IP:port
 	for i := 0; i < 3; i++ {
@@ -877,7 +885,7 @@ func TestNetworkDBIslands(t *testing.T) {
 		dbs[i] = launchNode(t, *dbs[i].config)
 	}
 
-	// Give some time for the reconnect routine to run, it runs every 60s
+	// Give some time for the reconnect routine to run, it runs every 6s.
 	check = func(t poll.LogT) poll.Result {
 		// Verify that the cluster is again all connected. Note that the 3 previous node did not do any join
 		for i := 0; i < 5; i++ {
@@ -908,6 +916,6 @@ func TestNetworkDBIslands(t *testing.T) {
 		}
 		return poll.Success()
 	}
-	poll.WaitOn(t, check, poll.WithDelay(10*time.Second), poll.WithTimeout(120*time.Second))
+	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(pollTimeout()))
 	closeNetworkDBInstances(t, dbs)
 }

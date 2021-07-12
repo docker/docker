@@ -192,6 +192,14 @@ type Config struct {
 	// NOTE this MUST always be higher than reapEntryInterval
 	reapNetworkInterval time.Duration
 
+	// rejoinClusterDuration represents retryJoin timeout used by rejoinClusterBootStrap.
+	// Default is 10sec.
+	rejoinClusterDuration time.Duration
+
+	// rejoinClusterInterval represents interval on which rejoinClusterBootStrap runs.
+	// Default is 60sec.
+	rejoinClusterInterval time.Duration
+
 	// StatsPrintPeriod the period to use to print queue stats
 	// Default is 5min
 	StatsPrintPeriod time.Duration
@@ -225,13 +233,15 @@ type entry struct {
 func DefaultConfig() *Config {
 	hostname, _ := os.Hostname()
 	return &Config{
-		NodeID:            stringid.TruncateID(stringid.GenerateRandomID()),
-		Hostname:          hostname,
-		BindAddr:          "0.0.0.0",
-		PacketBufferSize:  1400,
-		StatsPrintPeriod:  5 * time.Minute,
-		HealthPrintPeriod: 1 * time.Minute,
-		reapEntryInterval: 30 * time.Minute,
+		NodeID:                stringid.TruncateID(stringid.GenerateRandomID()),
+		Hostname:              hostname,
+		BindAddr:              "0.0.0.0",
+		PacketBufferSize:      1400,
+		StatsPrintPeriod:      5 * time.Minute,
+		HealthPrintPeriod:     1 * time.Minute,
+		reapEntryInterval:     30 * time.Minute,
+		rejoinClusterDuration: 10 * time.Second,
+		rejoinClusterInterval: 60 * time.Second,
 	}
 }
 

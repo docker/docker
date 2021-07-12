@@ -18,12 +18,10 @@ import (
 )
 
 const (
-	reapPeriod            = 5 * time.Second
-	rejoinClusterDuration = 10 * time.Second
-	rejoinInterval        = 60 * time.Second
-	retryInterval         = 1 * time.Second
-	nodeReapInterval      = 24 * time.Hour
-	nodeReapPeriod        = 2 * time.Hour
+	reapPeriod       = 5 * time.Second
+	retryInterval    = 1 * time.Second
+	nodeReapInterval = 24 * time.Hour
+	nodeReapPeriod   = 2 * time.Hour
 	// considering a cluster with > 20 nodes and a drain speed of 100 msg/s
 	// the following is roughly 1 minute
 	maxQueueLenBroadcastOnSync = 500
@@ -172,7 +170,7 @@ func (nDB *NetworkDB) clusterInit() error {
 		{config.PushPullInterval, nDB.bulkSyncTables},
 		{retryInterval, nDB.reconnectNode},
 		{nodeReapPeriod, nDB.reapDeadNode},
-		{rejoinInterval, nDB.rejoinClusterBootStrap},
+		{nDB.config.rejoinClusterInterval, nDB.rejoinClusterBootStrap},
 	} {
 		t := time.NewTicker(trigger.interval)
 		go nDB.triggerFunc(trigger.interval, t.C, trigger.fn)
@@ -210,7 +208,8 @@ func (nDB *NetworkDB) clusterJoin(members []string) error {
 
 	if _, err := mlist.Join(members); err != nil {
 		// In case of failure, we no longer need to explicitly call retryJoin.
-		// rejoinClusterBootStrap, which runs every minute, will retryJoin for 10sec
+		// rejoinClusterBootStrap, which runs every nDB.config.rejoinClusterInterval,
+		// will retryJoin for nDB.config.rejoinClusterDuration.
 		return fmt.Errorf("could not join node to memberlist: %v", err)
 	}
 
@@ -324,7 +323,7 @@ func (nDB *NetworkDB) rejoinClusterBootStrap() {
 	}
 	// None of the bootStrap nodes are in the cluster, call memberlist join
 	logrus.Debugf("rejoinClusterBootStrap, calling cluster join with bootStrap %v", bootStrapIPs)
-	ctx, cancel := context.WithTimeout(nDB.ctx, rejoinClusterDuration)
+	ctx, cancel := context.WithTimeout(nDB.ctx, nDB.config.rejoinClusterDuration)
 	defer cancel()
 	nDB.retryJoin(ctx, bootStrapIPs)
 }

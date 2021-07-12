@@ -8,9 +8,10 @@ import (
 	"hash/crc32"
 	"io"
 	"net"
+	"sync/atomic"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-msgpack/codec"
 )
 
@@ -71,7 +72,8 @@ const (
 	compoundOverhead       = 2   // Assumed overhead per entry in compoundHeader
 	userMsgOverhead        = 1
 	blockingWarning        = 10 * time.Millisecond // Warn if a UDP packet takes this long to process
-	maxPushStateBytes      = 10 * 1024 * 1024
+	maxPushStateBytes      = 20 * 1024 * 1024
+	maxPushPullRequests    = 128 // Maximum number of concurrent push/pull requests
 )
 
 // ping request sent directly to node
@@ -82,15 +84,28 @@ type ping struct {
 	// the intended recipient. This is to protect again an agent
 	// restart with a new name.
 	Node string
+
+	SourceAddr []byte `codec:",omitempty"` // Source address, used for a direct reply
+	SourcePort uint16 `codec:",omitempty"` // Source port, used for a direct reply
+	SourceNode string `codec:",omitempty"` // Source name, used for a direct reply
 }
 
-// indirect ping sent to an indirect ndoe
+// indirect ping sent to an indirect node
 type indirectPingReq struct {
 	SeqNo  uint32
 	Target []byte
 	Port   uint16
-	Node   string
-	Nack   bool // true if we'd like a nack back
+
+	// Node is sent so the target can verify they are
+	// the intended recipient. This is to protect against an agent
+	// restart with a new name.
+	Node string
+
+	Nack bool // true if we'd like a nack back
+
+	SourceAddr []byte `codec:",omitempty"` // Source address, used for a direct reply
+	SourcePort uint16 `codec:",omitempty"` // Source port, used for a direct reply
+	SourceNode string `codec:",omitempty"` // Source name, used for a direct reply
 }
 
 // ack response is sent for a ping
@@ -161,7 +176,7 @@ type pushNodeState struct {
 	Port        uint16
 	Meta        []byte
 	Incarnation uint32
-	State       nodeStateType
+	State       NodeStateType
 	Vsn         []uint8 // Protocol versions
 }
 
@@ -205,9 +220,9 @@ func (m *Memberlist) streamListen() {
 
 // handleConn handles a single incoming stream connection from the transport.
 func (m *Memberlist) handleConn(conn net.Conn) {
+	defer conn.Close()
 	m.logger.Printf("[DEBUG] memberlist: Stream connection %s", LogConn(conn))
 
-	defer conn.Close()
 	metrics.IncrCounter([]string{"memberlist", "tcp", "accept"}, 1)
 
 	conn.SetDeadline(time.Now().Add(m.config.TCPTimeout))
@@ -238,6 +253,16 @@ func (m *Memberlist) handleConn(conn net.Conn) {
 			m.logger.Printf("[ERR] memberlist: Failed to receive user message: %s %s", err, LogConn(conn))
 		}
 	case pushPullMsg:
+		// Increment counter of pending push/pulls
+		numConcurrent := atomic.AddUint32(&m.pushPullReq, 1)
+		defer atomic.AddUint32(&m.pushPullReq, ^uint32(0))
+
+		// Check if we have too many open push/pull requests
+		if numConcurrent >= maxPushPullRequests {
+			m.logger.Printf("[ERR] memberlist: Too many pending push/pull requests")
+			return
+		}
+
 		join, remoteNodes, userState, err := m.readRemoteState(bufConn, dec)
 		if err != nil {
 			m.logger.Printf("[ERR] memberlist: Failed to read remote state: %s %s", err, LogConn(conn))
@@ -330,6 +355,10 @@ func (m *Memberlist) ingestPacket(buf []byte, from net.Addr, timestamp time.Time
 }
 
 func (m *Memberlist) handleCommand(buf []byte, from net.Addr, timestamp time.Time) {
+	if len(buf) < 1 {
+		m.logger.Printf("[ERR] memberlist: missing message type byte %s", LogAddress(from))
+		return
+	}
 	// Decode the message type
 	msgType := messageType(buf[0])
 	buf = buf[1:]
@@ -357,15 +386,47 @@ func (m *Memberlist) handleCommand(buf []byte, from net.Addr, timestamp time.Tim
 	case deadMsg:
 		fallthrough
 	case userMsg:
-		select {
-		case m.handoff <- msgHandoff{msgType, buf, from}:
-		default:
+		// Determine the message queue, prioritize alive
+		queue := m.lowPriorityMsgQueue
+		if msgType == aliveMsg {
+			queue = m.highPriorityMsgQueue
+		}
+
+		// Check for overflow and append if not full
+		m.msgQueueLock.Lock()
+		if queue.Len() >= m.config.HandoffQueueDepth {
 			m.logger.Printf("[WARN] memberlist: handler queue full, dropping message (%d) %s", msgType, LogAddress(from))
+		} else {
+			queue.PushBack(msgHandoff{msgType, buf, from})
+		}
+		m.msgQueueLock.Unlock()
+
+		// Notify of pending message
+		select {
+		case m.handoffCh <- struct{}{}:
+		default:
 		}
 
 	default:
 		m.logger.Printf("[ERR] memberlist: msg type (%d) not supported %s", msgType, LogAddress(from))
 	}
+}
+
+// getNextMessage returns the next message to process in priority order, using LIFO
+func (m *Memberlist) getNextMessage() (msgHandoff, bool) {
+	m.msgQueueLock.Lock()
+	defer m.msgQueueLock.Unlock()
+
+	if el := m.highPriorityMsgQueue.Back(); el != nil {
+		m.highPriorityMsgQueue.Remove(el)
+		msg := el.Value.(msgHandoff)
+		return msg, true
+	} else if el := m.lowPriorityMsgQueue.Back(); el != nil {
+		m.lowPriorityMsgQueue.Remove(el)
+		msg := el.Value.(msgHandoff)
+		return msg, true
+	}
+	return msgHandoff{}, false
 }
 
 // packetHandler is a long running goroutine that processes messages received
@@ -374,22 +435,28 @@ func (m *Memberlist) handleCommand(buf []byte, from net.Addr, timestamp time.Tim
 func (m *Memberlist) packetHandler() {
 	for {
 		select {
-		case msg := <-m.handoff:
-			msgType := msg.msgType
-			buf := msg.buf
-			from := msg.from
+		case <-m.handoffCh:
+			for {
+				msg, ok := m.getNextMessage()
+				if !ok {
+					break
+				}
+				msgType := msg.msgType
+				buf := msg.buf
+				from := msg.from
 
-			switch msgType {
-			case suspectMsg:
-				m.handleSuspect(buf, from)
-			case aliveMsg:
-				m.handleAlive(buf, from)
-			case deadMsg:
-				m.handleDead(buf, from)
-			case userMsg:
-				m.handleUser(buf, from)
-			default:
-				m.logger.Printf("[ERR] memberlist: Message type (%d) not supported %s (packet handler)", msgType, LogAddress(from))
+				switch msgType {
+				case suspectMsg:
+					m.handleSuspect(buf, from)
+				case aliveMsg:
+					m.handleAlive(buf, from)
+				case deadMsg:
+					m.handleDead(buf, from)
+				case userMsg:
+					m.handleUser(buf, from)
+				default:
+					m.logger.Printf("[ERR] memberlist: Message type (%d) not supported %s (packet handler)", msgType, LogAddress(from))
+				}
 			}
 
 		case <-m.shutdownCh:
@@ -433,7 +500,19 @@ func (m *Memberlist) handlePing(buf []byte, from net.Addr) {
 	if m.config.Ping != nil {
 		ack.Payload = m.config.Ping.AckPayload()
 	}
-	if err := m.encodeAndSendMsg(from.String(), ackRespMsg, &ack); err != nil {
+
+	addr := ""
+	if len(p.SourceAddr) > 0 && p.SourcePort > 0 {
+		addr = joinHostPort(net.IP(p.SourceAddr).String(), p.SourcePort)
+	} else {
+		addr = from.String()
+	}
+
+	a := Address{
+		Addr: addr,
+		Name: p.SourceNode,
+	}
+	if err := m.encodeAndSendMsg(a, ackRespMsg, &ack); err != nil {
 		m.logger.Printf("[ERR] memberlist: Failed to send ack: %s %s", err, LogAddress(from))
 	}
 }
@@ -453,7 +532,25 @@ func (m *Memberlist) handleIndirectPing(buf []byte, from net.Addr) {
 
 	// Send a ping to the correct host.
 	localSeqNo := m.nextSeqNo()
-	ping := ping{SeqNo: localSeqNo, Node: ind.Node}
+	selfAddr, selfPort := m.getAdvertise()
+	ping := ping{
+		SeqNo: localSeqNo,
+		Node:  ind.Node,
+		// The outbound message is addressed FROM us.
+		SourceAddr: selfAddr,
+		SourcePort: selfPort,
+		SourceNode: m.config.Name,
+	}
+
+	// Forward the ack back to the requestor. If the request encodes an origin
+	// use that otherwise assume that the other end of the UDP socket is
+	// usable.
+	indAddr := ""
+	if len(ind.SourceAddr) > 0 && ind.SourcePort > 0 {
+		indAddr = joinHostPort(net.IP(ind.SourceAddr).String(), ind.SourcePort)
+	} else {
+		indAddr = from.String()
+	}
 
 	// Setup a response handler to relay the ack
 	cancelCh := make(chan struct{})
@@ -461,18 +558,25 @@ func (m *Memberlist) handleIndirectPing(buf []byte, from net.Addr) {
 		// Try to prevent the nack if we've caught it in time.
 		close(cancelCh)
 
-		// Forward the ack back to the requestor.
 		ack := ackResp{ind.SeqNo, nil}
-		if err := m.encodeAndSendMsg(from.String(), ackRespMsg, &ack); err != nil {
-			m.logger.Printf("[ERR] memberlist: Failed to forward ack: %s %s", err, LogAddress(from))
+		a := Address{
+			Addr: indAddr,
+			Name: ind.SourceNode,
+		}
+		if err := m.encodeAndSendMsg(a, ackRespMsg, &ack); err != nil {
+			m.logger.Printf("[ERR] memberlist: Failed to forward ack: %s %s", err, LogStringAddress(indAddr))
 		}
 	}
 	m.setAckHandler(localSeqNo, respHandler, m.config.ProbeTimeout)
 
 	// Send the ping.
 	addr := joinHostPort(net.IP(ind.Target).String(), ind.Port)
-	if err := m.encodeAndSendMsg(addr, pingMsg, &ping); err != nil {
-		m.logger.Printf("[ERR] memberlist: Failed to send ping: %s %s", err, LogAddress(from))
+	a := Address{
+		Addr: addr,
+		Name: ind.Node,
+	}
+	if err := m.encodeAndSendMsg(a, pingMsg, &ping); err != nil {
+		m.logger.Printf("[ERR] memberlist: Failed to send indirect ping: %s %s", err, LogStringAddress(indAddr))
 	}
 
 	// Setup a timer to fire off a nack if no ack is seen in time.
@@ -483,8 +587,12 @@ func (m *Memberlist) handleIndirectPing(buf []byte, from net.Addr) {
 				return
 			case <-time.After(m.config.ProbeTimeout):
 				nack := nackResp{ind.SeqNo}
-				if err := m.encodeAndSendMsg(from.String(), nackRespMsg, &nack); err != nil {
-					m.logger.Printf("[ERR] memberlist: Failed to send nack: %s %s", err, LogAddress(from))
+				a := Address{
+					Addr: indAddr,
+					Name: ind.SourceNode,
+				}
+				if err := m.encodeAndSendMsg(a, nackRespMsg, &nack); err != nil {
+					m.logger.Printf("[ERR] memberlist: Failed to send nack: %s %s", err, LogStringAddress(indAddr))
 				}
 			}
 		}()
@@ -518,11 +626,46 @@ func (m *Memberlist) handleSuspect(buf []byte, from net.Addr) {
 	m.suspectNode(&sus)
 }
 
+// ensureCanConnect return the IP from a RemoteAddress
+// return error if this client must not connect
+func (m *Memberlist) ensureCanConnect(from net.Addr) error {
+	if !m.config.IPMustBeChecked() {
+		return nil
+	}
+	source := from.String()
+	if source == "pipe" {
+		return nil
+	}
+	host, _, err := net.SplitHostPort(source)
+	if err != nil {
+		return err
+	}
+
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return fmt.Errorf("Cannot parse IP from %s", host)
+	}
+	return m.config.IPAllowed(ip)
+}
+
 func (m *Memberlist) handleAlive(buf []byte, from net.Addr) {
+	if err := m.ensureCanConnect(from); err != nil {
+		m.logger.Printf("[DEBUG] memberlist: Blocked alive message: %s %s", err, LogAddress(from))
+		return
+	}
 	var live alive
 	if err := decode(buf, &live); err != nil {
 		m.logger.Printf("[ERR] memberlist: Failed to decode alive message: %s %s", err, LogAddress(from))
 		return
+	}
+	if m.config.IPMustBeChecked() {
+		innerIP := net.IP(live.Addr)
+		if innerIP != nil {
+			if err := m.config.IPAllowed(innerIP); err != nil {
+				m.logger.Printf("[DEBUG] memberlist: Blocked alive.Addr=%s message from: %s %s", innerIP.String(), err, LogAddress(from))
+				return
+			}
+		}
 	}
 
 	// For proto versions < 2, there is no port provided. Mask old
@@ -565,12 +708,12 @@ func (m *Memberlist) handleCompressed(buf []byte, from net.Addr, timestamp time.
 }
 
 // encodeAndSendMsg is used to combine the encoding and sending steps
-func (m *Memberlist) encodeAndSendMsg(addr string, msgType messageType, msg interface{}) error {
+func (m *Memberlist) encodeAndSendMsg(a Address, msgType messageType, msg interface{}) error {
 	out, err := encode(msgType, msg)
 	if err != nil {
 		return err
 	}
-	if err := m.sendMsg(addr, out.Bytes()); err != nil {
+	if err := m.sendMsg(a, out.Bytes()); err != nil {
 		return err
 	}
 	return nil
@@ -578,7 +721,7 @@ func (m *Memberlist) encodeAndSendMsg(addr string, msgType messageType, msg inte
 
 // sendMsg is used to send a message via packet to another host. It will
 // opportunistically create a compoundMsg and piggy back other broadcasts.
-func (m *Memberlist) sendMsg(addr string, msg []byte) error {
+func (m *Memberlist) sendMsg(a Address, msg []byte) error {
 	// Check if we can piggy back any messages
 	bytesAvail := m.config.UDPBufferSize - len(msg) - compoundHeaderOverhead
 	if m.config.EncryptionEnabled() && m.config.GossipVerifyOutgoing {
@@ -588,7 +731,7 @@ func (m *Memberlist) sendMsg(addr string, msg []byte) error {
 
 	// Fast path if nothing to piggypack
 	if len(extra) == 0 {
-		return m.rawSendMsgPacket(addr, nil, msg)
+		return m.rawSendMsgPacket(a, nil, msg)
 	}
 
 	// Join all the messages
@@ -600,12 +743,16 @@ func (m *Memberlist) sendMsg(addr string, msg []byte) error {
 	compound := makeCompoundMessage(msgs)
 
 	// Send the message
-	return m.rawSendMsgPacket(addr, nil, compound.Bytes())
+	return m.rawSendMsgPacket(a, nil, compound.Bytes())
 }
 
 // rawSendMsgPacket is used to send message via packet to another host without
 // modification, other than compression or encryption if enabled.
-func (m *Memberlist) rawSendMsgPacket(addr string, node *Node, msg []byte) error {
+func (m *Memberlist) rawSendMsgPacket(a Address, node *Node, msg []byte) error {
+	if a.Name == "" && m.config.RequireNodeNames {
+		return errNodeNamesAreRequired
+	}
+
 	// Check if we have compression enabled
 	if m.config.EnableCompression {
 		buf, err := compressPayload(msg)
@@ -619,11 +766,12 @@ func (m *Memberlist) rawSendMsgPacket(addr string, node *Node, msg []byte) error
 		}
 	}
 
-	// Try to look up the destination node
+	// Try to look up the destination node. Note this will only work if the
+	// bare ip address is used as the node name, which is not guaranteed.
 	if node == nil {
-		toAddr, _, err := net.SplitHostPort(addr)
+		toAddr, _, err := net.SplitHostPort(a.Addr)
 		if err != nil {
-			m.logger.Printf("[ERR] memberlist: Failed to parse address %q: %v", addr, err)
+			m.logger.Printf("[ERR] memberlist: Failed to parse address %q: %v", a.Addr, err)
 			return err
 		}
 		m.nodeLock.RLock()
@@ -658,14 +806,14 @@ func (m *Memberlist) rawSendMsgPacket(addr string, node *Node, msg []byte) error
 	}
 
 	metrics.IncrCounter([]string{"memberlist", "udp", "sent"}, float32(len(msg)))
-	_, err := m.transport.WriteTo(msg, addr)
+	_, err := m.transport.WriteToAddress(msg, a)
 	return err
 }
 
 // rawSendMsgStream is used to stream a message to another host without
 // modification, other than applying compression and encryption if enabled.
 func (m *Memberlist) rawSendMsgStream(conn net.Conn, sendBuf []byte) error {
-	// Check if compresion is enabled
+	// Check if compression is enabled
 	if m.config.EnableCompression {
 		compBuf, err := compressPayload(sendBuf)
 		if err != nil {
@@ -698,8 +846,12 @@ func (m *Memberlist) rawSendMsgStream(conn net.Conn, sendBuf []byte) error {
 }
 
 // sendUserMsg is used to stream a user message to another host.
-func (m *Memberlist) sendUserMsg(addr string, sendBuf []byte) error {
-	conn, err := m.transport.DialTimeout(addr, m.config.TCPTimeout)
+func (m *Memberlist) sendUserMsg(a Address, sendBuf []byte) error {
+	if a.Name == "" && m.config.RequireNodeNames {
+		return errNodeNamesAreRequired
+	}
+
+	conn, err := m.transport.DialAddressTimeout(a, m.config.TCPTimeout)
 	if err != nil {
 		return err
 	}
@@ -724,14 +876,18 @@ func (m *Memberlist) sendUserMsg(addr string, sendBuf []byte) error {
 
 // sendAndReceiveState is used to initiate a push/pull over a stream with a
 // remote host.
-func (m *Memberlist) sendAndReceiveState(addr string, join bool) ([]pushNodeState, []byte, error) {
+func (m *Memberlist) sendAndReceiveState(a Address, join bool) ([]pushNodeState, []byte, error) {
+	if a.Name == "" && m.config.RequireNodeNames {
+		return nil, nil, errNodeNamesAreRequired
+	}
+
 	// Attempt to connect
-	conn, err := m.transport.DialTimeout(addr, m.config.TCPTimeout)
+	conn, err := m.transport.DialAddressTimeout(a, m.config.TCPTimeout)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer conn.Close()
-	m.logger.Printf("[DEBUG] memberlist: Initiating push/pull sync with: %s", conn.RemoteAddr())
+	m.logger.Printf("[DEBUG] memberlist: Initiating push/pull sync with: %s %s", a.Name, conn.RemoteAddr())
 	metrics.IncrCounter([]string{"memberlist", "tcp", "connect"}, 1)
 
 	// Send our state
@@ -996,16 +1152,17 @@ func (m *Memberlist) mergeRemoteState(join bool, remoteNodes []pushNodeState, us
 		nodes := make([]*Node, len(remoteNodes))
 		for idx, n := range remoteNodes {
 			nodes[idx] = &Node{
-				Name: n.Name,
-				Addr: n.Addr,
-				Port: n.Port,
-				Meta: n.Meta,
-				PMin: n.Vsn[0],
-				PMax: n.Vsn[1],
-				PCur: n.Vsn[2],
-				DMin: n.Vsn[3],
-				DMax: n.Vsn[4],
-				DCur: n.Vsn[5],
+				Name:  n.Name,
+				Addr:  n.Addr,
+				Port:  n.Port,
+				Meta:  n.Meta,
+				State: n.State,
+				PMin:  n.Vsn[0],
+				PMax:  n.Vsn[1],
+				PCur:  n.Vsn[2],
+				DMin:  n.Vsn[3],
+				DMax:  n.Vsn[4],
+				DCur:  n.Vsn[5],
 			}
 		}
 		if err := m.config.Merge.NotifyMerge(nodes); err != nil {
@@ -1058,8 +1215,12 @@ func (m *Memberlist) readUserMsg(bufConn io.Reader, dec *codec.Decoder) error {
 // a ping, and waits for an ack. All of this is done as a series of blocking
 // operations, given the deadline. The bool return parameter is true if we
 // we able to round trip a ping to the other node.
-func (m *Memberlist) sendPingAndWaitForAck(addr string, ping ping, deadline time.Time) (bool, error) {
-	conn, err := m.transport.DialTimeout(addr, deadline.Sub(time.Now()))
+func (m *Memberlist) sendPingAndWaitForAck(a Address, ping ping, deadline time.Time) (bool, error) {
+	if a.Name == "" && m.config.RequireNodeNames {
+		return false, errNodeNamesAreRequired
+	}
+
+	conn, err := m.transport.DialAddressTimeout(a, deadline.Sub(time.Now()))
 	if err != nil {
 		// If the node is actually dead we expect this to fail, so we
 		// shouldn't spam the logs with it. After this point, errors
@@ -1094,7 +1255,7 @@ func (m *Memberlist) sendPingAndWaitForAck(addr string, ping ping, deadline time
 	}
 
 	if ack.SeqNo != ping.SeqNo {
-		return false, fmt.Errorf("Sequence number from ack (%d) doesn't match ping (%d)", ack.SeqNo, ping.SeqNo, LogConn(conn))
+		return false, fmt.Errorf("Sequence number from ack (%d) doesn't match ping (%d)", ack.SeqNo, ping.SeqNo)
 	}
 
 	return true, nil
