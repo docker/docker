@@ -162,6 +162,20 @@ echo 'Generally Necessary:'
 printf -- '- '
 if [ "$(stat -f -c %t /sys/fs/cgroup 2> /dev/null)" = '63677270' ]; then
 	wrap_good 'cgroup hierarchy' 'cgroupv2'
+	cgroupv2ControllerFile='/sys/fs/cgroup/cgroup.controllers'
+	if [ -f "$cgroupv2ControllerFile" ]; then
+		echo '  Controllers:'
+		for controller in cpu cpuset io memory pids; do
+			if grep -qE '(^| )'"$controller"'($| )' "$cgroupv2ControllerFile"; then
+				echo "  - $(wrap_good "$controller" 'available')"
+			else
+				echo "  - $(wrap_bad "$controller" 'missing')"
+			fi
+		done
+	else
+		wrap_bad "$cgroupv2ControllerFile" 'nonexistent??'
+	fi
+	# TODO find an efficient way to check if cgroup.freeze exists in subdir
 else
 	cgroupSubsystemDir="$(sed -rne '/^[^ ]+ ([^ ]+) cgroup ([^ ]*,)?(cpu|cpuacct|cpuset|devices|freezer|memory)[, ].*$/ { s//\1/p; q }' /proc/mounts)"
 	cgroupDir="$(dirname "$cgroupSubsystemDir")"
@@ -220,6 +234,10 @@ fi
 
 if [ "$kernelMajor" -lt 5 ] || [ "$kernelMajor" -eq 5 -a "$kernelMinor" -le 2 ]; then
 	check_flags NF_NAT_NEEDED
+fi
+# check availability of BPF_CGROUP_DEVICE support
+if [ "$kernelMajor" -ge 5 ] || ([ "$kernelMajor" -eq 4 ] && [ "$kernelMinor" -ge 15 ]); then
+	check_flags CGROUP_BPF
 fi
 
 echo
