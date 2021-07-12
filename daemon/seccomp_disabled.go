@@ -9,6 +9,7 @@ import (
 	"github.com/containerd/containerd/containers"
 	coci "github.com/containerd/containerd/oci"
 	"github.com/docker/docker/container"
+	dconfig "github.com/docker/docker/daemon/config"
 )
 
 const supportsSeccomp = false
@@ -16,7 +17,7 @@ const supportsSeccomp = false
 // WithSeccomp sets the seccomp profile
 func WithSeccomp(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-		if c.SeccompProfile != "" && c.SeccompProfile != "unconfined" {
+		if c.SeccompProfile != "" && c.SeccompProfile != dconfig.SeccompProfileUnconfined {
 			return fmt.Errorf("seccomp profiles are not supported on this daemon, you cannot specify a custom seccomp profile")
 		}
 		return nil

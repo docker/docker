@@ -58,6 +58,12 @@ const (
 	LinuxV1RuntimeName = "io.containerd.runtime.v1.linux"
 	// LinuxV2RuntimeName is the runtime used to specify the containerd v2 runc shim
 	LinuxV2RuntimeName = "io.containerd.runc.v2"
+
+	// SeccompProfileDefault is the built-in default seccomp profile.
+	SeccompProfileDefault = "default"
+	// SeccompProfileUnconfined is a special profile name for seccomp to use an
+	// "unconfined" seccomp profile.
+	SeccompProfileUnconfined = "unconfined"
 )
 
 var builtinRuntimes = map[string]bool{
