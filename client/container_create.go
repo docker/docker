@@ -16,7 +16,6 @@ type configWrapper struct {
 	*container.Config
 	HostConfig       *container.HostConfig
 	NetworkingConfig *network.NetworkingConfig
-	Platform         *specs.Platform
 }
 
 // ContainerCreate creates a new container based on the given configuration.
