@@ -382,11 +382,13 @@ definitions:
         type: "string"
         description: |
           - Empty string means not to restart
+          - `no` Do not automatically restart
           - `always` Always restart
           - `unless-stopped` Restart always except when the user has manually stopped the container
           - `on-failure` Restart only when the container exit code is non-zero
         enum:
           - ""
+          - "no"
           - "always"
           - "unless-stopped"
           - "on-failure"
@@ -4022,73 +4024,71 @@ definitions:
       Warning: "unable to pin image doesnotexist:latest to digest: image library/doesnotexist:latest not found"
 
   ContainerSummary:
-    type: "array"
-    items:
-      type: "object"
-      properties:
-        Id:
-          description: "The ID of this container"
+    type: "object"
+    properties:
+      Id:
+        description: "The ID of this container"
+        type: "string"
+        x-go-name: "ID"
+      Names:
+        description: "The names that this container has been given"
+        type: "array"
+        items:
           type: "string"
-          x-go-name: "ID"
-        Names:
-          description: "The names that this container has been given"
-          type: "array"
-          items:
+      Image:
+        description: "The name of the image used when creating this container"
+        type: "string"
+      ImageID:
+        description: "The ID of the image that this container was created from"
+        type: "string"
+      Command:
+        description: "Command to run when starting the container"
+        type: "string"
+      Created:
+        description: "When the container was created"
+        type: "integer"
+        format: "int64"
+      Ports:
+        description: "The ports exposed by this container"
+        type: "array"
+        items:
+          $ref: "#/definitions/Port"
+      SizeRw:
+        description: "The size of files that have been created or changed by this container"
+        type: "integer"
+        format: "int64"
+      SizeRootFs:
+        description: "The total size of all the files in this container"
+        type: "integer"
+        format: "int64"
+      Labels:
+        description: "User-defined key/value metadata."
+        type: "object"
+        additionalProperties:
+          type: "string"
+      State:
+        description: "The state of this container (e.g. `Exited`)"
+        type: "string"
+      Status:
+        description: "Additional human-readable status of this container (e.g. `Exit 0`)"
+        type: "string"
+      HostConfig:
+        type: "object"
+        properties:
+          NetworkMode:
             type: "string"
-        Image:
-          description: "The name of the image used when creating this container"
-          type: "string"
-        ImageID:
-          description: "The ID of the image that this container was created from"
-          type: "string"
-        Command:
-          description: "Command to run when starting the container"
-          type: "string"
-        Created:
-          description: "When the container was created"
-          type: "integer"
-          format: "int64"
-        Ports:
-          description: "The ports exposed by this container"
-          type: "array"
-          items:
-            $ref: "#/definitions/Port"
-        SizeRw:
-          description: "The size of files that have been created or changed by this container"
-          type: "integer"
-          format: "int64"
-        SizeRootFs:
-          description: "The total size of all the files in this container"
-          type: "integer"
-          format: "int64"
-        Labels:
-          description: "User-defined key/value metadata."
-          type: "object"
-          additionalProperties:
-            type: "string"
-        State:
-          description: "The state of this container (e.g. `Exited`)"
-          type: "string"
-        Status:
-          description: "Additional human-readable status of this container (e.g. `Exit 0`)"
-          type: "string"
-        HostConfig:
-          type: "object"
-          properties:
-            NetworkMode:
-              type: "string"
-        NetworkSettings:
-          description: "A summary of the container's network settings"
-          type: "object"
-          properties:
-            Networks:
-              type: "object"
-              additionalProperties:
-                $ref: "#/definitions/EndpointSettings"
-        Mounts:
-          type: "array"
-          items:
-            $ref: "#/definitions/Mount"
+      NetworkSettings:
+        description: "A summary of the container's network settings"
+        type: "object"
+        properties:
+          Networks:
+            type: "object"
+            additionalProperties:
+              $ref: "#/definitions/EndpointSettings"
+      Mounts:
+        type: "array"
+        items:
+          $ref: "#/definitions/Mount"
 
   Driver:
     description: "Driver represents a driver (network, logging, secrets)."
@@ -5261,7 +5261,9 @@ paths:
         200:
           description: "no error"
           schema:
-            $ref: "#/definitions/ContainerSummary"
+            type: "array"
+            items:
+              $ref: "#/definitions/ContainerSummary"
           examples:
             application/json:
               - Id: "8dfafdbc3a40"
@@ -7500,6 +7502,12 @@ paths:
             Refer to the [authentication section](#section/Authentication) for
             details.
           type: "string"
+        - name: "changes"
+          in: "query"
+          description: "Apply Dockerfile instruction to the created image."
+          type: "array"
+          items:
+            type: "string"
         - name: "platform"
           in: "query"
           description: "Platform in the format os[/arch[/variant]]"
@@ -9955,6 +9963,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "SwarmInitRequest"
             properties:
               ListenAddr:
                 description: |
@@ -10053,6 +10062,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "SwarmJoinRequest"
             properties:
               ListenAddr:
                 description: |
@@ -10213,6 +10223,7 @@ paths:
           required: true
           schema:
             type: "object"
+            title: "SwarmUnlockRequest"
             properties:
               UnlockKey:
                 description: "The swarm's unlock key."
@@ -11334,14 +11345,14 @@ paths:
                 description: |
                   A descriptor struct containing digest, media type, and size.
                 properties:
-                  MediaType:
+                  mediaType:
                     type: "string"
-                  Size:
+                  size:
                     type: "integer"
                     format: "int64"
-                  Digest:
+                  digest:
                     type: "string"
-                  URLs:
+                  urls:
                     type: "array"
                     items:
                       type: "string"
@@ -11352,17 +11363,17 @@ paths:
                 items:
                   type: "object"
                   properties:
-                    Architecture:
+                    architecture:
                       type: "string"
-                    OS:
+                    os:
                       type: "string"
-                    OSVersion:
+                    os.version:
                       type: "string"
-                    OSFeatures:
+                    os.features:
                       type: "array"
                       items:
                         type: "string"
-                    Variant:
+                    variant:
                       type: "string"
                     Features:
                       type: "array"
@@ -11377,12 +11388,12 @@ paths:
                 URLs:
                   - ""
               Platforms:
-                - Architecture: "amd64"
-                  OS: "linux"
-                  OSVersion: ""
-                  OSFeatures:
+                - architecture: "amd64"
+                  os: "linux"
+                  os.version: ""
+                  os.features:
                     - ""
-                  Variant: ""
+                  variant: ""
                   Features:
                     - ""
         401:
