@@ -28,6 +28,16 @@ type Settings struct {
 	HasSwarmEndpoint       bool
 }
 
+// FindNetworkByID finds the correct EndpointSettings by its unique ID instead of name
+func (settings *Settings) FindNetworkByID(id string) *EndpointSettings {
+	for _, endpoint := range settings.Networks {
+		if endpoint.EndpointSettings.NetworkID == id {
+			return endpoint
+		}
+	}
+	return nil
+}
+
 // EndpointSettings is a package local wrapper for
 // networktypes.EndpointSettings which stores Endpoint state that
 // needs to be persisted to disk but not exposed in the api.

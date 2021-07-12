@@ -175,8 +175,8 @@ func (daemon *Daemon) initializeNetworkingPaths(container *container.Container, 
 	container.NetworkSharedContainerID = nc.ID
 
 	if nc.NetworkSettings != nil {
-		for n := range nc.NetworkSettings.Networks {
-			sn, err := daemon.FindNetwork(n)
+		for _, n := range nc.NetworkSettings.Networks {
+			sn, err := daemon.FindNetwork(n.EndpointSettings.NetworkID)
 			if err != nil {
 				continue
 			}

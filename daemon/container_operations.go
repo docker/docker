@@ -270,7 +270,7 @@ func (daemon *Daemon) updateNetworkSettings(container *container.Container, n li
 			continue
 		}
 
-		if sn.Name() == n.Name() {
+		if sn.ID() == n.ID() {
 			// If the network scope is swarm, then this
 			// is an attachable network, which may not
 			// be locally available previously.
@@ -291,6 +291,9 @@ func (daemon *Daemon) updateNetworkSettings(container *container.Container, n li
 		}
 	}
 
+	if endpointConfig.NetworkID == "" {
+		endpointConfig.NetworkID = n.ID()
+	}
 	container.NetworkSettings.Networks[n.Name()] = &network.EndpointSettings{
 		EndpointSettings: endpointConfig,
 	}
@@ -357,9 +360,9 @@ func (daemon *Daemon) updateNetwork(container *container.Container) error {
 }
 
 func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrName string, epConfig *networktypes.EndpointSettings) (libnetwork.Network, *networktypes.NetworkingConfig, error) {
-	id := getNetworkID(idOrName, epConfig)
+	idOrName = getNetworkID(idOrName, epConfig)
 
-	n, err := daemon.FindNetwork(id)
+	n, err := daemon.FindNetwork(idOrName)
 	if err != nil {
 		// We should always be able to find the network for a
 		// managed container.
@@ -376,10 +379,10 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 		}
 		// Throw an error if the container is already attached to the network
 		if container.NetworkSettings.Networks != nil {
-			networkName := n.Name()
+			networkID := n.ID()
 			containerName := strings.TrimPrefix(container.Name, "/")
-			if nw, ok := container.NetworkSettings.Networks[networkName]; ok && nw.EndpointID != "" {
-				err := fmt.Errorf("%s is already attached to network %s", containerName, networkName)
+			if network := container.NetworkSettings.FindNetworkByID(networkID); network != nil && network.EndpointID != "" {
+				err := fmt.Errorf("%s is already attached to network %s", containerName, n.Name())
 				return n, nil, errdefs.Conflict(err)
 			}
 		}
@@ -402,8 +405,8 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 	)
 
 	if n == nil && daemon.attachableNetworkLock != nil {
-		daemon.attachableNetworkLock.Lock(id)
-		defer daemon.attachableNetworkLock.Unlock(id)
+		daemon.attachableNetworkLock.Lock(idOrName)
+		defer daemon.attachableNetworkLock.Unlock(idOrName)
 	}
 
 	for {
@@ -411,16 +414,16 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 		// trigger attachment in the swarm cluster manager.
 		if daemon.clusterProvider != nil {
 			var err error
-			config, err = daemon.clusterProvider.AttachNetwork(id, container.ID, addresses)
+			config, err = daemon.clusterProvider.AttachNetwork(idOrName, container.ID, addresses)
 			if err != nil {
 				return nil, nil, err
 			}
 		}
 
-		n, err = daemon.FindNetwork(id)
+		n, err = daemon.FindNetwork(idOrName)
 		if err != nil {
 			if daemon.clusterProvider != nil {
-				if err := daemon.clusterProvider.DetachNetwork(id, container.ID); err != nil {
+				if err := daemon.clusterProvider.DetachNetwork(idOrName, container.ID); err != nil {
 					logrus.Warnf("Could not rollback attachment for container %s to network %s: %v", container.ID, idOrName, err)
 				}
 			}
@@ -468,12 +471,14 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 		networkName = daemon.netController.Config().Daemon.DefaultNetwork
 	}
 
+	var networkID string = ""
 	if mode.IsUserDefined() {
 		var err error
 
 		n, err = daemon.FindNetwork(networkName)
 		if err == nil {
 			networkName = n.Name()
+			networkID = n.ID()
 		}
 	}
 
@@ -487,16 +492,29 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 		}
 
 		for name, epConfig := range endpointsConfig {
-			container.NetworkSettings.Networks[name] = &network.EndpointSettings{
+			networkName := name
+			if epConfig.NetworkID == "" {
+				en, err := daemon.FindNetwork(name)
+				if err == nil {
+					epConfig.NetworkID = en.ID()
+					// Make sure to internally store the per network endpoint config by network name
+					networkName = en.Name()
+				}
+			}
+			container.NetworkSettings.Networks[networkName] = &network.EndpointSettings{
 				EndpointSettings: epConfig,
 			}
 		}
 	}
 
 	if container.NetworkSettings.Networks == nil {
+		endpointSettings := &networktypes.EndpointSettings{}
+		if networkID != "" {
+			endpointSettings.NetworkID = networkID
+		}
 		container.NetworkSettings.Networks = make(map[string]*network.EndpointSettings)
 		container.NetworkSettings.Networks[networkName] = &network.EndpointSettings{
-			EndpointSettings: &networktypes.EndpointSettings{},
+			EndpointSettings: endpointSettings,
 		}
 	}
 
@@ -521,7 +539,6 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 		if nwConfig, ok := container.NetworkSettings.Networks[n.ID()]; ok {
 			container.NetworkSettings.Networks[networkName] = nwConfig
 			delete(container.NetworkSettings.Networks, n.ID())
-			return
 		}
 	}
 }
@@ -575,9 +592,13 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) (retErr er
 		networks[n] = epConf
 	}
 
-	for netName, epConf := range networks {
+	for n, epConf := range networks {
 		cleanOperationalData(epConf)
-		if err := daemon.connectToNetwork(container, netName, epConf.EndpointSettings, updateSettings); err != nil {
+		idOrName := n
+		if epConf.EndpointSettings.NetworkID != "" {
+			idOrName = epConf.EndpointSettings.NetworkID
+		}
+		if err := daemon.connectToNetwork(container, idOrName, epConf.EndpointSettings, updateSettings); err != nil {
 			return err
 		}
 	}
@@ -1078,6 +1099,9 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 				return err
 			}
 		} else {
+			if n != nil && endpointConfig.NetworkID == "" {
+				endpointConfig.NetworkID = n.ID()
+			}
 			container.NetworkSettings.Networks[idOrName] = &network.EndpointSettings{
 				EndpointSettings: endpointConfig,
 			}
