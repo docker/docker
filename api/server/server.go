@@ -12,6 +12,8 @@ import (
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/server/router/debug"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/errdefs/adapter"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 )
@@ -138,11 +140,11 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 		}
 
 		if err := handlerFunc(ctx, w, r, vars); err != nil {
-			statusCode := httputils.GetHTTPErrorStatusCode(err)
+			statusCode := errdefs.GetHTTPErrorStatusCode(err, adapter.All()...)
 			if statusCode >= 500 {
 				logrus.Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
 			}
-			httputils.MakeErrorHandler(err)(w, r)
+			httputils.MakeErrorHandler(err, statusCode)(w, r)
 		}
 	}
 }
@@ -183,7 +185,7 @@ func (s *Server) createMux() *mux.Router {
 		m.Path("/debug" + r.Path()).Handler(f)
 	}
 
-	notFoundHandler := httputils.MakeErrorHandler(pageNotFoundError{})
+	notFoundHandler := httputils.MakeErrorHandler(pageNotFoundError{}, http.StatusNotFound)
 	m.HandleFunc(versionMatcher+"/{path:.*}", notFoundHandler)
 	m.NotFoundHandler = notFoundHandler
 	m.MethodNotAllowedHandler = notFoundHandler
