@@ -364,7 +364,8 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 
 	options := daemon.defaultTarCopyOptions(noOverwriteDirNonDir)
 
-	if copyUIDGID {
+	// If we don't want to copy uid/gid, modify tar copy options to use uid/gid of container's main user
+	if !copyUIDGID {
 		var err error
 		// tarCopyOptions will appropriately pull in the right uid/gid for the
 		// user/group and will set the options.
