@@ -42,7 +42,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("error generating an interface name: %v", err)
 	}
 	// create the netlink ipvlan interface
-	vethName, err := createIPVlan(containerIfName, n.config.Parent, n.config.IpvlanMode)
+	vethName, err := createIPVlan(containerIfName, n.config.Parent, n.config.IpvlanMode, n.config.IpvlanFlag)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,8 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
 	if !n.config.Internal {
-		if n.config.IpvlanMode == modeL3 {
+		switch n.config.IpvlanMode {
+		case modeL3, modeL3S:
 			// disable gateway services to add a default gw using dev eth0 only
 			jinfo.DisableGatewayService()
 			defaultRoute, err := ifaceGateway(defaultV4RouteCidr)
@@ -61,7 +62,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 				return err
 			}
 			if err := jinfo.AddStaticRoute(defaultRoute.Destination, defaultRoute.RouteType, defaultRoute.NextHop); err != nil {
-				return fmt.Errorf("failed to set an ipvlan l3 mode ipv4 default gateway: %v", err)
+				return fmt.Errorf("failed to set an ipvlan l3/l3s mode ipv4 default gateway: %v", err)
 			}
 			logrus.Debugf("Ipvlan Endpoint Joined with IPv4_Addr: %s, Ipvlan_Mode: %s, Parent: %s",
 				ep.addr.IP.String(), n.config.IpvlanMode, n.config.Parent)
@@ -72,13 +73,12 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 					return err
 				}
 				if err = jinfo.AddStaticRoute(default6Route.Destination, default6Route.RouteType, default6Route.NextHop); err != nil {
-					return fmt.Errorf("failed to set an ipvlan l3 mode ipv6 default gateway: %v", err)
+					return fmt.Errorf("failed to set an ipvlan l3/l3s mode ipv6 default gateway: %v", err)
 				}
 				logrus.Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s, Ipvlan_Mode: %s, Parent: %s",
 					ep.addrv6.IP.String(), n.config.IpvlanMode, n.config.Parent)
 			}
-		}
-		if n.config.IpvlanMode == modeL2 {
+		case modeL2:
 			// parse and correlate the endpoint v4 address with the available v4 subnets
 			if len(n.config.Ipv4Subnets) > 0 {
 				s := n.getSubnetforIPv4(ep.addr)

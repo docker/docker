@@ -16,14 +16,20 @@ const (
 	vethLen             = 7
 	containerVethPrefix = "eth"
 	vethPrefix          = "veth"
-	ipvlanType          = "ipvlan" // driver type name
-	modeL2              = "l2"     // ipvlan mode l2 is the default
-	modeL3              = "l3"     // ipvlan L3 mode
-	parentOpt           = "parent" // parent interface -o parent
-	modeOpt             = "_mode"  // ipvlan mode ux opt suffix
-)
 
-var driverModeOpt = ipvlanType + modeOpt // mode -o ipvlan_mode
+	ipvlanType    = "ipvlan"             // driver type name
+	parentOpt     = "parent"             // parent interface -o parent
+	driverModeOpt = ipvlanType + "_mode" // mode -o ipvlan_mode
+	driverFlagOpt = ipvlanType + "_flag" // flag -o ipvlan_flag
+
+	modeL2  = "l2"  // ipvlan L2 mode (default)
+	modeL3  = "l3"  // ipvlan L3 mode
+	modeL3S = "l3s" // ipvlan L3S mode
+
+	flagBridge  = "bridge"  // ipvlan flag bridge (default)
+	flagPrivate = "private" // ipvlan flag private
+	flagVepa    = "vepa"    // ipvlan flag vepa
+)
 
 type endpointTable map[string]*endpoint
 

@@ -19,11 +19,16 @@ const (
 )
 
 // createIPVlan Create the ipvlan slave specifying the source name
-func createIPVlan(containerIfName, parent, ipvlanMode string) (string, error) {
-	// Set the ipvlan mode. Default is bridge mode
+func createIPVlan(containerIfName, parent, ipvlanMode, ipvlanFlag string) (string, error) {
+	// Set the ipvlan mode. Default is L2 mode
 	mode, err := setIPVlanMode(ipvlanMode)
 	if err != nil {
 		return "", fmt.Errorf("Unsupported %s ipvlan mode: %v", ipvlanMode, err)
+	}
+	// Set the ipvlan flag. Default is bridge
+	flag, err := setIPVlanFlag(ipvlanFlag)
+	if err != nil {
+		return "", fmt.Errorf("Unsupported %s ipvlan flag: %v", ipvlanFlag, err)
 	}
 	// verify the Docker host interface acting as the macvlan parent iface exists
 	if !parentExists(parent) {
@@ -41,6 +46,7 @@ func createIPVlan(containerIfName, parent, ipvlanMode string) (string, error) {
 			ParentIndex: parentLink.Attrs().Index,
 		},
 		Mode: mode,
+		Flag: flag,
 	}
 	if err := ns.NlHandle().LinkAdd(ipvlan); err != nil {
 		// If a user creates a macvlan and ipvlan on same parent, only one slave iface can be active at a time.
@@ -57,8 +63,24 @@ func setIPVlanMode(mode string) (netlink.IPVlanMode, error) {
 		return netlink.IPVLAN_MODE_L2, nil
 	case modeL3:
 		return netlink.IPVLAN_MODE_L3, nil
+	case modeL3S:
+		return netlink.IPVLAN_MODE_L3S, nil
 	default:
 		return 0, fmt.Errorf("Unknown ipvlan mode: %s", mode)
+	}
+}
+
+// setIPVlanFlag setter for one of the three ipvlan port flags
+func setIPVlanFlag(flag string) (netlink.IPVlanFlag, error) {
+	switch flag {
+	case flagBridge:
+		return netlink.IPVLAN_FLAG_BRIDGE, nil
+	case flagPrivate:
+		return netlink.IPVLAN_FLAG_PRIVATE, nil
+	case flagVepa:
+		return netlink.IPVLAN_FLAG_VEPA, nil
+	default:
+		return 0, fmt.Errorf("unknown ipvlan flag: %s", flag)
 	}
 }
 

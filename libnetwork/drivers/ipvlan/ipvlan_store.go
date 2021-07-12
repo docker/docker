@@ -29,6 +29,7 @@ type configuration struct {
 	Internal         bool
 	Parent           string
 	IpvlanMode       string
+	IpvlanFlag       string
 	CreatedSlaveLink bool
 	Ipv4Subnets      []*ipv4Subnet
 	Ipv6Subnets      []*ipv6Subnet
