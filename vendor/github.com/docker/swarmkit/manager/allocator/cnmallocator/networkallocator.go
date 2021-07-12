@@ -110,7 +110,7 @@ func New(pg plugingetter.PluginGetter, netConfig *NetworkConfig) (networkallocat
 
 	// There are no driver configurations and notification
 	// functions as of now.
-	reg, err := drvregistry.New(nil, nil, nil, nil, pg)
+	reg, err := drvregistry.New(nil, nil, pg)
 	if err != nil {
 		return nil, err
 	}
@@ -980,7 +980,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[string]string,
 
 func initializeDrivers(reg *drvregistry.DrvRegistry) error {
 	for _, i := range initializers {
-		if err := reg.AddDriver(i.ntype, i.fn, nil); err != nil {
+		if err := reg.AddDriver(i.fn, nil); err != nil {
 			return err
 		}
 	}

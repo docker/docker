@@ -203,7 +203,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		return nil, err
 	}
 
-	drvRegistry, err := drvregistry.New(c.getStore(datastore.LocalScope), c.getStore(datastore.GlobalScope), c.RegisterDriver, nil, c.cfg.PluginGetter)
+	drvRegistry, err := drvregistry.New(c.RegisterDriver, nil, c.cfg.PluginGetter)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 			dcfg = c.makeDriverConfig(i.ntype)
 		}
 
-		if err := drvRegistry.AddDriver(i.ntype, i.fn, dcfg); err != nil {
+		if err := drvRegistry.AddDriver(i.fn, dcfg); err != nil {
 			return nil, err
 		}
 	}

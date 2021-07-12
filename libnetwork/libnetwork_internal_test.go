@@ -579,7 +579,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 
 	cc := c.(*controller)
 
-	if err := cc.drvRegistry.AddDriver(badDriverName, badDriverInit, nil); err != nil {
+	if err := cc.drvRegistry.AddDriver(badDriverInit, nil); err != nil {
 		t.Fatal(err)
 	}
 
