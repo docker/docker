@@ -17,6 +17,7 @@ type mapping struct {
 	container     net.Addr
 }
 
+// newProxy is used to mock out the proxy server in tests
 var newProxy = newProxyCommand
 
 var (
@@ -214,7 +215,7 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 	return ErrUnknownBackendAddressType
 }
 
-//ReMapAll will re-apply all port mappings
+// ReMapAll re-applies all port mappings
 func (pm *PortMapper) ReMapAll() {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
