@@ -114,7 +114,7 @@ a `service` file and a `socket` file.
 
 The `service` file (for example `/lib/systemd/system/your-plugin.service`):
 
-```
+```systemd
 [Unit]
 Description=Your plugin
 Before=docker.service
@@ -127,9 +127,10 @@ ExecStart=/usr/lib/docker/your-plugin
 [Install]
 WantedBy=multi-user.target
 ```
+
 The `socket` file (for example `/lib/systemd/system/your-plugin.socket`):
 
-```
+```systemd
 [Unit]
 Description=Your plugin
 
@@ -166,7 +167,8 @@ Plugins are activated via the following "handshake" API call.
 **Request:** empty body
 
 **Response:**
-```
+
+```json
 {
     "Implements": ["VolumeDriver"]
 }

@@ -55,7 +55,7 @@ enabled, and use it to create a volume.
 
 1.  Install the `sshfs` plugin.
 
-    ```bash
+    ```console
     $ docker plugin install vieux/sshfs
 
     Plugin "vieux/sshfs" is requesting the following privileges:
@@ -74,7 +74,7 @@ enabled, and use it to create a volume.
 
 2.  Check that the plugin is enabled in the output of `docker plugin ls`.
 
-    ```bash
+    ```console
     $ docker plugin ls
 
     ID                    NAME                  TAG                 DESCRIPTION                   ENABLED
@@ -87,7 +87,7 @@ enabled, and use it to create a volume.
 
     This volume can now be mounted into containers.
 
-    ```bash
+    ```console
     $ docker volume create \
       -d vieux/sshfs \
       --name sshvolume \
@@ -96,9 +96,10 @@ enabled, and use it to create a volume.
 
     sshvolume
     ```
+
 4.  Verify that the volume was created successfully.
 
-    ```bash
+    ```console
     $ docker volume ls
 
     DRIVER              NAME
@@ -107,18 +108,19 @@ enabled, and use it to create a volume.
 
 5.  Start a container that uses the volume `sshvolume`.
 
-    ```bash
+    ```console
     $ docker run --rm -v sshvolume:/data busybox ls /data
 
     <content of /remote on machine 1.2.3.4>
     ```
 
 6.  Remove the volume `sshvolume`
-    ```bash
-    docker volume rm sshvolume
+    ```console
+    $ docker volume rm sshvolume
 
     sshvolume
     ```
+
 To disable a plugin, use the `docker plugin disable` command. To completely
 remove it, use the `docker plugin remove` command. For other available
 commands and options, see the
@@ -134,7 +136,7 @@ example, it was created from a Dockerfile:
 >**Note:** The `/run/docker/plugins` directory is mandatory inside of the
 plugin's filesystem for docker to communicate with the plugin.
 
-```bash
+```console
 $ git clone https://github.com/vieux/docker-volume-sshfs
 $ cd docker-volume-sshfs
 $ docker build -t rootfsimage .
@@ -193,13 +195,13 @@ Stdout of a plugin is redirected to dockerd logs. Such entries have a
 `f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62` and their
 corresponding log entries in the docker daemon logs.
 
-```bash
+```console
 $ docker plugin install tiborvass/sample-volume-plugin
 
 INFO[0036] Starting...       Found 0 volumes on startup  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
 ```
 
-```bash
+```console
 $ docker volume create -d tiborvass/sample-volume-plugin samplevol
 
 INFO[0193] Create Called...  Ensuring directory /data/samplevol exists on host...  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
@@ -208,7 +210,7 @@ INFO[0193]                   Created volume samplevol with mountpoint /data/samp
 INFO[0193] Path Called...    Returned path /data/samplevol  plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
 ```
 
-```bash
+```console
 $ docker run -v samplevol:/tmp busybox sh
 
 INFO[0421] Get Called...     Found samplevol                plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
@@ -223,7 +225,7 @@ INFO[0421] Unmount Called... Unmounted samplevol            plugin=f52a3df433b9a
 plugins. This is specifically useful to collect plugin logs if they are
 redirected to a file.
 
-```bash
+```console
 $ sudo docker-runc --root /var/run/docker/plugins/runtime-root/moby-plugins list
 
 ID                                                                 PID         STATUS      BUNDLE                                                                                                                                       CREATED                          OWNER
@@ -232,13 +234,14 @@ ID                                                                 PID         S
 c5bb4b90941efcaccca999439ed06d6a6affdde7081bb34dc84126b57b3e793d   14984       running     /run/docker/containerd/daemon/io.containerd.runtime.v1.linux/moby-plugins/c5bb4b90941efcaccca999439ed06d6a6affdde7081bb34dc84126b57b3e793d   2018-02-08T21:35:12.321288966Z   root
 ```
 
-```bash
+```console
 $ sudo docker-runc --root /var/run/docker/plugins/runtime-root/moby-plugins exec 93f1e7dbfe11c938782c2993628c895cf28e2274072c4a346a6002446c949b25 cat /var/log/plugin.log
 ```
 
 If the plugin has a built-in shell, then exec into the plugin can be done as
 follows:
-```bash
+
+```console
 $ sudo docker-runc --root /var/run/docker/plugins/runtime-root/moby-plugins exec -t 93f1e7dbfe11c938782c2993628c895cf28e2274072c4a346a6002446c949b25 sh
 ```
 
@@ -251,17 +254,18 @@ the plugin is listening on the said socket. For a well functioning plugin,
 these basic requests should work. Note that plugin sockets are available on the host under `/var/run/docker/plugins/<pluginID>`
 
 
-```bash
-curl -H "Content-Type: application/json" -XPOST -d '{}' --unix-socket /var/run/docker/plugins/e8a37ba56fc879c991f7d7921901723c64df6b42b87e6a0b055771ecf8477a6d/plugin.sock http:/VolumeDriver.List
+```console
+$ curl -H "Content-Type: application/json" -XPOST -d '{}' --unix-socket /var/run/docker/plugins/e8a37ba56fc879c991f7d7921901723c64df6b42b87e6a0b055771ecf8477a6d/plugin.sock http:/VolumeDriver.List
 
 {"Mountpoint":"","Err":"","Volumes":[{"Name":"myvol1","Mountpoint":"/data/myvol1"},{"Name":"myvol2","Mountpoint":"/data/myvol2"}],"Volume":null}
 ```
 
-```bash
-curl -H "Content-Type: application/json" -XPOST -d '{}' --unix-socket /var/run/docker/plugins/45e00a7ce6185d6e365904c8bcf62eb724b1fe307e0d4e7ecc9f6c1eb7bcdb70/plugin.sock http:/NetworkDriver.GetCapabilities
+```console
+$ curl -H "Content-Type: application/json" -XPOST -d '{}' --unix-socket /var/run/docker/plugins/45e00a7ce6185d6e365904c8bcf62eb724b1fe307e0d4e7ecc9f6c1eb7bcdb70/plugin.sock http:/NetworkDriver.GetCapabilities
 
 {"Scope":"local"}
 ```
+
 When using curl 7.5 and above, the URL should be of the form
 `http://hostname/APICall`, where `hostname` is the valid hostname where the
 plugin is installed and `APICall` is the call to the plugin API.

@@ -211,6 +211,7 @@ as they come in once the existing logs have been read.
 to determine what set of logs to read.
 
 **Response**:
+
 ```
 {% raw %}{{ log stream }}{% endraw %}
 ```

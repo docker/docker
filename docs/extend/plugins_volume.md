@@ -54,7 +54,7 @@ flags on the `docker container run` command.  The `--volume` (or `-v`) flag
 accepts a volume name and path on the host, and the `--volume-driver` flag
 accepts a driver type.
 
-```bash
+```console
 $ docker volume create --driver=flocker volumename
 
 $ docker container run -it --volume volumename:/data busybox sh

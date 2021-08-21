@@ -116,7 +116,7 @@ value. This value can be the plugin’s socket or a path to a specification file
 Authorization plugins can be loaded without restarting the daemon. Refer
 to the [`dockerd` documentation](../reference/commandline/dockerd.md#configuration-reloading) for more information.
 
-```bash
+```console
 $ dockerd --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
 ```
 
@@ -124,26 +124,26 @@ Docker's authorization subsystem supports multiple `--authorization-plugin` para
 
 ### Calling authorized command (allow)
 
-```bash
+```console
 $ docker pull centos
-...
+<...>
 f1b10cd84249: Pull complete
-...
+<...>
 ```
 
 ### Calling unauthorized command (deny)
 
-```bash
+```console
 $ docker pull centos
-...
+<...>
 docker: Error response from daemon: authorization denied by plugin PLUGIN_NAME: volumes are not allowed.
 ```
 
 ### Error from plugins
 
-```bash
+```console
 $ docker pull centos
-...
+<...>
 docker: Error response from daemon: plugin PLUGIN_NAME failed with error: AuthZPlugin.AuthZReq: Cannot connect to the Docker daemon. Is the docker daemon running on this host?.
 ```
 
@@ -180,6 +180,7 @@ should implement the following two methods:
     "Err":   "The error message if things go wrong"
 }
 ```
+
 #### /AuthZPlugin.AuthZRes
 
 **Request**:

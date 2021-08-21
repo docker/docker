@@ -29,20 +29,20 @@ node1 is the manager and node2 is the worker.
 
 1.  Prepare manager. In node 1:
 
-    ```bash
+    ```console
     $ docker swarm init
     Swarm initialized: current node (dxn1zf6l61qsb1josjja83ngz) is now a manager.
     ```
 
 2. Join swarm, install plugin and create volume on worker. In node 2:
 
-    ```bash
+    ```console
     $ docker swarm join \
-    --token SWMTKN-1-49nj1cmql0jkz5s954yi3oex3nedyz0fb0xx14ie39trti4wxv-8vxv8rssmk743ojnwacrr2e7c \
-    192.168.99.100:2377
+      --token SWMTKN-1-49nj1cmql0jkz5s954yi3oex3nedyz0fb0xx14ie39trti4wxv-8vxv8rssmk743ojnwacrr2e7c \
+      192.168.99.100:2377
     ```
 
-    ```bash
+    ```console
     $ docker plugin install tiborvass/sample-volume-plugin
     latest: Pulling from tiborvass/sample-volume-plugin
     eb9c16fbdc53: Download complete
@@ -51,23 +51,24 @@ node1 is the manager and node2 is the worker.
     Installed plugin tiborvass/sample-volume-plugin
     ```
 
-    ```bash
+    ```console
     $ docker volume create -d tiborvass/sample-volume-plugin --name pluginVol
     ```
 
 3. Create a service using the plugin and volume. In node1:
 
-    ```bash
+    ```console
     $ docker service create --name my-service --mount type=volume,volume-driver=tiborvass/sample-volume-plugin,source=pluginVol,destination=/tmp busybox top
 
     $ docker service ls
     z1sj8bb8jnfn  my-service   replicated  1/1       busybox:latest
     ```
-    docker service ls shows service 1 instance of service running.
+
+    `docker service ls` shows service 1 instance of service running.
 
 4. Observe the task getting scheduled in node 2:
 
-    ```bash
+    ```console
     {% raw %}
     $ docker ps --format '{{.ID}}\t {{.Status}} {{.Names}} {{.Command}}'
     83fc1e842599     Up 2 days my-service.1.9jn59qzn7nbc3m0zt1hij12xs "top"
@@ -87,7 +88,7 @@ Note that node1 is the manager and node2 is the worker.
 1. Install a global scoped network plugin on both manager and worker. On node1
    and node2:
 
-    ```bash
+    ```console
     $ docker plugin install bboreham/weave2
     Plugin "bboreham/weave2" is requesting the following privileges:
     - network: [host]
@@ -102,7 +103,7 @@ Note that node1 is the manager and node2 is the worker.
 
 2. Create a network using plugin on manager. On node1:
 
-    ```bash
+    ```console
     $ docker network create --driver=bboreham/weave2:latest globalnet
 
     $ docker network ls
@@ -115,12 +116,12 @@ containers get scheduled on both manager and worker.
 
     On node 1:
 
-    ```bash
+    ```console
     $ docker service create --network globalnet --name myservice --replicas=8 mrjana/simpleweb simpleweb
 w90drnfzw85nygbie9kb89vpa
     ```
 
-    ```bash
+    ```console
     $ docker ps
     CONTAINER ID        IMAGE                                                                                      COMMAND             CREATED             STATUS              PORTS               NAMES
     87520965206a        mrjana/simpleweb@sha256:317d7f221d68c86d503119b0ea12c29de42af0a22ca087d522646ad1069a47a4   "simpleweb"         5 seconds ago       Up 4 seconds                            myservice.4.ytdzpktmwor82zjxkh118uf1v
@@ -131,7 +132,7 @@ w90drnfzw85nygbie9kb89vpa
 
     On node 2:
 
-    ```bash
+    ```console
     $ docker ps
     CONTAINER ID        IMAGE                                                                                      COMMAND             CREATED             STATUS                  PORTS               NAMES
     53c0ae7c1dae        mrjana/simpleweb@sha256:317d7f221d68c86d503119b0ea12c29de42af0a22ca087d522646ad1069a47a4   "simpleweb"         2 seconds ago       Up Less than a second                       myservice.7.x44tvvdm3iwkt9kif35f7ykz1
@@ -142,14 +143,14 @@ w90drnfzw85nygbie9kb89vpa
 
 4. Scale down the number of instances. On node1:
 
-    ```bash
+    ```console
     $ docker service scale myservice=0
     myservice scaled to 0
     ```
 
 5. Disable and uninstall the plugin on the worker. On node2:
 
-    ```bash
+    ```console
     $ docker plugin rm -f bboreham/weave2
     bboreham/weave2
     ```
@@ -159,12 +160,12 @@ scheduled on the master and not on the worker, because the plugin is not availab
 
     On node 1:
 
-    ```bash
+    ```console
     $ docker service scale myservice=8
     myservice scaled to 8
     ```
 
-    ```bash
+    ```console
     $ docker ps
     CONTAINER ID        IMAGE                                                                                      COMMAND             CREATED             STATUS              PORTS               NAMES
     cf4b0ec2415e        mrjana/simpleweb@sha256:317d7f221d68c86d503119b0ea12c29de42af0a22ca087d522646ad1069a47a4   "simpleweb"         39 seconds ago      Up 36 seconds                           myservice.3.r7p5o208jmlzpcbm2ytl3q6n1
@@ -179,7 +180,7 @@ scheduled on the master and not on the worker, because the plugin is not availab
 
     On node 2:
 
-    ```bash
+    ```console
     $ docker ps
     CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
     ```

@@ -31,7 +31,7 @@ You need to install and enable the plugin and then restart the Docker daemon
 before using the plugin. See the following example for the correct ordering
 of steps.
 
-```
+```console
 $ docker plugin install cpuguy83/docker-overlay2-graphdriver-plugin # this command also enables the driver
 <output suppressed>
 $ pkill dockerd
@@ -309,6 +309,7 @@ Get an archive of the changes between the filesystem layers specified by the `ID
 and `Parent`. `Parent` may be an empty string, in which case there is no parent.
 
 **Response**:
+
 ```
 {% raw %}
 {{ TAR STREAM }}
@@ -354,6 +355,7 @@ Respond with a non-empty string error if an error occurred.
 ### /GraphDriver.ApplyDiff
 
 **Request**:
+
 ```
 {% raw %}
 {{ TAR STREAM }}
