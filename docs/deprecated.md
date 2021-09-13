@@ -54,7 +54,7 @@ Deprecated | [Support for encrypted TLS private keys](#support-for-encrypted-tls
 Deprecated | [Kubernetes stack and context support](#kubernetes-stack-and-context-support)                                                      | v20.10     | -
 Deprecated | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | -
 Removed    | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | v21.xx
-Deprecated | [BLKIO weight options with cgroups v1](#blkio-weight-options–with-cgroups-v1)                                                      | v20.10     | -
+Deprecated | [BLKIO weight options with cgroups v1](#blkio-weight-options-with-cgroups-v1)                                                      | v20.10     | -
 Deprecated | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | -
 Deprecated | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.10     | -
 Deprecated | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | -
