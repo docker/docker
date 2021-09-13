@@ -114,7 +114,7 @@ Enable the authorization plugin with a dedicated command line flag in the
 `--authorization-plugin=PLUGIN_ID` format. The flag supplies a `PLUGIN_ID`
 value. This value can be the plugin’s socket or a path to a specification file.
 Authorization plugins can be loaded without restarting the daemon. Refer
-to the [`dockerd` documentation](../reference/commandline/dockerd.md#configuration-reloading) for more information.
+to the [`dockerd` documentation](../reference/commandline/dockerd.md#configuration-reload-behavior) for more information.
 
 ```console
 $ dockerd --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
