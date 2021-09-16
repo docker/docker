@@ -1380,11 +1380,11 @@ This is a full example of the allowed configuration options on Linux:
   "debug": true,
   "default-address-pools": [
     {
-      "base": "172.80.0.0/16",
+      "base": "172.30.0.0/16",
       "size": 24
     },
     {
-      "base": "172.90.0.0/16",
+      "base": "172.31.0.0/16",
       "size": 24
     }
   ],
