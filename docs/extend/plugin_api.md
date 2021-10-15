@@ -90,7 +90,7 @@ The `TLSConfig` field is optional and TLS will only be verified if this configur
 Plugins should be started before Docker, and stopped after Docker.  For
 example, when packaging a plugin for a platform which supports `systemd`, you
 might use [`systemd` dependencies](
-http://www.freedesktop.org/software/systemd/man/systemd.unit.html#Before=) to
+https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Before=) to
 manage startup and shutdown order.
 
 When upgrading a plugin, you should first stop the Docker daemon, upgrade the

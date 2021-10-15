@@ -165,7 +165,7 @@ communication with the daemon.
 > supported anymore for security reasons.
 
 On Systemd based systems, you can communicate with the daemon via
-[Systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html),
+[Systemd socket activation](https://0pointer.de/blog/projects/socket-activation.html),
 use `dockerd -H fd://`. Using `fd://` will work perfectly for most setups but
 you can also specify individual sockets: `dockerd -H fd://3`. If the
 specified socket activated files aren't found, then Docker will exit. You can
@@ -308,7 +308,7 @@ devices, one for data and one for metadata. By default, these block devices
 are created automatically by using loopback mounts of automatically created
 sparse files. Refer to [Devicemapper options](#devicemapper-options) below
 for a way how to customize this setup.
-[~jpetazzo/Resizing Docker containers with the Device Mapper plugin](http://jpetazzo.github.io/2014/01/29/docker-device-mapper-resize/)
+[~jpetazzo/Resizing Docker containers with the Device Mapper plugin](https://jpetazzo.github.io/2014/01/29/docker-device-mapper-resize/)
 article explains how to tune your existing setup without the use of options.
 
 The `btrfs` driver is very fast for `docker build` - but like `devicemapper`
@@ -1211,7 +1211,7 @@ For information about how to create an authorization plugin, refer to the
 ### Daemon user namespace options
 
 The Linux kernel
-[user namespace support](http://man7.org/linux/man-pages/man7/user_namespaces.7.html)
+[user namespace support](https://man7.org/linux/man-pages/man7/user_namespaces.7.html)
 provides additional security by enabling a process, and therefore a container,
 to have a unique range of user and group IDs which are outside the traditional
 user and group range utilized by the host system. Potentially the most important
