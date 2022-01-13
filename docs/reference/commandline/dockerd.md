@@ -116,8 +116,8 @@ Options with [] may be specified multiple times.
 uses different binaries for the daemon and client. To run the daemon you
 type `dockerd`.
 
-To run the daemon with debug output, use `dockerd -D` or add `"debug": true` to
-the `daemon.json` file.
+To run the daemon with debug output, use `dockerd --debug` or add `"debug": true`
+to [the `daemon.json` file](#daemon-configuration-file).
 
 > **Enabling experimental features**
 > 
@@ -313,7 +313,7 @@ article explains how to tune your existing setup without the use of options.
 
 The `btrfs` driver is very fast for `docker build` - but like `devicemapper`
 does not share executable memory between devices. Use
-`dockerd -s btrfs -g /mnt/btrfs_partition`.
+`dockerd --storage-driver btrfs --data-root /mnt/btrfs_partition`.
 
 The `zfs` driver is probably not as fast as `btrfs` but has a longer track record
 on stability. Thanks to `Single Copy ARC` shared blocks between clones will be
@@ -1234,14 +1234,14 @@ for `/var/lib/docker/tmp`. The `DOCKER_TMPDIR` and the data directory can be
 set like this:
 
 ```console
-$ DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/dockerd -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
+$ DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/dockerd --data-root /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
 ```
 
 or
 
 ```console
 $ export DOCKER_TMPDIR=/mnt/disk2/tmp
-$ /usr/local/bin/dockerd -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
+$ /usr/local/bin/dockerd --data-root /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
 ````
 
 #### Default cgroup parent
