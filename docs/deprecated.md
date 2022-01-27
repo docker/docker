@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 Status     | Feature                                                                                                                            | Deprecated | Remove
 -----------|------------------------------------------------------------------------------------------------------------------------------------|------------|------------
+Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v21.xx     | -
 Deprecated | [Legacy builder fallback](#legacy-builder-fallback)                                                                                | v21.xx     | -
 Removed    | [Support for encrypted TLS private keys](#support-for-encrypted-tls-private-keys)                                                  | v20.10     | v21.xx
 Deprecated | [Kubernetes stack and context support](#kubernetes-stack-and-context-support)                                                      | v20.10     | -
@@ -100,20 +101,82 @@ Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-
 Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13
 Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12
 
+### Legacy builder for Linux images
+
+**Deprecated in Release: v21.xx**
+
+Docker v21.xx now uses BuildKit by default to build Linux images, and uses the
+[Buildx](https://docs.docker.com/buildx/working-with-buildx/) CLI component for
+`docker build`. With this change, `docker build` now exposes all advanced features
+that BuildKit provides and which were previously only available through the
+`docker buildx` subcommands.
+
+The Buildx component is installed automatically when installing the `docker` CLI
+using our `.deb` or `.rpm` packages, and statically linked binaries are provided
+both on `download.docker.com`, and through the [`docker/buildx-bin` image](https://hub.docker.com/r/docker/buildx-bin)
+on Docker Hub. Refer the [Buildx section](http://docs.docker.com/go/buildx/) for
+detailed instructions on installing the Buildx component.
+
+This release marks the beginning of the deprecation cycle of the classic ("legacy")
+builder for Linux images. No active development will happen on the classic builder
+(except for bugfixes). BuildKit development started five Years ago, left the
+"experimental" phase since Docker 18.09, and is already the default builder for
+[Docker Desktop](https://docs.docker.com/desktop/mac/release-notes/3.x/#docker-desktop-320).
+While we're comfortable that BuildKit is stable for general use, there may be
+some changes in behavior. If you encounter issues with BuildKit, we encourage
+you to report issues in the [BuildKit issue tracker on GitHub](https://github.com/moby/buildkit/){:target="_blank" rel="noopener" class="_"}
+
+> Classic builder for building Windows images
+>
+> BuildKit does not (yet) provide support for building Windows images, and
+> `docker build` continues to use the classic builder to build native Windows
+> images on Windows daemons.
+
 ### Legacy builder fallback 
 
 **Deprecated in Release: v21.xx**
 
-BuildKit implementation code and linked build flags have been removed in the CLI
-and are now forwarded to [Buildx](https://docs.docker.com/buildx/working-with-buildx/)
-builder component.
+[Docker v21.xx now uses BuildKit by default to build Linux images](#legacy-builder-for-linux-images),
+which requires the Buildx component to build images with BuildKit. There may be
+situations where the Buildx component is not available, and BuildKit cannot be
+used.
 
-If Buildx plugin is missing or broken, build command will fall back to the
-legacy builder. This fallback mechanism will be removed in a future release and
-user prompted to install the Buildx plugin.
+To provide a smooth transition to BuildKit as the default builder, Docker v21.xx
+has an automatic fallback for some situations, or produces an error to assist
+users to resolve the problem.
 
-User can always fall back to the legacy builder with `DOCKER_BUILDKIT=0` but
-`DOCKER_BUILDKIT=1` will always require Buildx.
+In situations where the user did not explicitly opt-in to use BuildKit (i.e., 
+`DOCKER_BUILDKIT=1` is not set), the CLI automatically falls back to the classic
+builder, but prints a deprecation warning:
+
+```
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+```
+
+This situation may occur if the `docker` CLI is installed using the static binaries,
+and the Buildx component is not installed or not installed correctly. This fallback
+will be removed in a future release, therefore we recommend to [install the Buildx component](https://docs.docker.com/go/buildx/)
+and use BuildKit for your builds, or opt-out of using BuildKit with `DOCKER_BUILDKIT=0`.
+
+If you opted-in to use BuildKit (`DOCKER_BUILDKIT=1`), but the Buildx component
+is missing, an error is printed instead, and the `docker build` command fails:
+
+```
+ERROR: BuildKit is enabled but the buildx component is missing or broken.
+       Install the buildx component to build images with BuildKit:
+       https://docs.docker.com/go/buildx/
+```
+
+We recommend to [install the Buildx component](https://docs.docker.com/go/buildx/)
+to continue using BuildKit for your builds, but alternatively, users can either
+unset the `DOCKER_BUILDKIT` environment variable to fall back to the legacy builder,
+or opt-out of using BuildKit with `DOCKER_BUILDKIT=0`.
+
+Be aware that the [classic builder is deprecated](#legacy-builder-for-linux-images)
+so both the automatic fallback and opting-out of using BuildKit will no longer
+be possible in a future release.
 
 ### Support for encrypted TLS private keys
 
