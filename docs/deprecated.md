@@ -50,7 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 Status     | Feature                                                                                                                            | Deprecated | Remove
 -----------|------------------------------------------------------------------------------------------------------------------------------------|------------|------------
-Deprecated | [Support for encrypted TLS private keys](#support-for-encrypted-tls-private-keys)                                                  | v20.10     | -
+Removed    | [Support for encrypted TLS private keys](#support-for-encrypted-tls-private-keys)                                                  | v20.10     | v21.xx
 Deprecated | [Kubernetes stack and context support](#kubernetes-stack-and-context-support)                                                      | v20.10     | -
 Deprecated | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | -
 Removed    | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | v21.xx
@@ -103,10 +103,17 @@ Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-
 
 **Deprecated in Release: v20.10**
 
-Use of encrypted TLS private keys has been deprecated, and will be removed in a
-future release. Golang has deprecated support for legacy PEM encryption (as
-specified in [RFC 1423](https://datatracker.ietf.org/doc/html/rfc1423)), as it
-is insecure by design (see [https://go-review.googlesource.com/c/go/+/264159](https://go-review.googlesource.com/c/go/+/264159)).
+**Removed in Release: v21.xx**
+
+Use of encrypted TLS private keys has been deprecated, and has been removed.
+Golang has deprecated support for legacy PEM encryption (as specified in
+[RFC 1423](https://datatracker.ietf.org/doc/html/rfc1423)), as it is insecure by
+design (see [https://go-review.googlesource.com/c/go/+/264159](https://go-review.googlesource.com/c/go/+/264159)).
+
+This feature allowed using an encrypted private key with a supplied password,
+but did not provide additional security as the encryption is known to be broken,
+and the key is sitting next to the password in the filesystem. Users are recommended
+to decrypt the private key, and store it un-encrypted to continue using it.
 
 ### Kubernetes stack and context support
 
