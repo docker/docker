@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 Status     | Feature                                                                                                                            | Deprecated | Remove
 -----------|------------------------------------------------------------------------------------------------------------------------------------|------------|------------
+Deprecated | [Legacy builder fallback](#legacy-builder-fallback)                                                                                | v21.xx     | -
 Removed    | [Support for encrypted TLS private keys](#support-for-encrypted-tls-private-keys)                                                  | v20.10     | v21.xx
 Deprecated | [Kubernetes stack and context support](#kubernetes-stack-and-context-support)                                                      | v20.10     | -
 Deprecated | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | -
@@ -98,6 +99,21 @@ Removed    | [Old Command Line Options](#old-command-line-options)              
 Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09
 Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13
 Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12
+
+### Legacy builder fallback 
+
+**Deprecated in Release: v21.xx**
+
+BuildKit implementation code and linked build flags have been removed in the CLI
+and are now forwarded to [Buildx](https://docs.docker.com/buildx/working-with-buildx/)
+builder component.
+
+If Buildx plugin is missing or broken, build command will fall back to the
+legacy builder. This fallback mechanism will be removed in a future release and
+user prompted to install the Buildx plugin.
+
+User can always fall back to the legacy builder with `DOCKER_BUILDKIT=0` but
+`DOCKER_BUILDKIT=1` will always require Buildx.
 
 ### Support for encrypted TLS private keys
 
