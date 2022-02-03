@@ -1574,7 +1574,7 @@ The list of currently supported options that can be reconfigured is this:
   be used to run containers.
 - `authorization-plugin`: it specifies the authorization plugins to use.
 - `allow-nondistributable-artifacts`: Replaces the set of registries to which the daemon will push nondistributable artifacts with a new set of registries.
-- `insecure-registries`: it replaces the daemon insecure registries with a new set of insecure registries. If some existing insecure registries in daemon's configuration are not in newly reloaded insecure resgitries, these existing ones will be removed from daemon's config.
+- `insecure-registries`: it replaces the daemon insecure registries with a new set of insecure registries. If some existing insecure registries in daemon's configuration are not in newly reloaded insecure registries, these existing ones will be removed from daemon's config.
 - `registry-mirrors`: it replaces the daemon registry mirrors with a new set of registry mirrors. If some existing registry mirrors in daemon's configuration are not in newly reloaded registry mirrors, these existing ones will be removed from daemon's config.
 - `shutdown-timeout`: it replaces the daemon's existing configuration timeout with a new timeout for shutting down all containers.
 - `features`: it explicitly enables or disables specific features.
