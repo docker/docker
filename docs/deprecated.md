@@ -220,7 +220,8 @@ The following command-line flags are removed from the `docker stack` subcommands
 - `--orchestrator` - swarm is now the only (and default) orchestrator for stacks.
 
 The `DOCKER_STACK_ORCHESTRATOR`, `DOCKER_ORCHESTRATOR`, and `KUBECONFIG` environment
-variables are no longer used, and ignored.
+variables, as well as the `stackOrchestrator` option in the `~/.docker/config.json`
+cli configuration file are no longer used, and ignored.
 
 ### Pulling images from non-compliant image registries
 
