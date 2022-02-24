@@ -197,9 +197,30 @@ to decrypt the private key, and store it un-encrypted to continue using it.
 ### Kubernetes stack and context support
 
 **Deprecated in Release: v20.10**
+**Removed in Release: v21.xx**
 
-Following the deprecation of [Compose on Kubernetes](https://github.com/docker/compose-on-kubernetes), support for
-Kubernetes in the `stack` and `context` commands in the docker CLI is now marked as deprecated as well.
+Following the deprecation of [Compose on Kubernetes](https://github.com/docker/compose-on-kubernetes),
+support for Kubernetes in the `stack` and `context` commands has been removed from
+the cli, and options related to this functionality are now either ignored, or may
+produce an error.
+
+The following command-line flags are removed from the `docker context` subcommands:
+
+- `--default-stack-orchestrator` - swarm is now the only (and default) orchestrator for stacks.
+- `--kubernetes` - the kubernetes endpoint can no longer be stored in `docker context`.
+- `--kubeconfig` - exporting a context as a kubeconfig file is no longer supported.
+
+The output produced by the `docker context inspect` subcommand no longer contains
+information about `StackOrchestrator` and `Kubernetes` endpoints for new contexts.
+
+The following command-line flags are removed from the `docker stack` subcommands:
+ 
+- `--kubeconfig` - using a kubeconfig file as context is no longer supported.
+- `--namespace` - configuring the kubernetes namespace for stacks is no longer supported.
+- `--orchestrator` - swarm is now the only (and default) orchestrator for stacks.
+
+The `DOCKER_STACK_ORCHESTRATOR`, `DOCKER_ORCHESTRATOR`, and `KUBECONFIG` environment
+variables are no longer used, and ignored.
 
 ### Pulling images from non-compliant image registries
 
