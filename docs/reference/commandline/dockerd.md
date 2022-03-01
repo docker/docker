@@ -347,16 +347,13 @@ to use it.
 The `fuse-overlayfs` driver is similar to `overlay2` but works in userspace.
 The `fuse-overlayfs` driver is expected to be used for [Rootless mode](https://docs.docker.com/engine/security/rootless/).
 
-On Windows, the Docker daemon supports a single image layer storage driver
-depending on the image platform: `windowsfilter` for Windows images, and
-`lcow` for Linux containers on Windows.
+On Windows, the Docker daemon only supports the `windowsfilter` storage driver.
 
 ### Options per storage driver
 
 Particular storage-driver can be configured with options specified with
 `--storage-opt` flags. Options for `devicemapper` are prefixed with `dm`,
-options for `zfs` start with `zfs`, options for `btrfs` start with `btrfs`
-and options for `lcow` start with `lcow`.
+options for `zfs` start with `zfs`, and options for `btrfs` start with `btrfs`.
 
 #### Devicemapper options
 
@@ -854,99 +851,6 @@ Defaults to 20G.
 
 ```powershell
 C:\> dockerd --storage-opt size=40G
-```
-
-#### LCOW (Linux Containers on Windows) options
-
-##### `lcow.globalmode`
-
-Specifies whether the daemon instantiates utility VM instances as required
-(recommended and default if omitted), or uses single global utility VM (better
-performance, but has security implications and not recommended for production
-deployments).
-
-###### Example
-
-```powershell
-C:\> dockerd --storage-opt lcow.globalmode=false
-```
-
-##### `lcow.kirdpath`
-
-Specifies the folder path to the location of a pair of kernel and initrd files
-used for booting a utility VM. Defaults to `%ProgramFiles%\Linux Containers`.
-
-###### Example
-
-```powershell
-C:\> dockerd --storage-opt lcow.kirdpath=c:\path\to\files
-```
-
-##### `lcow.kernel`
-
-Specifies the filename of a kernel file located in the `lcow.kirdpath` path.
-Defaults to `bootx64.efi`.
-
-###### Example
-
-```powershell
-C:\> dockerd --storage-opt lcow.kernel=kernel.efi
-```
-
-##### `lcow.initrd`
-
-Specifies the filename of an initrd file located in the `lcow.kirdpath` path.
-Defaults to `initrd.img`.
-
-###### Example
-
-```powershell
-C:\> dockerd --storage-opt lcow.initrd=myinitrd.img
-```
-
-##### `lcow.bootparameters`
-
-Specifies additional boot parameters for booting utility VMs when in kernel/
-initrd mode. Ignored if the utility VM is booting from VHD. These settings
-are kernel specific.
-
-###### Example
-
-```powershell
-C:\> dockerd --storage-opt "lcow.bootparameters='option=value'"
-```
-
-##### `lcow.vhdx`
-
-Specifies a custom VHDX to boot a utility VM, as an alternate to kernel
-and initrd booting. Defaults to `uvm.vhdx` under `lcow.kirdpath`.
-
-###### Example
-
-```powershell
-C:\> dockerd --storage-opt lcow.vhdx=custom.vhdx
-```
-
-##### `lcow.timeout`
-
-Specifies the timeout for utility VM operations in seconds. Defaults
-to 300.
-
-###### Example
-
-```powershell
-C:\> dockerd --storage-opt lcow.timeout=240
-```
-
-##### `lcow.sandboxsize`
-
-Specifies the size in GB to use when creating the sandbox which is used for
-containers. Defaults to 20. Cannot be less than 20.
-
-###### Example
-
-```powershell
-C:\> dockerd --storage-opt lcow.sandboxsize=40
 ```
 
 ### Docker runtime execution options
