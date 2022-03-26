@@ -1409,6 +1409,7 @@ This is a full example of the allowed configuration options on Windows:
   "containerd-plugin-namespace": "docker-plugins",
   "data-root": "",
   "debug": true,
+  "default-runtime": "",
   "default-ulimits": {},
   "dns": [],
   "dns-opts": [],
@@ -1440,6 +1441,13 @@ This is a full example of the allowed configuration options on Windows:
   "tlsverify": true
 }
 ```
+
+The `default-runtime` option is by default unset, in which case dockerd will auto-detect the runtime. This detection is currently based on if the `containerd` flag is set.
+
+Accepted values:
+
+- `com.docker.hcsshim.v1` - This is the built-in runtime that Docker has used since Windows supported was first added and uses the v1 HCS API's in Windows.
+- `io.containerd.runhcs.v1` - This is uses the containerd `runhcs` shim to run the container and uses the v2 HCS API's in Windows.
 
 #### Feature options
 The optional field `features` in `daemon.json` allows users to enable or disable specific
