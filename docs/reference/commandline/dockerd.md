@@ -771,7 +771,7 @@ time of writing, the following is the list of `libdm` log levels as well as
 their corresponding levels when output by `dockerd`.
 
 | `libdm` Level | Value | `--log-level` |
-| ------------- | -----:| ------------- |
+|---------------|------:|---------------|
 | `_LOG_FATAL`  |     2 | error         |
 | `_LOG_ERR`    |     3 | error         |
 | `_LOG_WARN`   |     4 | warn          |
