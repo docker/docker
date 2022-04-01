@@ -88,7 +88,7 @@ Options:
       --oom-score-adjust int                  Set the oom_score_adj for the daemon (default -500)
   -p, --pidfile string                        Path to use for daemon PID file (default "/var/run/docker.pid")
       --raw-logs                              Full timestamps without ANSI coloring
-      --registry-mirror list                  Preferred Docker registry mirror
+      --registry-mirror list                  Preferred registry mirror
       --rootless                              Enable rootless mode; typically used with RootlessKit
       --seccomp-profile string                Path to seccomp profile
       --selinux-enabled                       Enable selinux support
