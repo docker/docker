@@ -59,7 +59,7 @@ Removed    | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-l
 Deprecated | [BLKIO weight options with cgroups v1](#blkio-weight-options-with-cgroups-v1)                                                      | v20.10     | -
 Deprecated | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | -
 Deprecated | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.10     | -
-Deprecated | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | -
+Removed    | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | v21.xx
 Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.10     | -
 Deprecated | [Dockerfile legacy `ENV name value` syntax](#dockerfile-legacy-env-name-value-syntax)                                              | v20.10     | -
 Removed    | [`docker build --stream` flag (experimental)](#docker-build---stream-flag-experimental)                                            | v20.10     | v20.10
@@ -298,6 +298,7 @@ deprecated, and will be disabled or removed in a future release.
 ### Support for legacy `~/.dockercfg` configuration files
 
 **Deprecated in Release: v20.10**
+**Removed in Release: v21.xx**
 
 The docker CLI up until v1.7.0 used the `~/.dockercfg` file to store credentials
 after authenticating to a registry (`docker login`). Docker v1.7.0 replaced this
@@ -307,8 +308,11 @@ as a fall-back, to assist existing users with migrating to the new file.
 
 Given that the old file format encourages insecure storage of credentials
 (credentials are stored unencrypted), and that no version of the CLI since
-Docker v1.7.0 has created this file, the file is marked deprecated, and support
-for this file will be removed in a future release.
+Docker v1.7.0 has created this file, support for this file, and its format has
+been removed.
+
+A warning is printed in situations where the CLI would fall back to the old file,
+notifying the user that the legacy file is present, but ignored.
 
 ### Configuration options for experimental CLI features
 
