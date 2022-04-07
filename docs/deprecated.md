@@ -57,7 +57,7 @@ The table below provides an overview of the current status of deprecated feature
 | Deprecated | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | -      |
 | Removed    | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | v22.04 |
 | Deprecated | [BLKIO weight options with cgroups v1](#blkio-weight-options-with-cgroups-v1)                                                      | v20.10     | -      |
-| Deprecated | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | -      |
+| Removed    | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | v22.04 |
 | Deprecated | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.10     | -      |
 | Removed    | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | v22.04 |
 | Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.10     | -      |
@@ -281,9 +281,30 @@ When using cgroups v2, the `--blkio-weight` options are implemented using
 ### Kernel memory limit
 
 **Deprecated in Release: v20.10**
+**Removed in Release: v22.04**
 
-Specifying kernel memory limit (`docker run --kernel-memory`) is now marked as deprecated,
-as [Linux kernel deprecated `kmem.limit_in_bytes` in v5.4](https://github.com/torvalds/linux/commit/0158115f702b0ba208ab0b5adf44cae99b3ebcc7).
+Specifying kernel memory limit (`docker run --kernel-memory`) is no longer supported
+because the [Linux kernel deprecated `kmem.limit_in_bytes` in v5.4](https://github.com/torvalds/linux/commit/0158115f702b0ba208ab0b5adf44cae99b3ebcc7).
+The OCI runtime specification now marks this option (as well as `--kernel-memory-tcp`)
+as ["NOT RECOMMENDED"](https://github.com/opencontainers/runtime-spec/pull/1093),
+and OCI runtimes such as `runc` no longer support this option.
+
+Docker API v1.42 and up now ignores this option when set. Older versions of the
+API continue to accept the option, but depending on the OCI runtime used, may
+take no effect.
+
+> **Note**
+> 
+> While not deprecated (yet) in Docker, the OCI runtime specification also
+> deprecated the `memory.kmem.tcp.limit_in_bytes` option. When using `runc` as
+> runtime, this option takes no effect. The linux kernel did not explicitly
+> deprecate this feature, and there is a tracking ticket in the `runc` issue
+> tracker to determine if this option should be reinstated or if this was an
+> oversight of the Linux kernel maintainers (see [opencontainers/runc#3174](https://github.com/opencontainers/runc/issues/3174)).
+> 
+> The `memory.kmem.tcp.limit_in_bytes` option is only supported with cgroups v1,
+> and not available on installations running with cgroups v2. This option is
+> only supported by the API, and not exposed on the `docker` command-line.
 
 ### Classic Swarm and overlay networks using cluster store
 
