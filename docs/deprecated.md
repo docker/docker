@@ -344,6 +344,10 @@ The `DOCKER_CLI_EXPERIMENTAL` environment variable and the corresponding `experi
 field in the CLI configuration file are deprecated. Experimental features are
 enabled by default, and these configuration options are no longer functional.
 
+Starting with v22.04, the Docker CLI no longer prints `Experimental` for the client
+in the output of `docker version`, and the field has been removed from the JSON
+format.
+
 ### CLI plugins support
 
 **Deprecated in Release: v20.10**
