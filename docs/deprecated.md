@@ -63,7 +63,7 @@ The table below provides an overview of the current status of deprecated feature
 | Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.10     | -      |
 | Deprecated | [Dockerfile legacy `ENV name value` syntax](#dockerfile-legacy-env-name-value-syntax)                                              | v20.10     | -      |
 | Removed    | [`docker build --stream` flag (experimental)](#docker-build---stream-flag-experimental)                                            | v20.10     | v20.10 |
-| Deprecated | [Configuration options for experimental CLI features](#configuration-options-for-experimental-cli-features)                        | v19.03     | v20.10 |
+| Removed    | [Configuration options for experimental CLI features](#configuration-options-for-experimental-cli-features)                        | v19.03     | v22.04 |
 | Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03     | v20.10 |
 | Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03     | v20.10 |
 | Removed    | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03     | v20.10 |
@@ -336,9 +336,13 @@ notifying the user that the legacy file is present, but ignored.
 
 ### Configuration options for experimental CLI features
 
+**Deprecated in Release: v19.03**
+
+**Removed in Release: v22.04**
+
 The `DOCKER_CLI_EXPERIMENTAL` environment variable and the corresponding `experimental`
-field in the CLI configuration file are deprecated. Experimental features will be
-enabled by default, and these configuration options will no longer be functional.
+field in the CLI configuration file are deprecated. Experimental features are
+enabled by default, and these configuration options are no longer functional.
 
 ### CLI plugins support
 
