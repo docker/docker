@@ -68,9 +68,9 @@ The table below provides an overview of the current status of deprecated feature
 | Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03     | v20.10 |
 | Removed    | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03     | v20.10 |
 | Removed    | [`docker stack deploy` using "dab" files (experimental)](#docker-stack-deploy-using-dab-files-experimental)                        | v19.03     | v20.10 |
-| Deprecated | [AuFS storage driver](#aufs-storage-driver)                                                                                        | v19.03     | -      |
-| Deprecated | [Legacy "overlay" storage driver](#legacy-overlay-storage-driver)                                                                  | v18.09     | -      |
-| Deprecated | [Device mapper storage driver](#device-mapper-storage-driver)                                                                      | v18.09     | -      |
+| Disabled   | [AuFS storage driver](#aufs-storage-driver)                                                                                        | v19.03     | -      |
+| Disabled   | [Legacy "overlay" storage driver](#legacy-overlay-storage-driver)                                                                  | v18.09     | -      |
+| Disabled   | [Device mapper storage driver](#device-mapper-storage-driver)                                                                      | v18.09     | -      |
 | Removed    | [Use of reserved namespaces in engine labels](#use-of-reserved-namespaces-in-engine-labels)                                        | v18.06     | v20.10 |
 | Removed    | [`--disable-legacy-registry` override daemon option](#--disable-legacy-registry-override-daemon-option)                            | v17.12     | v19.03 |
 | Removed    | [Interacting with V1 registries](#interacting-with-v1-registries)                                                                  | v17.06     | v17.12 |
@@ -445,6 +445,7 @@ using compose files.
 ### AuFS storage driver
 
 **Deprecated in Release: v19.03**
+**Disabled by default in Release: v22.04**
 
 The `aufs` storage driver is deprecated in favor of `overlay2`, and will
 be removed in a future release. Users of the `aufs` storage driver are
@@ -460,10 +461,28 @@ is available to all supported distros (as they are either on kernel 4.x, or have
 support for multiple lowerdirs backported), there is no reason to continue
 maintenance of the `aufs` storage driver.
 
+#### Disabled by default in v22.04
+
+Docker already prevented deprecated storage drivers from being automatically
+selected on new installations, but continued to use these drivers when upgrading
+existing installations. Starting with the v22.04 release, the Docker Engine will
+fail to start if a deprecated storage driver is used (see [moby#43378](https://github.com/moby/moby/pull/43378):
+
+```console
+failed to start daemon: error initializing graphdriver: prior storage driver
+aufs is deprecated and will be removed in a future release; update the the daemon
+configuration and explicitly choose this storage driver to continue using it;
+visit https://docs.docker.com/go/storage-driver/ for more information.
+```
+
+To continue using the storage driver, update the daemon configuration to use
+explicitly use the given storage driver. Users are encouraged to migrate to 
+different storage driver.
 
 ### Legacy "overlay" storage driver
 
 **Deprecated in Release: v18.09**
+**Disabled by default in Release: v22.04**
 
 The `overlay` storage driver is deprecated in favor of the `overlay2` storage
 driver, which has all the benefits of `overlay`, without its limitations (excessive
@@ -476,9 +495,28 @@ on pre 4.x kernels. Now that all supported distributions are able to run `overla
 (as they are either on kernel 4.x, or have support for multiple lowerdirs
 backported), there is no reason to keep maintaining the `overlay` storage driver.
 
+#### Disabled by default in v22.04
+
+Docker already prevented deprecated storage drivers from being automatically
+selected on new installations, but continued to use these drivers when upgrading
+existing installations. Starting with the v22.04 release, the Docker Engine will
+fail to start if a deprecated storage driver is used (see [moby#43378](https://github.com/moby/moby/pull/43378):
+
+```console
+failed to start daemon: error initializing graphdriver: prior storage driver
+overlay is deprecated and will be removed in a future release; update the the daemon
+configuration and explicitly choose this storage driver to continue using it;
+visit https://docs.docker.com/go/storage-driver/ for more information.
+```
+
+To continue using the storage driver, update the daemon configuration to use
+explicitly use the given storage driver. Users are encouraged to migrate to
+different storage driver.
+
 ### Device mapper storage driver
 
 **Deprecated in Release: v18.09**
+**Disabled by default in Release: v22.04**
 
 The `devicemapper` storage driver is deprecated in favor of `overlay2`, and will
 be removed in a future release. Users of the `devicemapper` storage driver are
@@ -492,6 +530,23 @@ Now that support for `overlay2` is added to all supported distros (as they are
 either on kernel 4.x, or have support for multiple lowerdirs backported), there
 is no reason to continue maintenance of the `devicemapper` storage driver.
 
+#### Disabled by default in v22.04
+
+Docker already prevented deprecated storage drivers from being automatically
+selected on new installations, but continued to use these drivers when upgrading
+existing installations. Starting with the v22.04 release, the Docker Engine will
+fail to start if a deprecated storage driver is used (see [moby#43378](https://github.com/moby/moby/pull/43378):
+
+```console
+failed to start daemon: error initializing graphdriver: prior storage driver
+devicemapper is deprecated and will be removed in a future release; update the the daemon
+configuration and explicitly choose this storage driver to continue using it;
+visit https://docs.docker.com/go/storage-driver/ for more information.
+```
+
+To continue using the storage driver, update the daemon configuration to use
+explicitly use the given storage driver. Users are encouraged to migrate to
+different storage driver.
 
 ### Use of reserved namespaces in engine labels
 
