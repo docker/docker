@@ -50,16 +50,16 @@ The table below provides an overview of the current status of deprecated feature
 
 Status     | Feature                                                                                                                            | Deprecated | Remove
 -----------|------------------------------------------------------------------------------------------------------------------------------------|------------|------------
-Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v21.xx     | -
-Deprecated | [Legacy builder fallback](#legacy-builder-fallback)                                                                                | v21.xx     | -
-Removed    | [Support for encrypted TLS private keys](#support-for-encrypted-tls-private-keys)                                                  | v20.10     | v21.xx
-Removed    | [Kubernetes stack and context support](#kubernetes-stack-and-context-support)                                                      | v20.10     | v21.xx
+Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v22.04     | -
+Deprecated | [Legacy builder fallback](#legacy-builder-fallback)                                                                                | v22.04     | -
+Removed    | [Support for encrypted TLS private keys](#support-for-encrypted-tls-private-keys)                                                  | v20.10     | v22.04
+Removed    | [Kubernetes stack and context support](#kubernetes-stack-and-context-support)                                                      | v20.10     | v22.04
 Deprecated | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | -
-Removed    | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | v21.xx
+Removed    | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | v22.04
 Deprecated | [BLKIO weight options with cgroups v1](#blkio-weight-options-with-cgroups-v1)                                                      | v20.10     | -
 Deprecated | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | -
 Deprecated | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.10     | -
-Removed    | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | v21.xx
+Removed    | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | v22.04
 Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.10     | -
 Deprecated | [Dockerfile legacy `ENV name value` syntax](#dockerfile-legacy-env-name-value-syntax)                                              | v20.10     | -
 Removed    | [`docker build --stream` flag (experimental)](#docker-build---stream-flag-experimental)                                            | v20.10     | v20.10
@@ -103,9 +103,9 @@ Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-
 
 ### Legacy builder for Linux images
 
-**Deprecated in Release: v21.xx**
+**Deprecated in Release: v22.04**
 
-Docker v21.xx now uses BuildKit by default to build Linux images, and uses the
+Docker v22.04 now uses BuildKit by default to build Linux images, and uses the
 [Buildx](https://docs.docker.com/buildx/working-with-buildx/) CLI component for
 `docker build`. With this change, `docker build` now exposes all advanced features
 that BuildKit provides and which were previously only available through the
@@ -134,14 +134,14 @@ you to report issues in the [BuildKit issue tracker on GitHub](https://github.co
 
 ### Legacy builder fallback 
 
-**Deprecated in Release: v21.xx**
+**Deprecated in Release: v22.04**
 
-[Docker v21.xx now uses BuildKit by default to build Linux images](#legacy-builder-for-linux-images),
+[Docker v22.04 now uses BuildKit by default to build Linux images](#legacy-builder-for-linux-images),
 which requires the Buildx component to build images with BuildKit. There may be
 situations where the Buildx component is not available, and BuildKit cannot be
 used.
 
-To provide a smooth transition to BuildKit as the default builder, Docker v21.xx
+To provide a smooth transition to BuildKit as the default builder, Docker v22.04
 has an automatic fallback for some situations, or produces an error to assist
 users to resolve the problem.
 
@@ -182,7 +182,7 @@ be possible in a future release.
 
 **Deprecated in Release: v20.10**
 
-**Removed in Release: v21.xx**
+**Removed in Release: v22.04**
 
 Use of encrypted TLS private keys has been deprecated, and has been removed.
 Golang has deprecated support for legacy PEM encryption (as specified in
@@ -197,7 +197,7 @@ to decrypt the private key, and store it un-encrypted to continue using it.
 ### Kubernetes stack and context support
 
 **Deprecated in Release: v20.10**
-**Removed in Release: v21.xx**
+**Removed in Release: v22.04**
 
 Following the deprecation of [Compose on Kubernetes](https://github.com/docker/compose-on-kubernetes),
 support for Kubernetes in the `stack` and `context` commands has been removed from
@@ -258,7 +258,7 @@ major release.
 ### Linux containers on Windows (LCOW) (experimental)
 
 **Deprecated in Release: v20.10**
-**Removed in Release: v21.xx**
+**Removed in Release: v22.04**
 
 The experimental feature to run Linux containers on Windows (LCOW) was introduced
 as a technical preview in Docker 17.09. While many enhancements were made after
@@ -298,7 +298,7 @@ deprecated, and will be disabled or removed in a future release.
 ### Support for legacy `~/.dockercfg` configuration files
 
 **Deprecated in Release: v20.10**
-**Removed in Release: v21.xx**
+**Removed in Release: v22.04**
 
 The docker CLI up until v1.7.0 used the `~/.dockercfg` file to store credentials
 after authenticating to a registry (`docker login`). Docker v1.7.0 replaced this
