@@ -58,7 +58,7 @@ The table below provides an overview of the current status of deprecated feature
 | Removed    | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | v22.04 |
 | Deprecated | [BLKIO weight options with cgroups v1](#blkio-weight-options-with-cgroups-v1)                                                      | v20.10     | -      |
 | Removed    | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | v22.04 |
-| Deprecated | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.10     | -      |
+| Removed    | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.10     | v22.04 |
 | Removed    | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | v22.04 |
 | Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.10     | -      |
 | Deprecated | [Dockerfile legacy `ENV name value` syntax](#dockerfile-legacy-env-name-value-syntax)                                              | v20.10     | -      |
@@ -309,12 +309,11 @@ take no effect.
 ### Classic Swarm and overlay networks using cluster store
 
 **Deprecated in Release: v20.10**
+**Removed in Release: v22.04**
 
 Standalone ("classic") Swarm has been deprecated, and with that the use of overlay
 networks using an external key/value store. The corresponding`--cluster-advertise`,
-`--cluster-store`, and `--cluster-store-opt` daemon options have been marked
-deprecated, and will be disabled or removed in a future release.
-
+`--cluster-store`, and `--cluster-store-opt` daemon options have been removed.
 
 ### Support for legacy `~/.dockercfg` configuration files
 
