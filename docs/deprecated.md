@@ -693,12 +693,11 @@ The overlay and overlay2 storage driver does not work as expected if the backing
 filesystem does not support `d_type`. For example, XFS does not support `d_type`
 if it is formatted with the `ftype=0` option.
 
-Starting with Docker 17.12, new installations will not support running overlay2 on
-a backing filesystem without `d_type` support. For existing installations that upgrade
-to 17.12, a warning will be printed.
+Support for these setups has been removed, and Docker v22.04 and up now fails to
+start when attempting to use the `overlay2` or `overlay` storage driver on a
+backing filesystem without `d_type` support.
 
-Please also refer to [#27358](https://github.com/docker/docker/issues/27358) for
-further information.
+Refer to [#27358](https://github.com/docker/docker/issues/27358) for details.
 
 
 ### `--automated` and `--stars` flags on `docker search`
