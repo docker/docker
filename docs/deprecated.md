@@ -63,6 +63,7 @@ The table below provides an overview of the current status of deprecated feature
 | Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.10     | -      |
 | Deprecated | [Dockerfile legacy `ENV name value` syntax](#dockerfile-legacy-env-name-value-syntax)                                              | v20.10     | -      |
 | Removed    | [`docker build --stream` flag (experimental)](#docker-build---stream-flag-experimental)                                            | v20.10     | v20.10 |
+| Deprecated | [`fluentd-async-connect` log opt](#fluentd-async-connect-log-opt)                                                                  | v20.10     | -      |
 | Removed    | [Configuration options for experimental CLI features](#configuration-options-for-experimental-cli-features)                        | v19.03     | v22.04 |
 | Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03     | v20.10 |
 | Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03     | v20.10 |
@@ -390,6 +391,21 @@ printing a deprecation warning instead.
 Users that want to use this feature are encouraged to enable BuildKit by setting
 the `DOCKER_BUILDKIT=1` environment variable or through the daemon or CLI configuration
 files.
+
+### `fluentd-async-connect` log opt
+
+**Deprecated in Release: v20.10**
+
+The `--log-opt fluentd-async-connect` option for the fluentd logging driver is
+[deprecated in favor of `--log-opt fluentd-async`](https://github.com/moby/moby/pull/39086).
+A deprecation message is logged in the daemon logs if the old option is used:
+
+```console
+fluent#New: AsyncConnect is now deprecated, please use Async instead
+```
+
+Users are encouraged to use the `fluentd-async` option going forward, as support
+for the old option will be removed in a future release.
 
 ### Pushing and pulling with image manifest v2 schema 1
 
