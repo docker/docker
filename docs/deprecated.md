@@ -50,21 +50,21 @@ The table below provides an overview of the current status of deprecated feature
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
-| Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v22.04     | -      |
-| Deprecated | [Legacy builder fallback](#legacy-builder-fallback)                                                                                | v22.04     | -      |
-| Removed    | [Support for encrypted TLS private keys](#support-for-encrypted-tls-private-keys)                                                  | v20.10     | v22.04 |
-| Removed    | [Kubernetes stack and context support](#kubernetes-stack-and-context-support)                                                      | v20.10     | v22.04 |
+| Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v22.06     | -      |
+| Deprecated | [Legacy builder fallback](#legacy-builder-fallback)                                                                                | v22.06     | -      |
+| Removed    | [Support for encrypted TLS private keys](#support-for-encrypted-tls-private-keys)                                                  | v20.10     | v22.06 |
+| Removed    | [Kubernetes stack and context support](#kubernetes-stack-and-context-support)                                                      | v20.10     | v22.06 |
 | Deprecated | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | -      |
-| Removed    | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | v22.04 |
+| Removed    | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | v22.06 |
 | Deprecated | [BLKIO weight options with cgroups v1](#blkio-weight-options-with-cgroups-v1)                                                      | v20.10     | -      |
-| Removed    | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | v22.04 |
-| Removed    | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.10     | v22.04 |
-| Removed    | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | v22.04 |
+| Removed    | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | v22.06 |
+| Removed    | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.10     | v22.06 |
+| Removed    | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | v22.06 |
 | Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.10     | -      |
 | Deprecated | [Dockerfile legacy `ENV name value` syntax](#dockerfile-legacy-env-name-value-syntax)                                              | v20.10     | -      |
 | Removed    | [`docker build --stream` flag (experimental)](#docker-build---stream-flag-experimental)                                            | v20.10     | v20.10 |
 | Deprecated | [`fluentd-async-connect` log opt](#fluentd-async-connect-log-opt)                                                                  | v20.10     | -      |
-| Removed    | [Configuration options for experimental CLI features](#configuration-options-for-experimental-cli-features)                        | v19.03     | v22.04 |
+| Removed    | [Configuration options for experimental CLI features](#configuration-options-for-experimental-cli-features)                        | v19.03     | v22.06 |
 | Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03     | v20.10 |
 | Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03     | v20.10 |
 | Removed    | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03     | v20.10 |
@@ -104,9 +104,9 @@ The table below provides an overview of the current status of deprecated feature
 
 ### Legacy builder for Linux images
 
-**Deprecated in Release: v22.04**
+**Deprecated in Release: v22.06**
 
-Docker v22.04 now uses BuildKit by default to build Linux images, and uses the
+Docker v22.06 now uses BuildKit by default to build Linux images, and uses the
 [Buildx](https://docs.docker.com/buildx/working-with-buildx/) CLI component for
 `docker build`. With this change, `docker build` now exposes all advanced features
 that BuildKit provides and which were previously only available through the
@@ -135,14 +135,14 @@ you to report issues in the [BuildKit issue tracker on GitHub](https://github.co
 
 ### Legacy builder fallback 
 
-**Deprecated in Release: v22.04**
+**Deprecated in Release: v22.06**
 
-[Docker v22.04 now uses BuildKit by default to build Linux images](#legacy-builder-for-linux-images),
+[Docker v22.06 now uses BuildKit by default to build Linux images](#legacy-builder-for-linux-images),
 which requires the Buildx component to build images with BuildKit. There may be
 situations where the Buildx component is not available, and BuildKit cannot be
 used.
 
-To provide a smooth transition to BuildKit as the default builder, Docker v22.04
+To provide a smooth transition to BuildKit as the default builder, Docker v22.06
 has an automatic fallback for some situations, or produces an error to assist
 users to resolve the problem.
 
@@ -183,7 +183,7 @@ be possible in a future release.
 
 **Deprecated in Release: v20.10**
 
-**Removed in Release: v22.04**
+**Removed in Release: v22.06**
 
 Use of encrypted TLS private keys has been deprecated, and has been removed.
 Golang has deprecated support for legacy PEM encryption (as specified in
@@ -198,7 +198,7 @@ to decrypt the private key, and store it un-encrypted to continue using it.
 ### Kubernetes stack and context support
 
 **Deprecated in Release: v20.10**
-**Removed in Release: v22.04**
+**Removed in Release: v22.06**
 
 Following the deprecation of [Compose on Kubernetes](https://github.com/docker/compose-on-kubernetes),
 support for Kubernetes in the `stack` and `context` commands has been removed from
@@ -259,7 +259,7 @@ major release.
 ### Linux containers on Windows (LCOW) (experimental)
 
 **Deprecated in Release: v20.10**
-**Removed in Release: v22.04**
+**Removed in Release: v22.06**
 
 The experimental feature to run Linux containers on Windows (LCOW) was introduced
 as a technical preview in Docker 17.09. While many enhancements were made after
@@ -282,7 +282,7 @@ When using cgroups v2, the `--blkio-weight` options are implemented using
 ### Kernel memory limit
 
 **Deprecated in Release: v20.10**
-**Removed in Release: v22.04**
+**Removed in Release: v22.06**
 
 Specifying kernel memory limit (`docker run --kernel-memory`) is no longer supported
 because the [Linux kernel deprecated `kmem.limit_in_bytes` in v5.4](https://github.com/torvalds/linux/commit/0158115f702b0ba208ab0b5adf44cae99b3ebcc7).
@@ -310,7 +310,7 @@ take no effect.
 ### Classic Swarm and overlay networks using cluster store
 
 **Deprecated in Release: v20.10**
-**Removed in Release: v22.04**
+**Removed in Release: v22.06**
 
 Standalone ("classic") Swarm has been deprecated, and with that the use of overlay
 networks using an external key/value store. The corresponding`--cluster-advertise`,
@@ -319,7 +319,7 @@ networks using an external key/value store. The corresponding`--cluster-advertis
 ### Support for legacy `~/.dockercfg` configuration files
 
 **Deprecated in Release: v20.10**
-**Removed in Release: v22.04**
+**Removed in Release: v22.06**
 
 The docker CLI up until v1.7.0 used the `~/.dockercfg` file to store credentials
 after authenticating to a registry (`docker login`). Docker v1.7.0 replaced this
@@ -339,13 +339,13 @@ notifying the user that the legacy file is present, but ignored.
 
 **Deprecated in Release: v19.03**
 
-**Removed in Release: v22.04**
+**Removed in Release: v22.06**
 
 The `DOCKER_CLI_EXPERIMENTAL` environment variable and the corresponding `experimental`
 field in the CLI configuration file are deprecated. Experimental features are
 enabled by default, and these configuration options are no longer functional.
 
-Starting with v22.04, the Docker CLI no longer prints `Experimental` for the client
+Starting with v22.06, the Docker CLI no longer prints `Experimental` for the client
 in the output of `docker version`, and the field has been removed from the JSON
 format.
 
@@ -468,7 +468,7 @@ using compose files.
 ### AuFS storage driver
 
 **Deprecated in Release: v19.03**
-**Disabled by default in Release: v22.04**
+**Disabled by default in Release: v22.06**
 
 The `aufs` storage driver is deprecated in favor of `overlay2`, and will
 be removed in a future release. Users of the `aufs` storage driver are
@@ -484,11 +484,11 @@ is available to all supported distros (as they are either on kernel 4.x, or have
 support for multiple lowerdirs backported), there is no reason to continue
 maintenance of the `aufs` storage driver.
 
-#### Disabled by default in v22.04
+#### Disabled by default in v22.06
 
 Docker already prevented deprecated storage drivers from being automatically
 selected on new installations, but continued to use these drivers when upgrading
-existing installations. Starting with the v22.04 release, the Docker Engine will
+existing installations. Starting with the v22.06 release, the Docker Engine will
 fail to start if a deprecated storage driver is used (see [moby#43378](https://github.com/moby/moby/pull/43378):
 
 ```console
@@ -505,7 +505,7 @@ different storage driver.
 ### Legacy "overlay" storage driver
 
 **Deprecated in Release: v18.09**
-**Disabled by default in Release: v22.04**
+**Disabled by default in Release: v22.06**
 
 The `overlay` storage driver is deprecated in favor of the `overlay2` storage
 driver, which has all the benefits of `overlay`, without its limitations (excessive
@@ -518,11 +518,11 @@ on pre 4.x kernels. Now that all supported distributions are able to run `overla
 (as they are either on kernel 4.x, or have support for multiple lowerdirs
 backported), there is no reason to keep maintaining the `overlay` storage driver.
 
-#### Disabled by default in v22.04
+#### Disabled by default in v22.06
 
 Docker already prevented deprecated storage drivers from being automatically
 selected on new installations, but continued to use these drivers when upgrading
-existing installations. Starting with the v22.04 release, the Docker Engine will
+existing installations. Starting with the v22.06 release, the Docker Engine will
 fail to start if a deprecated storage driver is used (see [moby#43378](https://github.com/moby/moby/pull/43378):
 
 ```console
@@ -539,7 +539,7 @@ different storage driver.
 ### Device mapper storage driver
 
 **Deprecated in Release: v18.09**
-**Disabled by default in Release: v22.04**
+**Disabled by default in Release: v22.06**
 
 The `devicemapper` storage driver is deprecated in favor of `overlay2`, and will
 be removed in a future release. Users of the `devicemapper` storage driver are
@@ -553,11 +553,11 @@ Now that support for `overlay2` is added to all supported distros (as they are
 either on kernel 4.x, or have support for multiple lowerdirs backported), there
 is no reason to continue maintenance of the `devicemapper` storage driver.
 
-#### Disabled by default in v22.04
+#### Disabled by default in v22.06
 
 Docker already prevented deprecated storage drivers from being automatically
 selected on new installations, but continued to use these drivers when upgrading
-existing installations. Starting with the v22.04 release, the Docker Engine will
+existing installations. Starting with the v22.06 release, the Docker Engine will
 fail to start if a deprecated storage driver is used (see [moby#43378](https://github.com/moby/moby/pull/43378):
 
 ```console
@@ -717,7 +717,7 @@ The overlay and overlay2 storage driver does not work as expected if the backing
 filesystem does not support `d_type`. For example, XFS does not support `d_type`
 if it is formatted with the `ftype=0` option.
 
-Support for these setups has been removed, and Docker v22.04 and up now fails to
+Support for these setups has been removed, and Docker v22.06 and up now fails to
 start when attempting to use the `overlay2` or `overlay` storage driver on a
 backing filesystem without `d_type` support.
 
