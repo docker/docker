@@ -1052,41 +1052,6 @@ Be careful setting `nproc` with the `ulimit` flag as `nproc` is designed by Linu
 set the maximum number of processes available to a user, not to a container. For details
 please check the [run](run.md) reference.
 
-### Node discovery
-
-The `--cluster-advertise` option specifies the `host:port` or `interface:port`
-combination that this particular daemon instance should use when advertising
-itself to the cluster. The daemon is reached by remote hosts through this value.
-If you  specify an interface, make sure it includes the IP address of the actual
-Docker host. For Engine installation created through `docker-machine`, the
-interface is typically `eth1`.
-
-The daemon uses [libkv](https://github.com/docker/libkv/) to advertise
-the node within the cluster. Some key-value backends support mutual
-TLS. To configure the client TLS settings used by the daemon can be configured
-using the `--cluster-store-opt` flag, specifying the paths to PEM encoded
-files. For example:
-
-```console
-$ sudo dockerd \
-    --cluster-advertise 192.168.1.2:2376 \
-    --cluster-store etcd://192.168.1.2:2379 \
-    --cluster-store-opt kv.cacertfile=/path/to/ca.pem \
-    --cluster-store-opt kv.certfile=/path/to/cert.pem \
-    --cluster-store-opt kv.keyfile=/path/to/key.pem
-```
-
-The currently supported cluster store options are:
-
-| Option                | Description                                                                                                                                                                                                                   |
-|:----------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `discovery.heartbeat` | Specifies the heartbeat timer in seconds which is used by the daemon as a `keepalive` mechanism to make sure discovery module treats the node as alive in the cluster. If not configured, the default value is 20 seconds.    |
-| `discovery.ttl`       | Specifies the TTL (time-to-live) in seconds which is used by the discovery module to timeout a node if a valid heartbeat is not received within the configured ttl value. If not configured, the default value is 60 seconds. |
-| `kv.cacertfile`       | Specifies the path to a local file with PEM encoded CA certificates to trust.                                                                                                                                                 |
-| `kv.certfile`         | Specifies the path to a local file with a PEM encoded certificate. This certificate is used as the client cert for communication with the Key/Value store.                                                                    |
-| `kv.keyfile`          | Specifies the path to a local file with a PEM encoded private key. This private key is used as the client key for communication with the Key/Value store.                                                                     |
-| `kv.path`             | Specifies the path in the Key/Value store. If not configured, the default value is 'docker/nodes'.                                                                                                                            |
-
 ### Access authorization
 
 Docker's access authorization can be extended by authorization plugins that your
@@ -1274,9 +1239,6 @@ This is a full example of the allowed configuration options on Linux:
   "bip": "",
   "bridge": "",
   "cgroup-parent": "",
-  "cluster-advertise": "",
-  "cluster-store": "",
-  "cluster-store-opts": {},
   "containerd": "/run/containerd/containerd.sock",
   "containerd-namespace": "docker",
   "containerd-plugin-namespace": "docker-plugins",
@@ -1402,8 +1364,6 @@ This is a full example of the allowed configuration options on Windows:
   "allow-nondistributable-artifacts": [],
   "authorization-plugins": [],
   "bridge": "",
-  "cluster-advertise": "",
-  "cluster-store": "",
   "containerd": "\\\\.\\pipe\\containerd-containerd",
   "containerd-namespace": "docker",
   "containerd-plugin-namespace": "docker-plugins",
@@ -1471,9 +1431,6 @@ if there are conflicts, but it won't stop execution.
 The list of currently supported options that can be reconfigured is this:
 
 - `debug`: it changes the daemon to debug mode when set to true.
-- `cluster-store`: it reloads the discovery store with the new address.
-- `cluster-store-opts`: it uses the new options to reload the discovery store.
-- `cluster-advertise`: it modifies the address advertised after reloading.
 - `labels`: it replaces the daemon labels with a new set of labels.
 - `live-restore`: Enables [keeping containers alive during daemon downtime](https://docs.docker.com/config/containers/live-restore/).
 - `max-concurrent-downloads`: it updates the max concurrent downloads for each pull.
@@ -1490,15 +1447,6 @@ The list of currently supported options that can be reconfigured is this:
 - `registry-mirrors`: it replaces the daemon registry mirrors with a new set of registry mirrors. If some existing registry mirrors in daemon's configuration are not in newly reloaded registry mirrors, these existing ones will be removed from daemon's config.
 - `shutdown-timeout`: it replaces the daemon's existing configuration timeout with a new timeout for shutting down all containers.
 - `features`: it explicitly enables or disables specific features.
-
-Updating and reloading the cluster configurations such as `--cluster-store`,
-`--cluster-advertise` and `--cluster-store-opts` will take effect only if
-these configurations were not previously configured. If `--cluster-store`
-has been provided in flags and `cluster-advertise` not, `cluster-advertise`
-can be added in the configuration file without accompanied by `--cluster-store`.
-Configuration reload will log a warning message if it detects a change in
-previously configured cluster configurations.
-
 
 ### Run multiple daemons
 
