@@ -70,11 +70,11 @@ Config provides the base accessible fields for working with V0 plugin format
 
 - **`entrypoint`** *string array*
 
-   entrypoint of the plugin, see [`ENTRYPOINT`](../reference/builder.md#entrypoint)
+   entrypoint of the plugin, see [`ENTRYPOINT`](https://docs.docker.com/engine/reference/builder/#entrypoint)
 
 - **`workdir`** *string*
 
-   workdir of the plugin, see [`WORKDIR`](../reference/builder.md#workdir)
+   workdir of the plugin, see [`WORKDIR`](https://docs.docker.com/engine/reference/builder/#workdir)
 
 - **`network`** *PluginNetwork*
 
