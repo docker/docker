@@ -633,13 +633,12 @@ and `docker service scale` in Docker 17.10.
 
 **Deprecated In Release: v17.05**
 
+**Removed In Release: v22.06**
+
 The `-g` or `--graph` flag for the `dockerd` or `docker daemon` command was
 used to indicate the directory in which to store persistent data and resource
 configuration and has been replaced with the more descriptive `--data-root`
-flag.
-
-These flags were added before Docker 1.0, so will not be _removed_, only
-_hidden_, to discourage their use.
+flag. These flags were deprecated and hidden in v17.05, and removed in v22.06.
 
 ### Top-level network properties in NetworkSettings
 
