@@ -14,9 +14,9 @@ keywords: "API, Usage, plugins, documentation, developer"
 
 # Docker Engine managed plugin system
 
-* [Installing and using a plugin](index.md#installing-and-using-a-plugin)
-* [Developing a plugin](index.md#developing-a-plugin)
-* [Debugging plugins](index.md#debugging-plugins)
+- [Installing and using a plugin](index.md#installing-and-using-a-plugin)
+- [Developing a plugin](index.md#developing-a-plugin)
+- [Debugging plugins](index.md#debugging-plugins)
 
 Docker Engine's plugin system allows you to install, start, stop, and remove
 plugins using Docker Engine.
@@ -70,7 +70,7 @@ enabled, and use it to create a volume.
 
     - It needs access to the `host` network.
     - It needs the `CAP_SYS_ADMIN` capability, which allows the plugin to run
-    the `mount` command.
+      the `mount` command.
 
 2.  Check that the plugin is enabled in the output of `docker plugin ls`.
 
@@ -115,6 +115,7 @@ enabled, and use it to create a volume.
     ```
 
 6.  Remove the volume `sshvolume`
+
     ```console
     $ docker volume rm sshvolume
 
@@ -126,15 +127,15 @@ remove it, use the `docker plugin remove` command. For other available
 commands and options, see the
 [command line reference](https://docs.docker.com/engine/reference/commandline/cli/).
 
-
 ## Developing a plugin
 
 #### The rootfs directory
+
 The `rootfs` directory represents the root filesystem of the plugin. In this
 example, it was created from a Dockerfile:
 
->**Note:** The `/run/docker/plugins` directory is mandatory inside of the
-plugin's filesystem for docker to communicate with the plugin.
+> **Note:** The `/run/docker/plugins` directory is mandatory inside of the
+> plugin's filesystem for docker to communicate with the plugin.
 
 ```console
 $ git clone https://github.com/vieux/docker-volume-sshfs
@@ -155,19 +156,19 @@ Consider the following `config.json` file.
 
 ```json
 {
-	"description": "sshFS plugin for Docker",
-	"documentation": "https://docs.docker.com/engine/extend/plugins/",
-	"entrypoint": ["/docker-volume-sshfs"],
-	"network": {
-		   "type": "host"
-		   },
-	"interface" : {
-		   "types": ["docker.volumedriver/1.0"],
-		   "socket": "sshfs.sock"
-	},
-	"linux": {
-		"capabilities": ["CAP_SYS_ADMIN"]
-	}
+  "description": "sshFS plugin for Docker",
+  "documentation": "https://docs.docker.com/engine/extend/plugins/",
+  "entrypoint": ["/docker-volume-sshfs"],
+  "network": {
+    "type": "host"
+  },
+  "interface": {
+    "types": ["docker.volumedriver/1.0"],
+    "socket": "sshfs.sock"
+  },
+  "linux": {
+    "capabilities": ["CAP_SYS_ADMIN"]
+  }
 }
 ```
 
@@ -186,7 +187,6 @@ in subdirectory `rootfs`.
 After that the plugin `<plugin-name>` will show up in `docker plugin ls`.
 Plugins can be pushed to remote registries with
 `docker plugin push <plugin-name>`.
-
 
 ## Debugging plugins
 
@@ -226,7 +226,7 @@ plugins. This is specifically useful to collect plugin logs if they are
 redirected to a file.
 
 ```console
-$ sudo docker-runc --root /var/run/docker/plugins/runtime-root/moby-plugins list
+$ sudo runc --root /run/docker/runtime-runc/plugins.moby list
 
 ID                                                                 PID         STATUS      BUNDLE                                                                                                                                       CREATED                          OWNER
 93f1e7dbfe11c938782c2993628c895cf28e2274072c4a346a6002446c949b25   15806       running     /run/docker/containerd/daemon/io.containerd.runtime.v1.linux/moby-plugins/93f1e7dbfe11c938782c2993628c895cf28e2274072c4a346a6002446c949b25   2018-02-08T21:40:08.621358213Z   root
@@ -235,14 +235,14 @@ c5bb4b90941efcaccca999439ed06d6a6affdde7081bb34dc84126b57b3e793d   14984       r
 ```
 
 ```console
-$ sudo docker-runc --root /var/run/docker/plugins/runtime-root/moby-plugins exec 93f1e7dbfe11c938782c2993628c895cf28e2274072c4a346a6002446c949b25 cat /var/log/plugin.log
+$ sudo runc --root /run/docker/runtime-runc/plugins.moby exec 93f1e7dbfe11c938782c2993628c895cf28e2274072c4a346a6002446c949b25 cat /var/log/plugin.log
 ```
 
 If the plugin has a built-in shell, then exec into the plugin can be done as
 follows:
 
 ```console
-$ sudo docker-runc --root /var/run/docker/plugins/runtime-root/moby-plugins exec -t 93f1e7dbfe11c938782c2993628c895cf28e2274072c4a346a6002446c949b25 sh
+$ sudo runc --root /run/docker/runtime-runc/plugins.moby exec -t 93f1e7dbfe11c938782c2993628c895cf28e2274072c4a346a6002446c949b25 sh
 ```
 
 #### Using curl to debug plugin socket issues.
@@ -252,7 +252,6 @@ is responsive, use curl. In this example, we will make API calls from the
 docker host to volume and network plugins using curl 7.47.0 to ensure that
 the plugin is listening on the said socket. For a well functioning plugin,
 these basic requests should work. Note that plugin sockets are available on the host under `/var/run/docker/plugins/<pluginID>`
-
 
 ```console
 $ curl -H "Content-Type: application/json" -XPOST -d '{}' --unix-socket /var/run/docker/plugins/e8a37ba56fc879c991f7d7921901723c64df6b42b87e6a0b055771ecf8477a6d/plugin.sock http:/VolumeDriver.List
