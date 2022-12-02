@@ -77,8 +77,8 @@ Options:
       --log-driver string                     Default driver for container logs (default "json-file")
   -l, --log-level string                      Set the logging level ("debug"|"info"|"warn"|"error"|"fatal") (default "info")
       --log-opt map                           Default log driver options for containers (default map[])
-      --max-concurrent-downloads int          Set the max concurrent downloads for each pull (default 3)
-      --max-concurrent-uploads int            Set the max concurrent uploads for each push (default 5)
+      --max-concurrent-downloads int          Set the max concurrent downloads (default 3)
+      --max-concurrent-uploads int            Set the max concurrent uploads (default 5)
       --max-download-attempts int             Set the max download attempts for each pull (default 5)
       --metrics-addr string                   Set default address and port to serve the metrics api on
       --mtu int                               Set the containers network MTU
