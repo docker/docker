@@ -123,7 +123,7 @@ This release marks the beginning of the deprecation cycle of the classic ("legac
 builder for Linux images. No active development will happen on the classic builder
 (except for bugfixes). BuildKit development started five Years ago, left the
 "experimental" phase since Docker 18.09, and is already the default builder for
-[Docker Desktop](https://docs.docker.com/desktop/mac/release-notes/3.x/#docker-desktop-320).
+[Docker Desktop](https://docs.docker.com/desktop/previous-versions/3.x-mac/#docker-desktop-320).
 While we're comfortable that BuildKit is stable for general use, there may be
 some changes in behavior. If you encounter issues with BuildKit, we encourage
 you to report issues in the [BuildKit issue tracker on GitHub](https://github.com/moby/buildkit/){:target="_blank" rel="noopener" class="_"}
