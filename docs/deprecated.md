@@ -52,6 +52,7 @@ The table below provides an overview of the current status of deprecated feature
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|---------|
 | Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v23.0.0    | -       |
 | Deprecated | [Legacy builder fallback](#legacy-builder-fallback)                                                                                | v23.0.0    | -       |
+| Deprecated | [Btrfs storage driver on CentOS 7 and RHEL 7](#btrfs-storage-driver-on-centos-7-and-rhel-7)                                        | v23.0.0    | -       |
 | Removed    | [Support for encrypted TLS private keys](#support-for-encrypted-tls-private-keys)                                                  | v20.10     | v23.0.0 |
 | Removed    | [Kubernetes stack and context support](#kubernetes-stack-and-context-support)                                                      | v20.10     | v23.0.0 |
 | Deprecated | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | -       |
@@ -179,6 +180,18 @@ or opt-out of using BuildKit with `DOCKER_BUILDKIT=0`.
 Be aware that the [classic builder is deprecated](#legacy-builder-for-linux-images)
 so both the automatic fallback and opting-out of using BuildKit will no longer
 be possible in a future release.
+
+### Btrfs storage driver on CentOS 7 and RHEL 7
+
+**Deprecated in Release: v23.0.0**
+
+The `btrfs` storage driver on CentOS and RHEL was provided as a technology preview
+by CentOS and RHEL, but has been deprecated since the [Red Hat Enterprise Linux 7.4 release](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/storage_administration_guide/ch-btrfs),
+and removed in CentOS 8 and RHEL 8. Users of the `btrfs` storage driver on CentOS
+are recommended to migrate to a different storage driver, such as `overlay2`, which
+is now the default storage driver. Docker 23.0 continues to provide the `btrfs`
+storage driver to allow users to migrate to an alternative driver. The next release
+of Docker will no longer provide this driver.
 
 ### Support for encrypted TLS private keys
 
