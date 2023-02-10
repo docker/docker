@@ -295,57 +295,11 @@ $ docker -H tcp://127.0.0.1:2375 pull ubuntu
 On Linux, the Docker daemon has support for several different image layer storage
 drivers: `aufs`, `devicemapper`, `btrfs`, `zfs`, `overlay`, `overlay2`, and `fuse-overlayfs`.
 
-The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
-is unlikely to be merged into the main kernel. These are also known to cause
-some serious kernel crashes. However `aufs` allows containers to share
-executable and shared library memory, so is a useful choice when running
-thousands of containers with the same program or libraries.
+`overlay2` is the preferred storage driver for all currently supported Linux distributions,
+and is selected by default. Unless users have a strong reason to prefer another storage driver,
+`overlay2` should be used.
 
-The `devicemapper` driver uses thin provisioning and Copy on Write (CoW)
-snapshots. For each devicemapper graph location – typically
-`/var/lib/docker/devicemapper` – a thin pool is created based on two block
-devices, one for data and one for metadata. By default, these block devices
-are created automatically by using loopback mounts of automatically created
-sparse files. Refer to [Devicemapper options](#devicemapper-options) below
-for a way how to customize this setup.
-[~jpetazzo/Resizing Docker containers with the Device Mapper plugin](https://jpetazzo.github.io/2014/01/29/docker-device-mapper-resize/)
-article explains how to tune your existing setup without the use of options.
-
-The `btrfs` driver is very fast for `docker build` - but like `devicemapper`
-does not share executable memory between devices. Use
-`dockerd --storage-driver btrfs --data-root /mnt/btrfs_partition`.
-
-The `zfs` driver is probably not as fast as `btrfs` but has a longer track record
-on stability. Thanks to `Single Copy ARC` shared blocks between clones will be
-cached only once. Use `dockerd -s zfs`. To select a different zfs filesystem
-set `zfs.fsname` option as described in [ZFS options](#zfs-options).
-
-The `overlay` is a very fast union filesystem. It is now merged in the main
-Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). `overlay`
-also supports page cache sharing, this means multiple containers accessing
-the same file can share a single page cache entry (or entries), it makes
-`overlay` as efficient with memory as `aufs` driver. Call `dockerd -s overlay`
-to use it.
-
-The `overlay2` uses the same fast union filesystem but takes advantage of
-[additional features](https://lkml.org/lkml/2015/2/11/106) added in Linux
-kernel 4.0 to avoid excessive inode consumption. Call `dockerd -s overlay2`
-to use it.
-
-> **Note**
->
-> The `overlay` storage driver can cause excessive inode consumption (especially
-> as the number of images grows). We recommend using the `overlay2` storage
-> driver instead.
-
-
-> **Note**
->
-> Both `overlay` and `overlay2` are currently unsupported on `btrfs`
-> or any Copy on Write filesystem and should only be used over `ext4` partitions.
-
-The `fuse-overlayfs` driver is similar to `overlay2` but works in userspace.
-The `fuse-overlayfs` driver is expected to be used for [Rootless mode](https://docs.docker.com/engine/security/rootless/).
+You can find out more about storage drivers and how to select one in [Select a storage driver](https://docs.docker.com/storage/storagedriver/select-storage-driver/).
 
 On Windows, the Docker daemon only supports the `windowsfilter` storage driver.
 
