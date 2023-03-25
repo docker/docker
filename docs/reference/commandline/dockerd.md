@@ -1143,7 +1143,7 @@ of the flag name, e.g., `labels` for the `label` flag.
 
 The options set in the configuration file must not conflict with options set
 via flags. The docker daemon fails to start if an option is duplicated between
-the file and the flags, regardless their value. We do this to avoid
+the file and the flags, regardless of their value. We do this to avoid
 silently ignore changes introduced in configuration reloads.
 For example, the daemon fails to start if you set daemon labels
 in the configuration file and also set daemon labels via the `--label` flag.
