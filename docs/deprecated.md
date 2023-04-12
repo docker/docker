@@ -50,7 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove  |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|---------|
-| Deprecated | [Buildkit build information](#buildkit-build-information)                                                                          | v23.0.0    | v23.1.0 |
+| Deprecated | [Buildkit build information](#buildkit-build-information)                                                                          | v23.0.0    | v24.0.0 |
 | Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v23.0.0    | -       |
 | Deprecated | [Legacy builder fallback](#legacy-builder-fallback)                                                                                | v23.0.0    | -       |
 | Removed    | [Btrfs storage driver on CentOS 7 and RHEL 7](#btrfs-storage-driver-on-centos-7-and-rhel-7)                                        | v20.10     | v23.0.0 |
