@@ -90,7 +90,7 @@ Options:
       --raw-logs                              Full timestamps without ANSI coloring
       --registry-mirror list                  Preferred registry mirror
       --rootless                              Enable rootless mode; typically used with RootlessKit
-      --seccomp-profile string                Path to seccomp profile
+      --seccomp-profile string                Path to seccomp profile. Use "unconfined" to disable the default seccomp profile (default "builtin")
       --selinux-enabled                       Enable selinux support
       --shutdown-timeout int                  Set the default shutdown timeout (default 15)
   -s, --storage-driver string                 Storage driver to use
