@@ -129,11 +129,17 @@ to [the `daemon.json` file](#daemon-configuration-file).
 For easy reference, the following list of environment variables are supported
 by the `dockerd` command line:
 
-* `DOCKER_DRIVER` The graph driver to use.
-* `DOCKER_RAMDISK` If set this will disable 'pivot_root'.
-* `DOCKER_TMPDIR` Location for temporary Docker files.
-* `MOBY_DISABLE_PIGZ` Do not use [`unpigz`](https://linux.die.net/man/1/pigz) to
-  decompress layers in parallel when pulling images, even if it is installed.
+| Variable            | Description                                                                                                                                                                       |
+|:--------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `DOCKER_CERT_PATH`  | Location of your authentication keys. This variable is used both by the [`docker` CLI](cli.md) and the `dockerd` daemon.                                                          |
+| `DOCKER_DRIVER`     | The storage driver to use.                                                                                                                                                        |
+| `DOCKER_RAMDISK`    | If set this disables 'pivot_root'.                                                                                                                                                |
+| `DOCKER_TLS_VERIFY` | When set Docker uses TLS and verifies the remote. This variable is used both by the  [`docker` CLI](cli.md) and the `dockerd` daemon.                                             |
+| `DOCKER_TMPDIR`     | Location for temporary files created by the daemon.                                                                                                                               |
+| `HTTP_PROXY`        | Proxy URL for HTTP requests unless overridden by NoProxy. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.                      |
+| `HTTPS_PROXY`       | Proxy URL for HTTPS requests unless overridden by NoProxy. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.                     |
+| `MOBY_DISABLE_PIGZ` | Disables the use of [`unpigz`](https://linux.die.net/man/1/pigz) to  decompress layers in parallel when pulling images, even if it is installed.                                  |                                                                                                                                                               |
+| `NO_PROXY`          | Comma-separated values specifying hosts that should be excluded from proxying. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details. |
 
 ## Examples
 
