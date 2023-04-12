@@ -85,7 +85,7 @@ Options:
       --network-control-plane-mtu int         Network Control plane MTU (default 1500)
       --no-new-privileges                     Set no-new-privileges by default for new containers
       --node-generic-resource list            Advertise user-defined resource
-      --oom-score-adjust int                  Set the oom_score_adj for the daemon (default -500)
+      --oom-score-adjust int                  Set the oom_score_adj for the daemon
   -p, --pidfile string                        Path to use for daemon PID file (default "/var/run/docker.pid")
       --raw-logs                              Full timestamps without ANSI coloring
       --registry-mirror list                  Preferred registry mirror
@@ -1259,7 +1259,7 @@ This is a full example of the allowed configuration options on Linux:
     "NVIDIA-GPU=UUID1",
     "NVIDIA-GPU=UUID2"
   ],
-  "oom-score-adjust": -500,
+  "oom-score-adjust": 0,
   "pidfile": "",
   "raw-logs": false,
   "registry-mirrors": [],
