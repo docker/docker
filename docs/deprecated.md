@@ -50,7 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove  |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|---------|
-| Deprecated | [Buildkit build information](#buildkit-build-information)                                                                          | v23.0.0    | v24.0.0 |
+| Removed    | [Buildkit build information](#buildkit-build-information)                                                                          | v23.0.0    | v24.0.0 |
 | Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v23.0.0    | -       |
 | Deprecated | [Legacy builder fallback](#legacy-builder-fallback)                                                                                | v23.0.0    | -       |
 | Removed    | [Btrfs storage driver on CentOS 7 and RHEL 7](#btrfs-storage-driver-on-centos-7-and-rhel-7)                                        | v20.10     | v23.0.0 |
@@ -108,6 +108,7 @@ The table below provides an overview of the current status of deprecated feature
 ### Buildkit build information
 
 **Deprecated in Release: v23.0.0**
+**Removed in Release: v24.0.0**
 
 [Build information](https://github.com/moby/buildkit/blob/v0.11/docs/buildinfo.md)
 structures have been introduced in [BuildKit v0.10.0](https://github.com/moby/buildkit/releases/tag/v0.10.0)
