@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove  |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|---------|
+| Deprecated | [OOM-score adjust for the daemon](#oom-score-adjust-for-the-daemon)                                                                | v24.0.0    | v25.0.0 |
 | Removed    | [Buildkit build information](#buildkit-build-information)                                                                          | v23.0.0    | v24.0.0 |
 | Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v23.0.0    | -       |
 | Deprecated | [Legacy builder fallback](#legacy-builder-fallback)                                                                                | v23.0.0    | -       |
@@ -104,6 +105,26 @@ The table below provides an overview of the current status of deprecated feature
 | Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09  |
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13   |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12   |
+
+### OOM-score adjust for the daemon
+
+**Deprecated in Release: v24.0.0**
+**Target For Removal In Release: v25.0.0**
+
+The `oom-score-adjust` option was added to prevent the daemon from being
+OOM-killed before other processes. This option was mostly added as a
+convenience, as running the daemon as a systemd unit was not yet common.
+
+Having the daemon set its own limits is not best-practice, and something
+better handled by the process-manager starting the daemon.
+
+Docker v20.10 and newer no longer adjust the daemon's OOM score by default,
+instead setting the OOM-score to the systemd unit (OOMScoreAdjust) that's
+shipped with the packages.
+
+Users currently depending on this feature are recommended to adjust the
+daemon's OOM score using systemd or through other means, when starting
+the daemon.
 
 ### Buildkit build information
 
