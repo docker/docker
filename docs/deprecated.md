@@ -72,7 +72,7 @@ The table below provides an overview of the current status of deprecated feature
 | Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03     | v20.10  |
 | Removed    | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03     | v20.10  |
 | Removed    | [`docker stack deploy` using "dab" files (experimental)](#docker-stack-deploy-using-dab-files-experimental)                        | v19.03     | v20.10  |
-| Disabled   | [Support for the `overlay2.override_kernel_check` storage option](#support-for-the-overlay2override_kernel_check-storage-option)   | v19.03     | -       |
+| Removed    | [Support for the `overlay2.override_kernel_check` storage option](#support-for-the-overlay2override_kernel_check-storage-option)   | v19.03     | v24.0.0 |
 | Disabled   | [AuFS storage driver](#aufs-storage-driver)                                                                                        | v19.03     | -       |
 | Disabled   | [Legacy "overlay" storage driver](#legacy-overlay-storage-driver)                                                                  | v18.09     | -       |
 | Disabled   | [Device mapper storage driver](#device-mapper-storage-driver)                                                                      | v18.09     | -       |
@@ -515,16 +515,13 @@ using compose files.
 ### Support for the `overlay2.override_kernel_check` storage option
 
 **Deprecated in Release: v19.03**
-**Disabled in Release: v19.03**
+**Removed in Release: v24.0.0**
 
 This daemon configuration option disabled the Linux kernel version check used
 to detect if the kernel supported OverlayFS with multiple lower dirs, which is
 required for the overlay2 storage driver. Starting with Docker v19.03.7, the
 detection was improved to no longer depend on the kernel _version_, so this
 option was no longer used.
-
-Docker v23.0.0 logs a warning in the daemon logs if this option is set, and
-users should remove this option from their daemon configuration.
 
 ### AuFS storage driver
 
