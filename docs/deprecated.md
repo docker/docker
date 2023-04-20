@@ -73,8 +73,8 @@ The table below provides an overview of the current status of deprecated feature
 | Removed    | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03     | v20.10  |
 | Removed    | [`docker stack deploy` using "dab" files (experimental)](#docker-stack-deploy-using-dab-files-experimental)                        | v19.03     | v20.10  |
 | Removed    | [Support for the `overlay2.override_kernel_check` storage option](#support-for-the-overlay2override_kernel_check-storage-option)   | v19.03     | v24.0.0 |
-| Disabled   | [AuFS storage driver](#aufs-storage-driver)                                                                                        | v19.03     | -       |
-| Disabled   | [Legacy "overlay" storage driver](#legacy-overlay-storage-driver)                                                                  | v18.09     | -       |
+| Removed    | [AuFS storage driver](#aufs-storage-driver)                                                                                        | v19.03     | v24.0.0 |
+| Removed    | [Legacy "overlay" storage driver](#legacy-overlay-storage-driver)                                                                  | v18.09     | v24.0.0 |
 | Disabled   | [Device mapper storage driver](#device-mapper-storage-driver)                                                                      | v18.09     | -       |
 | Removed    | [Use of reserved namespaces in engine labels](#use-of-reserved-namespaces-in-engine-labels)                                        | v18.06     | v20.10  |
 | Removed    | [`--disable-legacy-registry` override daemon option](#--disable-legacy-registry-override-daemon-option)                            | v17.12     | v19.03  |
@@ -526,7 +526,7 @@ option was no longer used.
 ### AuFS storage driver
 
 **Deprecated in Release: v19.03**
-**Disabled by default in Release: v23.0.0**
+**Removed in Release: v24.0.0**
 
 The `aufs` storage driver is deprecated in favor of `overlay2`, and will
 be removed in a future release. Users of the `aufs` storage driver are
@@ -560,10 +560,10 @@ To continue using the storage driver, update the daemon configuration to use
 explicitly use the given storage driver. Users are encouraged to migrate to 
 different storage driver.
 
-### Legacy "overlay" storage driver
+### Legacy overlay storage driver
 
 **Deprecated in Release: v18.09**
-**Disabled by default in Release: v23.0.0**
+**Removed in Release: v24.0.0**
 
 The `overlay` storage driver is deprecated in favor of the `overlay2` storage
 driver, which has all the benefits of `overlay`, without its limitations (excessive
