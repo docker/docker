@@ -242,6 +242,7 @@ precedence over `HTTP_PROXY`.
 The Docker client supports connecting to a remote daemon via SSH:
 
 ```console
+$ docker -H ssh://me@example.com:22/var/run/docker.sock ps
 $ docker -H ssh://me@example.com:22 ps
 $ docker -H ssh://me@example.com ps
 $ docker -H ssh://example.com ps
