@@ -380,9 +380,6 @@ Given that the old file format encourages insecure storage of credentials
 Docker v1.7.0 has created this file, support for this file, and its format has
 been removed.
 
-A warning is printed in situations where the CLI would fall back to the old file,
-notifying the user that the legacy file is present, but ignored.
-
 ### Configuration options for experimental CLI features
 
 **Deprecated in Release: v19.03**
