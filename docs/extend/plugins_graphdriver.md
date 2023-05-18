@@ -25,7 +25,7 @@ advisory: experimental
 
 Docker graph driver plugins enable admins to use an external/out-of-process
 graph driver for use with Docker engine. This is an alternative to using the
-built-in storage drivers, such as aufs/overlay/devicemapper/btrfs.
+built-in storage drivers, such as overlay2.
 
 You need to install and enable the plugin and then restart the Docker daemon
 before using the plugin. See the following example for the correct ordering
