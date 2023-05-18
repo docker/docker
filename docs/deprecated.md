@@ -48,68 +48,68 @@ The table below provides an overview of the current status of deprecated feature
   alternatives. In such cases, a warning may be printed, and users should not rely
   on this feature.
 
-| Status     | Feature                                                                                                                            | Deprecated | Remove  |
-|------------|------------------------------------------------------------------------------------------------------------------------------------|------------|---------|
-| Deprecated | [OOM-score adjust for the daemon](#oom-score-adjust-for-the-daemon)                                                                | v24.0.0    | v25.0.0 |
-| Removed    | [Buildkit build information](#buildkit-build-information)                                                                          | v23.0.0    | v24.0.0 |
-| Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v23.0.0    | -       |
-| Deprecated | [Legacy builder fallback](#legacy-builder-fallback)                                                                                | v23.0.0    | -       |
-| Removed    | [Btrfs storage driver on CentOS 7 and RHEL 7](#btrfs-storage-driver-on-centos-7-and-rhel-7)                                        | v20.10     | v23.0.0 |
-| Removed    | [Support for encrypted TLS private keys](#support-for-encrypted-tls-private-keys)                                                  | v20.10     | v23.0.0 |
-| Removed    | [Kubernetes stack and context support](#kubernetes-stack-and-context-support)                                                      | v20.10     | v23.0.0 |
-| Deprecated | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | -       |
-| Removed    | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | v23.0.0 |
-| Deprecated | [BLKIO weight options with cgroups v1](#blkio-weight-options-with-cgroups-v1)                                                      | v20.10     | -       |
-| Removed    | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | v23.0.0 |
-| Removed    | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.10     | v23.0.0 |
-| Removed    | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | v23.0.0 |
-| Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.10     | -       |
-| Deprecated | [Dockerfile legacy `ENV name value` syntax](#dockerfile-legacy-env-name-value-syntax)                                              | v20.10     | -       |
-| Removed    | [`docker build --stream` flag (experimental)](#docker-build---stream-flag-experimental)                                            | v20.10     | v20.10  |
-| Deprecated | [`fluentd-async-connect` log opt](#fluentd-async-connect-log-opt)                                                                  | v20.10     | -       |
-| Removed    | [Configuration options for experimental CLI features](#configuration-options-for-experimental-cli-features)                        | v19.03     | v23.0.0 |
-| Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03     | v20.10  |
-| Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03     | v20.10  |
-| Removed    | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03     | v20.10  |
-| Removed    | [`docker stack deploy` using "dab" files (experimental)](#docker-stack-deploy-using-dab-files-experimental)                        | v19.03     | v20.10  |
-| Removed    | [Support for the `overlay2.override_kernel_check` storage option](#support-for-the-overlay2override_kernel_check-storage-option)   | v19.03     | v24.0.0 |
-| Removed    | [AuFS storage driver](#aufs-storage-driver)                                                                                        | v19.03     | v24.0.0 |
-| Removed    | [Legacy "overlay" storage driver](#legacy-overlay-storage-driver)                                                                  | v18.09     | v24.0.0 |
-| Disabled   | [Device mapper storage driver](#device-mapper-storage-driver)                                                                      | v18.09     | -       |
-| Removed    | [Use of reserved namespaces in engine labels](#use-of-reserved-namespaces-in-engine-labels)                                        | v18.06     | v20.10  |
-| Removed    | [`--disable-legacy-registry` override daemon option](#--disable-legacy-registry-override-daemon-option)                            | v17.12     | v19.03  |
-| Removed    | [Interacting with V1 registries](#interacting-with-v1-registries)                                                                  | v17.06     | v17.12  |
-| Removed    | [Asynchronous `service create` and `service update` as default](#asynchronous-service-create-and-service-update-as-default)        | v17.05     | v17.10  |
-| Removed    | [`-g` and `--graph` flags on `dockerd`](#-g-and---graph-flags-on-dockerd)                                                          | v17.05     | -       |
-| Deprecated | [Top-level network properties in NetworkSettings](#top-level-network-properties-in-networksettings)                                | v1.13      | v17.12  |
-| Removed    | [`filter` param for `/images/json` endpoint](#filter-param-for-imagesjson-endpoint)                                                | v1.13      | v20.10  |
-| Removed    | [`repository:shortid` image references](#repositoryshortid-image-references)                                                       | v1.13      | v17.12  |
-| Removed    | [`docker daemon` subcommand](#docker-daemon-subcommand)                                                                            | v1.13      | v17.12  |
-| Removed    | [Duplicate keys with conflicting values in engine labels](#duplicate-keys-with-conflicting-values-in-engine-labels)                | v1.13      | v17.12  |
-| Deprecated | [`MAINTAINER` in Dockerfile](#maintainer-in-dockerfile)                                                                            | v1.13      | -       |
-| Deprecated | [API calls without a version](#api-calls-without-a-version)                                                                        | v1.13      | v17.12  |
-| Removed    | [Backing filesystem without `d_type` support for overlay/overlay2](#backing-filesystem-without-d_type-support-for-overlayoverlay2) | v1.13      | v17.12  |
-| Removed    | [`--automated` and `--stars` flags on `docker search`](#--automated-and---stars-flags-on-docker-search)                            | v1.12      | v20.10  |
-| Deprecated | [`-h` shorthand for `--help`](#-h-shorthand-for---help)                                                                            | v1.12      | v17.09  |
-| Removed    | [`-e` and `--email` flags on `docker login`](#-e-and---email-flags-on-docker-login)                                                | v1.11      | v17.06  |
-| Deprecated | [Separator (`:`) of `--security-opt` flag on `docker run`](#separator--of---security-opt-flag-on-docker-run)                       | v1.11      | v17.06  |
-| Deprecated | [Ambiguous event fields in API](#ambiguous-event-fields-in-api)                                                                    | v1.10      | -       |
-| Removed    | [`-f` flag on `docker tag`](#-f-flag-on-docker-tag)                                                                                | v1.10      | v1.12   |
-| Removed    | [HostConfig at API container start](#hostconfig-at-api-container-start)                                                            | v1.10      | v1.12   |
-| Removed    | [`--before` and `--since` flags on `docker ps`](#--before-and---since-flags-on-docker-ps)                                          | v1.10      | v1.12   |
-| Removed    | [Driver-specific log tags](#driver-specific-log-tags)                                                                              | v1.9       | v1.12   |
-| Removed    | [Docker Content Trust `ENV` passphrase variables name change](#docker-content-trust-env-passphrase-variables-name-change)          | v1.9       | v1.12   |
-| Removed    | [`/containers/(id or name)/copy` endpoint](#containersid-or-namecopy-endpoint)                                                     | v1.8       | v1.12   |
-| Removed    | [LXC built-in exec driver](#lxc-built-in-exec-driver)                                                                              | v1.8       | v1.10   |
-| Removed    | [Old Command Line Options](#old-command-line-options)                                                                              | v1.8       | v1.10   |
-| Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09  |
-| Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13   |
-| Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12   |
+| Status     | Feature                                                                                                                            | Deprecated | Remove |
+|------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [OOM-score adjust for the daemon](#oom-score-adjust-for-the-daemon)                                                                | v24.0      | v25.0  |
+| Removed    | [Buildkit build information](#buildkit-build-information)                                                                          | v23.0      | v24.0  |
+| Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v23.0      | -      |
+| Deprecated | [Legacy builder fallback](#legacy-builder-fallback)                                                                                | v23.0      | -      |
+| Removed    | [Btrfs storage driver on CentOS 7 and RHEL 7](#btrfs-storage-driver-on-centos-7-and-rhel-7)                                        | v20.10     | v23.0  |
+| Removed    | [Support for encrypted TLS private keys](#support-for-encrypted-tls-private-keys)                                                  | v20.10     | v23.0  |
+| Removed    | [Kubernetes stack and context support](#kubernetes-stack-and-context-support)                                                      | v20.10     | v23.0  |
+| Deprecated | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | -      |
+| Removed    | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | v23.0  |
+| Deprecated | [BLKIO weight options with cgroups v1](#blkio-weight-options-with-cgroups-v1)                                                      | v20.10     | -      |
+| Removed    | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | v23.0  |
+| Removed    | [Classic Swarm and overlay networks using external key/value stores](#classic-swarm-and-overlay-networks-using-cluster-store)      | v20.10     | v23.0  |
+| Removed    | [Support for the legacy `~/.dockercfg` configuration file for authentication](#support-for-legacy-dockercfg-configuration-files)   | v20.10     | v23.0  |
+| Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.10     | -      |
+| Deprecated | [Dockerfile legacy `ENV name value` syntax](#dockerfile-legacy-env-name-value-syntax)                                              | v20.10     | -      |
+| Removed    | [`docker build --stream` flag (experimental)](#docker-build---stream-flag-experimental)                                            | v20.10     | v20.10 |
+| Deprecated | [`fluentd-async-connect` log opt](#fluentd-async-connect-log-opt)                                                                  | v20.10     | -      |
+| Removed    | [Configuration options for experimental CLI features](#configuration-options-for-experimental-cli-features)                        | v19.03     | v23.0  |
+| Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03     | v20.10 |
+| Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03     | v20.10 |
+| Removed    | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03     | v20.10 |
+| Removed    | [`docker stack deploy` using "dab" files (experimental)](#docker-stack-deploy-using-dab-files-experimental)                        | v19.03     | v20.10 |
+| Removed    | [Support for the `overlay2.override_kernel_check` storage option](#support-for-the-overlay2override_kernel_check-storage-option)   | v19.03     | v24.0  |
+| Removed    | [AuFS storage driver](#aufs-storage-driver)                                                                                        | v19.03     | v24.0  |
+| Removed    | [Legacy "overlay" storage driver](#legacy-overlay-storage-driver)                                                                  | v18.09     | v24.0  |
+| Disabled   | [Device mapper storage driver](#device-mapper-storage-driver)                                                                      | v18.09     | -      |
+| Removed    | [Use of reserved namespaces in engine labels](#use-of-reserved-namespaces-in-engine-labels)                                        | v18.06     | v20.10 |
+| Removed    | [`--disable-legacy-registry` override daemon option](#--disable-legacy-registry-override-daemon-option)                            | v17.12     | v19.03 |
+| Removed    | [Interacting with V1 registries](#interacting-with-v1-registries)                                                                  | v17.06     | v17.12 |
+| Removed    | [Asynchronous `service create` and `service update` as default](#asynchronous-service-create-and-service-update-as-default)        | v17.05     | v17.10 |
+| Removed    | [`-g` and `--graph` flags on `dockerd`](#-g-and---graph-flags-on-dockerd)                                                          | v17.05     | -      |
+| Deprecated | [Top-level network properties in NetworkSettings](#top-level-network-properties-in-networksettings)                                | v1.13      | v17.12 |
+| Removed    | [`filter` param for `/images/json` endpoint](#filter-param-for-imagesjson-endpoint)                                                | v1.13      | v20.10 |
+| Removed    | [`repository:shortid` image references](#repositoryshortid-image-references)                                                       | v1.13      | v17.12 |
+| Removed    | [`docker daemon` subcommand](#docker-daemon-subcommand)                                                                            | v1.13      | v17.12 |
+| Removed    | [Duplicate keys with conflicting values in engine labels](#duplicate-keys-with-conflicting-values-in-engine-labels)                | v1.13      | v17.12 |
+| Deprecated | [`MAINTAINER` in Dockerfile](#maintainer-in-dockerfile)                                                                            | v1.13      | -      |
+| Deprecated | [API calls without a version](#api-calls-without-a-version)                                                                        | v1.13      | v17.12 |
+| Removed    | [Backing filesystem without `d_type` support for overlay/overlay2](#backing-filesystem-without-d_type-support-for-overlayoverlay2) | v1.13      | v17.12 |
+| Removed    | [`--automated` and `--stars` flags on `docker search`](#--automated-and---stars-flags-on-docker-search)                            | v1.12      | v20.10 |
+| Deprecated | [`-h` shorthand for `--help`](#-h-shorthand-for---help)                                                                            | v1.12      | v17.09 |
+| Removed    | [`-e` and `--email` flags on `docker login`](#-e-and---email-flags-on-docker-login)                                                | v1.11      | v17.06 |
+| Deprecated | [Separator (`:`) of `--security-opt` flag on `docker run`](#separator--of---security-opt-flag-on-docker-run)                       | v1.11      | v17.06 |
+| Deprecated | [Ambiguous event fields in API](#ambiguous-event-fields-in-api)                                                                    | v1.10      | -      |
+| Removed    | [`-f` flag on `docker tag`](#-f-flag-on-docker-tag)                                                                                | v1.10      | v1.12  |
+| Removed    | [HostConfig at API container start](#hostconfig-at-api-container-start)                                                            | v1.10      | v1.12  |
+| Removed    | [`--before` and `--since` flags on `docker ps`](#--before-and---since-flags-on-docker-ps)                                          | v1.10      | v1.12  |
+| Removed    | [Driver-specific log tags](#driver-specific-log-tags)                                                                              | v1.9       | v1.12  |
+| Removed    | [Docker Content Trust `ENV` passphrase variables name change](#docker-content-trust-env-passphrase-variables-name-change)          | v1.9       | v1.12  |
+| Removed    | [`/containers/(id or name)/copy` endpoint](#containersid-or-namecopy-endpoint)                                                     | v1.8       | v1.12  |
+| Removed    | [LXC built-in exec driver](#lxc-built-in-exec-driver)                                                                              | v1.8       | v1.10  |
+| Removed    | [Old Command Line Options](#old-command-line-options)                                                                              | v1.8       | v1.10  |
+| Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09 |
+| Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
+| Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
 
 ### OOM-score adjust for the daemon
 
-**Deprecated in Release: v24.0.0**
-**Target For Removal In Release: v25.0.0**
+**Deprecated in Release: v24.0**
+**Target For Removal In Release: v25.0**
 
 The `oom-score-adjust` option was added to prevent the daemon from being
 OOM-killed before other processes. This option was mostly added as a
@@ -128,8 +128,8 @@ the daemon.
 
 ### Buildkit build information
 
-**Deprecated in Release: v23.0.0**
-**Removed in Release: v24.0.0**
+**Deprecated in Release: v23.0**
+**Removed in Release: v24.0**
 
 [Build information](https://github.com/moby/buildkit/blob/v0.11/docs/buildinfo.md)
 structures have been introduced in [BuildKit v0.10.0](https://github.com/moby/buildkit/releases/tag/v0.10.0)
@@ -140,9 +140,9 @@ information is also embedded into the image configuration if one is generated.
 
 ### Legacy builder for Linux images
 
-**Deprecated in Release: v23.0.0**
+**Deprecated in Release: v23.0**
 
-Docker v23.0.0 now uses BuildKit by default to build Linux images, and uses the
+Docker v23.0 now uses BuildKit by default to build Linux images, and uses the
 [Buildx](https://docs.docker.com/buildx/working-with-buildx/) CLI component for
 `docker build`. With this change, `docker build` now exposes all advanced features
 that BuildKit provides and which were previously only available through the
@@ -171,14 +171,14 @@ you to report issues in the [BuildKit issue tracker on GitHub](https://github.co
 
 ### Legacy builder fallback 
 
-**Deprecated in Release: v23.0.0**
+**Deprecated in Release: v23.0**
 
-[Docker v23.0.0 now uses BuildKit by default to build Linux images](#legacy-builder-for-linux-images),
+[Docker v23.0 now uses BuildKit by default to build Linux images](#legacy-builder-for-linux-images),
 which requires the Buildx component to build images with BuildKit. There may be
 situations where the Buildx component is not available, and BuildKit cannot be
 used.
 
-To provide a smooth transition to BuildKit as the default builder, Docker v23.0.0
+To provide a smooth transition to BuildKit as the default builder, Docker v23.0
 has an automatic fallback for some situations, or produces an error to assist
 users to resolve the problem.
 
@@ -217,7 +217,7 @@ be possible in a future release.
 
 ### Btrfs storage driver on CentOS 7 and RHEL 7
 
-**Removed in Release: v23.0.0**
+**Removed in Release: v23.0**
 
 The `btrfs` storage driver on CentOS and RHEL was provided as a technology preview
 by CentOS and RHEL, but has been deprecated since the [Red Hat Enterprise Linux 7.4 release](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/storage_administration_guide/ch-btrfs),
@@ -231,7 +231,7 @@ of Docker will no longer provide this driver.
 
 **Deprecated in Release: v20.10**
 
-**Removed in Release: v23.0.0**
+**Removed in Release: v23.0**
 
 Use of encrypted TLS private keys has been deprecated, and has been removed.
 Golang has deprecated support for legacy PEM encryption (as specified in
@@ -246,7 +246,7 @@ to decrypt the private key, and store it un-encrypted to continue using it.
 ### Kubernetes stack and context support
 
 **Deprecated in Release: v20.10**
-**Removed in Release: v23.0.0**
+**Removed in Release: v23.0**
 
 Following the deprecation of [Compose on Kubernetes](https://github.com/docker/compose-on-kubernetes),
 support for Kubernetes in the `stack` and `context` commands has been removed from
@@ -307,7 +307,7 @@ major release.
 ### Linux containers on Windows (LCOW) (experimental)
 
 **Deprecated in Release: v20.10**
-**Removed in Release: v23.0.0**
+**Removed in Release: v23.0**
 
 The experimental feature to run Linux containers on Windows (LCOW) was introduced
 as a technical preview in Docker 17.09. While many enhancements were made after
@@ -330,7 +330,7 @@ When using cgroups v2, the `--blkio-weight` options are implemented using
 ### Kernel memory limit
 
 **Deprecated in Release: v20.10**
-**Removed in Release: v23.0.0**
+**Removed in Release: v23.0**
 
 Specifying kernel memory limit (`docker run --kernel-memory`) is no longer supported
 because the [Linux kernel deprecated `kmem.limit_in_bytes` in v5.4](https://github.com/torvalds/linux/commit/0158115f702b0ba208ab0b5adf44cae99b3ebcc7).
@@ -358,7 +358,7 @@ take no effect.
 ### Classic Swarm and overlay networks using cluster store
 
 **Deprecated in Release: v20.10**
-**Removed in Release: v23.0.0**
+**Removed in Release: v23.0**
 
 Standalone ("classic") Swarm has been deprecated, and with that the use of overlay
 networks using an external key/value store. The corresponding`--cluster-advertise`,
@@ -367,7 +367,7 @@ networks using an external key/value store. The corresponding`--cluster-advertis
 ### Support for legacy `~/.dockercfg` configuration files
 
 **Deprecated in Release: v20.10**
-**Removed in Release: v23.0.0**
+**Removed in Release: v23.0**
 
 The docker CLI up until v1.7.0 used the `~/.dockercfg` file to store credentials
 after authenticating to a registry (`docker login`). Docker v1.7.0 replaced this
@@ -384,13 +384,13 @@ been removed.
 
 **Deprecated in Release: v19.03**
 
-**Removed in Release: v23.0.0**
+**Removed in Release: v23.0**
 
 The `DOCKER_CLI_EXPERIMENTAL` environment variable and the corresponding `experimental`
 field in the CLI configuration file are deprecated. Experimental features are
 enabled by default, and these configuration options are no longer functional.
 
-Starting with v23.0.0, the Docker CLI no longer prints `Experimental` for the client
+Starting with v23.0, the Docker CLI no longer prints `Experimental` for the client
 in the output of `docker version`, and the field has been removed from the JSON
 format.
 
@@ -512,7 +512,7 @@ using compose files.
 ### Support for the `overlay2.override_kernel_check` storage option
 
 **Deprecated in Release: v19.03**
-**Removed in Release: v24.0.0**
+**Removed in Release: v24.0**
 
 This daemon configuration option disabled the Linux kernel version check used
 to detect if the kernel supported OverlayFS with multiple lower dirs, which is
@@ -523,7 +523,7 @@ option was no longer used.
 ### AuFS storage driver
 
 **Deprecated in Release: v19.03**
-**Removed in Release: v24.0.0**
+**Removed in Release: v24.0**
 
 The `aufs` storage driver is deprecated in favor of `overlay2`, and will
 be removed in a future release. Users of the `aufs` storage driver are
@@ -539,11 +539,11 @@ is available to all supported distros (as they are either on kernel 4.x, or have
 support for multiple lowerdirs backported), there is no reason to continue
 maintenance of the `aufs` storage driver.
 
-#### Disabled by default in v23.0.0
+#### Disabled by default in v23.0
 
 Docker already prevented deprecated storage drivers from being automatically
 selected on new installations, but continued to use these drivers when upgrading
-existing installations. Starting with the v23.0.0 release, the Docker Engine will
+existing installations. Starting with the v23.0 release, the Docker Engine will
 fail to start if a deprecated storage driver is used (see [moby#43378](https://github.com/moby/moby/pull/43378):
 
 ```console
@@ -560,7 +560,7 @@ different storage driver.
 ### Legacy overlay storage driver
 
 **Deprecated in Release: v18.09**
-**Removed in Release: v24.0.0**
+**Removed in Release: v24.0**
 
 The `overlay` storage driver is deprecated in favor of the `overlay2` storage
 driver, which has all the benefits of `overlay`, without its limitations (excessive
@@ -573,11 +573,11 @@ on pre 4.x kernels. Now that all supported distributions are able to run `overla
 (as they are either on kernel 4.x, or have support for multiple lowerdirs
 backported), there is no reason to keep maintaining the `overlay` storage driver.
 
-#### Disabled by default in v23.0.0
+#### Disabled by default in v23.0
 
 Docker already prevented deprecated storage drivers from being automatically
 selected on new installations, but continued to use these drivers when upgrading
-existing installations. Starting with the v23.0.0 release, the Docker Engine will
+existing installations. Starting with the v23.0 release, the Docker Engine will
 fail to start if a deprecated storage driver is used (see [moby#43378](https://github.com/moby/moby/pull/43378):
 
 ```console
@@ -594,7 +594,7 @@ different storage driver.
 ### Device mapper storage driver
 
 **Deprecated in Release: v18.09**
-**Disabled by default in Release: v23.0.0**
+**Disabled by default in Release: v23.0**
 
 The `devicemapper` storage driver is deprecated in favor of `overlay2`, and will
 be removed in a future release. Users of the `devicemapper` storage driver are
@@ -608,11 +608,11 @@ Now that support for `overlay2` is added to all supported distros (as they are
 either on kernel 4.x, or have support for multiple lowerdirs backported), there
 is no reason to continue maintenance of the `devicemapper` storage driver.
 
-#### Disabled by default in v23.0.0
+#### Disabled by default in v23.0
 
 Docker already prevented deprecated storage drivers from being automatically
 selected on new installations, but continued to use these drivers when upgrading
-existing installations. Starting with the v23.0.0 release, the Docker Engine will
+existing installations. Starting with the v23.0 release, the Docker Engine will
 fail to start if a deprecated storage driver is used (see [moby#43378](https://github.com/moby/moby/pull/43378):
 
 ```console
@@ -688,12 +688,12 @@ and `docker service scale` in Docker 17.10.
 
 **Deprecated In Release: v17.05**
 
-**Removed In Release: v23.0.0**
+**Removed In Release: v23.0**
 
 The `-g` or `--graph` flag for the `dockerd` or `docker daemon` command was
 used to indicate the directory in which to store persistent data and resource
 configuration and has been replaced with the more descriptive `--data-root`
-flag. These flags were deprecated and hidden in v17.05, and removed in v23.0.0.
+flag. These flags were deprecated and hidden in v17.05, and removed in v23.0.
 
 ### Top-level network properties in NetworkSettings
 
@@ -771,7 +771,7 @@ The overlay and overlay2 storage driver does not work as expected if the backing
 filesystem does not support `d_type`. For example, XFS does not support `d_type`
 if it is formatted with the `ftype=0` option.
 
-Support for these setups has been removed, and Docker v23.0.0 and up now fails to
+Support for these setups has been removed, and Docker v23.0 and up now fails to
 start when attempting to use the `overlay2` or `overlay` storage driver on a
 backing filesystem without `d_type` support.
 
