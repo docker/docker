@@ -559,11 +559,12 @@ backported), there is no reason to keep maintaining the `overlay` storage driver
 
 **Deprecated in Release: v18.09**
 **Disabled by default in Release: v23.0**
+**Removed in Release: v25.0**
 
-The `devicemapper` storage driver is deprecated in favor of `overlay2`, and will
-be removed in a future release. Users of the `devicemapper` storage driver are
-recommended to migrate to a different storage driver, such as `overlay2`, which
-is now the default storage driver.
+The `devicemapper` storage driver is deprecated in favor of `overlay2`, and has
+been removed in Docker Engine v25.0. Users of the `devicemapper` storage driver
+must migrate to a different storage driver, such as `overlay2`, before upgrading
+to Docker Engine v25.0.
 
 The `devicemapper` storage driver facilitates running Docker on older (3.x) kernels
 that have no support for other storage drivers (such as overlay2, or btrfs).
@@ -571,24 +572,6 @@ that have no support for other storage drivers (such as overlay2, or btrfs).
 Now that support for `overlay2` is added to all supported distros (as they are
 either on kernel 4.x, or have support for multiple lowerdirs backported), there
 is no reason to continue maintenance of the `devicemapper` storage driver.
-
-#### Disabled by default in v23.0
-
-Docker already prevented deprecated storage drivers from being automatically
-selected on new installations, but continued to use these drivers when upgrading
-existing installations. Starting with the v23.0 release, the Docker Engine will
-fail to start if a deprecated storage driver is used (see [moby#43378](https://github.com/moby/moby/pull/43378):
-
-```console
-failed to start daemon: error initializing graphdriver: prior storage driver
-devicemapper is deprecated and will be removed in a future release; update the the daemon
-configuration and explicitly choose this storage driver to continue using it;
-visit https://docs.docker.com/go/storage-driver/ for more information.
-```
-
-To continue using the storage driver, update the daemon configuration to use
-explicitly use the given storage driver. Users are encouraged to migrate to
-different storage driver.
 
 ### Use of reserved namespaces in engine labels
 
