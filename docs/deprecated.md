@@ -525,12 +525,12 @@ option was no longer used.
 **Deprecated in Release: v19.03**
 **Removed in Release: v24.0**
 
-The `aufs` storage driver is deprecated in favor of `overlay2`, and will
-be removed in a future release. Users of the `aufs` storage driver are
-recommended to migrate to a different storage driver, such as `overlay2`, which
-is now the default storage driver.
+The `aufs` storage driver is deprecated in favor of `overlay2`, and has been
+removed in a Docker Engine v24.0. Users of the `aufs` storage driver must
+migrate to a different storage driver, such as `overlay2`, before upgrading
+to Docker Engine v24.0.
 
-The `aufs` storage driver facilitates running Docker on distros that have no
+The `aufs` storage driver facilitated running Docker on distros that have no
 support for OverlayFS, such as Ubuntu 14.04 LTS, which originally shipped with
 a 3.14 kernel.
 
@@ -539,24 +539,6 @@ is available to all supported distros (as they are either on kernel 4.x, or have
 support for multiple lowerdirs backported), there is no reason to continue
 maintenance of the `aufs` storage driver.
 
-#### Disabled by default in v23.0
-
-Docker already prevented deprecated storage drivers from being automatically
-selected on new installations, but continued to use these drivers when upgrading
-existing installations. Starting with the v23.0 release, the Docker Engine will
-fail to start if a deprecated storage driver is used (see [moby#43378](https://github.com/moby/moby/pull/43378):
-
-```console
-failed to start daemon: error initializing graphdriver: prior storage driver
-aufs is deprecated and will be removed in a future release; update the the daemon
-configuration and explicitly choose this storage driver to continue using it;
-visit https://docs.docker.com/go/storage-driver/ for more information.
-```
-
-To continue using the storage driver, update the daemon configuration to use
-explicitly use the given storage driver. Users are encouraged to migrate to 
-different storage driver.
-
 ### Legacy overlay storage driver
 
 **Deprecated in Release: v18.09**
@@ -564,32 +546,14 @@ different storage driver.
 
 The `overlay` storage driver is deprecated in favor of the `overlay2` storage
 driver, which has all the benefits of `overlay`, without its limitations (excessive
-inode consumption). The legacy `overlay` storage driver will be removed in a future
-release. Users of the `overlay` storage driver should migrate to the `overlay2`
-storage driver.
+inode consumption). The legacy `overlay` storage driver has been removed in 
+Docker Engine v24.0. Users of the `overlay` storage driver should migrate to the
+`overlay2` storage driver before upgrading to Docker Engine v24.0.
 
 The legacy `overlay` storage driver allowed using overlayFS-backed filesystems
 on pre 4.x kernels. Now that all supported distributions are able to run `overlay2`
 (as they are either on kernel 4.x, or have support for multiple lowerdirs
 backported), there is no reason to keep maintaining the `overlay` storage driver.
-
-#### Disabled by default in v23.0
-
-Docker already prevented deprecated storage drivers from being automatically
-selected on new installations, but continued to use these drivers when upgrading
-existing installations. Starting with the v23.0 release, the Docker Engine will
-fail to start if a deprecated storage driver is used (see [moby#43378](https://github.com/moby/moby/pull/43378):
-
-```console
-failed to start daemon: error initializing graphdriver: prior storage driver
-overlay is deprecated and will be removed in a future release; update the the daemon
-configuration and explicitly choose this storage driver to continue using it;
-visit https://docs.docker.com/go/storage-driver/ for more information.
-```
-
-To continue using the storage driver, update the daemon configuration to use
-explicitly use the given storage driver. Users are encouraged to migrate to
-different storage driver.
 
 ### Device mapper storage driver
 
@@ -602,7 +566,7 @@ recommended to migrate to a different storage driver, such as `overlay2`, which
 is now the default storage driver.
 
 The `devicemapper` storage driver facilitates running Docker on older (3.x) kernels
-that have no support for other storage drivers (such as overlay2, or AUFS).
+that have no support for other storage drivers (such as overlay2, or btrfs).
 
 Now that support for `overlay2` is added to all supported distros (as they are
 either on kernel 4.x, or have support for multiple lowerdirs backported), there
