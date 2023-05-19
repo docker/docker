@@ -323,7 +323,7 @@ $ docker -H tcp://127.0.0.1:2375 pull ubuntu
 ### Daemon storage-driver
 
 On Linux, the Docker daemon has support for several different image layer storage
-drivers: `aufs`, `devicemapper`, `btrfs`, `zfs`, `overlay`, `overlay2`, and `fuse-overlayfs`.
+drivers: `overlay2`, `fuse-overlayfs`, `btrfs`, `zfs`, and `devicemapper`.
 
 `overlay2` is the preferred storage driver for all currently supported Linux distributions,
 and is selected by default. Unless users have a strong reason to prefer another storage driver,
