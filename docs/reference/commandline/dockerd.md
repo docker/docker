@@ -396,36 +396,197 @@ Defaults to 20G.
 C:\> dockerd --storage-opt size=40G
 ```
 
-### Docker runtime execution options
+### Runtime options
 
 The Docker daemon relies on a
 [OCI](https://github.com/opencontainers/runtime-spec) compliant runtime
 (invoked via the `containerd` daemon) as its interface to the Linux
 kernel `namespaces`, `cgroups`, and `SELinux`.
 
-By default, the Docker daemon automatically starts `containerd`. If you want to
-control `containerd` startup, manually start `containerd` and pass the path to
-the `containerd` socket using the `--containerd` flag. For example:
+#### Configure container runtimes
+
+By default, the Docker daemon uses runc as a container runtime.
+You can configure the daemon to add additional runtimes.
+
+containerd shims installed on `PATH` can be used directly, without the need
+to edit the daemon's configuration. For example, if you install the Kata
+Containers shim (`containerd-shim-kata-v2`) on `PATH`, then you can select that
+runtime with `docker run` without having to edit the daemon's configuration:
 
 ```console
-$ sudo dockerd --containerd /var/run/dev/docker-containerd.sock
+$ docker run --runtime io.containerd.kata.v2
 ```
 
-Runtimes can be registered with the daemon either via the
-configuration file or using the `--add-runtime` command line argument.
+Container runtimes that don't implement containerd shims, or containerd shims
+installed outside of `PATH`, must be registered with the daemon, either via the
+configuration file or using the `--add-runtime` command line flag.
 
-The following is an example adding 2 runtimes via the configuration:
+For examples on how to use other container runtimes, see
+[Alternative container runtimes](https://docs.docker.com/engine/alternative-container-runtimes)
+
+##### Configure runtimes using `daemon.json`
+
+To register and configure container runtimes using the daemon's configuration
+file, add the runtimes as entries under `runtimes`:
 
 ```json
 {
-  "default-runtime": "runc",
   "runtimes": {
-    "custom": {
-      "path": "/usr/local/bin/my-runc-replacement",
-      "runtimeArgs": [
-        "--debug"
-      ]
+    "<runtime>": {}
+  }
+}
+```
+
+The key of the entry (`<runtime>` in the previous example) represents the name
+of the runtime. This is the name that you reference when you run a container,
+using `docker run --runtime <runtime>`.
+
+The runtime entry contains an object specifying the configuration for your
+runtime. The properties of the object depends on what kind of runtime you're
+looking to register:
+
+- If the runtime implements its own containerd shim, the object shall contain
+  a `runtimeType` field and an optional `options` field.
+
+  ```json
+  {
+    "runtimes": {
+      "<runtime>": {
+        "runtimeType": "<name-or-path>",
+        "options": {}
+      }
+    }
+  }
+  ```
+
+  See [Configure shims](#configure-containerd-shims).
+
+- If the runtime is designed to be a drop-in replacement for runc,
+  the object contains a `path` field, and an optional `runtimeArgs` field.
+
+  ```json
+  {
+    "runtimes": {
+      "<runtime>": {
+        "path": "/path/to/bin",
+        "runtimeArgs": ["...args"]
+      }
+    }
+  }
+  ```
+
+  See [Configure runc drop-in replacements](#configure-runc-drop-in-replacements).
+
+After changing the runtimes configuration in the configuration file,
+you must reload or restart the daemon for changes to take effect:
+
+```console
+$ sudo systemctl reload dockerd
+```
+
+##### Configure containerd shims
+
+If the runtime that you want to register implements a containerd shim,
+or if you want to register a runtime which uses the runc shim,
+use the following format for the runtime entry:
+
+```json
+{
+  "runtimes": {
+    "<runtime>": {
+      "runtimeType": "<name-or-path>",
+      "options": {}
+    }
+  }
+}
+```
+
+`runtimeType` refers to either:
+
+- A fully qualified name of a containerd shim.
+
+  The fully qualified name of a shim is the same as the `runtime_type` used to
+  register the runtime in containerd's CRI configuration.
+  For example, `io.containerd.runsc.v1`.
+
+- The path of a containerd shim binary.
+
+  This option is useful if you installed the containerd shim binary outside of
+  `PATH`.
+
+`options` is optional. It lets you specify the runtime configuration that you
+want to use for the shim. The configuration parameters that you can specify in
+`options` depends on the runtime you're registering. For most shims,
+the supported configuration options are `TypeUrl` and `ConfigPath`.
+For example:
+
+```json
+{
+  "runtimes": {
+    "gvisor": {
+      "runtimeType": "io.containerd.runsc.v1",
+      "options": {
+        "TypeUrl": "io.containerd.runsc.v1.options",
+        "ConfigPath": "/etc/containerd/runsc.toml",
+      }
+    }
+  }
+}
+```
+
+You can configure multiple runtimes using the same runtimeType. For example:
+
+```json
+{
+  "runtimes": {
+    "gvisor-foo": {
+      "runtimeType": "io.containerd.runsc.v1",
+      "options": {
+        "TypeUrl": "io.containerd.runsc.v1.options",
+        "ConfigPath": "/etc/containerd/runsc-foo.toml"
+      }
     },
+    "gvisor-bar": {
+      "runtimeType": "io.containerd.runsc.v1",
+      "options": {
+        "TypeUrl": "io.containerd.runsc.v1.options",
+        "ConfigPath": "/etc/containerd/runsc-bar.toml"
+      }
+    }
+  }
+}
+```
+
+The `options` field takes a special set of configuration parameters when used
+with `"runtimeType": "io.containerd.runc.v2"`. For more information about runc
+parameters, refer to the runc configuration section in
+[CRI Plugin Config Guide](https://github.com/containerd/containerd/blob/v1.7.2/docs/cri/config.md#full-configuration).
+
+##### Configure runc drop-in replacements
+
+If the runtime that you want to register can act as a drop-in replacement for
+runc, you can register the runtime either using the daemon configuration file, 
+or using the `--add-runtime` flag for the `dockerd` cli.
+
+When you use the configuration file, the entry uses the following format:
+
+```json
+{
+  "runtimes": {
+    "<runtime>": {
+      "path": "/path/to/binary",
+      "runtimeArgs": ["...args"]
+    }
+  }
+}
+```
+
+Where `path` is either the absolute path to the runtime executable, or the name
+of an executable installed on `PATH`:
+
+```json
+{
+  "runtimes": {
     "runc": {
       "path": "runc"
     }
@@ -433,24 +594,58 @@ The following is an example adding 2 runtimes via the configuration:
 }
 ```
 
-This is the same example via the command line:
+And `runtimeArgs` lets you optionally pass additional arguments to the runtime.
+Entries with this format use the containerd runc shim to invoke a custom
+runtime binary.
+
+When you use the `--add-runtime` CLI flag, use the following format:
 
 ```console
-$ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-runc-replacement
+$ sudo dockerd --add-runtime <runtime>=<path>
 ```
 
-> **Note**
->
-> Defining runtime arguments via the command line is not supported.
+Defining runtime arguments via the command line is not supported.
 
-#### Options for the runtime
+For an example configuration for a runc drop-in replacment, see
+[Alternative container runtimes > youki](https://docs.docker.com/engine/alternative-runtimes/#youki)
 
-You can configure the runtime using options specified
-with the `--exec-opt` flag. All the flag's options have the `native` prefix. A
-single `native.cgroupdriver` option is available.
+##### Configure the default container runtime
 
-The `native.cgroupdriver` option specifies the management of the container's
-cgroups. You can only specify `cgroupfs` or `systemd`. If you specify
+You can specify either the name of a fully qualified containerd runtime shim,
+or the name of a registered runtime. You can specify the default runtime either
+using the daemon configuration file, or using the `--default-runtime` flag for
+the `dockerd` cli.
+
+When you use the configuration file, the entry uses the following format:
+
+```json
+{
+  "default-runtime": "io.containerd.runsc.v1"
+}
+```
+
+When you use the `--default-runtime` CLI flag, use the following format:
+
+```console
+$ dockerd --default-runtime io.containerd.runsc.v1
+```
+
+#### Run containerd standalone
+
+By default, the Docker daemon automatically starts `containerd`. If you want to
+control `containerd` startup, manually start `containerd` and pass the path to
+the `containerd` socket using the `--containerd` flag. For example:
+
+```console
+$ sudo dockerd --containerd /run/containerd/containerd.sock
+```
+
+#### Configure cgroup driver
+
+You can configure how the runtime should manage container cgroups, using the
+`--exec-opt native.cgroupdriver` CLI flag.
+
+You can only specify `cgroupfs` or `systemd`. If you specify
 `systemd` and it is not available, the system errors out. If you omit the
 `native.cgroupdriver` option,` cgroupfs` is used on cgroup v1 hosts, `systemd`
 is used on cgroup v2 hosts with systemd available.
@@ -463,16 +658,19 @@ $ sudo dockerd --exec-opt native.cgroupdriver=systemd
 
 Setting this option applies to all containers the daemon launches.
 
-Also Windows Container makes use of `--exec-opt` for special purpose. Docker user
-can specify default container isolation technology with this, for example:
+#### Configure container isolation technology (Windows)
+
+For Windows containers, you can specify the default container isolation
+technology to use, using the `--exec-opt isolation` flag. 
+
+The following example makes `hyperv` the default isolation technology:
 
 ```console
 > dockerd --exec-opt isolation=hyperv
 ```
 
-Will make `hyperv` the default isolation technology on Windows. If no isolation
-value is specified on daemon start, on Windows client, the default is
-`hyperv`, and on Windows server, the default is `process`.
+If no isolation value is specified on daemon start, on Windows client,
+the default is `hyperv`, and on Windows server, the default is `process`.
 
 ### Daemon DNS options
 
