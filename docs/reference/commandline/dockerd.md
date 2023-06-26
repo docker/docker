@@ -422,7 +422,7 @@ installed outside of `PATH`, must be registered with the daemon, either via the
 configuration file or using the `--add-runtime` command line flag.
 
 For examples on how to use other container runtimes, see
-[Alternative container runtimes](https://docs.docker.com/engine/alternative-container-runtimes)
+[Alternative container runtimes](https://docs.docker.com/engine/alternative-runtimes/)
 
 ##### Configure runtimes using `daemon.json`
 
