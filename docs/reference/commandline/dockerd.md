@@ -833,6 +833,25 @@ the host.
 For details about how to use this feature, as well as limitations, see
 [Isolate containers with a user namespace](https://docs.docker.com/engine/security/userns-remap/).
 
+### Configure host gateway IP
+
+The Docker daemon supports a special `host-gateway` value for the `--add-host`
+flag for the `docker run` and `docker build` commands. This value resolves to
+the host's gateway IP and lets containers connect to services running on the
+host.
+
+By default, `host-gateway` resolves to the IP address of the default bridge.
+You can configure this to resolve to a different IP using the `--host-gateway-ip`
+flag for the dockerd command line interface, or the `host-gateway-ip` key in
+the daemon configuration file.
+
+```console
+$ dockerd --host-gateway-ip 192.0.2.0
+$ docker run -it --add-host host.docker.internal:host-gateway \
+  busybox ping host.docker.internal 
+PING host.docker.internal (192.0.2.0): 56 data bytes
+```
+
 ### Miscellaneous options
 
 IP masquerading uses address translation to allow containers without a public
