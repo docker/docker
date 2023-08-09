@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [IsAutomated field, and "is-automated" filter on docker search](#isautomated-field--and-is--automated-filter-on-docker-search)     | v25.0      | -      |
 | Deprecated | [OOM-score adjust for the daemon](#oom-score-adjust-for-the-daemon)                                                                | v24.0      | v25.0  |
 | Removed    | [Buildkit build information](#buildkit-build-information)                                                                          | v23.0      | v24.0  |
 | Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v23.0      | -      |
@@ -105,6 +106,21 @@ The table below provides an overview of the current status of deprecated feature
 | Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09 |
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
+
+
+### IsAutomated field, and "is-automated" filter on docker search
+
+**Deprecated in Release: v25.0**
+**Target For Removal In Release: v26.0**
+
+The "is_automated" field has been deprecated by Docker Hub's search API.
+Consequently, the `IsAutomated` field in image search will always be set
+to `false` in future, and searching for "is-automated=true" will yield no
+results.
+
+The `AUTOMATED` column has been removed from the default `docker search`
+and `docker image search` output in v25.0, and the corresponding `IsAutomated`
+templating option will be removed in v26.0.
 
 ### OOM-score adjust for the daemon
 
