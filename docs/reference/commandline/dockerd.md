@@ -46,6 +46,7 @@ Options:
       --default-gateway ip                    Container default gateway IPv4 address
       --default-gateway-v6 ip                 Container default gateway IPv6 address
       --default-ipc-mode string               Default mode for containers ipc ("shareable" | "private") (default "private")
+      --default-network-opt mapmap            Default network options (default map[])
       --default-runtime string                Default OCI runtime for containers (default "runc")
       --default-shm-size bytes                Default shm size for containers (default 64MiB)
       --default-ulimit ulimit                 Default ulimits for containers (default [])
@@ -1017,6 +1018,7 @@ This is a full example of the allowed configuration options on Linux:
   "default-cgroupns-mode": "private",
   "default-gateway": "",
   "default-gateway-v6": "",
+  "default-network-opts": {},
   "default-runtime": "runc",
   "default-shm-size": "64M",
   "default-ulimits": {
@@ -1134,6 +1136,7 @@ This is a full example of the allowed configuration options on Windows:
   "containerd-plugin-namespace": "docker-plugins",
   "data-root": "",
   "debug": true,
+  "default-network-opts": {},
   "default-runtime": "",
   "default-ulimits": {},
   "dns": [],
@@ -1278,4 +1281,51 @@ $ sudo dockerd \
         --bridge=none \
         --data-root=/var/lib/docker-bootstrap \
         --exec-root=/var/run/docker-bootstrap
+```
+
+### Default network options
+
+The `default-network-opts` key in the `daemon.json` configuration file, and the
+equivalent `--default-network-opt` CLI flag, let you specify default values for
+driver network driver options for new networks.
+
+The following example shows how to configure options for the `bridge` driver
+using the `daemon.json` file.
+
+```json
+{
+  "default-network-opts": {
+    "bridge": {
+      "com.docker.network.bridge.host_binding_ipv4": "127.0.0.1",
+      "com.docker.network.bridge.mtu": "1234"
+    }
+  }
+}
+```
+
+This example uses the `bridge` network driver. Refer to the
+[bridge network driver page](https://docs.docker.com/network/drivers/bridge/#options)
+for an overview of available driver options.
+
+After changing the configuration and restarting the daemon, new networks that
+you create use these option configurations as defaults.
+
+```console
+$ docker network create mynet
+$ docker network inspect mynet --format "{{json .Options}}"
+{"com.docker.network.bridge.host_binding_ipv4":"127.0.0.1","com.docker.network.bridge.mtu":"1234"}
+```
+
+Note that changing this daemon configuration doesn't affect pre-existing
+networks.
+
+Using the `--default-network-opt` CLI flag is useful for testing and debugging
+purposes, but you should prefer using the `daemon.json` file for persistent
+daemon configuration. The CLI flag expects a value with the following format:
+`driver=opt=value`, for example:
+
+```console
+$ sudo dockerd \
+  --default-network-opt bridge=com.docker.network.bridge.host_binding_ipv4=127.0.0.1 \
+  --default-network-opt bridge=com.docker.network.bridge.mtu=1234
 ```
