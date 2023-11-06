@@ -1,5 +1,5 @@
 ---
-redirect_from:
+aliases:
 - "/engine/extend/plugins/"
 description: "How to add additional functionality to Docker with plugins extensions"
 keywords: "Examples, Usage, plugins, docker, documentation, user guide"

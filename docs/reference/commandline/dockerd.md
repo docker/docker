@@ -2,7 +2,7 @@
 title: "dockerd"
 description: "The daemon command description and usage"
 keywords: "container, daemon, runtime"
-redirect_from:
+aliases:
 - /engine/reference/commandline/daemon/
 ---
 
