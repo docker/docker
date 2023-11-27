@@ -69,10 +69,8 @@ node1 is the manager and node2 is the worker.
 4. Observe the task getting scheduled in node 2:
 
     ```console
-    {% raw %}
     $ docker ps --format '{{.ID}}\t {{.Status}} {{.Names}} {{.Command}}'
     83fc1e842599     Up 2 days my-service.1.9jn59qzn7nbc3m0zt1hij12xs "top"
-    {% endraw %}
     ```
 
 ### Network plugins

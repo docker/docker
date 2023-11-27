@@ -311,9 +311,7 @@ and `Parent`. `Parent` may be an empty string, in which case there is no parent.
 **Response**:
 
 ```
-{% raw %}
 {{ TAR STREAM }}
-{% endraw %}
 ```
 
 ### /GraphDriver.Changes
@@ -357,9 +355,7 @@ Respond with a non-empty string error if an error occurred.
 **Request**:
 
 ```
-{% raw %}
 {{ TAR STREAM }}
-{% endraw %}
 ```
 
 Extract the changeset from the given diff into the layer with the specified `ID`

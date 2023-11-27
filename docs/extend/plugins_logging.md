@@ -213,7 +213,7 @@ to determine what set of logs to read.
 **Response**:
 
 ```
-{% raw %}{{ log stream }}{% endraw %}
+{{ log stream }}
 ```
 
 The response should be the encoded log message using the same format as the
