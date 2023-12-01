@@ -205,7 +205,7 @@ find examples of using Systemd socket activation with Docker and Systemd in the
 You can configure the Docker daemon to listen to multiple sockets at the same
 time using multiple `-H` options:
 
-The example below runs the daemon listenin on the default unix socket, and
+The example below runs the daemon listening on the default unix socket, and
 on 2 specific IP addresses on this host:
 
 ```console
