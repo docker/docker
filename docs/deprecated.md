@@ -76,7 +76,7 @@ The table below provides an overview of the current status of deprecated feature
 | Removed    | [Support for the `overlay2.override_kernel_check` storage option](#support-for-the-overlay2override_kernel_check-storage-option)   | v19.03     | v24.0  |
 | Removed    | [AuFS storage driver](#aufs-storage-driver)                                                                                        | v19.03     | v24.0  |
 | Removed    | [Legacy "overlay" storage driver](#legacy-overlay-storage-driver)                                                                  | v18.09     | v24.0  |
-| Disabled   | [Device mapper storage driver](#device-mapper-storage-driver)                                                                      | v18.09     | -      |
+| Removed    | [Device mapper storage driver](#device-mapper-storage-driver)                                                                      | v18.09     | v25.0  |
 | Removed    | [Use of reserved namespaces in engine labels](#use-of-reserved-namespaces-in-engine-labels)                                        | v18.06     | v20.10 |
 | Removed    | [`--disable-legacy-registry` override daemon option](#--disable-legacy-registry-override-daemon-option)                            | v17.12     | v19.03 |
 | Removed    | [Interacting with V1 registries](#interacting-with-v1-registries)                                                                  | v17.06     | v17.12 |
