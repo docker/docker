@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [Deprecate legacy API versions](#deprecate-legacy-api-versions)                                                                    | v25.0      | v26.0  |
 | Deprecated | [Container short ID in network Aliases field](#container-short-id-in-network-aliases-field)                                        | v25.0      | v26.0  |
 | Deprecated | [IsAutomated field, and "is-automated" filter on docker search](#isautomated-field-and-is-automated-filter-on-docker-search)       | v25.0      | v26.0  |
 | Removed    | [logentries logging driver](#logentries-logging-driver)                                                                            | v24.0      | v25.0  |
@@ -109,6 +110,59 @@ The table below provides an overview of the current status of deprecated feature
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
 
+### Deprecate legacy API versions
+
+**Deprecated in Release: v25.0**
+**Target For Removal In Release: v26.0**
+
+The Docker daemon provides a versioned API for backward compatibility with old
+clients. Docker clients can perform API-version negotiation to select the most
+recent API version supported by the daemon (downgrading to and older version of
+the API when necessary). API version negotiation was introduced in Docker v1.12.0
+(API 1.24), and clients before that used a fixed API version.
+
+Docker Engine versions through v25.0 provide support for all [API versions](https://docs.docker.com/engine/api/#api-version-matrix)
+included in stable releases for a given platform. For Docker daemons on Linux,
+the earliest supported API version is 1.12 (corresponding with Docker Engine
+v1.0.0), whereas for Docker daemons on Windows, the earliest supported API
+version is 1.24 (corresponding with Docker Engine v1.12.0).
+
+Support for legacy API versions (providing old API versions on current versions
+of the Docker Engine) is primarily intended to provide compatibility with recent,
+but still supported versions of the client, which is a common scenario (the Docker
+daemon may be updated to the latest release, but not all clients may be up-to-date
+or vice versa). Support for API versions before that (API versions provided by
+EOL versions of the Docker Daemon) is provided on a "best effort" basis.
+
+Use of old API versions is very rare, and support for legacy API versions
+involves significant complexity (Docker 1.0.0 having been released 10 years ago).
+Because of this, we'll start deprecating support for legacy API versions.
+
+Docker Engine v25.0 by default disables API version older than 1.24 (aligning
+the minimum supported API version between Linux and Windows daemons). When
+connecting with a client that uses an API version version older than 1.24,
+the daemon returns an error. The following example configures the docker
+CLI to use API version 1.23, which produces an error:
+
+```console
+DOCKER_API_VERSION=1.23 docker version
+Error response from daemon: client version 1.23 is too old. Minimum supported API version is 1.24, please upgrade your client to a newer version
+```
+
+An environment variable (`DOCKER_MIN_API_VERSION`) is introduced that allows
+re-enabling older API versions in the daemon. This environment variable must
+be set in the daemon's environment (for example, through a [systemd override
+file](https://docs.docker.com/config/daemon/systemd/)), and the specified
+API version must be supported by the daemon (`1.12` or higher on Linux, or
+`1.24` or higher on Windows).
+
+Support for API versions lower than `1.24` will be permanently removed in Docker
+Engine v26, and the minimum supported API version will be incrementally raised
+in releases following that.
+
+We do not recommend depending on the `DOCKER_MIN_API_VERSION` environment
+variable other than for exceptional cases where it's not possible to update
+old clients, and those clients must be supported.
 
 ### Container short ID in network Aliases field
 
