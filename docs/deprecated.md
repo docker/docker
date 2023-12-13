@@ -51,6 +51,7 @@ The table below provides an overview of the current status of deprecated feature
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
 | Deprecated | [IsAutomated field, and "is-automated" filter on docker search](#isautomated-field--and-is--automated-filter-on-docker-search)     | v25.0      | -      |
+| Deprecated | [logentries logging driver](#logentries-logging-driver)                                                                            | v24.0      | v25.0  |
 | Deprecated | [OOM-score adjust for the daemon](#oom-score-adjust-for-the-daemon)                                                                | v24.0      | v25.0  |
 | Removed    | [Buildkit build information](#buildkit-build-information)                                                                          | v23.0      | v24.0  |
 | Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v23.0      | -      |
@@ -121,6 +122,15 @@ results.
 The `AUTOMATED` column has been removed from the default `docker search`
 and `docker image search` output in v25.0, and the corresponding `IsAutomated`
 templating option will be removed in v26.0.
+
+### Logentries logging driver
+
+**Deprecated in Release: v24.0**
+**Target For Removal In Release: v25.0**
+
+The logentries service SaaS was shut down on November 15, 2022, rendering
+this logging driver non-functional. Users should no longer use this logging
+driver, and the driver will be removed in Docker 25.0.
 
 ### OOM-score adjust for the daemon
 
