@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [Container short ID in network Aliases field](#container-short-id-in-network-aliases-field)                                        | v25.0      | v26.0  |
 | Deprecated | [IsAutomated field, and "is-automated" filter on docker search](#isautomated-field--and-is--automated-filter-on-docker-search)     | v25.0      | -      |
 | Removed    | [logentries logging driver](#logentries-logging-driver)                                                                            | v24.0      | v25.0  |
 | Deprecated | [OOM-score adjust for the daemon](#oom-score-adjust-for-the-daemon)                                                                | v24.0      | v25.0  |
@@ -108,6 +109,21 @@ The table below provides an overview of the current status of deprecated feature
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
 
+
+### Container short ID in network Aliases field
+
+**Deprecated in Release: v25.0**
+**Target For Remove In Release: v26.0**
+
+The `Aliases` field returned by `docker inspect` contains the container short
+ID once the container is started. This behavior is deprecated in v25.0 but
+kept until the next release, v26.0. Starting with that version, the `Aliases`
+field will only contain the aliases set through the `docker container create`
+and `docker run` flag `--network-alias`.
+
+A new field `DNSNames` containing the container name (if one was specified),
+the hostname, the network aliases, as well as the container short ID, has been
+introduced in v25.0 and should be used instead of the `Aliases` field.
 
 ### IsAutomated field, and "is-automated" filter on docker search
 
