@@ -60,7 +60,7 @@ $ docker run --network=mynet busybox top
 
 Network plugins are written by third parties, and are published by those
 third parties, either on
-[Docker Store](https://store.docker.com/search?category=network&q=&type=plugin)
+[Docker Hub](https://hub.docker.com/search?q=&type=plugin)
 or on the third party's site.
 
 ## Write a network plugin
