@@ -53,7 +53,7 @@ The table below provides an overview of the current status of deprecated feature
 | Deprecated | [Container short ID in network Aliases field](#container-short-id-in-network-aliases-field)                                        | v25.0      | v26.0  |
 | Deprecated | [IsAutomated field, and "is-automated" filter on docker search](#isautomated-field-and-is-automated-filter-on-docker-search)       | v25.0      | v26.0  |
 | Removed    | [logentries logging driver](#logentries-logging-driver)                                                                            | v24.0      | v25.0  |
-| Deprecated | [OOM-score adjust for the daemon](#oom-score-adjust-for-the-daemon)                                                                | v24.0      | v25.0  |
+| Removed    | [OOM-score adjust for the daemon](#oom-score-adjust-for-the-daemon)                                                                | v24.0      | v25.0  |
 | Removed    | [Buildkit build information](#buildkit-build-information)                                                                          | v23.0      | v24.0  |
 | Deprecated | [Legacy builder for Linux images](#legacy-builder-for-linux-images)                                                                | v23.0      | -      |
 | Deprecated | [Legacy builder fallback](#legacy-builder-fallback)                                                                                | v23.0      | -      |
@@ -153,7 +153,7 @@ after upgrading.
 ### OOM-score adjust for the daemon
 
 **Deprecated in Release: v24.0**
-**Target For Removal In Release: v25.0**
+**Removed in Release: v25.0**
 
 The `oom-score-adjust` option was added to prevent the daemon from being
 OOM-killed before other processes. This option was mostly added as a
