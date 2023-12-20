@@ -51,7 +51,7 @@ The table below provides an overview of the current status of deprecated feature
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
 | Deprecated | [Container short ID in network Aliases field](#container-short-id-in-network-aliases-field)                                        | v25.0      | v26.0  |
-| Deprecated | [IsAutomated field, and "is-automated" filter on docker search](#isautomated-field--and-is--automated-filter-on-docker-search)     | v25.0      | -      |
+| Deprecated | [IsAutomated field, and "is-automated" filter on docker search](#isautomated-field-and-is-automated-filter-on-docker-search)       | v25.0      | v26.0  |
 | Removed    | [logentries logging driver](#logentries-logging-driver)                                                                            | v24.0      | v25.0  |
 | Deprecated | [OOM-score adjust for the daemon](#oom-score-adjust-for-the-daemon)                                                                | v24.0      | v25.0  |
 | Removed    | [Buildkit build information](#buildkit-build-information)                                                                          | v23.0      | v24.0  |
