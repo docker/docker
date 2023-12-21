@@ -42,17 +42,13 @@ Follow the instructions in the plugin's documentation.
 
 The sections below provide an inexhaustive overview of available plugins.
 
-<style>
-#DocumentationText  tr td:first-child { white-space: nowrap;}
-</style>
-
 ### Network plugins
 
 | Plugin                                                                             | Description                                                                                                                                                                                                                                                                                                                                            |
-|:-----------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| :--------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Contiv Networking](https://github.com/contiv/netplugin)                           | An open source network plugin to provide infrastructure and security policies for a multi-tenant micro services deployment, while providing an integration to physical network for non-container workload. Contiv Networking implements the remote driver and IPAM APIs available in Docker 1.9 onwards.                                               |
 | [Kuryr Network Plugin](https://github.com/openstack/kuryr)                         | A network plugin is developed as part of the OpenStack Kuryr project and implements the Docker networking (libnetwork) remote driver API by utilizing Neutron, the OpenStack networking service. It includes an IPAM driver as well.                                                                                                                   |
-| [Weave Network Plugin](https://www.weave.works/docs/net/latest/introducing-weave/) | A network plugin that creates a virtual network that connects your Docker containers - across multiple hosts or clouds and enables automatic discovery of applications. Weave networks are resilient, partition tolerant, secure and work in partially connected networks, and other adverse environments - all configured with delightful simplicity. |
+| [Kathará Network Plugin](https://github.com/KatharaFramework/NetworkPlugin)        | Docker Network Plugin used by Kathará, an open source container-based network emulation system for showing interactive demos/lessons, testing production networks in a sandbox environment, or developing new network protocols.                                                                                                                       |
 
 ### Volume plugins
 
