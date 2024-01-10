@@ -1,192 +1,185 @@
 ---
 description: "How to develop and use a plugin with the managed plugin system"
 keywords: "API, Usage, plugins, documentation, developer"
+title: Plugin Config Version 1 of Plugin V2
 ---
-
-<!-- This file is maintained within the docker/cli GitHub
-     repository at https://github.com/docker/cli/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
-
-
-# Plugin Config Version 1 of Plugin V2
 
 This document outlines the format of the V0 plugin configuration.
 
-Plugin configs describe the various constituents of a docker plugin. Plugin
-configs can be serialized to JSON format with the following media types:
+Plugin configs describe the various constituents of a Docker engine plugin.
+Plugin configs can be serialized to JSON format with the following media types:
 
 | Config Type | Media Type                              |
 |-------------|-----------------------------------------|
-| config      | "application/vnd.docker.plugin.v1+json" |
+| config      | `application/vnd.docker.plugin.v1+json` |
 
-## *Config* Field Descriptions
+## Config Field Descriptions
 
-Config provides the base accessible fields for working with V0 plugin format
- in the registry.
+Config provides the base accessible fields for working with V0 plugin format in
+the registry.
 
-- **`description`** *string*
+- `description` string
 
-    description of the plugin
+  Description of the plugin
 
-- **`documentation`** *string*
+- `documentation` string
 
-    link to the documentation about the plugin
+  Link to the documentation about the plugin
 
-- **`interface`** *PluginInterface*
+- `interface` PluginInterface
 
-   interface implemented by the plugins, struct consisting of the following fields
+  Interface implemented by the plugins, struct consisting of the following fields:
 
-    - **`types`** *string array*
+  - `types` string array
 
-      types indicate what interface(s) the plugin currently implements.
+    Types indicate what interface(s) the plugin currently implements.
 
-      currently supported:
+    Supported types:
 
-        - **docker.volumedriver/1.0**
+    - `docker.volumedriver/1.0`
 
-        - **docker.networkdriver/1.0**
+    - `docker.networkdriver/1.0`
 
-        - **docker.ipamdriver/1.0**
+    - `docker.ipamdriver/1.0`
 
-        - **docker.authz/1.0**
+    - `docker.authz/1.0`
 
-        - **docker.logdriver/1.0**
+    - `docker.logdriver/1.0`
 
-        - **docker.metricscollector/1.0**
+    - `docker.metricscollector/1.0`
 
-    - **`socket`** *string*
+  - `socket` string
 
-      socket is the name of the socket the engine should use to communicate with the plugins.
-      the socket will be created in `/run/docker/plugins`.
+    Socket is the name of the socket the engine should use to communicate with the plugins.
+    the socket will be created in `/run/docker/plugins`.
 
+- `entrypoint` string array
 
-- **`entrypoint`** *string array*
+   Entrypoint of the plugin, see [`ENTRYPOINT`](https://docs.docker.com/engine/reference/builder/#entrypoint)
 
-   entrypoint of the plugin, see [`ENTRYPOINT`](https://docs.docker.com/engine/reference/builder/#entrypoint)
+- `workdir` string
 
-- **`workdir`** *string*
+   Working directory of the plugin, see [`WORKDIR`](https://docs.docker.com/engine/reference/builder/#workdir)
 
-   workdir of the plugin, see [`WORKDIR`](https://docs.docker.com/engine/reference/builder/#workdir)
+- `network` PluginNetwork
 
-- **`network`** *PluginNetwork*
+  Network of the plugin, struct consisting of the following fields:
 
-   network of the plugin, struct consisting of the following fields
+  - `type` string
 
-    - **`type`** *string*
+    Network type.
 
-      network type.
+    Supported types:
 
-      currently supported:
+    - `bridge`
+    - `host`
+    - `none`
 
-      	- **bridge**
-      	- **host**
-      	- **none**
+- `mounts` PluginMount array
 
-- **`mounts`** *PluginMount array*
+  Mount of the plugin, struct consisting of the following fields.
+  See [`MOUNTS`](https://github.com/opencontainers/runtime-spec/blob/master/config.md#mounts).
 
-   mount of the plugin, struct consisting of the following fields, see [`MOUNTS`](https://github.com/opencontainers/runtime-spec/blob/master/config.md#mounts)
+  - `name` string
 
-    - **`name`** *string*
+    Name of the mount.
 
-      name of the mount.
+  - `description` string
 
-    - **`description`** *string*
+    Description of the mount.
 
-      description of the mount.
+  - `source` string
 
-    - **`source`** *string*
+    Source of the mount.
 
-      source of the mount.
+  - `destination` string
 
-    - **`destination`** *string*
+    Destination of the mount.
 
-      destination of the mount.
+  - `type` string
 
-    - **`type`** *string*
+    Mount type.
 
-      mount type.
+  - `options` string array
 
-    - **`options`** *string array*
+    Options of the mount.
 
-      options of the mount.
+- `ipchost` Boolean
 
-- **`ipchost`** *boolean*
    Access to host ipc namespace.
-- **`pidhost`** *boolean*
-   Access to host pid namespace.
 
-- **`propagatedMount`** *string*
+- `pidhost` Boolean
 
-   path to be mounted as rshared, so that mounts under that path are visible to docker. This is useful for volume plugins.
-   This path will be bind-mounted outside of the plugin rootfs so it's contents
-   are preserved on upgrade.
+   Access to host PID namespace.
 
-- **`env`** *PluginEnv array*
+- `propagatedMount` string
 
-   env of the plugin, struct consisting of the following fields
+   Path to be mounted as rshared, so that mounts under that path are visible to
+   Docker. This is useful for volume plugins. This path will be bind-mounted
+   outside of the plugin rootfs so it's contents are preserved on upgrade.
 
-    - **`name`** *string*
+- `env` PluginEnv array
 
-      name of the env.
+  Environment variables of the plugin, struct consisting of the following fields:
 
-    - **`description`** *string*
+  - `name` string
 
-      description of the env.
+    Name of the environment variable.
 
-    - **`value`** *string*
+  - `description` string
 
-      value of the env.
+    Description of the environment variable.
 
-- **`args`** *PluginArgs*
+  - `value` string
 
-   args of the plugin, struct consisting of the following fields
+    Value of the environment variable.
 
-    - **`name`** *string*
+- `args` PluginArgs
 
-      name of the args.
+  Arguments of the plugin, struct consisting of the following fields:
 
-    - **`description`** *string*
+  - `name` string
 
-      description of the args.
+    Name of the arguments.
 
-    - **`value`** *string array*
+  - `description` string
 
-      values of the args.
+    Description of the arguments.
 
-- **`linux`** *PluginLinux*
+  - `value` string array
 
-    - **`capabilities`** *string array*
+    Values of the arguments.
 
-       capabilities of the plugin (*Linux only*), see list [`here`](https://github.com/opencontainers/runc/blob/master/libcontainer/SPEC.md#security)
+- `linux` PluginLinux
 
-    - **`allowAllDevices`** *boolean*
+  - `capabilities` string array
 
-       If `/dev` is bind mounted from the host, and allowAllDevices is set to true, the plugin will have `rwm` access to all devices on the host.
+    Capabilities of the plugin (Linux only), see list [`here`](https://github.com/opencontainers/runc/blob/master/libcontainer/SPEC.md#security)
 
-    - **`devices`** *PluginDevice array*
+  - `allowAllDevices` Boolean
 
-       device of the plugin, (*Linux only*), struct consisting of the following fields, see [`DEVICES`](https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#devices)
+    If `/dev` is bind mounted from the host, and allowAllDevices is set to true, the plugin will have `rwm` access to all devices on the host.
 
-         - **`name`** *string*
+  - `devices` PluginDevice array
 
-           name of the device.
+    Device of the plugin, (Linux only), struct consisting of the following fields.
+    See [`DEVICES`](https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#devices).
 
-         - **`description`** *string*
+    - `name` string
 
-           description of the device.
+      Name of the device.
 
-         - **`path`** *string*
+    - `description` string
 
-           path of the device.
+      Description of the device.
+
+    - `path` string
+
+      Path of the device.
 
 ## Example Config
 
-*Example showing the 'tiborvass/sample-volume-plugin' plugin config.*
+The following example shows the 'tiborvass/sample-volume-plugin' plugin config.
 
 ```json
 {

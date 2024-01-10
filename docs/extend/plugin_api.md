@@ -1,18 +1,8 @@
 ---
+title: Docker Plugin API
 description: "How to write Docker plugins extensions "
 keywords: "API, Usage, plugins, documentation, developer"
 ---
-
-<!-- This file is maintained within the docker/cli GitHub
-     repository at https://github.com/docker/cli/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
-
-# Docker Plugin API
 
 Docker plugins are out-of-process extensions which add capabilities to the
 Docker Engine.
@@ -26,8 +16,8 @@ If you just want to learn about or use Docker plugins, look
 
 ## What plugins are
 
-A plugin is a process running on the same or a different host as the docker daemon,
-which registers itself by placing a file on the same docker host in one of the plugin
+A plugin is a process running on the same or a different host as the Docker daemon,
+which registers itself by placing a file on the daemon host in one of the plugin
 directories described in [Plugin discovery](#plugin-discovery).
 
 Plugins have human-readable names, which are short, lowercase strings. For
@@ -43,26 +33,26 @@ user or container tries to use one by name.
 
 There are three types of files which can be put in the plugin directory.
 
-* `.sock` files are UNIX domain sockets.
+* `.sock` files are Unix domain sockets.
 * `.spec` files are text files containing a URL, such as `unix:///other.sock` or `tcp://localhost:8080`.
 * `.json` files are text files containing a full json specification for the plugin.
 
-Plugins with UNIX domain socket files must run on the same docker host, whereas
-plugins with spec or json files can run on a different host if a remote URL is specified.
+Plugins with Unix domain socket files must run on the same host as the Docker daemon.
+Plugins with `.spec` or `.json` files can run on a different host if you specify a remote URL.
 
-UNIX domain socket files must be located under `/run/docker/plugins`, whereas
+Unix domain socket files must be located under `/run/docker/plugins`, whereas
 spec files can be located either under `/etc/docker/plugins` or `/usr/lib/docker/plugins`.
 
 The name of the file (excluding the extension) determines the plugin name.
 
-For example, the `flocker` plugin might create a UNIX socket at
+For example, the `flocker` plugin might create a Unix socket at
 `/run/docker/plugins/flocker.sock`.
 
 You can define each plugin into a separated subdirectory if you want to isolate definitions from each other.
 For example, you can create the `flocker` socket under `/run/docker/plugins/flocker/flocker.sock` and only
 mount `/run/docker/plugins/flocker` inside the `flocker` container.
 
-Docker always searches for unix sockets in `/run/docker/plugins` first. It checks for spec or json files under
+Docker always searches for Unix sockets in `/run/docker/plugins` first. It checks for spec or json files under
 `/etc/docker/plugins` and `/usr/lib/docker/plugins` if the socket doesn't exist. The directory scan stops as
 soon as it finds the first plugin definition with the given name.
 
@@ -87,7 +77,7 @@ The `TLSConfig` field is optional and TLS will only be verified if this configur
 
 ## Plugin lifecycle
 
-Plugins should be started before Docker, and stopped after Docker.  For
+Plugins should be started before Docker, and stopped after Docker. For
 example, when packaging a plugin for a platform which supports `systemd`, you
 might use [`systemd` dependencies](
 https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Before=) to
@@ -103,7 +93,7 @@ When a plugin is first referred to -- either by a user referring to it by name
 use a plugin being started -- Docker looks for the named plugin in the plugin
 directory and activates it with a handshake. See Handshake API below.
 
-Plugins are *not* activated automatically at Docker daemon startup. Rather,
+Plugins are not activated automatically at Docker daemon startup. Rather,
 they are activated only lazily, or on-demand, when they are needed.
 
 ## Systemd socket activation
@@ -149,8 +139,8 @@ or if one of the plugin goes down accidentally).
 
 The Plugin API is RPC-style JSON over HTTP, much like webhooks.
 
-Requests flow *from* the Docker daemon *to* the plugin.  So the plugin needs to
-implement an HTTP server and bind this to the UNIX socket mentioned in the
+Requests flow from the Docker daemon to the plugin. The plugin needs to
+implement an HTTP server and bind this to the Unix socket mentioned in the
 "plugin discovery" section.
 
 All requests are HTTP `POST` requests.
@@ -164,9 +154,9 @@ Plugins are activated via the following "handshake" API call.
 
 ### /Plugin.Activate
 
-**Request:** empty body
+Request: empty body
 
-**Response:**
+Response:
 
 ```json
 {
@@ -182,7 +172,6 @@ Possible values are:
 * [`authz`](plugins_authorization.md)
 * [`NetworkDriver`](plugins_network.md)
 * [`VolumeDriver`](plugins_volume.md)
-
 
 ## Plugin retries
 

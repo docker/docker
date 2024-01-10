@@ -1,22 +1,12 @@
 ---
+title: Access authorization plugin
 description: "How to create authorization plugins to manage access control to your Docker daemon."
 keywords: "security, authorization, authentication, docker, documentation, plugin, extend"
 aliases:
 - "/engine/extend/authorization/"
 ---
 
-<!-- This file is maintained within the docker/cli GitHub
-     repository at https://github.com/docker/cli/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
-
-# Access authorization plugin
-
-This document describes the Docker Engine plugins generally available in Docker
+This document describes the Docker Engine plugins available in Docker
 Engine. To view information on plugins managed by Docker Engine,
 refer to [Docker Engine plugin system](index.md).
 
@@ -41,7 +31,7 @@ third-party components using a generic API. The access authorization subsystem
 was built using this mechanism.
 
 Using this subsystem, you don't need to rebuild the Docker daemon to add an
-authorization plugin.  You can add a plugin to an installed Docker daemon. You do
+authorization plugin. You can add a plugin to an installed Docker daemon. You do
 need to restart the Docker daemon to add a new plugin.
 
 An authorization plugin approves or denies requests to the Docker daemon based
@@ -158,7 +148,7 @@ should implement the following two methods:
 
 #### /AuthZPlugin.AuthZReq
 
-**Request**:
+Request
 
 ```json
 {
@@ -171,7 +161,7 @@ should implement the following two methods:
 }
 ```
 
-**Response**:
+Response
 
 ```json
 {
@@ -183,7 +173,7 @@ should implement the following two methods:
 
 #### /AuthZPlugin.AuthZRes
 
-**Request**:
+Request:
 
 ```json
 {
@@ -199,7 +189,7 @@ should implement the following two methods:
 }
 ```
 
-**Response**:
+Response:
 
 ```json
 {
@@ -224,7 +214,6 @@ Request URI            | string            | The HTTP request URI including API 
 Request headers        | map[string]string | Request headers as key value pairs (without the authorization header)
 Request body           | []byte            | Raw request body
 
-
 #### Plugin -> Daemon
 
 Name    | Type   | Description
@@ -239,7 +228,6 @@ The plugin must support two authorization messages formats, one from the daemon 
 
 #### Daemon -> Plugin
 
-
 Name                    | Type              | Description
 ----------------------- |------------------ |----------------------------------------------------
 User                    | string            | The user identification
@@ -248,10 +236,9 @@ Request method          | string            | The HTTP method (GET/DELETE/POST)
 Request URI             | string            | The HTTP request URI including API version (e.g., v.1.17/containers/json)
 Request headers         | map[string]string | Request headers as key value pairs (without the authorization header)
 Request body            | []byte            | Raw request body
-Response status code    | int               | Status code from the docker daemon
+Response status code    | int               | Status code from the Docker daemon
 Response headers        | map[string]string | Response headers as key value pairs
-Response body           | []byte            | Raw docker daemon response body
-
+Response body           | []byte            | Raw Docker daemon response body
 
 #### Plugin -> Daemon
 

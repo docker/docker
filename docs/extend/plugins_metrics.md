@@ -1,20 +1,10 @@
 ---
+title: Docker metrics collector plugins
 description: "Metrics plugins."
 keywords: "Examples, Usage, plugins, docker, documentation, user guide, metrics"
 ---
 
-<!-- This file is maintained within the docker/cli GitHub
-     repository at https://github.com/docker/cli/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
-
-# Docker metrics collector plugins
-
-Docker exposes internal metrics based on the prometheus format. Metrics plugins
+Docker exposes internal metrics based on the Prometheus format. Metrics plugins
 enable accessing these metrics in a consistent way by providing a Unix
 socket at a predefined path where the plugin can scrape the metrics.
 
@@ -44,17 +34,19 @@ plugin's rootfs.
 
 Signals to the plugin that the metrics socket is now available for scraping
 
-**Request**
+Request:
+
 ```json
 {}
 ```
 
-The request has no playload.
+The request has no payload.
 
-**Response**
+Response:
+
 ```json
 {
-	"Err": ""
+  "Err": ""
 }
 ```
 
@@ -67,17 +59,19 @@ or an empty value for the `Err` field. Errors will only be logged.
 Signals to the plugin that the metrics socket is no longer available.
 This may happen when the daemon is shutting down.
 
-**Request**
+Request:
+
 ```json
 {}
 ```
 
-The request has no playload.
+The request has no payload.
 
-**Response**
+Response:
+
 ```json
 {
-	"Err": ""
+  "Err": ""
 }
 ```
 
