@@ -130,8 +130,11 @@ to [the `daemon.json` file](#daemon-configuration-file).
 
 ### Environment variables
 
-For easy reference, the following list of environment variables are supported
-by the `dockerd` command line:
+The following list of environment variables are supported by the `dockerd` daemon.
+Some of these environment variables are supported both by the Docker Daemon and
+the `docker` CLI. Refer to [Environment variables](cli.md#environment-variables)
+in the CLI section to learn about environment variables supported by the
+`docker` CLI.
 
 | Variable            | Description                                                                                                                                                                       |
 |:--------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -142,7 +145,7 @@ by the `dockerd` command line:
 | `DOCKER_TMPDIR`     | Location for temporary files created by the daemon.                                                                                                                               |
 | `HTTP_PROXY`        | Proxy URL for HTTP requests unless overridden by NoProxy. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.                      |
 | `HTTPS_PROXY`       | Proxy URL for HTTPS requests unless overridden by NoProxy. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details.                     |
-| `MOBY_DISABLE_PIGZ` | Disables the use of [`unpigz`](https://linux.die.net/man/1/pigz) to  decompress layers in parallel when pulling images, even if it is installed.                                  |                                                                                                                                                               |
+| `MOBY_DISABLE_PIGZ` | Disables the use of [`unpigz`](https://linux.die.net/man/1/pigz) to  decompress layers in parallel when pulling images, even if it is installed.                                  |
 | `NO_PROXY`          | Comma-separated values specifying hosts that should be excluded from proxying. See the [Go specification](https://pkg.go.dev/golang.org/x/net/http/httpproxy#Config) for details. |
 
 ## Examples
