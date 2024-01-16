@@ -983,6 +983,17 @@ The following is a full example of the allowed configuration options on Linux:
   "authorization-plugins": [],
   "bip": "",
   "bridge": "",
+  "builder": {
+    "gc": {
+      "enabled": true,
+      "defaultKeepStorage": "10GB",
+      "policy": [
+        { "keepStorage": "10GB", "filter": ["unused-for=2200h"] },
+        { "keepStorage": "50GB", "filter": ["unused-for=3300h"] },
+        { "keepStorage": "100GB", "all": true }
+      ]
+    }
+  },
   "cgroup-parent": "",
   "containerd": "/run/containerd/containerd.sock",
   "containerd-namespace": "docker",
