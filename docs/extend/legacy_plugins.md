@@ -1,20 +1,10 @@
 ---
+title: Use Docker Engine plugins
 aliases:
 - "/engine/extend/plugins/"
 description: "How to add additional functionality to Docker with plugins extensions"
 keywords: "Examples, Usage, plugins, docker, documentation, user guide"
 ---
-
-<!-- This file is maintained within the docker/cli GitHub
-     repository at https://github.com/docker/cli/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
-
-# Use Docker Engine plugins
 
 This document describes the Docker Engine plugins generally available in Docker
 Engine. To view information on plugins managed by Docker,
@@ -40,7 +30,7 @@ Follow the instructions in the plugin's documentation.
 
 ## Finding a plugin
 
-The sections below provide an inexhaustive overview of available plugins.
+The sections below provide an overview of available third-party plugins.
 
 ### Network plugins
 
@@ -97,4 +87,4 @@ of the plugin for help. The Docker team may not be able to assist you.
 ## Writing a plugin
 
 If you are interested in writing a plugin for Docker, or seeing how they work
-under the hood, see the [docker plugins reference](plugin_api.md).
+under the hood, see the [Docker plugins reference](plugin_api.md).

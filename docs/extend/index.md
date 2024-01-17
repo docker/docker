@@ -1,24 +1,14 @@
 ---
+title: Docker Engine managed plugin system
 description: Develop and use a plugin with the managed plugin system
 keywords: "API, Usage, plugins, documentation, developer"
 ---
-
-<!-- This file is maintained within the docker/cli GitHub
-     repository at https://github.com/docker/cli/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
-
-# Docker Engine managed plugin system
 
 - [Installing and using a plugin](index.md#installing-and-using-a-plugin)
 - [Developing a plugin](index.md#developing-a-plugin)
 - [Debugging plugins](index.md#debugging-plugins)
 
-Docker Engine's plugin system allows you to install, start, stop, and remove
+Docker Engine's plugin system lets you install, start, stop, and remove
 plugins using Docker Engine.
 
 For information about legacy (non-managed) plugins, refer to
@@ -49,78 +39,78 @@ enabled, and use it to create a volume.
 > **Note**
 >
 > This example is intended for instructional purposes only. Once the volume is
-> created, your SSH password to the remote host will be exposed as plaintext
-> when inspecting the volume. You should delete the volume as soon as you are
-> done with the example.
+> created, your SSH password to the remote host is exposed as plaintext when
+> inspecting the volume. Delete the volume as soon as you are done with the
+> example.
 
-1.  Install the `sshfs` plugin.
+1. Install the `sshfs` plugin.
 
-    ```console
-    $ docker plugin install vieux/sshfs
+   ```console
+   $ docker plugin install vieux/sshfs
 
-    Plugin "vieux/sshfs" is requesting the following privileges:
-    - network: [host]
-    - capabilities: [CAP_SYS_ADMIN]
-    Do you grant the above permissions? [y/N] y
+   Plugin "vieux/sshfs" is requesting the following privileges:
+   - network: [host]
+   - capabilities: [CAP_SYS_ADMIN]
+   Do you grant the above permissions? [y/N] y
 
-    vieux/sshfs
-    ```
+   vieux/sshfs
+   ```
 
-    The plugin requests 2 privileges:
+   The plugin requests 2 privileges:
 
-    - It needs access to the `host` network.
-    - It needs the `CAP_SYS_ADMIN` capability, which allows the plugin to run
-      the `mount` command.
+   - It needs access to the `host` network.
+   - It needs the `CAP_SYS_ADMIN` capability, which allows the plugin to run
+     the `mount` command.
 
-2.  Check that the plugin is enabled in the output of `docker plugin ls`.
+2. Check that the plugin is enabled in the output of `docker plugin ls`.
 
-    ```console
-    $ docker plugin ls
+   ```console
+   $ docker plugin ls
 
-    ID                    NAME                  TAG                 DESCRIPTION                   ENABLED
-    69553ca1d789          vieux/sshfs           latest              the `sshfs` plugin            true
-    ```
+   ID                    NAME                  TAG                 DESCRIPTION                   ENABLED
+   69553ca1d789          vieux/sshfs           latest              the `sshfs` plugin            true
+   ```
 
-3.  Create a volume using the plugin.
-    This example mounts the `/remote` directory on host `1.2.3.4` into a
-    volume named `sshvolume`.
+3. Create a volume using the plugin.
+   This example mounts the `/remote` directory on host `1.2.3.4` into a
+   volume named `sshvolume`.
 
-    This volume can now be mounted into containers.
+   This volume can now be mounted into containers.
 
-    ```console
-    $ docker volume create \
-      -d vieux/sshfs \
-      --name sshvolume \
-      -o sshcmd=user@1.2.3.4:/remote \
-      -o password=$(cat file_containing_password_for_remote_host)
+   ```console
+   $ docker volume create \
+     -d vieux/sshfs \
+     --name sshvolume \
+     -o sshcmd=user@1.2.3.4:/remote \
+     -o password=$(cat file_containing_password_for_remote_host)
 
-    sshvolume
-    ```
+   sshvolume
+   ```
 
-4.  Verify that the volume was created successfully.
+4. Verify that the volume was created successfully.
 
-    ```console
-    $ docker volume ls
+   ```console
+   $ docker volume ls
 
-    DRIVER              NAME
-    vieux/sshfs         sshvolume
-    ```
+   DRIVER              NAME
+   vieux/sshfs         sshvolume
+   ```
 
-5.  Start a container that uses the volume `sshvolume`.
+5. Start a container that uses the volume `sshvolume`.
 
-    ```console
-    $ docker run --rm -v sshvolume:/data busybox ls /data
+   ```console
+   $ docker run --rm -v sshvolume:/data busybox ls /data
 
-    <content of /remote on machine 1.2.3.4>
-    ```
+   <content of /remote on machine 1.2.3.4>
+   ```
 
-6.  Remove the volume `sshvolume`
+6. Remove the volume `sshvolume`
 
-    ```console
-    $ docker volume rm sshvolume
+   ```console
+   $ docker volume rm sshvolume
 
-    sshvolume
-    ```
+   sshvolume
+   ```
 
 To disable a plugin, use the `docker plugin disable` command. To completely
 remove it, use the `docker plugin remove` command. For other available
@@ -134,8 +124,10 @@ commands and options, see the
 The `rootfs` directory represents the root filesystem of the plugin. In this
 example, it was created from a Dockerfile:
 
-> **Note:** The `/run/docker/plugins` directory is mandatory inside of the
-> plugin's filesystem for docker to communicate with the plugin.
+> **Note**
+>
+> The `/run/docker/plugins` directory is mandatory inside of the
+> plugin's filesystem for Docker to communicate with the plugin.
 
 ```console
 $ git clone https://github.com/vieux/docker-volume-sshfs
@@ -219,11 +211,10 @@ INFO[0421] Path Called...    Returned path /data/samplevol  plugin=f52a3df433b9a
 INFO[0421] Unmount Called... Unmounted samplevol            plugin=f52a3df433b9aceee436eaada0752f5797aab1de47e5485f1690a073b860ff62
 ```
 
-#### Using docker-runc to obtain logfiles and shell into the plugin.
+#### Using runc to obtain logfiles and shell into the plugin.
 
-`docker-runc`, the default docker container runtime can be used for debugging
-plugins. This is specifically useful to collect plugin logs if they are
-redirected to a file.
+Use `runc`, the default docker container runtime, for debugging plugins by
+collecting plugin logs redirected to a file.
 
 ```console
 $ sudo runc --root /run/docker/runtime-runc/plugins.moby list

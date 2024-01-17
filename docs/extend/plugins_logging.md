@@ -1,18 +1,8 @@
 ---
+title: Docker log driver plugins
 description: "Log driver plugins."
 keywords: "Examples, Usage, plugins, docker, documentation, user guide, logging"
 ---
-
-<!-- This file is maintained within the docker/cli GitHub
-     repository at https://github.com/docker/cli/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
-
-# Docker log driver plugins
 
 This document describes logging driver plugins for Docker.
 
@@ -46,20 +36,21 @@ receiving logs for.
 Logs will be streamed over the defined file in the request. On Linux this file
 is a FIFO. Logging plugins are not currently supported on Windows.
 
-**Request**:
+Request:
+
 ```json
 {
-		"File": "/path/to/file/stream",
-		"Info": {
-			"ContainerID": "123456"
-		}
+  "File": "/path/to/file/stream",
+  "Info": {
+          "ContainerID": "123456"
+  }
 }
 ```
 
 `File` is the path to the log stream that needs to be consumed. Each call to
 `StartLogging` should provide a different file path, even if it's a container
 that the plugin has already received logs for prior. The file is created by
-docker with a randomly generated name.
+Docker with a randomly generated name.
 
 `Info` is details about the container that's being logged. This is fairly
 free-form, but is defined by the following struct definition:
@@ -81,14 +72,14 @@ type Info struct {
 }
 ```
 
-
 `ContainerID` will always be supplied with this struct, but other fields may be
 empty or missing.
 
-**Response**
+Response:
+
 ```json
 {
-	"Err": ""
+  "Err": ""
 }
 ```
 
@@ -102,12 +93,12 @@ write to its stdio streams.
 
 Log stream messages are encoded as protocol buffers. The protobuf definitions are
 in the
-[docker repository](https://github.com/docker/docker/blob/master/api/types/plugins/logdriver/entry.proto).
+[moby repository](https://github.com/moby/moby/blob/master/api/types/plugins/logdriver/entry.proto).
 
 Since protocol buffers are not self-delimited you must decode them from the stream
 using the following stream format:
 
-```
+```text
 [size][message]
 ```
 
@@ -127,17 +118,19 @@ losing log data.
 Requests on this endpoint does not mean that the container has been removed
 only that it has stopped.
 
-**Request**:
+Request:
+
 ```json
 {
-		"File": "/path/to/file/stream"
+  "File": "/path/to/file/stream"
 }
 ```
 
-**Response**:
+Response:
+
 ```json
 {
-	"Err": ""
+  "Err": ""
 }
 ```
 
@@ -154,15 +147,17 @@ Logging plugins can implement two extra logging endpoints:
 Defines the capabilities of the log driver. You must implement this endpoint for
 Docker to be able to take advantage of any of the defined capabilities.
 
-**Request**:
+Request:
+
 ```json
 {}
 ```
 
-**Response**:
+Response:
+
 ```json
 {
-	"ReadLogs": true
+  "ReadLogs": true
 }
 ```
 
@@ -180,14 +175,14 @@ called.
 In order for Docker to use this endpoint, the plugin must specify as much when
 `/LogDriver.Capabilities` is called.
 
+Request:
 
-**Request**:
 ```json
 {
-	"ReadConfig": {},
-	"Info": {
-		"ContainerID": "123456"
-	}
+  "ReadConfig": {},
+  "Info": {
+    "ContainerID": "123456"
+  }
 }
 ```
 
@@ -210,9 +205,9 @@ as they come in once the existing logs have been read.
 `Info` is the same type defined in `/LogDriver.StartLogging`. It should be used
 to determine what set of logs to read.
 
-**Response**:
+Response:
 
-```
+```text
 {{ log stream }}
 ```
 
