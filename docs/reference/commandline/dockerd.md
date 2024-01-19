@@ -29,6 +29,7 @@ Options:
       --authorization-plugin list             Authorization plugins to load
       --bip string                            Specify network bridge IP
   -b, --bridge string                         Attach containers to a network bridge
+      --cdi-spec-dir list                     CDI specification directories to use
       --cgroup-parent string                  Set parent cgroup for all containers
       --config-file string                    Daemon configuration file (default "/etc/docker/daemon.json")
       --containerd string                     containerd grpc address
@@ -853,6 +854,44 @@ $ docker run -it --add-host host.docker.internal:host-gateway \
   busybox ping host.docker.internal 
 PING host.docker.internal (192.0.2.0): 56 data bytes
 ```
+
+### Enable CDI devices
+
+> **Note**
+>
+> This is experimental feature and as such doesn't represent a stable API.
+>
+> This feature isn't enabled by default. To this feature, set `features.cdi` to
+> `true` in the `daemon.json` configuration file.
+
+Container Device Interface (CDI) is a
+[standardized](https://github.com/cncf-tags/container-device-interface/blob/main/SPEC.md)
+mechanism for container runtimes to create containers which are able to
+interact with third party devices.
+
+The Docker daemon supports running containers with CDI devices if the requested
+device specifications are available on the filesystem of the daemon.
+
+The default specification directors are:
+
+- `/etc/cdi/` for static CDI Specs
+- `/var/run/cdi` for generated CDI Specs
+
+Alternatively, you can set custom locations for CDI specifications using the
+`cdi-spec-dirs` option in the `daemon.json` configuration file, or the
+`--cdi-spec-dir` flag for the `dockerd` CLI.
+
+```json
+{
+  "features": {
+     "cdi": true
+  },
+  "cdi-spec-dirs": ["/etc/cdi/", "/var/run/cdi"]
+}
+```
+
+When CDI is enabled for a daemon, you can view the configured CDI specification
+directories using the `docker info` command.
 
 ### Miscellaneous options
 
