@@ -849,7 +849,9 @@ flag for the dockerd command line interface, or the `host-gateway-ip` key in
 the daemon configuration file.
 
 ```console
-$ dockerd --host-gateway-ip 192.0.2.0
+$ cat > /etc/docker/daemon.json
+{ "host-gateway-ip": "192.0.2.0" }
+$ sudo systemctl restart docker
 $ docker run -it --add-host host.docker.internal:host-gateway \
   busybox ping host.docker.internal 
 PING host.docker.internal (192.0.2.0): 56 data bytes
@@ -1072,6 +1074,7 @@ The following is a full example of the allowed configuration options on Linux:
   "fixed-cidr": "",
   "fixed-cidr-v6": "",
   "group": "",
+  "host-gateway-ip": "",
   "hosts": [],
   "proxies": {
     "http-proxy": "http://proxy.example.com:80",
@@ -1181,6 +1184,7 @@ The following is a full example of the allowed configuration options on Windows:
   "features": {},
   "fixed-cidr": "",
   "group": "",
+  "host-gateway-ip": "",
   "hosts": [],
   "insecure-registries": [],
   "labels": [],
