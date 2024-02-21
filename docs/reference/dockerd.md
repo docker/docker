@@ -1038,7 +1038,7 @@ The following is a full example of the allowed configuration options on Linux:
   "cgroup-parent": "",
   "containerd": "/run/containerd/containerd.sock",
   "containerd-namespace": "docker",
-  "containerd-plugin-namespace": "docker-plugins",
+  "containerd-plugins-namespace": "docker-plugins",
   "data-root": "",
   "debug": true,
   "default-address-pools": [
@@ -1079,7 +1079,7 @@ The following is a full example of the allowed configuration options on Linux:
   "proxies": {
     "http-proxy": "http://proxy.example.com:80",
     "https-proxy": "https://proxy.example.com:443",
-    "no-proxy": "*.test.example.com,.example.org",
+    "no-proxy": "*.test.example.com,.example.org"
   },
   "icc": false,
   "init": false,
@@ -1170,7 +1170,7 @@ The following is a full example of the allowed configuration options on Windows:
   "bridge": "",
   "containerd": "\\\\.\\pipe\\containerd-containerd",
   "containerd-namespace": "docker",
-  "containerd-plugin-namespace": "docker-plugins",
+  "containerd-plugins-namespace": "docker-plugins",
   "data-root": "",
   "debug": true,
   "default-network-opts": {},
