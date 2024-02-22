@@ -51,6 +51,7 @@ The table below provides an overview of the current status of deprecated feature
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
 | Deprecated | [Unauthenticated TCP connections](#unauthenticated-tcp-connections)                                                                | v26.0      | v27.0  |
+| Deprecated | [`Container` and `ContainerConfig` fields in Image inspect](#container-and-containerconfig-fields-in-image-inspect)                | v25.0      | v26.0  |
 | Deprecated | [Deprecate legacy API versions](#deprecate-legacy-api-versions)                                                                    | v25.0      | v26.0  |
 | Deprecated | [Container short ID in network Aliases field](#container-short-id-in-network-aliases-field)                                        | v25.0      | v26.0  |
 | Deprecated | [IsAutomated field, and "is-automated" filter on docker search](#isautomated-field-and-is-automated-filter-on-docker-search)       | v25.0      | v26.0  |
@@ -137,6 +138,19 @@ you may want to consider using SSH as an alternative solution.
 For further information, assistance, and step-by-step instructions on
 configuring TLS (or SSH) for the Docker daemon, refer to
 [Protect the Docker daemon socket](https://docs.docker.com/engine/security/protect-access/).
+
+### `Container` and `ContainerConfig` fields in Image inspect
+
+**Deprecated in Release: v25.0**
+**Target For Removal In Release: v26.0**
+
+The `Container` and `ContainerConfig` fields returned by `docker inspect` are
+mostly an implementation detail of the classic (non-BuildKit) image builder.
+These fields are not portable and are empty when using the
+BuildKit-based builder (enabled by default since v23.0).
+These fields are deprecated in v25.0 and will be omitted starting from v26.0.
+If image configuration of an image is needed, you can obtain it from the
+`Config` field.
 
 ### Deprecate legacy API versions
 
