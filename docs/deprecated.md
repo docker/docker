@@ -113,6 +113,7 @@ The following table provides an overview of the current status of deprecated fea
 | Deprecated | [`-h` shorthand for `--help`](#-h-shorthand-for---help)                                                                            | v1.12      | v17.09 |
 | Removed    | [`-e` and `--email` flags on `docker login`](#-e-and---email-flags-on-docker-login)                                                | v1.11      | v17.06 |
 | Deprecated | [Separator (`:`) of `--security-opt` flag on `docker run`](#separator--of---security-opt-flag-on-docker-run)                       | v1.11      | v17.06 |
+| Deprecated | [Links on the default bridge network](#links-on-the-default-bridge-network)                                                        | v1.10      | -      |
 | Deprecated | [Ambiguous event fields in API](#ambiguous-event-fields-in-api)                                                                    | v1.10      | -      |
 | Removed    | [`-f` flag on `docker tag`](#-f-flag-on-docker-tag)                                                                                | v1.10      | v1.12  |
 | Removed    | [HostConfig at API container start](#hostconfig-at-api-container-start)                                                            | v1.10      | v1.12  |
@@ -1202,6 +1203,19 @@ The `docker login` no longer automatically registers an account with the target 
 **Target for removal in release: v17.06**
 
 The flag `--security-opt` doesn't use the colon separator (`:`) anymore to divide keys and values, it uses the equal symbol (`=`) for consistency with other similar flags, like `--storage-opt`.
+
+### Links on the default bridge network
+
+**Deprecated in release: v1.10**
+**Target for removal in release: v30.0**
+
+The `--link` option on `docker create` and `docker run`, when used with no
+`--network` specified, was deprecated in v1.10 and will be removed in a future
+release. Custom networks should be used instead. Docker 29.6 added a deprecation
+warning when this option is used for the default bridge network.
+
+Note that the `--link` option is still supported when a non-default network
+is used.
 
 ### Ambiguous event fields in API
 
