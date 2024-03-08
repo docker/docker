@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [Unauthenticated TCP connections](#unauthenticated-tcp-connections)                                                                | v26.0      | v27.0  |
 | Deprecated | [Deprecate legacy API versions](#deprecate-legacy-api-versions)                                                                    | v25.0      | v26.0  |
 | Deprecated | [Container short ID in network Aliases field](#container-short-id-in-network-aliases-field)                                        | v25.0      | v26.0  |
 | Deprecated | [IsAutomated field, and "is-automated" filter on docker search](#isautomated-field-and-is-automated-filter-on-docker-search)       | v25.0      | v26.0  |
@@ -109,6 +110,33 @@ The table below provides an overview of the current status of deprecated feature
 | Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09 |
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
+
+### Unauthenticated TCP connections
+
+**Deprecated in Release: v26.0**
+**Target For Removal In Release: v27.0**
+
+Configuring the Docker daemon to listen on a TCP address will require mandatory
+TLS verification. This change aims to ensure secure communication by preventing
+unauthorized access to the Docker daemon over potentially insecure networks.
+This mandatory TLS requirement applies to all TCP addresses except `tcp://localhost`.
+
+In version 27.0 and later, specifying `--tls=false` or `--tlsverify=false` CLI flags
+causes the daemon to fail to start if it's also configured to accept remote connections over TCP.
+This also applies to the equivalent configuration options in `daemon.json`.
+
+To facilitate remote access to the Docker daemon over TCP, you'll need to
+implement TLS verification. This secures the connection by encrypting data in
+transit and providing a mechanism for mutual authentication.
+
+For environments remote daemon access isn't required,
+we recommend binding the Docker daemon to a Unix socket.
+For daemon's where remote access is required and where TLS encryption is not feasible,
+you may want to consider using SSH as an alternative solution.
+
+For further information, assistance, and step-by-step instructions on
+configuring TLS (or SSH) for the Docker daemon, refer to
+[Protect the Docker daemon socket](https://docs.docker.com/engine/security/protect-access/).
 
 ### Deprecate legacy API versions
 
