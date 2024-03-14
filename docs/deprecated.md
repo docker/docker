@@ -72,7 +72,7 @@ The table below provides an overview of the current status of deprecated feature
 | Removed    | [`docker build --stream` flag (experimental)](#docker-build---stream-flag-experimental)                                            | v20.10     | v20.10 |
 | Deprecated | [`fluentd-async-connect` log opt](#fluentd-async-connect-log-opt)                                                                  | v20.10     | -      |
 | Removed    | [Configuration options for experimental CLI features](#configuration-options-for-experimental-cli-features)                        | v19.03     | v23.0  |
-| Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03     | v20.10 |
+| Deprecated | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03     | v27.0  |
 | Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03     | v20.10 |
 | Removed    | [Top-level `docker deploy` subcommand (experimental)](#top-level-docker-deploy-subcommand-experimental)                            | v19.03     | v20.10 |
 | Removed    | [`docker stack deploy` using "dab" files (experimental)](#docker-stack-deploy-using-dab-files-experimental)                        | v19.03     | v20.10 |
@@ -558,15 +558,35 @@ for the old option will be removed in a future release.
 
 **Deprecated in Release: v19.03**
 
-**Target For Removal In Release: v20.10**
+**Disabled by default in Release: v26.0**
 
-The image manifest
-[v2 schema 1](https://github.com/docker/distribution/blob/fda42e5ef908bdba722d435ff1f330d40dfcd56c/docs/spec/manifest-v2-1.md)
-format is deprecated in favor of the
-[v2 schema 2](https://github.com/docker/distribution/blob/fda42e5ef908bdba722d435ff1f330d40dfcd56c/docs/spec/manifest-v2-2.md) format.
+**Target For Removal In Release: v27.0**
 
-If the registry you are using still supports v2 schema 1, urge their administrators to move to v2 schema 2.
+The image manifest [v2 schema 1](https://distribution.github.io/distribution/spec/deprecated-schema-v1/)
+and "Docker Image v1" formats were deprecated in favor of the
+[v2 schema 2](https://distribution.github.io/distribution/spec/manifest-v2-2/)
+and [OCI image spec](https://github.com/opencontainers/image-spec/tree/v1.1.0)
+formats.
 
+These legacy formats should no longer be used, and users are recommended to
+update images to use current formats, or to upgrade to more current images.
+Starting with Docker v26.0, pulling these images is disabled by default, and
+produces an error when attempting to pull the image:
+
+```console
+$ docker pull ubuntu:10.04
+Error response from daemon:
+[DEPRECATION NOTICE] Docker Image Format v1 and Docker Image manifest version 2, schema 1 support is disabled by default and will be removed in an upcoming release.
+Suggest the author of docker.io/library/ubuntu:10.04 to upgrade the image to the OCI Format or Docker Image manifest v2, schema 2.
+More information at https://docs.docker.com/go/deprecated-image-specs/
+```
+
+An environment variable (`DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE`) is
+added in Docker v26.0 that allows re-enabling support for these image formats
+in the daemon. This environment variable must be set to a non-empty value in
+the daemon's environment (for example, through a [systemd override file](https://docs.docker.com/config/daemon/systemd/)).
+Support for the `DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE` environment-variable
+will be removed in Docker v27.0 after which this functionality is removed permanently.
 
 ### `docker engine` subcommands
 
