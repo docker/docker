@@ -1347,7 +1347,7 @@ using the `daemon.json` file.
   "default-network-opts": {
     "bridge": {
       "com.docker.network.bridge.host_binding_ipv4": "127.0.0.1",
-      "com.docker.network.bridge.mtu": "1234"
+      "com.docker.network.driver.mtu": "1234"
     }
   }
 }
@@ -1363,7 +1363,7 @@ you create use these option configurations as defaults.
 ```console
 $ docker network create mynet
 $ docker network inspect mynet --format "{{json .Options}}"
-{"com.docker.network.bridge.host_binding_ipv4":"127.0.0.1","com.docker.network.bridge.mtu":"1234"}
+{"com.docker.network.bridge.host_binding_ipv4":"127.0.0.1","com.docker.network.driver.mtu":"1234"}
 ```
 
 Note that changing this daemon configuration doesn't affect pre-existing
@@ -1377,5 +1377,5 @@ daemon configuration. The CLI flag expects a value with the following format:
 ```console
 $ sudo dockerd \
   --default-network-opt bridge=com.docker.network.bridge.host_binding_ipv4=127.0.0.1 \
-  --default-network-opt bridge=com.docker.network.bridge.mtu=1234
+  --default-network-opt bridge=com.docker.network.driver.mtu=1234
 ```
