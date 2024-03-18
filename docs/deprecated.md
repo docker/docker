@@ -52,7 +52,7 @@ The table below provides an overview of the current status of deprecated feature
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
 | Deprecated | [Unauthenticated TCP connections](#unauthenticated-tcp-connections)                                                                | v26.0      | v27.0  |
 | Deprecated | [Deprecate legacy API versions](#deprecate-legacy-api-versions)                                                                    | v25.0      | v26.0  |
-| Deprecated | [Container short ID in network Aliases field](#container-short-id-in-network-aliases-field)                                        | v25.0      | v26.0  |
+| Removed    | [Container short ID in network Aliases field](#container-short-id-in-network-aliases-field)                                        | v25.0      | v26.0  |
 | Deprecated | [IsAutomated field, and "is-automated" filter on docker search](#isautomated-field-and-is-automated-filter-on-docker-search)       | v25.0      | v26.0  |
 | Removed    | [logentries logging driver](#logentries-logging-driver)                                                                            | v24.0      | v25.0  |
 | Removed    | [OOM-score adjust for the daemon](#oom-score-adjust-for-the-daemon)                                                                | v24.0      | v25.0  |
@@ -195,7 +195,7 @@ old clients, and those clients must be supported.
 ### Container short ID in network Aliases field
 
 **Deprecated in Release: v25.0**
-**Target For Remove In Release: v26.0**
+**Removed In Release: v26.0**
 
 The `Aliases` field returned by `docker inspect` contains the container short
 ID once the container is started. This behavior is deprecated in v25.0 but
