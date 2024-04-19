@@ -1243,6 +1243,9 @@ The list of feature options include:
   external names. The current default is `false`, it will change to `true` in
   a future release. This option is only allowed on Windows.
 
+  > **Warning**
+  > The `windows-dns-proxy` feature flag will be removed in a future release.
+
 #### Configuration reload behavior
 
 Some options can be reconfigured when the daemon is running without requiring
