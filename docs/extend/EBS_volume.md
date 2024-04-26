@@ -122,7 +122,7 @@ We have to put the following JSON to `$TMPDIR/config.json`:
 }
 ```
 
-Please note a couple of points:
+Note a couple of points:
 - `PropagatedMount` is needed so that the docker daemon can see mounts done by the
 rexray plugin from within the container, otherwise the docker daemon is not able
 to mount a docker volume.

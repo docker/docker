@@ -209,7 +209,8 @@ CLI to use API version 1.23, which produces an error:
 
 ```console
 DOCKER_API_VERSION=1.23 docker version
-Error response from daemon: client version 1.23 is too old. Minimum supported API version is 1.24, please upgrade your client to a newer version
+Error response from daemon: client version 1.23 is too old. Minimum supported API version is 1.24, 
+upgrade your client to a newer version
 ```
 
 An environment variable (`DOCKER_MIN_API_VERSION`) is introduced that allows
@@ -611,7 +612,7 @@ The `--log-opt fluentd-async-connect` option for the fluentd logging driver is
 A deprecation message is logged in the daemon logs if the old option is used:
 
 ```console
-fluent#New: AsyncConnect is now deprecated, please use Async instead
+fluent#New: AsyncConnect is now deprecated, use Async instead
 ```
 
 Users are encouraged to use the `fluentd-async` option going forward, as support
