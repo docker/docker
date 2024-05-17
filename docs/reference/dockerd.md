@@ -530,7 +530,7 @@ For example:
       "runtimeType": "io.containerd.runsc.v1",
       "options": {
         "TypeUrl": "io.containerd.runsc.v1.options",
-        "ConfigPath": "/etc/containerd/runsc.toml",
+        "ConfigPath": "/etc/containerd/runsc.toml"
       }
     }
   }
