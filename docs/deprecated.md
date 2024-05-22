@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [API CORS headers](#api-cors-headers)                                                                                              | v27.0      | v28.0  |
 | Deprecated | [Unauthenticated TCP connections](#unauthenticated-tcp-connections)                                                                | v26.0      | v27.0  |
 | Deprecated | [`Container` and `ContainerConfig` fields in Image inspect](#container-and-containerconfig-fields-in-image-inspect)                | v25.0      | v26.0  |
 | Deprecated | [Deprecate legacy API versions](#deprecate-legacy-api-versions)                                                                    | v25.0      | v26.0  |
@@ -111,6 +112,26 @@ The table below provides an overview of the current status of deprecated feature
 | Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09 |
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
+
+### API CORS headers
+
+**Deprecated in Release: v27.0**
+**Target For Removal In Release: v28.0**
+
+The `api-cors-header` configuration option for the Docker daemon is insecure,
+and is therefore deprecated and scheduled for removal.
+Incorrectly setting this option could leave a window of opportunity
+for unauthenticated cross-origin requests to be accepted by the daemon.
+
+Starting in Docker Engine v27.0, this flag can still be set,
+but it has no effect unless the environment variable
+`DOCKERD_DEPRECATED_CORS_HEADER` is also set to a non-empty value.
+
+This flag will be removed altogether in v28.0.
+
+This is a breaking change for authorization plugins and other programs
+that depend on this option for accessing the Docker API from a browser.
+If you need to access the API through a browser, use a reverse proxy.
 
 ### Unauthenticated TCP connections
 
