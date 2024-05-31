@@ -133,9 +133,8 @@ to [the `daemon.json` file](#daemon-configuration-file).
 
 The following list of environment variables are supported by the `dockerd` daemon.
 Some of these environment variables are supported both by the Docker Daemon and
-the `docker` CLI. Refer to [Environment variables](https://docs.docker.com/reference/cli/docker/#environment-variables)
-in the CLI section to learn about environment variables supported by the
-`docker` CLI.
+the `docker` CLI. Refer to [Environment variables](https://docs.docker.com/engine/reference/commandline/cli/#environment-variables)
+to learn about environment variables supported by the `docker` CLI.
 
 | Variable            | Description                                                                                                                                                                             |
 | :------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
