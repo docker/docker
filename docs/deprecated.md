@@ -50,6 +50,7 @@ The table below provides an overview of the current status of deprecated feature
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [Non-standard fields in image inspect](#non-standard-fields-in-image-inspect)                                                      | v27.0      | v28.0  |
 | Deprecated | [API CORS headers](#api-cors-headers)                                                                                              | v27.0      | v28.0  |
 | Deprecated | [Unauthenticated TCP connections](#unauthenticated-tcp-connections)                                                                | v26.0      | v27.0  |
 | Deprecated | [`Container` and `ContainerConfig` fields in Image inspect](#container-and-containerconfig-fields-in-image-inspect)                | v25.0      | v26.0  |
@@ -112,6 +113,40 @@ The table below provides an overview of the current status of deprecated feature
 | Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09 |
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
+
+### Non-standard fields in image inspect
+
+**Deprecated in Release: v27.0**
+**Target For Removal In Release: v28.0**
+
+The `Config` field returned shown in `docker image inspect` (and as returned by
+the `GET /images/{name}/json` API endpoint) returns additional fields that are
+not part of the image's configuration and not part of the [Docker Image Spec]
+and [OCI Image Specification].
+
+These fields are never set (and always return the default value for the type),
+but are not omitted in the response when left empty. As these fields were not
+intended to be part of the image configuration response, they are deprecated,
+and will be removed from the API in thee next release.
+
+The following fields are currently included in the API response, but are not
+part of the underlying image's Config, and deprecated:
+
+- `Hostname`
+- `Domainname`
+- `AttachStdin`
+- `AttachStdout`
+- `AttachStderr`
+- `Tty`
+- `OpenStdin`
+- `StdinOnce`
+- `Image`
+- `NetworkDisabled` (already omitted unless set)
+- `MacAddress` (already omitted unless set)
+- `StopTimeout` (already omitted unless set)
+
+[Docker image spec]: https://github.com/moby/docker-image-spec/blob/v1.3.1/specs-go/v1/image.go#L19-L32
+[OCI Image Spec]: https://github.com/opencontainers/image-spec/blob/v1.1.0/specs-go/v1/config.go#L24-L62
 
 ### API CORS headers
 
