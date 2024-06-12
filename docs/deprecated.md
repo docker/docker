@@ -51,7 +51,7 @@ The table below provides an overview of the current status of deprecated feature
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
 | Deprecated | [API CORS headers](#api-cors-headers)                                                                                              | v27.0      | v28.0  |
-| Deprecated | [Unauthenticated TCP connections](#unauthenticated-tcp-connections)                                                                | v26.0      | v27.0  |
+| Deprecated | [Unauthenticated TCP connections](#unauthenticated-tcp-connections)                                                                | v26.0      | v28.0  |
 | Deprecated | [`Container` and `ContainerConfig` fields in Image inspect](#container-and-containerconfig-fields-in-image-inspect)                | v25.0      | v26.0  |
 | Deprecated | [Deprecate legacy API versions](#deprecate-legacy-api-versions)                                                                    | v25.0      | v26.0  |
 | Removed    | [Container short ID in network Aliases field](#container-short-id-in-network-aliases-field)                                        | v25.0      | v26.0  |
@@ -136,7 +136,7 @@ If you need to access the API through a browser, use a reverse proxy.
 ### Unauthenticated TCP connections
 
 **Deprecated in Release: v26.0**
-**Target For Removal In Release: v27.0**
+**Target For Removal In Release: v28.0**
 
 Configuring the Docker daemon to listen on a TCP address will require mandatory
 TLS verification. This change aims to ensure secure communication by preventing
