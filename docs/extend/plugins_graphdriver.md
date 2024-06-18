@@ -15,6 +15,15 @@ advisory: experimental
 
 # Graphdriver plugins
 
+> **Deprecated**
+>
+> Support for graphdriver plugins is an experimental feature, which has been
+> deprecated. Upcoming releases of the Docker Engine will no longer support
+> graphdriver plugins, and users of this feature are recommended to instead
+> use the containerd image store, and a custom [snapshotter](https://github.com/containerd/containerd/tree/v1.7.18/docs/snapshotters)
+{ .important }
+
+
 ## Changelog
 
 ### 1.13.0
