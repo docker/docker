@@ -2,6 +2,8 @@
 title: Docker Engine managed plugin system
 description: Develop and use a plugin with the managed plugin system
 keywords: "API, Usage, plugins, documentation, developer"
+aliases:
+  - "/engine/extend/plugins_graphdriver/"
 ---
 
 - [Installing and using a plugin](index.md#installing-and-using-a-plugin)

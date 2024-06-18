@@ -52,6 +52,7 @@ The table below provides an overview of the current status of deprecated feature
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
 | Deprecated | [Non-standard fields in image inspect](#non-standard-fields-in-image-inspect)                                                      | v27.0      | v28.0  |
 | Deprecated | [API CORS headers](#api-cors-headers)                                                                                              | v27.0      | v28.0  |
+| Deprecated | [Graphdriver plugins (experimental)](#graphdriver-plugins-experimental)                                                            | v27.0      | v28.0  |
 | Deprecated | [Unauthenticated TCP connections](#unauthenticated-tcp-connections)                                                                | v26.0      | v28.0  |
 | Deprecated | [`Container` and `ContainerConfig` fields in Image inspect](#container-and-containerconfig-fields-in-image-inspect)                | v25.0      | v26.0  |
 | Deprecated | [Deprecate legacy API versions](#deprecate-legacy-api-versions)                                                                    | v25.0      | v26.0  |
@@ -147,6 +148,21 @@ part of the underlying image's Config, and deprecated:
 
 [Docker image spec]: https://github.com/moby/docker-image-spec/blob/v1.3.1/specs-go/v1/image.go#L19-L32
 [OCI Image Spec]: https://github.com/opencontainers/image-spec/blob/v1.1.0/specs-go/v1/config.go#L24-L62
+
+### Graphdriver plugins (experimental)
+
+**Deprecated in Release: v27.0**
+**Target For Removal In Release: v28.0**
+
+[Graphdriver plugins](https://github.com/docker/cli/blob/v26.1.4/docs/extend/plugins_graphdriver.md)
+are an experimental feature that allow extending the Docker Engine with custom
+storage drivers for storing images and containers. This feature was not
+maintained since its inception, and will no longer be supported in upcoming
+releases.
+
+Users of this feature are recommended to instead configure the Docker Engine
+to use the [containerd image store](https://docs.docker.com/storage/containerd/),
+and a custom [snapshotter](https://github.com/containerd/containerd/tree/v1.7.18/docs/snapshotters)
 
 ### API CORS headers
 
