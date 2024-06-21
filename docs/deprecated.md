@@ -152,6 +152,7 @@ part of the underlying image's Config, and deprecated:
 ### Graphdriver plugins (experimental)
 
 **Deprecated in Release: v27.0**
+**Disabled by default in Release: v27.0**
 **Target For Removal In Release: v28.0**
 
 [Graphdriver plugins](https://github.com/docker/cli/blob/v26.1.4/docs/extend/plugins_graphdriver.md)
@@ -160,8 +161,14 @@ storage drivers for storing images and containers. This feature was not
 maintained since its inception, and will no longer be supported in upcoming
 releases.
 
-Users of this feature are recommended to instead configure the Docker Engine
-to use the [containerd image store](https://docs.docker.com/storage/containerd/),
+Support for graphdriver plugins is disabled by default in v27.0, and will be
+removed v28.0. An `DOCKERD_DEPRECATED_GRAPHDRIVER_PLUGINS` environment variable
+is provided in v27.0 to re-enable the feature. This environment variable must
+be set to a non-empty value in the daemon's environment.
+
+The `DOCKERD_DEPRECATED_GRAPHDRIVER_PLUGINS` environment variable, along with
+support for graphdriver plugins, will be removed in v28.0. Users of this feature
+are recommended to instead configure the Docker Engine to use the [containerd image store](https://docs.docker.com/storage/containerd/)
 and a custom [snapshotter](https://github.com/containerd/containerd/tree/v1.7.18/docs/snapshotters)
 
 ### API CORS headers
@@ -700,7 +707,7 @@ An environment variable (`DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE`) is
 added in Docker v26.0 that allows re-enabling support for these image formats
 in the daemon. This environment variable must be set to a non-empty value in
 the daemon's environment (for example, through a [systemd override file](https://docs.docker.com/config/daemon/systemd/)).
-Support for the `DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE` environment-variable
+Support for the `DOCKER_ENABLE_DEPRECATED_PULL_SCHEMA_1_IMAGE` environment variable
 will be removed in Docker v27.0 after which this functionality is removed permanently.
 
 ### `docker engine` subcommands
