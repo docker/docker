@@ -133,7 +133,7 @@ to [the `daemon.json` file](#daemon-configuration-file).
 
 The following list of environment variables are supported by the `dockerd` daemon.
 Some of these environment variables are supported both by the Docker Daemon and
-the `docker` CLI. Refer to [Environment variables](https://docs.docker.com/engine/reference/commandline/cli/#environment-variables)
+the `docker` CLI. Refer to [Environment variables](https://docs.docker.com/reference/cli/docker/#environment-variables)
 to learn about environment variables supported by the `docker` CLI.
 
 | Variable            | Description                                                                                                                                                                             |
@@ -169,7 +169,7 @@ in three ways:
    options. (Docker Engine version 23.0 or later).
 
 The command-line and configuration file options take precedence over environment
-variables. Refer to [control and configure Docker with systemd](https://docs.docker.com/config/daemon/systemd/#httphttps-proxy)
+variables. Refer to [control and configure Docker with systemd](https://docs.docker.com/engine/daemon/proxy/)
 to set these environment variables on a host using `systemd`.
 
 ### Daemon socket option
@@ -332,7 +332,7 @@ drivers: `overlay2`, `fuse-overlayfs`, `btrfs`, and `zfs`.
 and is selected by default. Unless users have a strong reason to prefer another storage driver,
 `overlay2` should be used.
 
-You can find out more about storage drivers and how to select one in [Select a storage driver](https://docs.docker.com/storage/storagedriver/select-storage-driver/).
+You can find out more about storage drivers and how to select one in [Select a storage driver](https://docs.docker.com/engine/storage/drivers/select-storage-driver/).
 
 On Windows, the Docker daemon only supports the `windowsfilter` storage driver.
 
@@ -424,7 +424,7 @@ installed outside of `PATH`, must be registered with the daemon, either via the
 configuration file or using the `--add-runtime` command line flag.
 
 For examples on how to use other container runtimes, see
-[Alternative container runtimes](https://docs.docker.com/engine/alternative-runtimes/)
+[Alternative container runtimes](https://docs.docker.com/engine/daemon/alternative-runtimes/)
 
 ##### Configure runtimes using `daemon.json`
 
@@ -609,7 +609,7 @@ $ sudo dockerd --add-runtime <runtime>=<path>
 Defining runtime arguments via the command line is not supported.
 
 For an example configuration for a runc drop-in replacment, see
-[Alternative container runtimes > youki](https://docs.docker.com/engine/alternative-runtimes/#youki)
+[Alternative container runtimes > youki](https://docs.docker.com/engine/daemon/alternative-runtimes/#youki)
 
 ##### Configure the default container runtime
 
@@ -783,7 +783,7 @@ Docker host's configuration:
 
 This only adds the proxy and authentication to the Docker daemon's requests.
 To use the proxy when building images and running containers, see
-[Configure Docker to use a proxy server](https://docs.docker.com/network/proxy/)
+[Configure Docker to use a proxy server](https://docs.docker.com/engine/cli/proxy/)
 
 ### Default `ulimit` settings
 
@@ -952,7 +952,7 @@ to avoid collisions with other Prometheus exporters and services.
 
 If you are running a Prometheus server you can add this address to your scrape configs
 to have Prometheus collect metrics on Docker. For more information, see
-[Collect Docker metrics with Prometheus](https://docs.docker.com/config/daemon/prometheus/).
+[Collect Docker metrics with Prometheus](https://docs.docker.com/engine/daemon/prometheus/).
 
 #### Node generic resources
 
@@ -1151,7 +1151,7 @@ The following is a full example of the allowed configuration options on Linux:
 > daemon startup as a flag.
 > On systems that use systemd to start the Docker daemon, `-H` is already set, so
 > you can't use the `hosts` key in `daemon.json` to add listening addresses.
-> See [custom Docker daemon options](https://docs.docker.com/config/daemon/systemd/#custom-docker-daemon-options)
+> See [custom Docker daemon options](https://docs.docker.com/engine/daemon/proxy/#systemd-unit-file)
 > for an example on how to configure the daemon using systemd drop-in files.
 
 ##### On Windows
@@ -1234,7 +1234,7 @@ The list of feature options include:
 - `containerd-snapshotter`: when set to `true`, the daemon uses containerd
   snapshotters instead of the classic storage drivers for storing image and
   container data. For more information, see
-  [containerd storage](https://docs.docker.com/storage/containerd/).
+  [containerd storage](https://docs.docker.com/engine/storage/containerd/).
 - `windows-dns-proxy`: when set to `true`, the daemon's internal DNS resolver
   will forward requests to external servers. Without this, most applications
   running in the container will still be able to use secondary DNS servers
@@ -1260,7 +1260,7 @@ The list of currently supported options that can be reconfigured is this:
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `debug`                            | Toggles debug mode of the daemon.                                                                           |
 | `labels`                           | Replaces the daemon labels with a new set of labels.                                                        |
-| `live-restore`                     | Toggles [live restore](https://docs.docker.com/config/containers/live-restore/).                            |
+| `live-restore`                     | Toggles [live restore](https://docs.docker.com/engine/containers/live-restore/).                            |
 | `max-concurrent-downloads`         | Configures the max concurrent downloads for each pull.                                                      |
 | `max-concurrent-uploads`           | Configures the max concurrent uploads for each push.                                                        |
 | `max-download-attempts`            | Configures the max download attempts for each pull.                                                         |
@@ -1362,7 +1362,7 @@ using the `daemon.json` file.
 ```
 
 This example uses the `bridge` network driver. Refer to the
-[bridge network driver page](https://docs.docker.com/network/drivers/bridge/#options)
+[bridge network driver page](https://docs.docker.com/engine/network/drivers/bridge/#options)
 for an overview of available driver options.
 
 After changing the configuration and restarting the daemon, new networks that
