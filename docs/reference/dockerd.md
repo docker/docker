@@ -124,6 +124,7 @@ type `dockerd`.
 To run the daemon with debug output, use `dockerd --debug` or add `"debug": true`
 to [the `daemon.json` file](#daemon-configuration-file).
 
+> [!NOTE]
 > **Enabling experimental features**
 >
 > Enable experimental features by starting `dockerd` with the `--experimental`
@@ -152,8 +153,7 @@ to learn about environment variables supported by the `docker` CLI.
 
 ### Proxy configuration
 
-> **Note**
->
+> [!NOTE]
 > Refer to the [Docker Desktop manual](https://docs.docker.com/desktop/networking/#httphttps-proxy-support)
 > if you are running [Docker Desktop](https://docs.docker.com/desktop/).
 
@@ -191,8 +191,7 @@ interface using its IP address: `-H tcp://192.168.59.103:2375`. It is
 conventional to use port `2375` for un-encrypted, and port `2376` for encrypted
 communication with the daemon.
 
-> **Note**
->
+> [!NOTE]
 > If you're using an HTTPS encrypted socket, keep in mind that only
 > TLS version 1.0 and higher is supported. Protocols SSLv3 and below are not
 > supported for security reasons.
@@ -259,8 +258,7 @@ supported. If your key is protected with passphrase, you need to set up
 
 #### Bind Docker to another host/port or a Unix socket
 
-> **Warning**
->
+> [!WARNING]
 > Changing the default `docker` daemon binding to a TCP port or Unix `docker`
 > user group introduces security risks, as it may allow non-root users to gain
 > root access on the host. Make sure you control access to `docker`. If you are
@@ -709,8 +707,7 @@ This option is useful when pushing images containing non-distributable artifacts
 to a registry on an air-gapped network so hosts on that network can pull the
 images without connecting to another server.
 
-> **Warning**
->
+> [!WARNING]
 > Non-distributable artifacts typically have restrictions on how
 > and where they can be distributed and shared. Only use this feature to push
 > artifacts to private registries and ensure that you are in compliance with
@@ -858,8 +855,7 @@ PING host.docker.internal (192.0.2.0): 56 data bytes
 
 ### Enable CDI devices
 
-> **Note**
->
+> [!NOTE]
 > This is experimental feature and as such doesn't represent a stable API.
 >
 > This feature isn't enabled by default. To this feature, set `features.cdi` to
@@ -1145,8 +1141,7 @@ The following is a full example of the allowed configuration options on Linux:
 }
 ```
 
-> **Note**
->
+> [!NOTE]
 > You can't set options in `daemon.json` that have already been set on
 > daemon startup as a flag.
 > On systems that use systemd to start the Docker daemon, `-H` is already set, so
@@ -1242,7 +1237,7 @@ The list of feature options include:
   external names. The current default is `false`, it will change to `true` in
   a future release. This option is only allowed on Windows.
 
-  > **Warning**
+  > [!WARNING]
   > The `windows-dns-proxy` feature flag will be removed in a future release.
 
 #### Configuration reload behavior
@@ -1275,8 +1270,7 @@ The list of currently supported options that can be reconfigured is this:
 
 ### Run multiple daemons
 
-> **Note**
->
+> [!NOTE]
 > Running multiple daemons on a single host is considered experimental.
 > You may encounter unsolved problems, and things may not work as expected in some cases.
 

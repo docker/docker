@@ -562,8 +562,7 @@ Docker API v1.42 and up now ignores this option when set. Older versions of the
 API continue to accept the option, but depending on the OCI runtime used, may
 take no effect.
 
-> **Note**
-> 
+> [!NOTE]
 > While not deprecated (yet) in Docker, the OCI runtime specification also
 > deprecated the `memory.kmem.tcp.limit_in_bytes` option. When using `runc` as
 > runtime, this option takes no effect. The linux kernel did not explicitly

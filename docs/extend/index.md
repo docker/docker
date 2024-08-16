@@ -16,8 +16,7 @@ plugins using Docker Engine.
 For information about legacy (non-managed) plugins, refer to
 [Understand legacy Docker Engine plugins](legacy_plugins.md).
 
-> **Note**
->
+> [!NOTE]
 > Docker Engine managed plugins are currently not supported on Windows daemons.
 
 ## Installing and using a plugin
@@ -38,8 +37,7 @@ operation, such as creating a volume.
 In the following example, you install the `sshfs` plugin, verify that it is
 enabled, and use it to create a volume.
 
-> **Note**
->
+> [!NOTE]
 > This example is intended for instructional purposes only. Once the volume is
 > created, your SSH password to the remote host is exposed as plaintext when
 > inspecting the volume. Delete the volume as soon as you are done with the
@@ -126,8 +124,7 @@ commands and options, see the
 The `rootfs` directory represents the root filesystem of the plugin. In this
 example, it was created from a Dockerfile:
 
-> **Note**
->
+> [!NOTE]
 > The `/run/docker/plugins` directory is mandatory inside of the
 > plugin's filesystem for Docker to communicate with the plugin.
 
