@@ -57,6 +57,7 @@ Options:
       --exec-opt list                         Runtime execution options
       --exec-root string                      Root directory for execution state files (default "/var/run/docker")
       --experimental                          Enable experimental features
+      --feature map                           Enable feature in the daemon
       --fixed-cidr string                     IPv4 subnet for fixed IPs
       --fixed-cidr-v6 string                  IPv6 subnet for fixed IPs
   -G, --group string                          Group for the unix socket (default "docker")
@@ -971,6 +972,36 @@ Example of usage:
 }
 ```
 
+### <a name="feature"></a> Enable feature in the daemon (--feature)
+
+The `--feature` option lets you enable or disable a feature in the daemon.
+This option corresponds with the "features" field in the [daemon.json configuration file](#daemon-configuration-file).
+Features should only be configured either through the `--feature` command line
+option or through the "features" field in the configuration file; using both
+the command-line option and the "features" field in the configuration
+file produces an error. The feature option can be specified multiple times
+to configure multiple features. The `--feature` option accepts a name and
+optional boolean value. When omitting the value, the default is `true`.
+
+The following example runs the daemon with the `cdi` and `containerd-snapshotter`
+features enabled. The `cdi` option is provided with a value;
+
+```console
+$ dockerd --feature cdi=true --feature containerd-snapshotter
+```
+
+The following example is the equivalent using the `daemon.json` configuration
+file;
+
+```json
+{
+  "features": {
+    "cdi": true,
+    "containerd-snapshotter": true
+  }
+}
+```
+
 ### Daemon configuration file
 
 The `--config-file` option allows you to set any configuration option
@@ -1065,7 +1096,10 @@ The following is a full example of the allowed configuration options on Linux:
   "exec-opts": [],
   "exec-root": "",
   "experimental": false,
-  "features": {},
+  "features": {
+    "cdi": true,
+    "containerd-snapshotter": true
+  },
   "fixed-cidr": "",
   "fixed-cidr-v6": "",
   "group": "",
