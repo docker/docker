@@ -25,7 +25,6 @@ A self-sufficient runtime for containers.
 Options:
       --add-runtime runtime                   Register an additional OCI compatible runtime (default [])
       --allow-nondistributable-artifacts list Allow push of nondistributable artifacts to registry
-      --api-cors-header string                Set CORS headers in the Engine API
       --authorization-plugin list             Authorization plugins to load
       --bip string                            Specify network bridge IP
   -b, --bridge string                         Attach containers to a network bridge
@@ -1015,7 +1014,6 @@ The following is a full example of the allowed configuration options on Linux:
 ```json
 {
   "allow-nondistributable-artifacts": [],
-  "api-cors-header": "",
   "authorization-plugins": [],
   "bip": "",
   "bridge": "",
