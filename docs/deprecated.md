@@ -53,6 +53,7 @@ The following table provides an overview of the current status of deprecated fea
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [`--time` option on `docker stop` and `docker restart`](#--time-option-on-docker-stop-and-docker-restart)                          | v28.0      | -      |
 | Deprecated | [Non-standard fields in image inspect](#non-standard-fields-in-image-inspect)                                                      | v27.0      | v28.0  |
 | Removed    | [API CORS headers](#api-cors-headers)                                                                                              | v27.0      | v28.0  |
 | Deprecated | [Graphdriver plugins (experimental)](#graphdriver-plugins-experimental)                                                            | v27.0      | v28.0  |
@@ -117,6 +118,16 @@ The following table provides an overview of the current status of deprecated fea
 | Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09 |
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
+
+### `--time` option on `docker stop` and `docker restart`
+
+**Deprecated in Release: v28.0**
+
+The `--time` option for the `docker stop`, `docker container stop`, `docker restart`,
+and `docker container restart` commands has been renamed to `--timeout` for
+consistency with other uses of timeout options. The `--time` option is now
+deprecated and hidden, but remains functional for backward compatibility.
+Users are encouraged to migrate to using the `--timeout` option instead.
 
 ### Non-standard fields in image inspect
 
