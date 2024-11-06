@@ -26,7 +26,8 @@ Options:
       --add-runtime runtime                   Register an additional OCI compatible runtime (default [])
       --allow-nondistributable-artifacts list Allow push of nondistributable artifacts to registry
       --authorization-plugin list             Authorization plugins to load
-      --bip string                            Specify network bridge IP
+      --bip string                            Specify default-bridge IPv4 network
+      --bip6 string                           Specify default-bridge IPv6 network
   -b, --bridge string                         Attach containers to a network bridge
       --cdi-spec-dir list                     CDI specification directories to use
       --cgroup-parent string                  Set parent cgroup for all containers
@@ -1075,6 +1076,7 @@ The following is a full example of the allowed configuration options on Linux:
   "allow-nondistributable-artifacts": [],
   "authorization-plugins": [],
   "bip": "",
+  "bip6": "",
   "bridge": "",
   "builder": {
     "gc": {
