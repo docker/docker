@@ -72,7 +72,8 @@ Options:
       --init-path string                      Path to the docker-init binary
       --insecure-registry list                Enable insecure registry communication
       --ip ip                                 Default IP when binding container ports (default 0.0.0.0)
-      --ip-forward                            Enable net.ipv4.ip_forward (default true)
+      --ip-forward                            Enable IP forwarding in system configuration (default true)
+      --ip-forward-no-drop                    Do not set the filter-FORWARD policy to DROP when enabling IP forwarding
       --ip-masq                               Enable IP masquerading (default true)
       --ip6tables                             Enable addition of ip6tables rules (experimental)
       --iptables                              Enable addition of iptables rules (default true)
