@@ -63,8 +63,8 @@ Options:
   -G, --group string                          Group for the unix socket (default "docker")
       --help                                  Print usage
   -H, --host list                             Daemon socket(s) to connect to
-      --host-gateway-ip ip                    IP address that the special 'host-gateway' string in --add-host resolves to.
-                                              Defaults to the IP address of the default bridge
+      --host-gateway-ip list                  IP addresses that the special 'host-gateway' string in --add-host resolves to.
+                                              Defaults to the IP addresses of the default bridge
       --http-proxy string                     HTTP proxy URL to use for outgoing traffic
       --https-proxy string                    HTTPS proxy URL to use for outgoing traffic
       --icc                                   Enable inter-container communication (default true)
@@ -839,21 +839,34 @@ For details about how to use this feature, as well as limitations, see
 
 The Docker daemon supports a special `host-gateway` value for the `--add-host`
 flag for the `docker run` and `docker build` commands. This value resolves to
-the host's gateway IP and lets containers connect to services running on the
+addresses on the host, so that containers can connect to services running on the
 host.
 
-By default, `host-gateway` resolves to the IP address of the default bridge.
+By default, `host-gateway` resolves to the IPv4 address of the default bridge,
+and its IPv6 address if it has one.
+
 You can configure this to resolve to a different IP using the `--host-gateway-ip`
 flag for the dockerd command line interface, or the `host-gateway-ip` key in
 the daemon configuration file.
 
+To supply both IPv4 and IPv6 addresses on the command line, use two
+`--host-gateway-ip` options.
+
+To supply addresses in the daemon configuration file, use `"host-gateway-ips"`
+with a JSON array, as shown below. For compatibility with older versions of the
+daemon, a single IP address can also be specified as a JSON string in option
+`"host-gateway-ip"`.
+
 ```console
 $ cat > /etc/docker/daemon.json
-{ "host-gateway-ip": "192.0.2.0" }
+{ "host-gateway-ips": ["192.0.2.1", "2001:db8::1111"]}
 $ sudo systemctl restart docker
 $ docker run -it --add-host host.docker.internal:host-gateway \
   busybox ping host.docker.internal 
-PING host.docker.internal (192.0.2.0): 56 data bytes
+PING host.docker.internal (192.0.2.1): 56 data bytes
+$ docker run -it --add-host host.docker.internal:host-gateway \
+  busybox ping -6 host.docker.internal
+PING host.docker.internal (2001:db8::1111): 56 data bytes
 ```
 
 ### Enable CDI devices
