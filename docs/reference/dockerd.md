@@ -892,7 +892,7 @@ Alternatively, you can set custom locations for CDI specifications using the
 When CDI is enabled for a daemon, you can view the configured CDI specification
 directories using the `docker info` command.
 
-#### <a name="log-format"></a> Daemon logging format
+#### Daemon logging format {#log-format}
 
 The `--log-format` option or "log-format" option in the [daemon configuration file](#daemon-configuration-file)
 lets you set the format for logs produced by the daemon. The logging format should
@@ -1000,7 +1000,7 @@ Example of usage:
 }
 ```
 
-### <a name="feature"></a> Enable feature in the daemon (--feature)
+### Enable feature in the daemon (--feature) {#feature}
 
 The `--feature` option lets you enable or disable a feature in the daemon.
 This option corresponds with the "features" field in the [daemon.json configuration file](#daemon-configuration-file).
