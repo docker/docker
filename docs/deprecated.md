@@ -53,6 +53,7 @@ The following table provides an overview of the current status of deprecated fea
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [Configuration for pushing  non-distributable artifacts](#configuration-for-pushing-non-distributable-artifacts)                   | v28.0      | v29.0  |
 | Deprecated | [`--time` option on `docker stop` and `docker restart`](#--time-option-on-docker-stop-and-docker-restart)                          | v28.0      | -      |
 | Deprecated | [Non-standard fields in image inspect](#non-standard-fields-in-image-inspect)                                                      | v27.0      | v28.0  |
 | Removed    | [API CORS headers](#api-cors-headers)                                                                                              | v27.0      | v28.0  |
@@ -118,6 +119,45 @@ The following table provides an overview of the current status of deprecated fea
 | Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09 |
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
+
+## Configuration for pushing non-distributable artifacts
+
+**Deprecated in Release: v28.0**
+**Target For Removal In Release: v29.0**
+
+Non-distributable artifacts (also called foreign layers) were introduced in
+docker v1.12 to accommodate Windows images for which the EULA did not allow
+layers to be distributed through registries other than those hosted by Microsoft.
+The concept of foreign / non-distributable layers was adopted by the OCI distribution
+spec in [oci#233]. These restrictions were relaxed later to allow distributing
+these images through non-public registries, for which a configuration was added
+in Docker v17.0.6.0.
+
+In 2022, Microsoft updated the EULA and [removed these restrictions][msft-3645201],
+followed by the OCI distribution specification deprecating foreign layers in [oci#965].
+In 2023, Microsoft [removed the use of foreign data layers][msft-3846833] for their images,
+making this functionality obsolete.
+
+Docker v28.0 deprecates the `--allow-nondistributable-artifacts` daemon flag and
+corresponding `allow-nondistributable-artifacts` field in `daemon.json`. Setting
+either option no longer takes an effect, but a deprecation warning log is added
+to raise awareness about the deprecation. This warning is planned to become an
+error in the Docker v29.0.
+
+Users currently using these options are therefore recommended to remove this
+option from their configuration to prevent the daemon from starting when
+upgrading to Docker v29.0.
+
+The `AllowNondistributableArtifactsCIDRs` and `AllowNondistributableArtifactsHostnames`
+fields in the `RegistryConfig` of the `GET /info` API response are also deprecated.
+For API version v1.48 and lower, the fields are still included in the response
+but always `null`. In API version v1.49 and higher, the field will be omitted
+entirely.
+
+[oci#233]: https://github.com/opencontainers/image-spec/pull/233
+[oci#965]: https://github.com/opencontainers/image-spec/pull/965
+[msft-3645201]: https://techcommunity.microsoft.com/blog/containers/announcing-windows-container-base-image-redistribution-rights-change/3645201
+[msft-3846833]: https://techcommunity.microsoft.com/blog/containers/announcing-removal-of-foreign-layers-from-windows-container-images/3846833
 
 ### `--time` option on `docker stop` and `docker restart`
 
