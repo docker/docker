@@ -24,7 +24,6 @@ A self-sufficient runtime for containers.
 
 Options:
       --add-runtime runtime                   Register an additional OCI compatible runtime (default [])
-      --allow-nondistributable-artifacts list Allow push of nondistributable artifacts to registry
       --authorization-plugin list             Authorization plugins to load
       --bip string                            Specify default-bridge IPv4 network
       --bip6 string                           Specify default-bridge IPv6 network
@@ -688,34 +687,6 @@ To set the DNS search domain for all Docker containers, use:
 $ sudo dockerd --dns-search example.com
 ```
 
-### Allow push of non-distributable artifacts
-
-Some images (e.g., Windows base images) contain artifacts whose distribution is
-restricted by license. When these images are pushed to a registry, restricted
-artifacts are not included.
-
-To override this behavior for specific registries, use the
-`--allow-nondistributable-artifacts` option in one of the following forms:
-
-* `--allow-nondistributable-artifacts myregistry:5000` tells the Docker daemon
-  to push non-distributable artifacts to myregistry:5000.
-* `--allow-nondistributable-artifacts 10.1.0.0/16` tells the Docker daemon to
-  push non-distributable artifacts to all registries whose resolved IP address
-  is within the subnet described by the CIDR syntax.
-
-This option can be used multiple times.
-
-This option is useful when pushing images containing non-distributable artifacts
-to a registry on an air-gapped network so hosts on that network can pull the
-images without connecting to another server.
-
-> [!WARNING]
-> Non-distributable artifacts typically have restrictions on how
-> and where they can be distributed and shared. Only use this feature to push
-> artifacts to private registries and ensure that you are in compliance with
-> any terms that cover redistributing non-distributable artifacts.
-{ .warning }
-
 ### Insecure registries
 
 In this section, "registry" refers to a private registry, and `myregistry:5000`
@@ -1086,7 +1057,6 @@ The following is a full example of the allowed configuration options on Linux:
 
 ```json
 {
-  "allow-nondistributable-artifacts": [],
   "authorization-plugins": [],
   "bip": "",
   "bip6": "",
@@ -1234,7 +1204,6 @@ The following is a full example of the allowed configuration options on Windows:
 
 ```json
 {
-  "allow-nondistributable-artifacts": [],
   "authorization-plugins": [],
   "bridge": "",
   "containerd": "\\\\.\\pipe\\containerd-containerd",
@@ -1338,7 +1307,6 @@ The list of currently supported options that can be reconfigured is this:
 | `default-runtime`                  | Configures the runtime to be used if not is specified at container creation.                                |
 | `runtimes`                         | Configures the list of available OCI runtimes that can be used to run containers.                           |
 | `authorization-plugin`             | Specifies the authorization plugins to use.                                                                 |
-| `allow-nondistributable-artifacts` | Specifies a list of registries to which the daemon will push non-distributable artifacts.                   |
 | `insecure-registries`              | Specifies a list of registries that the daemon should consider insecure.                                    |
 | `registry-mirrors`                 | Specifies a list of registry mirrors.                                                                       |
 | `shutdown-timeout`                 | Configures the daemon's existing configuration timeout with a new timeout for shutting down all containers. |
