@@ -18,15 +18,15 @@ aliases:
 # daemon
 
 ```markdown
-Usage: dockerd [OPTIONS]
+Usage:	dockerd [OPTIONS]
 
 A self-sufficient runtime for containers.
 
 Options:
       --add-runtime runtime                   Register an additional OCI compatible runtime (default [])
       --authorization-plugin list             Authorization plugins to load
-      --bip string                            Specify default-bridge IPv4 network
-      --bip6 string                           Specify default-bridge IPv6 network
+      --bip string                            IPv4 address for the default bridge
+      --bip6 string                           IPv6 address for the default bridge
   -b, --bridge string                         Attach containers to a network bridge
       --cdi-spec-dir list                     CDI specification directories to use
       --cgroup-parent string                  Set parent cgroup for all containers
@@ -43,8 +43,8 @@ Options:
   -D, --debug                                 Enable debug mode
       --default-address-pool pool-options     Default address pools for node specific local networks
       --default-cgroupns-mode string          Default mode for containers cgroup namespace ("host" | "private") (default "private")
-      --default-gateway ip                    Container default gateway IPv4 address
-      --default-gateway-v6 ip                 Container default gateway IPv6 address
+      --default-gateway ip                    Default gateway IPv4 address for the default bridge network
+      --default-gateway-v6 ip                 Default gateway IPv6 address for the default bridge network
       --default-ipc-mode string               Default mode for containers ipc ("shareable" | "private") (default "private")
       --default-network-opt mapmap            Default network options (default map[])
       --default-runtime string                Default OCI runtime for containers (default "runc")
@@ -57,8 +57,8 @@ Options:
       --exec-root string                      Root directory for execution state files (default "/var/run/docker")
       --experimental                          Enable experimental features
       --feature map                           Enable feature in the daemon
-      --fixed-cidr string                     IPv4 subnet for fixed IPs
-      --fixed-cidr-v6 string                  IPv6 subnet for fixed IPs
+      --fixed-cidr string                     IPv4 subnet for the default bridge network
+      --fixed-cidr-v6 string                  IPv6 subnet for the default bridge network
   -G, --group string                          Group for the unix socket (default "docker")
       --help                                  Print usage
   -H, --host list                             Daemon socket(s) to connect to
@@ -66,17 +66,17 @@ Options:
                                               Defaults to the IP addresses of the default bridge
       --http-proxy string                     HTTP proxy URL to use for outgoing traffic
       --https-proxy string                    HTTPS proxy URL to use for outgoing traffic
-      --icc                                   Enable inter-container communication (default true)
+      --icc                                   Enable inter-container communication for the default bridge network (default true)
       --init                                  Run an init in the container to forward signals and reap processes
       --init-path string                      Path to the docker-init binary
       --insecure-registry list                Enable insecure registry communication
-      --ip ip                                 Default IP when binding container ports (default 0.0.0.0)
+      --ip ip                                 Host IP for port publishing from the default bridge network (default 0.0.0.0)
       --ip-forward                            Enable IP forwarding in system configuration (default true)
       --ip-forward-no-drop                    Do not set the filter-FORWARD policy to DROP when enabling IP forwarding
-      --ip-masq                               Enable IP masquerading (default true)
-      --ip6tables                             Enable addition of ip6tables rules (experimental)
+      --ip-masq                               Enable IP masquerading for the default bridge network (default true)
+      --ip6tables                             Enable addition of ip6tables rules (default true)
       --iptables                              Enable addition of iptables rules (default true)
-      --ipv6                                  Enable IPv6 networking
+      --ipv6                                  Enable IPv6 networking for the default bridge network
       --label list                            Set key=value labels to the daemon
       --live-restore                          Enable live restore of docker when containers are still running
       --log-driver string                     Default driver for container logs (default "json-file")
@@ -87,7 +87,7 @@ Options:
       --max-concurrent-uploads int            Set the max concurrent uploads (default 5)
       --max-download-attempts int             Set the max download attempts for each pull (default 5)
       --metrics-addr string                   Set default address and port to serve the metrics api on
-      --mtu int                               Set the containers network MTU (default 1500)
+      --mtu int                               Set the MTU for the default "bridge" network (default 1500)
       --network-control-plane-mtu int         Network Control plane MTU (default 1500)
       --no-new-privileges                     Set no-new-privileges by default for new containers
       --no-proxy string                       Comma-separated list of hosts or IP addresses for which the proxy is skipped
