@@ -62,7 +62,7 @@ The following table provides an overview of the current status of deprecated fea
 | Deprecated | [`Container` and `ContainerConfig` fields in Image inspect](#container-and-containerconfig-fields-in-image-inspect)                | v25.0      | v26.0  |
 | Deprecated | [Deprecate legacy API versions](#deprecate-legacy-api-versions)                                                                    | v25.0      | v26.0  |
 | Removed    | [Container short ID in network Aliases field](#container-short-id-in-network-aliases-field)                                        | v25.0      | v26.0  |
-| Deprecated | [IsAutomated field, and `is-automated` filter on `docker search`](#isautomated-field-and-is-automated-filter-on-docker-search)     | v25.0      | v26.0  |
+| Deprecated | [IsAutomated field, and `is-automated` filter on `docker search`](#isautomated-field-and-is-automated-filter-on-docker-search)     | v25.0      | v28.2  |
 | Removed    | [logentries logging driver](#logentries-logging-driver)                                                                            | v24.0      | v25.0  |
 | Removed    | [OOM-score adjust for the daemon](#oom-score-adjust-for-the-daemon)                                                                | v24.0      | v25.0  |
 | Removed    | [BuildKit build information](#buildkit-build-information)                                                                          | v23.0      | v24.0  |
@@ -359,7 +359,7 @@ introduced in v25.0 and should be used instead of the `Aliases` field.
 ### IsAutomated field, and `is-automated` filter on `docker search`
 
 **Deprecated in Release: v25.0**
-**Target For Removal In Release: v26.0**
+**Removed In Release: v28.2**
 
 The `is_automated` field has been deprecated by Docker Hub's search API.
 Consequently, the `IsAutomated` field in image search will always be set
@@ -368,7 +368,7 @@ results.
 
 The `AUTOMATED` column has been removed from the default `docker search`
 and `docker image search` output in v25.0, and the corresponding `IsAutomated`
-templating option will be removed in v26.0.
+templating has been removed in v28.2.
 
 ### Logentries logging driver
 
