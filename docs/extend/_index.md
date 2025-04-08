@@ -35,31 +35,38 @@ Plugins that start successfully are listed as enabled in the output.
 After a plugin is installed, you can use it as an option for another Docker
 operation, such as creating a volume.
 
-In the following example, you install the `sshfs` plugin, verify that it is
+In the following example, you install the [`rclone` plugin](https://rclone.org/docker/), verify that it is
 enabled, and use it to create a volume.
 
 > [!NOTE]
-> This example is intended for instructional purposes only. Once the volume is
-> created, your SSH password to the remote host is exposed as plaintext when
-> inspecting the volume. Delete the volume as soon as you are done with the
-> example.
+> This example is intended for instructional purposes only.
 
-1. Install the `sshfs` plugin.
+1. Set up the pre-requisite directories. By default they must exist on the host at the following locations:
+
+   - `/var/lib/docker-plugins/rclone/config`. Reserved for the `rclone.conf` config file and must exist even if it's empty and the config file is not present.
+   - `/var/lib/docker-plugins/rclone/cache`. Holds the plugin state file as well as optional VFS caches.
+
+2. Install the `rclone` plugin.
 
    ```console
-   $ docker plugin install vieux/sshfs
+   $ docker plugin install rclone/docker-volume-rclone --alias rclone
 
-   Plugin "vieux/sshfs" is requesting the following privileges:
-   - network: [host]
-   - capabilities: [CAP_SYS_ADMIN]
-   Do you grant the above permissions? [y/N] y
-
-   vieux/sshfs
+   Plugin "rclone/docker-volume-rclone" is requesting the following privileges:
+    - network: [host]
+    - mount: [/var/lib/docker-plugins/rclone/config]
+    - mount: [/var/lib/docker-plugins/rclone/cache]
+    - device: [/dev/fuse]
+    - capabilities: [CAP_SYS_ADMIN]
+   Do you grant the above permissions? [y/N] 
    ```
 
-   The plugin requests 2 privileges:
+   The plugin requests 5 privileges:
 
    - It needs access to the `host` network.
+   - Access to pre-requisite directories to mount to store:
+      - Your Rclone config files
+      - Temporary cache data
+   - Gives access to the FUSE (Filesystem in Userspace) device. This is required because Rclone uses FUSE to mount remote storage as if it were a local filesystem.
    - It needs the `CAP_SYS_ADMIN` capability, which allows the plugin to run
      the `mount` command.
 
@@ -68,24 +75,25 @@ enabled, and use it to create a volume.
    ```console
    $ docker plugin ls
 
-   ID                    NAME                  TAG                 DESCRIPTION                   ENABLED
-   69553ca1d789          vieux/sshfs           latest              the `sshfs` plugin            true
+   ID                    NAME                      DESCRIPTION                                ENABLED
+   aede66158353          rclone:latest             Rclone volume plugin for Docker            true
    ```
 
 3. Create a volume using the plugin.
    This example mounts the `/remote` directory on host `1.2.3.4` into a
-   volume named `sshvolume`.
+   volume named `rclonevolume`.
 
    This volume can now be mounted into containers.
 
    ```console
    $ docker volume create \
-     -d vieux/sshfs \
-     --name sshvolume \
-     -o sshcmd=user@1.2.3.4:/remote \
-     -o password=$(cat file_containing_password_for_remote_host)
-
-   sshvolume
+     -d rclone \
+     --name rclonevolume \
+     -o type=sftp \
+     -o path=remote \
+     -o sftp-host=1.2.3.4 \
+     -o sftp-user=user \
+     -o "sftp-password=$(cat file_containing_password_for_remote_host)"
    ```
 
 4. Verify that the volume was created successfully.
@@ -94,21 +102,21 @@ enabled, and use it to create a volume.
    $ docker volume ls
 
    DRIVER              NAME
-   vieux/sshfs         sshvolume
+   rclone         rclonevolume
    ```
 
-5. Start a container that uses the volume `sshvolume`.
+5. Start a container that uses the volume `rclonevolume`.
 
    ```console
-   $ docker run --rm -v sshvolume:/data busybox ls /data
+   $ docker run --rm -v rclonevolume:/data busybox ls /data
 
    <content of /remote on machine 1.2.3.4>
    ```
 
-6. Remove the volume `sshvolume`
+6. Remove the volume `rclonevolume`
 
    ```console
-   $ docker volume rm sshvolume
+   $ docker volume rm rclonevolume
 
    sshvolume
    ```
