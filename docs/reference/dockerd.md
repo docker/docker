@@ -24,6 +24,7 @@ A self-sufficient runtime for containers.
 
 Options:
       --add-runtime runtime                   Register an additional OCI compatible runtime (default [])
+      --allow-direct-routing                  Allow remote access to published ports on container IP addresses
       --authorization-plugin list             Authorization plugins to load
       --bip string                            IPv4 address for the default bridge
       --bip6 string                           IPv6 address for the default bridge
@@ -1057,6 +1058,7 @@ The following is a full example of the allowed configuration options on Linux:
 
 ```json
 {
+  "allow-direct-routing": false,
   "authorization-plugins": [],
   "bip": "",
   "bip6": "",
