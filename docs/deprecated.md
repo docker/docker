@@ -60,7 +60,7 @@ The following table provides an overview of the current status of deprecated fea
 | Removed    | [Graphdriver plugins (experimental)](#graphdriver-plugins-experimental)                                                            | v27.0      | v28.0  |
 | Deprecated | [Unauthenticated TCP connections](#unauthenticated-tcp-connections)                                                                | v26.0      | v28.0  |
 | Removed    | [`Container` and `ContainerConfig` fields in Image inspect](#container-and-containerconfig-fields-in-image-inspect)                | v25.0      | v26.0  |
-| Deprecated | [Deprecate legacy API versions](#deprecate-legacy-api-versions)                                                                    | v25.0      | v26.0  |
+| Removed    | [Deprecate legacy API versions](#deprecate-legacy-api-versions)                                                                    | v25.0      | v26.0  |
 | Removed    | [Container short ID in network Aliases field](#container-short-id-in-network-aliases-field)                                        | v25.0      | v26.0  |
 | Removed    | [IsAutomated field, and `is-automated` filter on `docker search`](#isautomated-field-and-is-automated-filter-on-docker-search)     | v25.0      | v28.2  |
 | Removed    | [logentries logging driver](#logentries-logging-driver)                                                                            | v24.0      | v25.0  |
@@ -320,20 +320,22 @@ Error response from daemon: client version 1.23 is too old. Minimum supported AP
 upgrade your client to a newer version
 ```
 
+Support for API versions lower than `1.24` has been permanently removed in Docker
+Engine v26, and the minimum supported API version will be incrementally raised
+in releases following that.
+
+<!-- keeping the paragraphs below for when we incrementally raise the minimum API version -->
+<!--
 An environment variable (`DOCKER_MIN_API_VERSION`) is introduced that allows
 re-enabling older API versions in the daemon. This environment variable must
 be set in the daemon's environment (for example, through a [systemd override
 file](https://docs.docker.com/config/daemon/systemd/)), and the specified
-API version must be supported by the daemon (`1.12` or higher on Linux, or
-`1.24` or higher on Windows).
-
-Support for API versions lower than `1.24` will be permanently removed in Docker
-Engine v26, and the minimum supported API version will be incrementally raised
-in releases following that.
+API version must be supported by the daemon (`1.24` or higher).
 
 We do not recommend depending on the `DOCKER_MIN_API_VERSION` environment
 variable other than for exceptional cases where it's not possible to update
 old clients, and those clients must be supported.
+-->
 
 ### Container short ID in network Aliases field
 
