@@ -59,7 +59,7 @@ The following table provides an overview of the current status of deprecated fea
 | Removed    | [API CORS headers](#api-cors-headers)                                                                                              | v27.0      | v28.0  |
 | Deprecated | [Graphdriver plugins (experimental)](#graphdriver-plugins-experimental)                                                            | v27.0      | v28.0  |
 | Deprecated | [Unauthenticated TCP connections](#unauthenticated-tcp-connections)                                                                | v26.0      | v28.0  |
-| Deprecated | [`Container` and `ContainerConfig` fields in Image inspect](#container-and-containerconfig-fields-in-image-inspect)                | v25.0      | v26.0  |
+| Removed    | [`Container` and `ContainerConfig` fields in Image inspect](#container-and-containerconfig-fields-in-image-inspect)                | v25.0      | v26.0  |
 | Deprecated | [Deprecate legacy API versions](#deprecate-legacy-api-versions)                                                                    | v25.0      | v26.0  |
 | Removed    | [Container short ID in network Aliases field](#container-short-id-in-network-aliases-field)                                        | v25.0      | v26.0  |
 | Removed    | [IsAutomated field, and `is-automated` filter on `docker search`](#isautomated-field-and-is-automated-filter-on-docker-search)     | v25.0      | v28.2  |
@@ -276,15 +276,15 @@ configuring TLS (or SSH) for the Docker daemon, refer to
 ### `Container` and `ContainerConfig` fields in Image inspect
 
 **Deprecated in Release: v25.0**
-**Target For Removal In Release: v26.0**
+**Removed In Release: v26.0**
 
 The `Container` and `ContainerConfig` fields returned by `docker inspect` are
 mostly an implementation detail of the classic (non-BuildKit) image builder.
 These fields are not portable and are empty when using the
 BuildKit-based builder (enabled by default since v23.0).
-These fields are deprecated in v25.0 and will be omitted starting from v26.0.
-If image configuration of an image is needed, you can obtain it from the
-`Config` field.
+These fields are deprecated in v25.0 and are omitted starting from v26.0 (
+API version v1.45 and up). If image configuration of an image is needed,
+you can obtain it from the `Config` field.
 
 ### Deprecate legacy API versions
 
