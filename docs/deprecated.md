@@ -80,7 +80,7 @@ The following table provides an overview of the current status of deprecated fea
 | Deprecated | [CLI plugins support](#cli-plugins-support)                                                                                        | v20.10     | -      |
 | Deprecated | [Dockerfile legacy `ENV name value` syntax](#dockerfile-legacy-env-name-value-syntax)                                              | v20.10     | -      |
 | Removed    | [`docker build --stream` flag (experimental)](#docker-build---stream-flag-experimental)                                            | v20.10     | v20.10 |
-| Deprecated | [`fluentd-async-connect` log opt](#fluentd-async-connect-log-opt)                                                                  | v20.10     | v28.0  |
+| Removed    | [`fluentd-async-connect` log opt](#fluentd-async-connect-log-opt)                                                                  | v20.10     | v28.0  |
 | Removed    | [Configuration options for experimental CLI features](#configuration-options-for-experimental-cli-features)                        | v19.03     | v23.0  |
 | Removed    | [Pushing and pulling with image manifest v2 schema 1](#pushing-and-pulling-with-image-manifest-v2-schema-1)                        | v19.03     | v28.2  |
 | Removed    | [`docker engine` subcommands](#docker-engine-subcommands)                                                                          | v19.03     | v20.10 |
@@ -723,7 +723,7 @@ fluent#New: AsyncConnect is now deprecated, use Async instead
 ```
 
 Users are encouraged to use the `fluentd-async` option going forward, as support
-for the old option will be removed in a future release.
+for the old option has been removed.
 
 ### Pushing and pulling with image manifest v2 schema 1
 
