@@ -57,7 +57,7 @@ The following table provides an overview of the current status of deprecated fea
 | Deprecated | [`--time` option on `docker stop` and `docker restart`](#--time-option-on-docker-stop-and-docker-restart)                          | v28.0      | -      |
 | Deprecated | [Non-standard fields in image inspect](#non-standard-fields-in-image-inspect)                                                      | v27.0      | v28.0  |
 | Removed    | [API CORS headers](#api-cors-headers)                                                                                              | v27.0      | v28.0  |
-| Deprecated | [Graphdriver plugins (experimental)](#graphdriver-plugins-experimental)                                                            | v27.0      | v28.0  |
+| Removed    | [Graphdriver plugins (experimental)](#graphdriver-plugins-experimental)                                                            | v27.0      | v28.0  |
 | Deprecated | [Unauthenticated TCP connections](#unauthenticated-tcp-connections)                                                                | v26.0      | v28.0  |
 | Deprecated | [`Container` and `ContainerConfig` fields in Image inspect](#container-and-containerconfig-fields-in-image-inspect)                | v25.0      | v26.0  |
 | Deprecated | [Deprecate legacy API versions](#deprecate-legacy-api-versions)                                                                    | v25.0      | v26.0  |
@@ -210,19 +210,13 @@ part of the underlying image's `Config` field, and deprecated:
 **Target For Removal In Release: v28.0**
 
 [Graphdriver plugins](https://github.com/docker/cli/blob/v26.1.4/docs/extend/plugins_graphdriver.md)
-are an experimental feature that allow extending the Docker Engine with custom
+were an experimental feature that allowed extending the Docker Engine with custom
 storage drivers for storing images and containers. This feature was not
-maintained since its inception, and will no longer be supported in upcoming
-releases.
+maintained since its inception.
 
-Support for graphdriver plugins is disabled by default in v27.0, and will be
-removed v28.0. An `DOCKERD_DEPRECATED_GRAPHDRIVER_PLUGINS` environment variable
-is provided in v27.0 to re-enable the feature. This environment variable must
-be set to a non-empty value in the daemon's environment.
-
-The `DOCKERD_DEPRECATED_GRAPHDRIVER_PLUGINS` environment variable, along with
-support for graphdriver plugins, will be removed in v28.0. Users of this feature
-are recommended to instead configure the Docker Engine to use the [containerd image store](https://docs.docker.com/storage/containerd/)
+Support for graphdriver plugins was disabled by default in v27.0, and removed
+in v28.0. Users of this feature are recommended to instead configure the Docker
+Engine to use the [containerd image store](https://docs.docker.com/storage/containerd/)
 and a custom [snapshotter](https://github.com/containerd/containerd/tree/v1.7.18/docs/snapshotters)
 
 ### API CORS headers
