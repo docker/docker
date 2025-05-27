@@ -55,7 +55,7 @@ The following table provides an overview of the current status of deprecated fea
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
 | Deprecated | [Configuration for pushing  non-distributable artifacts](#configuration-for-pushing-non-distributable-artifacts)                   | v28.0      | v29.0  |
 | Deprecated | [`--time` option on `docker stop` and `docker restart`](#--time-option-on-docker-stop-and-docker-restart)                          | v28.0      | -      |
-| Deprecated | [Non-standard fields in image inspect](#non-standard-fields-in-image-inspect)                                                      | v27.0      | v28.0  |
+| Removed    | [Non-standard fields in image inspect](#non-standard-fields-in-image-inspect)                                                      | v27.0      | v28.2  |
 | Removed    | [API CORS headers](#api-cors-headers)                                                                                              | v27.0      | v28.0  |
 | Removed    | [Graphdriver plugins (experimental)](#graphdriver-plugins-experimental)                                                            | v27.0      | v28.0  |
 | Deprecated | [Unauthenticated TCP connections](#unauthenticated-tcp-connections)                                                                | v26.0      | v28.0  |
@@ -172,7 +172,7 @@ Users are encouraged to migrate to using the `--timeout` option instead.
 ### Non-standard fields in image inspect
 
 **Deprecated in Release: v27.0**
-**Target For Removal In Release: v28.0**
+**Removed In Release: v28.2**
 
 The `Config` field returned shown in `docker image inspect` (and as returned by
 the `GET /images/{name}/json` API endpoint) returns additional fields that are
@@ -184,8 +184,9 @@ but are not omitted in the response when left empty. As these fields were not
 intended to be part of the image configuration response, they are deprecated,
 and will be removed from the API in thee next release.
 
-The following fields are currently included in the API response, but are not
-part of the underlying image's `Config` field, and deprecated:
+The following fields are not part of the underlying image's `Config` field, and
+removed in the API response for API v1.50 and newer, corresponding with v28.2.
+They continue to be included when using clients that use an older API version:
 
 - `Hostname`
 - `Domainname`
@@ -196,9 +197,9 @@ part of the underlying image's `Config` field, and deprecated:
 - `OpenStdin`
 - `StdinOnce`
 - `Image`
-- `NetworkDisabled` (already omitted unless set)
-- `MacAddress` (already omitted unless set)
-- `StopTimeout` (already omitted unless set)
+- `NetworkDisabled` (omitted unless set on older API versions)
+- `MacAddress` (omitted unless set on older API versions)
+- `StopTimeout` (omitted unless set on older API versions)
 
 [Docker image specification]: https://github.com/moby/docker-image-spec/blob/v1.3.1/specs-go/v1/image.go#L19-L32
 [OCI image specification]: https://github.com/opencontainers/image-spec/blob/v1.1.0/specs-go/v1/config.go#L24-L62
