@@ -71,7 +71,7 @@ The following table provides an overview of the current status of deprecated fea
 | Removed    | [Btrfs storage driver on CentOS 7 and RHEL 7](#btrfs-storage-driver-on-centos-7-and-rhel-7)                                        | v20.10     | v23.0  |
 | Removed    | [Support for encrypted TLS private keys](#support-for-encrypted-tls-private-keys)                                                  | v20.10     | v23.0  |
 | Removed    | [Kubernetes stack and context support](#kubernetes-stack-and-context-support)                                                      | v20.10     | v23.0  |
-| Deprecated | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | -      |
+| Removed    | [Pulling images from non-compliant image registries](#pulling-images-from-non-compliant-image-registries)                          | v20.10     | v28.2  |
 | Removed    | [Linux containers on Windows (LCOW)](#linux-containers-on-windows-lcow-experimental)                                               | v20.10     | v23.0  |
 | Deprecated | [BLKIO weight options with cgroups v1](#blkio-weight-options-with-cgroups-v1)                                                      | v20.10     | -      |
 | Removed    | [Kernel memory limit](#kernel-memory-limit)                                                                                        | v20.10     | v23.0  |
@@ -547,6 +547,7 @@ CLI configuration file are no longer used, and ignored.
 ### Pulling images from non-compliant image registries
 
 **Deprecated in Release: v20.10**
+**Removed in Release: v28.2**
 
 Docker Engine v20.10 and up includes optimizations to verify if images in the
 local image cache need updating before pulling, preventing the Docker Engine
@@ -556,7 +557,7 @@ image registry to conform to the [Open Container Initiative Distribution Specifi
 While most registries conform to the specification, we encountered some registries
 to be non-compliant, resulting in `docker pull` to fail.
 
-As a temporary solution, Docker Engine v20.10 includes a fallback mechanism to
+As a temporary solution, Docker Engine v20.10 added a fallback mechanism to
 allow `docker pull` to be functional when using a non-compliant registry. A
 warning message is printed in this situation:
 
@@ -565,16 +566,13 @@ warning message is printed in this situation:
             pull by tag. This fallback is DEPRECATED, and will be removed in a future
             release.
 
-The fallback is added to allow users to either migrate their images to a compliant
-registry, or for these registries to become compliant.
+The fallback was added to allow users to either migrate their images to a
+compliant registry, or for these registries to become compliant.
 
-Note that this fallback only addresses failures on `docker pull`. Other commands,
-such as `docker stack deploy`, or pulling images with `containerd` will continue
-to fail.
-
-Given that other functionality is still broken with these registries, we consider
-this fallback a _temporary_ solution, and will remove the fallback in an upcoming
-major release.
+GitHub deprecated the legacy `docker.pkg.github.com` registry, and it was
+[sunset on Feb 24th, 2025](https://github.blog/changelog/2025-01-23-legacy-docker-registry-closing-down/)
+in favor of GitHub Container Registry (GHCR, ghcr.io), making this fallback
+no longer needed.
 
 ### Linux containers on Windows (LCOW) (experimental)
 
