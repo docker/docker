@@ -53,6 +53,7 @@ The following table provides an overview of the current status of deprecated fea
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [Empty/nil fields in image Config from inspect API](#emptynil-fields-in-image-config-from-inspect-api)                             | v28.3      | v29.0  |
 | Deprecated | [Configuration for pushing  non-distributable artifacts](#configuration-for-pushing-non-distributable-artifacts)                   | v28.0      | v29.0  |
 | Deprecated | [`--time` option on `docker stop` and `docker restart`](#--time-option-on-docker-stop-and-docker-restart)                          | v28.0      | -      |
 | Removed    | [Non-standard fields in image inspect](#non-standard-fields-in-image-inspect)                                                      | v27.0      | v28.2  |
@@ -120,7 +121,34 @@ The following table provides an overview of the current status of deprecated fea
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
 
-## Configuration for pushing non-distributable artifacts
+### Empty/nil fields in image Config from inspect API
+
+**Deprecated in Release: v28.3**
+**Target For Removal In Release: v29.0**
+
+The `Config` field returned by `docker image inspect` (and the `GET /images/{name}/json`
+API endpoint) currently includes certain fields even when they are empty or nil.
+Starting in Docker v29.0, the following fields will be omitted from the API response
+when they contain empty or default values:
+
+- `Cmd`
+- `Entrypoint`
+- `Env`
+- `Labels`
+- `OnBuild`
+- `User`
+- `Volumes`
+- `WorkingDir`
+
+Applications consuming the image inspect API should be updated to handle the
+absence of these fields gracefully, treating missing fields as having their
+default/empty values.
+
+For API version corresponding to Docker v29.0, these fields will be omitted when
+empty. They will continue to be included when using clients that request an older
+API version for backward compatibility.
+
+### Configuration for pushing non-distributable artifacts
 
 **Deprecated in Release: v28.0**
 **Target For Removal In Release: v29.0**
