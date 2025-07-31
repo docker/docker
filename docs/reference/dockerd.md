@@ -29,6 +29,7 @@ Options:
       --bip string                            IPv4 address for the default bridge
       --bip6 string                           IPv6 address for the default bridge
   -b, --bridge string                         Attach containers to a network bridge
+      --bridge-accept-fwmark string           In bridge networks, accept packets with this firewall mark/mask
       --cdi-spec-dir list                     CDI specification directories to use
       --cgroup-parent string                  Set parent cgroup for all containers
       --config-file string                    Daemon configuration file (default "/etc/docker/daemon.json")
@@ -58,6 +59,7 @@ Options:
       --exec-root string                      Root directory for execution state files (default "/var/run/docker")
       --experimental                          Enable experimental features
       --feature map                           Enable feature in the daemon
+      --firewall-backend string               Firewall backend to use, iptables or nftables
       --fixed-cidr string                     IPv4 subnet for the default bridge network
       --fixed-cidr-v6 string                  IPv6 subnet for the default bridge network
   -G, --group string                          Group for the unix socket (default "docker")
@@ -1070,6 +1072,7 @@ The following is a full example of the allowed configuration options on Linux:
   "bip": "",
   "bip6": "",
   "bridge": "",
+  "bridge-accept-fwmark": "",
   "builder": {
     "gc": {
       "enabled": true,
@@ -1120,6 +1123,7 @@ The following is a full example of the allowed configuration options on Linux:
     "cdi": true,
     "containerd-snapshotter": true
   },
+  "firewall-backend": "",
   "fixed-cidr": "",
   "fixed-cidr-v6": "",
   "group": "",
