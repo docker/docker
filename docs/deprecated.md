@@ -63,6 +63,7 @@ The following table provides an overview of the current status of deprecated fea
 | Removed    | [`Container` and `ContainerConfig` fields in Image inspect](#container-and-containerconfig-fields-in-image-inspect)                | v25.0      | v26.0  |
 | Removed    | [Deprecate legacy API versions](#deprecate-legacy-api-versions)                                                                    | v25.0      | v26.0  |
 | Removed    | [Container short ID in network Aliases field](#container-short-id-in-network-aliases-field)                                        | v25.0      | v26.0  |
+| Removed    | [Mount `bind-nonrecursive` option](#mount-bind-nonrecursive-option)                                                                | v25.0      | v29.0  |
 | Removed    | [IsAutomated field, and `is-automated` filter on `docker search`](#isautomated-field-and-is-automated-filter-on-docker-search)     | v25.0      | v28.2  |
 | Removed    | [logentries logging driver](#logentries-logging-driver)                                                                            | v24.0      | v25.0  |
 | Removed    | [OOM-score adjust for the daemon](#oom-score-adjust-for-the-daemon)                                                                | v24.0      | v25.0  |
@@ -380,6 +381,26 @@ and `docker run` flag `--network-alias`.
 A new field `DNSNames` containing the container name (if one was specified),
 the hostname, the network aliases, as well as the container short ID, has been
 introduced in v25.0 and should be used instead of the `Aliases` field.
+
+### Mount `bind-nonrecursive` option
+
+**Deprecated in Release: v25.0**
+**Removed In Release: v29.0**
+
+The `bind-nonrecursive` option was replaced with the [`bind-recursive`]
+option (see [cli-4316], [cli-4671]). The option was still accepted, but
+printed a deprecation warning:
+
+```console
+bind-nonrecursive is deprecated, use bind-recursive=disabled instead
+```
+
+In the v29.0 release, this warning is removed, and returned as an error.
+Users should use the equivalent `bind-recursive=disabled` option instead.
+
+[`bind-recursive`]: https://docs.docker.com/engine/storage/bind-mounts/#recursive-mounts
+[cli-4316]: https://github.com/docker/cli/pull/4316
+[cli-4671]: https://github.com/docker/cli/pull/4671
 
 ### IsAutomated field, and `is-automated` filter on `docker search`
 
