@@ -53,6 +53,7 @@ The following table provides an overview of the current status of deprecated fea
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [Legacy links environment variables](#legacy-links-environment-variables)                                                          | v28.4      | v30.0  |
 | Deprecated | [Special handling for quoted values for TLS flags](#special-handling-for-quoted-values-for-tls-flags)                              | v28.4      | v29.0  |
 | Deprecated | [Empty/nil fields in image Config from inspect API](#emptynil-fields-in-image-config-from-inspect-api)                             | v28.3      | v29.0  |
 | Deprecated | [Configuration for pushing  non-distributable artifacts](#configuration-for-pushing-non-distributable-artifacts)                   | v28.0      | v29.0  |
@@ -123,6 +124,25 @@ The following table provides an overview of the current status of deprecated fea
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
 
+### Legacy links environment variables
+
+**Deprecated in Release: v28.4**
+**Disabled by default in Release: v29.0**
+**Target For Removal In Release: v30.0**
+
+Containers attached to the default bridge network can specify "legacy links" (e.g.
+using `--links` on the CLI) to get access to other containers attached to that
+network. The linking container (i.e., the container created with `--links`) automatically
+gets environment variables that specify the IP address and port mappings of the linked
+container. However, these environment variables are prefixed with the linked
+container's names, making them impractical.
+
+Starting with Docker v29.0, these environment variables are no longer set by
+default. Users who still depend on them can start Docker Engine with the
+environment variable `DOCKER_KEEP_DEPRECATED_LEGACY_LINKS_ENV_VARS=1` set.
+
+Support for legacy links environment variables, as well as the `DOCKER_KEEP_DEPRECATED_LEGACY_LINKS_ENV_VARS`
+will be removed in Docker Engine v30.0.
 
 ### Special handling for quoted values for TLS flags
 
