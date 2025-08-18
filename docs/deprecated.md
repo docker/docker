@@ -53,6 +53,7 @@ The following table provides an overview of the current status of deprecated fea
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [Special handling for quoted values for TLS flags](#special-handling-for-quoted-values-for-tls-flags)                              | v28.4      | v29.0  |
 | Deprecated | [Empty/nil fields in image Config from inspect API](#emptynil-fields-in-image-config-from-inspect-api)                             | v28.3      | v29.0  |
 | Deprecated | [Configuration for pushing  non-distributable artifacts](#configuration-for-pushing-non-distributable-artifacts)                   | v28.0      | v29.0  |
 | Deprecated | [`--time` option on `docker stop` and `docker restart`](#--time-option-on-docker-stop-and-docker-restart)                          | v28.0      | -      |
@@ -121,6 +122,39 @@ The following table provides an overview of the current status of deprecated fea
 | Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09 |
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
+
+
+### Special handling for quoted values for TLS flags
+
+**Deprecated in Release: v28.4**
+**Target For Removal In Release: v29.0**
+
+The `--tlscacert`, `--tlscert`, and `--tlskey` command-line flags had
+non-standard behavior for handling values contained in quotes (`"` or `'`).
+Normally, quotes are handled by the shell, for example, in the following
+example, the shell takes care of handling quotes before passing the values
+to the `docker` CLI:
+
+```console
+docker --some-option "some-value-in-quotes" ...
+```
+
+However, when passing values using an equal sign (`=`), this may not happen
+and values may be handled including quotes;
+
+```console
+docker --some-option="some-value-in-quotes" ...
+```
+
+This caused issues with "Docker Machine", which used this format as part
+of its `docker-machine config` output, and the CLI carried special, non-standard
+handling for these flags.
+
+Docker Machine reached EOL, and this special handling made the processing
+of flag values inconsistent with other flags used, so this behavior is
+deprecated. Users depending on this behavior are recommended to specify
+the quoted values using a space between the flag and its value, as illustrated
+above.
 
 ### Empty/nil fields in image Config from inspect API
 
