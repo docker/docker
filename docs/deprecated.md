@@ -126,9 +126,11 @@ The following table provides an overview of the current status of deprecated fea
 
 ### Legacy links environment variables
 
-**Deprecated in Release: v28.4**
-**Disabled by default in Release: v29.0**
-**Target For Removal In Release: v30.0**
+**Deprecated in release: v28.4**
+
+**Disabled by default in release: v29.0**
+
+**Target for removal in release: v30.0**
 
 Containers attached to the default bridge network can specify "legacy links" (e.g.
 using `--links` on the CLI) to get access to other containers attached to that
@@ -146,8 +148,9 @@ will be removed in Docker Engine v30.0.
 
 ### Special handling for quoted values for TLS flags
 
-**Deprecated in Release: v28.4**
-**Target For Removal In Release: v29.0**
+**Deprecated in release: v28.4**
+
+**Target for removal in release: v29.0**
 
 The `--tlscacert`, `--tlscert`, and `--tlskey` command-line flags had
 non-standard behavior for handling values contained in quotes (`"` or `'`).
@@ -178,8 +181,9 @@ above.
 
 ### Empty/nil fields in image Config from inspect API
 
-**Deprecated in Release: v28.3**
-**Target For Removal In Release: v29.0**
+**Deprecated in release: v28.3**
+
+**Target for removal in release: v29.0**
 
 The `Config` field returned by `docker image inspect` (and the `GET /images/{name}/json`
 API endpoint) currently includes certain fields even when they are empty or nil.
@@ -205,8 +209,9 @@ API version for backward compatibility.
 
 ### Configuration for pushing non-distributable artifacts
 
-**Deprecated in Release: v28.0**
-**Target For Removal In Release: v29.0**
+**Deprecated in release: v28.0**
+
+**Target for removal in release: v29.0**
 
 Non-distributable artifacts (also called foreign layers) were introduced in
 docker v1.12 to accommodate Windows images for which the EULA did not allow
@@ -244,7 +249,7 @@ entirely.
 
 ### `--time` option on `docker stop` and `docker restart`
 
-**Deprecated in Release: v28.0**
+**Deprecated in release: v28.0**
 
 The `--time` option for the `docker stop`, `docker container stop`, `docker restart`,
 and `docker container restart` commands has been renamed to `--timeout` for
@@ -254,8 +259,9 @@ Users are encouraged to migrate to using the `--timeout` option instead.
 
 ### Non-standard fields in image inspect
 
-**Deprecated in Release: v27.0**
-**Removed In Release: v28.2**
+**Deprecated in release: v27.0**
+
+**Removed in release: v28.2**
 
 The `Config` field returned shown in `docker image inspect` (and as returned by
 the `GET /images/{name}/json` API endpoint) returns additional fields that are
@@ -289,9 +295,11 @@ They continue to be included when using clients that use an older API version:
 
 ### Graphdriver plugins (experimental)
 
-**Deprecated in Release: v27.0**
-**Disabled by default in Release: v27.0**
-**Target For Removal In Release: v28.0**
+**Deprecated in**: v27.0**. 
+
+**Disabled by default in release: v27.0**
+
+**Target for removal in release: v28.0**
 
 [Graphdriver plugins](https://github.com/docker/cli/blob/v26.1.4/docs/extend/plugins_graphdriver.md)
 were an experimental feature that allowed extending the Docker Engine with custom
@@ -305,8 +313,10 @@ and a custom [snapshotter](https://github.com/containerd/containerd/tree/v1.7.18
 
 ### API CORS headers
 
-**Deprecated in Release: v27.0**
-**Disabled by default in Release: v27.0**
+**Deprecated in release: v27.0**
+
+**Disabled by default in release: v27.0**
+
 **Removed in release: v28.0**
 
 The `api-cors-header` configuration option for the Docker daemon is insecure,
@@ -326,8 +336,9 @@ If you need to access the API through a browser, use a reverse proxy.
 
 ### Unauthenticated TCP connections
 
-**Deprecated in Release: v26.0**
-**Target For Removal In Release: v28.0**
+**Deprecated in release: v26.0**
+
+**Target for removal in release: v28.0**
 
 Configuring the Docker daemon to listen on a TCP address will require mandatory
 TLS verification. This change aims to ensure secure communication by preventing
@@ -353,8 +364,9 @@ configuring TLS (or SSH) for the Docker daemon, refer to
 
 ### `Container` and `ContainerConfig` fields in Image inspect
 
-**Deprecated in Release: v25.0**
-**Removed In Release: v26.0**
+**Deprecated in release: v25.0**
+
+**Removed in release: v26.0**
 
 The `Container` and `ContainerConfig` fields returned by `docker inspect` are
 mostly an implementation detail of the classic (non-BuildKit) image builder.
@@ -366,8 +378,9 @@ you can obtain it from the `Config` field.
 
 ### Deprecate legacy API versions
 
-**Deprecated in Release: v25.0**
-**Target For Removal In Release: v26.0**
+**Deprecated in release: v25.0**
+
+**Target for removal in release: v26.0**
 
 The Docker daemon provides a versioned API for backward compatibility with old
 clients. Docker clients can perform API-version negotiation to select the most
@@ -423,8 +436,9 @@ old clients, and those clients must be supported.
 
 ### Container short ID in network Aliases field
 
-**Deprecated in Release: v25.0**
-**Removed In Release: v26.0**
+**Deprecated in release: v25.0**
+
+**Removed in release: v26.0**
 
 The `Aliases` field returned by `docker inspect` contains the container short
 ID once the container is started. This behavior is deprecated in v25.0 but
@@ -438,8 +452,9 @@ introduced in v25.0 and should be used instead of the `Aliases` field.
 
 ### Mount `bind-nonrecursive` option
 
-**Deprecated in Release: v25.0**
-**Removed In Release: v29.0**
+**Deprecated in release: v25.0**
+
+**Removed in release: v29.0**
 
 The `bind-nonrecursive` option was replaced with the [`bind-recursive`]
 option (see [cli-4316], [cli-4671]). The option was still accepted, but
@@ -458,8 +473,9 @@ Users should use the equivalent `bind-recursive=disabled` option instead.
 
 ### IsAutomated field, and `is-automated` filter on `docker search`
 
-**Deprecated in Release: v25.0**
-**Removed In Release: v28.2**
+**Deprecated in release: v25.0**
+
+**Removed in release: v28.2**
 
 The `is_automated` field has been deprecated by Docker Hub's search API.
 Consequently, the `IsAutomated` field in image search will always be set
@@ -472,8 +488,9 @@ templating has been removed in v28.2.
 
 ### Logentries logging driver
 
-**Deprecated in Release: v24.0**
-**Removed in Release: v25.0**
+**Deprecated in release: v24.0**
+
+**Removed in release: v25.0**
 
 The logentries service SaaS was shut down on November 15, 2022, rendering
 this logging driver non-functional. Users should no longer use this logging
@@ -483,8 +500,9 @@ after upgrading.
 
 ### OOM-score adjust for the daemon
 
-**Deprecated in Release: v24.0**
-**Removed in Release: v25.0**
+**Deprecated in release: v24.0**
+
+**Removed in release: v25.0**
 
 The `oom-score-adjust` option was added to prevent the daemon from being
 OOM-killed before other processes. This option was mostly added as a
@@ -503,8 +521,9 @@ the daemon.
 
 ### BuildKit build information
 
-**Deprecated in Release: v23.0**
-**Removed in Release: v24.0**
+**Deprecated in release: v23.0**
+
+**Removed in release: v24.0**
 
 [Build information](https://github.com/moby/buildkit/blob/v0.11/docs/buildinfo.md)
 structures have been introduced in [BuildKit v0.10.0](https://github.com/moby/buildkit/releases/tag/v0.10.0)
@@ -515,7 +534,7 @@ information is also embedded into the image configuration if one is generated.
 
 ### Legacy builder for Linux images
 
-**Deprecated in Release: v23.0**
+**Deprecated in release: v23.0**
 
 Docker v23.0 now uses BuildKit by default to build Linux images, and uses the
 [Buildx](https://docs.docker.com/buildx/working-with-buildx/) CLI component for
@@ -546,7 +565,7 @@ you to report issues in the [BuildKit issue tracker on GitHub](https://github.co
 
 ### Legacy builder fallback
 
-**Deprecated in Release: v23.0**
+**Deprecated in release: v23.0**
 
 [Docker v23.0 now uses BuildKit by default to build Linux images](#legacy-builder-for-linux-images),
 which requires the Buildx component to build images with BuildKit. There may be
@@ -592,7 +611,7 @@ be possible in a future release.
 
 ### Btrfs storage driver on CentOS 7 and RHEL 7
 
-**Removed in Release: v23.0**
+**Removed in release: v23.0**
 
 The `btrfs` storage driver on CentOS and RHEL was provided as a technology preview
 by CentOS and RHEL, but has been deprecated since the [Red Hat Enterprise Linux 7.4 release](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/storage_administration_guide/ch-btrfs),
@@ -604,9 +623,9 @@ of Docker will no longer provide this driver.
 
 ### Support for encrypted TLS private keys
 
-**Deprecated in Release: v20.10**
+**Deprecated in release: v20.10**
 
-**Removed in Release: v23.0**
+**Removed in release: v23.0**
 
 Use of encrypted TLS private keys has been deprecated, and has been removed.
 Golang has deprecated support for legacy PEM encryption (as specified in
@@ -620,8 +639,9 @@ to decrypt the private key, and store it un-encrypted to continue using it.
 
 ### Kubernetes stack and context support
 
-**Deprecated in Release: v20.10**
-**Removed in Release: v23.0**
+**Deprecated in release: v20.10**
+
+**Removed in release: v23.0**
 
 Following the deprecation of [Compose on Kubernetes](https://github.com/docker/compose-on-kubernetes),
 support for Kubernetes in the `stack` and `context` commands has been removed from
@@ -649,8 +669,9 @@ CLI configuration file are no longer used, and ignored.
 
 ### Pulling images from non-compliant image registries
 
-**Deprecated in Release: v20.10**
-**Removed in Release: v28.2**
+**Deprecated in release: v20.10**
+
+**Removed in release: v28.2**
 
 Docker Engine v20.10 and up includes optimizations to verify if images in the
 local image cache need updating before pulling, preventing the Docker Engine
@@ -679,8 +700,9 @@ no longer needed.
 
 ### Linux containers on Windows (LCOW) (experimental)
 
-**Deprecated in Release: v20.10**
-**Removed in Release: v23.0**
+**Deprecated in release: v20.10**
+
+**Removed in release: v23.0**
 
 The experimental feature to run Linux containers on Windows (LCOW) was introduced
 as a technical preview in Docker 17.09. While many enhancements were made after
@@ -692,7 +714,7 @@ Developers who want to run Linux workloads on a Windows host are encouraged to u
 
 ### BLKIO weight options with cgroups v1
 
-**Deprecated in Release: v20.10**
+**Deprecated in release: v20.10**
 
 Specifying blkio weight (`docker run --blkio-weight` and `docker run --blkio-weight-device`)
 is now marked as deprecated when using cgroups v1 because the corresponding features
@@ -702,8 +724,9 @@ When using cgroups v2, the `--blkio-weight` options are implemented using
 
 ### Kernel memory limit
 
-**Deprecated in Release: v20.10**
-**Removed in Release: v23.0**
+**Deprecated in release: v20.10**
+
+**Removed in release: v23.0**
 
 Specifying kernel memory limit (`docker run --kernel-memory`) is no longer supported
 because the [Linux kernel deprecated `kmem.limit_in_bytes` in v5.4](https://github.com/torvalds/linux/commit/0158115f702b0ba208ab0b5adf44cae99b3ebcc7).
@@ -729,8 +752,9 @@ take no effect.
 
 ### Classic Swarm and overlay networks using cluster store
 
-**Deprecated in Release: v20.10**
-**Removed in Release: v23.0**
+**Deprecated in release: v20.10**
+
+**Removed in release: v23.0**
 
 Standalone ("classic") Swarm has been deprecated, and with that the use of overlay
 networks using an external key/value store. The corresponding`--cluster-advertise`,
@@ -738,8 +762,9 @@ networks using an external key/value store. The corresponding`--cluster-advertis
 
 ### Support for legacy `~/.dockercfg` configuration files
 
-**Deprecated in Release: v20.10**
-**Removed in Release: v23.0**
+**Deprecated in release: v20.10**
+
+**Removed in release: v23.0**
 
 The Docker CLI up until v1.7.0 used the `~/.dockercfg` file to store credentials
 after authenticating to a registry (`docker login`). Docker v1.7.0 replaced this
@@ -754,9 +779,9 @@ been removed.
 
 ### Configuration options for experimental CLI features
 
-**Deprecated in Release: v19.03**
+**Deprecated in release: v19.03**
 
-**Removed in Release: v23.0**
+**Removed in release: v23.0**
 
 The `DOCKER_CLI_EXPERIMENTAL` environment variable and the corresponding `experimental`
 field in the CLI configuration file are deprecated. Experimental features are
@@ -768,13 +793,13 @@ format.
 
 ### CLI plugins support
 
-**Deprecated in Release: v20.10**
+**Deprecated in release: v20.10**
 
 CLI Plugin API is now marked as deprecated.
 
 ### Dockerfile legacy `ENV name value` syntax
 
-**Deprecated in Release: v20.10**
+**Deprecated in release: v20.10**
 
 The Dockerfile `ENV` instruction allows values to be set using either `ENV name=value`
 or `ENV name value`. The latter (`ENV name value`) form can be ambiguous, for example,
@@ -798,8 +823,9 @@ ENV ONE="" TWO="" THREE="world"
 
 ### `docker build --stream` flag (experimental)
 
-**Deprecated in Release: v20.10**
-**Removed in Release: v20.10**
+**Deprecated in release: v20.10**
+
+**Removed in release: v20.10**
 
 Docker v17.07 introduced an experimental `--stream` flag on `docker build` which
 allowed the build-context to be incrementally sent to the daemon, instead of
@@ -815,8 +841,9 @@ files.
 
 ### `fluentd-async-connect` log opt
 
-**Deprecated in Release: v20.10**
-**Removed in Release: v28.0**
+**Deprecated in release: v20.10**
+
+**Removed in release: v28.0**
 
 The `--log-opt fluentd-async-connect` option for the fluentd logging driver is
 [deprecated in favor of `--log-opt fluentd-async`](https://github.com/moby/moby/pull/39086).
@@ -831,11 +858,11 @@ for the old option has been removed.
 
 ### Pushing and pulling with image manifest v2 schema 1
 
-**Deprecated in Release: v19.03**
+**Deprecated in release: v19.03**
 
-**Disabled by default in Release: v26.0**
+**Disabled by default in release: v26.0**
 
-**Removed in Release: v28.2**
+**Removed in release: v28.2**
 
 
 The image manifest [v2 schema 1](https://distribution.github.io/distribution/spec/deprecated-schema-v1/)
@@ -860,9 +887,9 @@ More information at https://docs.docker.com/go/deprecated-image-specs/
 
 ### `docker engine` subcommands
 
-**Deprecated in Release: v19.03**
+**Deprecated in release: v19.03**
 
-**Removed in Release: v20.10**
+**Removed in release: v20.10**
 
 The `docker engine activate`, `docker engine check`, and `docker engine update`
 provided an alternative installation method to upgrade Docker Community engines
@@ -875,9 +902,9 @@ standard package managers.
 
 ### Top-level `docker deploy` subcommand (experimental)
 
-**Deprecated in Release: v19.03**
+**Deprecated in release: v19.03**
 
-**Removed in Release: v20.10**
+**Removed in release: v20.10**
 
 The top-level `docker deploy` command (using the "Docker Application Bundle"
 (.dab) file format was introduced as an experimental feature in Docker 1.13 /
@@ -886,9 +913,9 @@ subcommand.
 
 ### `docker stack deploy` using "dab" files (experimental)
 
-**Deprecated in Release: v19.03**
+**Deprecated in release: v19.03**
 
-**Removed in Release: v20.10**
+**Removed in release: v20.10**
 
 With no development being done on this feature, and no active use of the file
 format, support for the DAB file format and the top-level `docker deploy` command
@@ -897,8 +924,9 @@ using compose files.
 
 ### Support for the `overlay2.override_kernel_check` storage option
 
-**Deprecated in Release: v19.03**
-**Removed in Release: v24.0**
+**Deprecated in release: v19.03**
+
+**Removed in release: v24.0**
 
 This daemon configuration option disabled the Linux kernel version check used
 to detect if the kernel supported OverlayFS with multiple lower dirs, which is
@@ -908,8 +936,9 @@ option was no longer used.
 
 ### AuFS storage driver
 
-**Deprecated in Release: v19.03**
-**Removed in Release: v24.0**
+**Deprecated in release: v19.03**
+
+**Removed in release: v24.0**
 
 The `aufs` storage driver is deprecated in favor of `overlay2`, and has been
 removed in a Docker Engine v24.0. Users of the `aufs` storage driver must
@@ -927,8 +956,9 @@ maintenance of the `aufs` storage driver.
 
 ### Legacy overlay storage driver
 
-**Deprecated in Release: v18.09**
-**Removed in Release: v24.0**
+**Deprecated in release: v18.09**
+
+**Removed in release: v24.0**
 
 The `overlay` storage driver is deprecated in favor of the `overlay2` storage
 driver, which has all the benefits of `overlay`, without its limitations (excessive
@@ -943,9 +973,11 @@ backported), there is no reason to keep maintaining the `overlay` storage driver
 
 ### Device mapper storage driver
 
-**Deprecated in Release: v18.09**
-**Disabled by default in Release: v23.0**
-**Removed in Release: v25.0**
+**Deprecated in release: v18.09**
+
+**Disabled by default in release: v23.0**
+
+**Removed in release: v25.0**
 
 The `devicemapper` storage driver is deprecated in favor of `overlay2`, and has
 been removed in Docker Engine v25.0. Users of the `devicemapper` storage driver
@@ -961,9 +993,9 @@ is no reason to continue maintenance of the `devicemapper` storage driver.
 
 ### Use of reserved namespaces in engine labels
 
-**Deprecated in Release: v18.06**
+**Deprecated in release: v18.06**
 
-**Removed In Release: v20.10**
+**Removed in release: v20.10**
 
 The namespaces `com.docker.*`, `io.docker.*`, and `org.dockerproject.*` in engine labels
 were always documented to be reserved, but there was never any enforcement.
@@ -975,7 +1007,7 @@ use, and will error instead in v20.10 and above.
 
 **Disabled In Release: v17.12**
 
-**Removed In Release: v19.03**
+**Removed in release: v19.03**
 
 The `--disable-legacy-registry` flag was disabled in Docker 17.12 and will print
 an error when used. For this error to be printed, the flag itself is still present,
@@ -983,9 +1015,9 @@ but hidden. The flag has been removed in Docker 19.03.
 
 ### Interacting with V1 registries
 
-**Disabled By Default In Release: v17.06**
+**Disabled by default in release: v17.06**
 
-**Removed In Release: v17.12**
+**Removed in release: v17.12**
 
 Version 1.8.3 added a flag (`--disable-legacy-registry=false`) which prevents the
 Docker daemon from `pull`, `push`, and `login` operations against v1
@@ -1002,7 +1034,7 @@ start when set.
 
 ### Asynchronous `service create` and `service update` as default
 
-**Deprecated In Release: v17.05**
+**Deprecated in release: v17.05**
 
 **Disabled by default in release: [v17.10](https://github.com/docker/docker-ce/releases/tag/v17.10.0-ce)**
 
@@ -1016,9 +1048,9 @@ and `docker service scale` in Docker 17.10.
 
 ### `-g` and `--graph` flags on `dockerd`
 
-**Deprecated In Release: v17.05**
+**Deprecated in release: v17.05**
 
-**Removed In Release: v23.0**
+**Removed in release: v23.0**
 
 The `-g` or `--graph` flag for the `dockerd` or `docker daemon` command was
 used to indicate the directory in which to store persistent data and resource
@@ -1027,9 +1059,9 @@ flag. These flags were deprecated and hidden in v17.05, and removed in v23.0.
 
 ### Top-level network properties in NetworkSettings
 
-**Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
+**Deprecated in release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Target For Removal In Release: v17.12**
+**Target for removal in release: v17.12**
 
 When inspecting a container, `NetworkSettings` contains top-level information
 about the default ("bridge") network;
@@ -1046,18 +1078,18 @@ information.
 
 ### `filter` option for `/images/json` endpoint
 
-**Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
+**Deprecated in release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Removed In Release: v20.10**
+**Removed in release: v20.10**
 
 The `filter` option to filter the list of image by reference (name or name:tag)
 is now implemented as a regular filter, named `reference`.
 
 ### `repository:shortid` image references
 
-**Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
+**Deprecated in release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Removed In Release: v17.12**
+**Removed in release: v17.12**
 
 The `repository:shortid` syntax for referencing images is very little used,
 collides with tag references, and can be confused with digest references.
@@ -1067,32 +1099,32 @@ in Docker 17.12.
 
 ### `docker daemon` subcommand
 
-**Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
+**Deprecated in release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Removed In Release: v17.12**
+**Removed in release: v17.12**
 
 The daemon is moved to a separate binary (`dockerd`), and should be used instead.
 
 ### Duplicate keys with conflicting values in engine labels
 
-**Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
+**Deprecated in release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Removed In Release: v17.12**
+**Removed in release: v17.12**
 
 When setting duplicate keys with conflicting values, an error will be produced, and the daemon
 will fail to start.
 
 ### `MAINTAINER` in Dockerfile
 
-**Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
+**Deprecated in release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
 `MAINTAINER` was an early very limited form of `LABEL` which should be used instead.
 
 ### API calls without a version
 
-**Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
+**Deprecated in release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Target For Removal In Release: v17.12**
+**Target for removal in release: v17.12**
 
 API versions should be supplied to all API calls to ensure compatibility with
 future Engine versions. Instead of just requesting, for example, the URL
@@ -1100,9 +1132,9 @@ future Engine versions. Instead of just requesting, for example, the URL
 
 ### Backing filesystem without `d_type` support for overlay/overlay2
 
-**Deprecated In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
+**Deprecated in release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
-**Removed In Release: v17.12**
+**Removed in release: v17.12**
 
 The overlay and overlay2 storage driver does not work as expected if the backing
 filesystem does not support `d_type`. For example, XFS does not support `d_type`
@@ -1116,18 +1148,18 @@ Refer to [#27358](https://github.com/docker/docker/issues/27358) for details.
 
 ### `--automated` and `--stars` flags on `docker search`
 
-**Deprecated in Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+**Deprecated in release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
-**Removed In Release: v20.10**
+**Removed in release: v20.10**
 
 The `docker search --automated` and `docker search --stars` options are deprecated.
 Use `docker search --filter=is-automated=<true|false>` and `docker search --filter=stars=...` instead.
 
 ### `-h` shorthand for `--help`
 
-**Deprecated In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+**Deprecated in release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
-**Target For Removal In Release: v17.09**
+**Target for removal in release: v17.09**
 
 The shorthand (`-h`) is less common than `--help` on Linux and cannot be used
 on all subcommands (due to it conflicting with, e.g. `-h` / `--hostname` on
@@ -1136,58 +1168,58 @@ on all subcommands (due to it conflicting with, e.g. `-h` / `--hostname` on
 
 ### `-e` and `--email` flags on `docker login`
 
-**Deprecated In Release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
+**Deprecated in release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
 
-**Removed In Release: [v17.06](https://github.com/docker/docker-ce/releases/tag/v17.06.0-ce)**
+**Removed in release: [v17.06](https://github.com/docker/docker-ce/releases/tag/v17.06.0-ce)**
 
 The `docker login` no longer automatically registers an account with the target registry if the given username doesn't exist. Due to this change, the email flag is no longer required, and will be deprecated.
 
 ### Separator (`:`) of `--security-opt` flag on `docker run`
 
-**Deprecated In Release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
+**Deprecated in release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
 
-**Target For Removal In Release: v17.06**
+**Target for removal in release: v17.06**
 
 The flag `--security-opt` doesn't use the colon separator (`:`) anymore to divide keys and values, it uses the equal symbol (`=`) for consistency with other similar flags, like `--storage-opt`.
 
 ### Ambiguous event fields in API
 
-**Deprecated In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
+**Deprecated in release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
 The fields `ID`, `Status` and `From` in the events API have been deprecated in favor of a more rich structure.
 See the events API documentation for the new format.
 
 ### `-f` flag on `docker tag`
 
-**Deprecated In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
+**Deprecated in release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
-**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+**Removed in release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 To make tagging consistent across the various `docker` commands, the `-f` flag on the `docker tag` command is deprecated. It is no longer necessary to specify `-f` to move a tag from one image to another. Nor will `docker` generate an error if the `-f` flag is missing and the specified tag is already in use.
 
 ### HostConfig at API container start
 
-**Deprecated In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
+**Deprecated in release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
-**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+**Removed in release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 Passing an `HostConfig` to `POST /containers/{name}/start` is deprecated in favor of
 defining it at container creation (`POST /containers/create`).
 
 ### `--before` and `--since` flags on `docker ps`
 
-**Deprecated In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
+**Deprecated in release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
-**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+**Removed in release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 The `docker ps --before` and `docker ps --since` options are deprecated.
 Use `docker ps --filter=before=...` and `docker ps --filter=since=...` instead.
 
 ### Driver-specific log tags
 
-**Deprecated In Release: [v1.9.0](https://github.com/docker/docker/releases/tag/v1.9.0)**
+**Deprecated in release: [v1.9.0](https://github.com/docker/docker/releases/tag/v1.9.0)**
 
-**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+**Removed in release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 Log tags are now generated in a standard way across different logging drivers.
 Because of which, the driver specific log tag options `syslog-tag`, `gelf-tag` and
@@ -1199,9 +1231,9 @@ $ docker --log-driver=syslog --log-opt tag="{{.ImageName}}/{{.Name}}/{{.ID}}"
 
 ### Docker Content Trust ENV passphrase variables name change
 
-**Deprecated In Release: [v1.9.0](https://github.com/docker/docker/releases/tag/v1.9.0)**
+**Deprecated in release: [v1.9.0](https://github.com/docker/docker/releases/tag/v1.9.0)**
 
-**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+**Removed in release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the Tagging key has been renamed to Repository key. Due to this renaming, we're also changing the corresponding environment variables
 
@@ -1210,25 +1242,25 @@ Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the
 
 ### `/containers/(id or name)/copy` endpoint
 
-**Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
+**Deprecated in release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
 
-**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+**Removed in release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 The endpoint `/containers/(id or name)/copy` is deprecated in favor of `/containers/(id or name)/archive`.
 
 ### LXC built-in exec driver
 
-**Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
+**Deprecated in release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
 
-**Removed In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
+**Removed in release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
 The built-in LXC execution driver, the lxc-conf flag, and API fields have been removed.
 
 ### Old Command Line Options
 
-**Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
+**Deprecated in release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
 
-**Removed In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
+**Removed in release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
 The flags `-d` and `--daemon` are deprecated. Use the separate `dockerd` binary instead.
 
@@ -1272,34 +1304,34 @@ The following double-dash options are deprecated and have no replacement:
 - `docker ps --before-id`
 - `docker search --trusted`
 
-**Deprecated In Release: [v1.5.0](https://github.com/docker/docker/releases/tag/v1.5.0)**
+**Deprecated in release: [v1.5.0](https://github.com/docker/docker/releases/tag/v1.5.0)**
 
-**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+**Removed in release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 The single-dash (`-help`) was removed, in favor of the double-dash `--help`
 
 ### `--api-enable-cors` flag on `dockerd`
 
-**Deprecated In Release: [v1.6.0](https://github.com/docker/docker/releases/tag/v1.6.0)**
+**Deprecated in release: [v1.6.0](https://github.com/docker/docker/releases/tag/v1.6.0)**
 
-**Removed In Release: [v17.09](https://github.com/docker/docker-ce/releases/tag/v17.09.0-ce)**
+**Removed in release: [v17.09](https://github.com/docker/docker-ce/releases/tag/v17.09.0-ce)**
 
 The flag `--api-enable-cors` is deprecated since v1.6.0. Use the flag
 `--api-cors-header` instead.
 
 ### `--run` flag on `docker commit`
 
-**Deprecated In Release: [v0.10.0](https://github.com/docker/docker/releases/tag/v0.10.0)**
+**Deprecated in release: [v0.10.0](https://github.com/docker/docker/releases/tag/v0.10.0)**
 
-**Removed In Release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
+**Removed in release: [v1.13.0](https://github.com/docker/docker/releases/tag/v1.13.0)**
 
 The flag `--run` of the `docker commit` command (and its short version `-run`) were deprecated in favor
 of the `--changes` flag that allows to pass `Dockerfile` commands.
 
 ### Three arguments form in `docker import`
 
-**Deprecated In Release: [v0.6.7](https://github.com/docker/docker/releases/tag/v0.6.7)**
+**Deprecated in release: [v0.6.7](https://github.com/docker/docker/releases/tag/v0.6.7)**
 
-**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+**Removed in release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 The `docker import` command format `file|URL|- [REPOSITORY [TAG]]` is deprecated since November 2013. It's no longer supported.
