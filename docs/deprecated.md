@@ -53,6 +53,7 @@ The following table provides an overview of the current status of deprecated fea
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [`--pause` option on `docker commit`](#--pause-option-on-docker-commit)                                                            | v29.0      | v30.0  |
 | Deprecated | [Legacy links environment variables](#legacy-links-environment-variables)                                                          | v28.4      | v30.0  |
 | Deprecated | [Special handling for quoted values for TLS flags](#special-handling-for-quoted-values-for-tls-flags)                              | v28.4      | v29.0  |
 | Deprecated | [Empty/nil fields in image Config from inspect API](#emptynil-fields-in-image-config-from-inspect-api)                             | v28.3      | v29.0  |
@@ -123,6 +124,19 @@ The following table provides an overview of the current status of deprecated fea
 | Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09 |
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
+
+### `--pause` option on `docker commit`
+
+**Deprecated in release: v29.0**
+
+**Target for removal in release: v30.0**
+
+The `--pause` option is enabled by default since Docker v1.1.0 to prevent
+committing containers in an inconsistent state, but can be disabled by
+setting the `--pause=false` option. In docker CLI v29.0 this flag is
+replaced by a `--no-pause` flag instead. The `--pause` option is still
+functional in the v29.0 release, printing a deprecation warning, but
+will be removed in docker CLI v30.
 
 ### Legacy links environment variables
 
