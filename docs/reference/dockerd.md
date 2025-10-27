@@ -1076,11 +1076,11 @@ The following is a full example of the allowed configuration options on Linux:
   "builder": {
     "gc": {
       "enabled": true,
-      "defaultKeepStorage": "10GB",
+      "defaultReservedSpace": "10GB",
       "policy": [
-        { "keepStorage": "10GB", "filter": ["unused-for=2200h"] },
-        { "keepStorage": "50GB", "filter": ["unused-for=3300h"] },
-        { "keepStorage": "100GB", "all": true }
+        { "maxUsedSpace": "512MB", "keepDuration": "48h", "filter": [ "type=source.local" ] },
+        { "reservedSpace": "10GB", "maxUsedSpace": "100GB", "keepDuration": "1440h" },
+        { "reservedSpace": "50GB", "minFreeSpace": "20GB", "maxUsedSpace": "200GB", "all": true }
       ]
     }
   },
