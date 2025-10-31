@@ -53,6 +53,7 @@ The following table provides an overview of the current status of deprecated fea
 
 | Status     | Feature                                                                                                                            | Deprecated | Remove |
 |------------|------------------------------------------------------------------------------------------------------------------------------------|------------|--------|
+| Deprecated | [Support for cgroup v1](#support-for-cgroup-v1)                                                                                    | v29.0      | -      |
 | Deprecated | [`--pause` option on `docker commit`](#--pause-option-on-docker-commit)                                                            | v29.0      | v30.0  |
 | Deprecated | [Legacy links environment variables](#legacy-links-environment-variables)                                                          | v28.4      | v30.0  |
 | Deprecated | [Special handling for quoted values for TLS flags](#special-handling-for-quoted-values-for-tls-flags)                              | v28.4      | v29.0  |
@@ -124,6 +125,26 @@ The following table provides an overview of the current status of deprecated fea
 | Removed    | [`--api-enable-cors` flag on `dockerd`](#--api-enable-cors-flag-on-dockerd)                                                        | v1.6       | v17.09 |
 | Removed    | [`--run` flag on `docker commit`](#--run-flag-on-docker-commit)                                                                    | v0.10      | v1.13  |
 | Removed    | [Three arguments form in `docker import`](#three-arguments-form-in-docker-import)                                                  | v0.6.7     | v1.12  |
+
+### Support for cgroup v1
+
+**Deprecated in release: v29.0**
+
+Support for cgroup v1 is deprecated in the v29.0 release, however, it will continue
+to be supported until May 2029.
+The latest release in May 2029 may not necessarily support cgroup v1,
+but there will be at least one maintained branch with the support for cgroup v1.
+
+The cgroup version currently in use can be checked by running the `docker info` command:
+
+```console
+$ docker info
+<...>
+Server:
+ <...>
+ Cgroup Version: 2
+ <...>
+```
 
 ### `--pause` option on `docker commit`
 
