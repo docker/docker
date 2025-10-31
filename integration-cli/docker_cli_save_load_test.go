@@ -288,11 +288,13 @@ func (s *DockerCLISaveLoadSuite) TestSaveLoadParents(c *testing.T) {
 	cli.DockerCmd(c, "rmi", idBar)
 	cli.DockerCmd(c, "load", "-i", outfile)
 
-	inspectOut := inspectField(c, idBar, "Parent")
-	assert.Equal(c, inspectOut, idFoo)
+	cmd := icmd.Command(dockerBinary, "inspect", "-f", "{{.Parent}}", idBar)
+	result := icmd.RunCmd(cmd, icmd.WithEnv("DOCKER_API_VERSION=1.51"))
+	assert.Equal(c, result.Stdout(), idFoo)
 
-	inspectOut = inspectField(c, idFoo, "Parent")
-	assert.Equal(c, inspectOut, "")
+	cmd = icmd.Command(dockerBinary, "inspect", "-f", "{{.Parent}}", idFoo)
+	result = icmd.RunCmd(cmd, icmd.WithEnv("DOCKER_API_VERSION=1.51"))
+	assert.Equal(c, result.Stdout(), "")
 }
 
 func (s *DockerCLISaveLoadSuite) TestSaveLoadNoTag(c *testing.T) {

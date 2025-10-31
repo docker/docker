@@ -182,6 +182,7 @@ func (s *DockerCLIExecSuite) TestExecTTYCloseStdin(c *testing.T) {
 	assert.Assert(c, !strings.Contains(out, "nsenter-exec"))
 }
 
+// FIXME(thaJeztah) migrate to docker/cli tests
 func (s *DockerCLIExecSuite) TestExecTTYWithoutStdin(c *testing.T) {
 	out := cli.DockerCmd(c, "run", "-d", "-ti", "busybox").Stdout()
 	id := strings.TrimSpace(out)
@@ -197,8 +198,7 @@ func (s *DockerCLIExecSuite) TestExecTTYWithoutStdin(c *testing.T) {
 			return
 		}
 
-		expected := "the input device is not a TTY"
-
+		expected := "stdin is not a terminal"
 		res := icmd.RunCmd(icmd.Cmd{
 			Command: cmd.Args,
 			Env:     cmd.Env,

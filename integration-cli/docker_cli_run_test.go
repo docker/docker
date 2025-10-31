@@ -110,6 +110,7 @@ func (s *DockerCLIRunSuite) TestRunExitCodeOne(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunStdinPipe(c *testing.T) {
 	// TODO Windows: This needs some work to make compatible.
 	testRequires(c, DaemonIsLinux)
+	c.Skip("FIXME(thaJeztah): broken on current CLI versions due to change in behavior (does not stay attached or print container ID)")
 	result := icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "run", "-i", "-a", "stdin", "busybox", "cat"},
 		Stdin:   strings.NewReader("blahblah"),
@@ -1276,9 +1277,11 @@ func (s *DockerCLIRunSuite) TestRunDNSOptions(c *testing.T) {
 	result := cli.DockerCmd(c, "run", "--dns=127.0.0.1", "--dns-search=mydomain", "--dns-opt=ndots:9", "busybox", "cat", "/etc/resolv.conf")
 
 	// The client will get a warning on stderr when setting DNS to a localhost address; verify this:
-	if !strings.Contains(result.Stderr(), "Localhost DNS setting") {
-		c.Fatalf("Expected warning on stderr about localhost resolver, but got %q", result.Stderr())
-	}
+	//
+	// FIXME(thaJeztah): localhost DNS no longer produces a warning: remove this test?
+	// if !strings.Contains(result.Stderr(), "Localhost DNS setting") {
+	// 	c.Fatalf("Expected warning on stderr about localhost resolver, but got %q", result.Stderr())
+	// }
 
 	actual := regexp.MustCompile("(?m)^#.*$").ReplaceAllString(result.Stdout(), "")
 	actual = strings.ReplaceAll(strings.Trim(actual, "\r\n"), "\n", " ")
@@ -1519,11 +1522,12 @@ func (s *DockerCLIRunSuite) TestRunAttachStdOutAndErrTTYMode(c *testing.T) {
 // Test for #10388 - this will run the same test as TestRunAttachStdOutAndErrTTYMode
 // but using --attach instead of -a to make sure we read the flag correctly
 func (s *DockerCLIRunSuite) TestRunAttachWithDetach(c *testing.T) {
-	icmd.RunCommand(dockerBinary, "run", "-d", "--attach", "stdout", "busybox", "true").Assert(c, icmd.Expected{
+	result := icmd.RunCommand(dockerBinary, "run", "-d", "--attach", "stdout", "busybox", "true")
+	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Error:    "exit status 1",
-		Err:      "Conflicting options: -a and -d",
 	})
+	out := strings.ToLower(result.Combined())
+	assert.Check(c, is.Contains(out, "conflicting options"))
 }
 
 func (s *DockerCLIRunSuite) TestRunState(c *testing.T) {
@@ -2377,6 +2381,7 @@ func (s *DockerCLIRunSuite) TestRunPortFromDockerRangeInUse(c *testing.T) {
 	cli.DockerCmd(c, "port", id)
 }
 
+// FIXME(thaJeztah) migrate to docker/cli tests
 func (s *DockerCLIRunSuite) TestRunTTYWithPipe(c *testing.T) {
 	errChan := make(chan error, 1)
 	go func() {
@@ -2388,7 +2393,7 @@ func (s *DockerCLIRunSuite) TestRunTTYWithPipe(c *testing.T) {
 			return
 		}
 
-		expected := "the input device is not a TTY"
+		expected := "stdin is not a terminal"
 		res := icmd.RunCmd(icmd.Cmd{
 			Command: cmd.Args,
 			Env:     cmd.Env,
@@ -3629,13 +3634,15 @@ func (s *DockerCLIRunSuite) TestRunWithOomScoreAdjInvalidRange(c *testing.T) {
 
 	out, _, err := dockerCmdWithError("run", "--oom-score-adj", "1001", "busybox", "true")
 	assert.ErrorContains(c, err, "")
-	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]."
+	out = strings.ToLower(out)
+	expected := "invalid value 1001"
 	if !strings.Contains(out, expected) {
 		c.Fatalf("Expected output to contain %q, got %q instead", expected, out)
 	}
 	out, _, err = dockerCmdWithError("run", "--oom-score-adj", "-1001", "busybox", "true")
 	assert.ErrorContains(c, err, "")
-	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]."
+	out = strings.ToLower(out)
+	expected = "invalid value -1001"
 	if !strings.Contains(out, expected) {
 		c.Fatalf("Expected output to contain %q, got %q instead", expected, out)
 	}
@@ -3803,14 +3810,15 @@ func (s *DockerCLIRunSuite) TestRunVolumeCopyFlag(c *testing.T) {
 func (s *DockerCLIRunSuite) TestRunDNSInHostMode(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
-	expectedOutput := "nameserver 127.0.0.1"
-	expectedWarning := "Localhost DNS setting"
-	cli.DockerCmd(c, "run", "--dns=127.0.0.1", "--net=host", "busybox", "cat", "/etc/resolv.conf").Assert(c, icmd.Expected{
-		Out: expectedOutput,
-		Err: expectedWarning,
-	})
+	// FIXME(thaJeztah): localhost DNS no longer produces a warning: remove this test?
+	// expectedOutput := "nameserver 127.0.0.1"
+	// expectedWarning := "Localhost DNS setting"
+	// cli.DockerCmd(c, "run", "--dns=127.0.0.1", "--net=host", "busybox", "cat", "/etc/resolv.conf").Assert(c, icmd.Expected{
+	// 	Out: expectedOutput,
+	// 	Err: expectedWarning,
+	// })
 
-	expectedOutput = "nameserver 1.2.3.4"
+	expectedOutput := "nameserver 1.2.3.4"
 	cli.DockerCmd(c, "run", "--dns=1.2.3.4", "--net=host", "busybox", "cat", "/etc/resolv.conf").Assert(c, icmd.Expected{
 		Out: expectedOutput,
 	})
@@ -3859,7 +3867,7 @@ func (s *DockerCLIRunSuite) TestRunRm(c *testing.T) {
 
 	cli.Docker(cli.Args("inspect", name), cli.Format(".name")).Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "No such object: " + name,
+		Err:      "such object: " + name, // [Nn]o such object
 	})
 }
 
@@ -3868,11 +3876,16 @@ func (s *DockerCLIRunSuite) TestRunRmPre125Api(c *testing.T) {
 	name := "miss-me-when-im-gone"
 	envs := appendBaseEnv(os.Getenv("DOCKER_TLS_VERIFY") != "", "DOCKER_API_VERSION=1.24")
 	cli.Docker(cli.Args("run", "--name="+name, "--rm", "busybox"), cli.WithEnvironmentVariables(envs...)).Assert(c, icmd.Success)
-
-	cli.Docker(cli.Args("inspect", name), cli.Format(".name")).Assert(c, icmd.Expected{
+	time.Sleep(5 * time.Second) // daemon may be in process of removing
+	result := cli.Docker(cli.Args("inspect", name), cli.Format(".State.Status"))
+	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
-		Err:      "No such object: " + name,
 	})
+	assert.Check(c, result.Error != nil)
+	out := strings.ToLower(result.Stderr())
+	if !strings.Contains(out, "no such object: "+name) && !strings.Contains(out, "no such container: "+name) {
+		c.Error(fmt.Errorf("unexpected error: %s", result.Error))
+	}
 }
 
 // Test case for #23498

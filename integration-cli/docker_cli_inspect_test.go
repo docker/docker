@@ -125,25 +125,26 @@ func (s *DockerCLIInspectSuite) TestInspectTypeFlagWithImage(c *testing.T) {
 }
 
 func (s *DockerCLIInspectSuite) TestInspectTypeFlagWithInvalidValue(c *testing.T) {
-	// Both the container and image are named busybox. docker inspect will fail
-	// as --type=foobar is not a valid value for the flag.
-
-	cli.DockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
-
-	out, exitCode, err := dockerCmdWithError("inspect", "--type=foobar", "busybox")
-	assert.Assert(c, err != nil, "%d", exitCode)
-	assert.Equal(c, exitCode, 1, err)
-	assert.Assert(c, is.Contains(out, "not a valid value for --type"))
+	result := cli.Docker(cli.Args("inspect", "--type=foobar", "busybox"))
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
+	oneOf := []string{
+		`unknown type: "foobar"`,
+		"not a valid value for --type",
+	}
+	out := result.Combined()
+	if !strings.Contains(out, oneOf[0]) && !strings.Contains(out, oneOf[1]) {
+		c.Errorf("exoected one of %v: %s", oneOf, out)
+	}
 }
 
 func (s *DockerCLIInspectSuite) TestInspectImageFilterInt(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	imageTest := loadSpecialImage(c, specialimage.EmptyFS)
-
-	out := inspectField(c, imageTest, "Size")
-
-	size, err := strconv.Atoi(out)
-	assert.Assert(c, err == nil, "failed to inspect size of the image: %s, %v", out, err)
+	out := cli.DockerCmd(c, "inspect", "--format", "{{.Size}}", imageTest).Stdout()
+	size, err := strconv.Atoi(strings.TrimSpace(out))
+	assert.NilError(c, err)
 
 	// now see if the size turns out to be the same
 	formatStr := fmt.Sprintf("--format={{eq .Size %d}}", size)
@@ -302,11 +303,21 @@ func (s *DockerCLIInspectSuite) TestInspectTemplateError(c *testing.T) {
 }
 
 func (s *DockerCLIInspectSuite) TestInspectJSONFields(c *testing.T) {
-	runSleepingContainer(c, "--name=busybox", "-d")
-	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format={{.HostConfig.Dns}}", "busybox")
+	ctrName := "inspectjsonfields"
+	runSleepingContainer(c, "--name", ctrName, "-d")
+	out := cli.DockerCmd(c, "container", "inspect", "--format", "{{json .HostConfig.Dns}}", ctrName).Stdout()
+	out = strings.TrimSpace(out)
 
-	assert.NilError(c, err)
-	assert.Equal(c, out, "[]\n")
+	// Current versions use omit-empty, old versions returned an empty slice ({})
+	oneOf := []string{"[]", "null"}
+	var found bool
+	for _, v := range oneOf {
+		if out == v {
+			found = true
+			break
+		}
+	}
+	assert.Assert(c, found)
 }
 
 func (s *DockerCLIInspectSuite) TestInspectByPrefix(c *testing.T) {
@@ -422,8 +433,11 @@ func (s *DockerCLIInspectSuite) TestInspectPlugin(c *testing.T) {
 // Test case for 29185
 func (s *DockerCLIInspectSuite) TestInspectUnknownObject(c *testing.T) {
 	// This test should work on both Windows and Linux
-	out, _, err := dockerCmdWithError("inspect", "foobar")
-	assert.ErrorContains(c, err, "")
-	assert.Assert(c, is.Contains(out, "Error: No such object: foobar"))
-	assert.ErrorContains(c, err, "Error: No such object: foobar")
+	res := cli.Docker(cli.Args("inspect", "foobar"))
+	res.Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
+
+	expected := "no such object: foobar"
+	assert.Assert(c, is.Contains(strings.ToLower(res.Stderr()), expected))
 }

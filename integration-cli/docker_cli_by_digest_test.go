@@ -160,8 +160,9 @@ func (s *DockerRegistrySuite) TestRemoveImageByDigest(t *testing.T) {
 
 	// try to inspect again - it should error this time
 	_, err = inspectFilter(imageReference, ".Id")
+	assert.Assert(t, err != nil, "expected non-zero exit status error deleting image")
 	// unexpected nil err trying to inspect what should be a non-existent image
-	assert.ErrorContains(t, err, "No such object")
+	assert.Assert(t, is.Contains(strings.ToLower(err.Error()), "no such object"))
 }
 
 func (s *DockerRegistrySuite) TestBuildByDigest(t *testing.T) {
