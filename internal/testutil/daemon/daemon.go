@@ -575,6 +575,9 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	if !foundLog {
 		d.args = append(d.args, "--debug")
 	}
+	if os.Getenv("TEST_INTEGRATION_USE_GRAPHDRIVER") != "" {
+		d.args = append(d.args, "--feature=containerd-snapshotter=false")
+	}
 	if d.storageDriver != "" && !foundSd {
 		d.args = append(d.args, "--storage-driver", d.storageDriver)
 	}
