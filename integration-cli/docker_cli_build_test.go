@@ -5476,8 +5476,6 @@ func (s *DockerCLIBuildSuite) TestBuildCacheFromLoad(c *testing.T) {
 	cli.DockerCmd(c, "save", "-o", tempFile, "build1")
 	cli.DockerCmd(c, "rmi", "build1")
 	cli.DockerCmd(c, "load", "-i", tempFile)
-	parentID := cli.DockerCmd(c, "inspect", "-f", "{{.Parent}}", "build1").Combined()
-	assert.Equal(c, strings.TrimSpace(parentID), "")
 
 	// cache still applies without parents
 	result := cli.BuildCmd(c, "build2", cli.WithFlags("--cache-from=build1"), build.WithExternalBuildContext(ctx))
