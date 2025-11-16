@@ -3302,9 +3302,11 @@ func (s *DockerCLIRunSuite) TestRunNetworkNotInitializedNoneMode(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	id := cli.DockerCmd(c, "run", "-d", "--net=none", "busybox", "top").Stdout()
 	id = strings.TrimSpace(id)
-	res := inspectField(c, id, "NetworkSettings.Networks.none.IPAddress")
-	if res != "" {
-		c.Fatalf("For 'none' mode network must not be initialized, but container got IP: %s", res)
+
+	// Inspecting in JSON format, to prevent the "invalid IP" output from netip.Addr for empty IP-addresses.
+	res := cli.DockerCmd(c, "container", "inspect", "--format", "{{json .NetworkSettings.Networks.none.IPAddress}}", id).Combined()
+	if actual := strings.Trim(strings.TrimSpace(res), `"`); actual != "" {
+		c.Fatalf("For 'none' mode network must not be initialized, but container got IP: %q", actual)
 	}
 }
 
