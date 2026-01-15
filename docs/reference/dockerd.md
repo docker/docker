@@ -876,7 +876,7 @@ You can view the configured CDI specification directories using the `docker info
 
 #### Disable CDI devices
 
-The feature in enabled by default. To disable it, use the `cdi` options in the `deamon.json` file:
+The feature in enabled by default. To disable it, use the `cdi` options in the `daemon.json` file:
 
 ```json
 "features": {
