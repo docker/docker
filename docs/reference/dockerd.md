@@ -610,7 +610,7 @@ $ sudo dockerd --add-runtime <runtime>=<path>
 
 Defining runtime arguments via the command line is not supported.
 
-For an example configuration for a runc drop-in replacment, see
+For an example configuration for a runc drop-in replacement, see
 [Alternative container runtimes > youki](https://docs.docker.com/engine/daemon/alternative-runtimes/#youki)
 
 ##### Configure the default container runtime
