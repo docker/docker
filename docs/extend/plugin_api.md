@@ -21,7 +21,7 @@ which registers itself by placing a file on the daemon host in one of the plugin
 directories described in [Plugin discovery](#plugin-discovery).
 
 Plugins have human-readable names, which are short, lowercase strings. For
-example, `flocker` or `weave`.
+example, `myplugin`.
 
 Plugins can run inside or outside containers. Currently running them outside
 containers is recommended.
@@ -45,12 +45,12 @@ spec files can be located either under `/etc/docker/plugins` or `/usr/lib/docker
 
 The name of the file (excluding the extension) determines the plugin name.
 
-For example, the `flocker` plugin might create a Unix socket at
-`/run/docker/plugins/flocker.sock`.
+For example, a plugin named `myplugin` might create a Unix socket at
+`/run/docker/plugins/myplugin.sock`.
 
 You can define each plugin into a separated subdirectory if you want to isolate definitions from each other.
-For example, you can create the `flocker` socket under `/run/docker/plugins/flocker/flocker.sock` and only
-mount `/run/docker/plugins/flocker` inside the `flocker` container.
+For example, you can create the `myplugin` socket under `/run/docker/plugins/myplugin/myplugin.sock` and only
+mount `/run/docker/plugins/myplugin` inside the `myplugin` container.
 
 Docker always searches for Unix sockets in `/run/docker/plugins` first. It checks for spec or json files under
 `/etc/docker/plugins` and `/usr/lib/docker/plugins` if the socket doesn't exist. The directory scan stops as

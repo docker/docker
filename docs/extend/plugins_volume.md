@@ -45,7 +45,7 @@ accepts a volume name and path on the host, and the `--volume-driver` flag
 accepts a driver type.
 
 ```console
-$ docker volume create --driver=flocker volumename
+$ docker volume create --driver=myplugin volumename
 
 $ docker container run -it --volume volumename:/data busybox sh
 ```
@@ -61,11 +61,18 @@ separated by a colon (`:`) character.
 - The `Mountpoint` is the path on the host (v1) or in the plugin (v2) where the
   volume has been made available.
 
-### `volumedriver`
+### `--volume-driver`
 
-Specifying a `volumedriver` in conjunction with a `volumename` allows you to
-use plugins such as [Flocker](https://github.com/ScatterHQ/flocker) to manage
-volumes external to a single host, such as those on EBS.
+Specifying the `--volume-driver` flag together with a volume name (using
+`--volume`) allows you to use plugins to manage volumes for the container.
+
+The `--volume-driver` flag is used as a default for all volumes created for
+the container, including anonymous volumes. Use the [`--mount`] flag with
+the [`volume-driver`] option to specify the driver to use for each volume
+individually.
+
+[`--mount`]: https://docs.docker.com/reference/cli/docker/container/run/#mount
+[`volume-driver`]: https://docs.docker.com/engine/storage/volumes/#start-a-container-which-creates-a-volume-using-a-volume-driver
 
 ## Create a VolumeDriver
 
