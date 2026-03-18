@@ -38,7 +38,7 @@ node1 is the manager and node2 is the worker.
 
     ```console
     $ docker swarm join \
-      --token SWMTKN-1-49nj1cmql0jkz5s954yi3oex3nedyz0fb0xx14ie39trti4wxv-8vxv8rssmk743ojnwacrr2e7c \
+      --token SWMTKN-1-aabbccdd00112233aabbccdd00112233aabbccdd00112233aa-aabbccdd00112233... \
       192.168.99.100:2377
     ```
 
