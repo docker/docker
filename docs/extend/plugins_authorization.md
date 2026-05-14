@@ -86,6 +86,31 @@ passed to the authorization plugins. For commands that return chunked HTTP
 response, such as `logs` and `events`, only the HTTP request is sent to the
 authorization plugins.
 
+### Response body size and partial buffering
+
+The internal buffer that holds the response body between the daemon's HTTP
+handler and the plugin's response authorization callback (`responseModifier`,
+defined in [`pkg/authorization/response.go`](https://github.com/moby/moby/blob/master/pkg/authorization/response.go))
+has a fixed capacity of 64 KiB (`maxBufferSize`).
+
+For most non-streaming endpoints the full response is buffered for plugin
+inspection regardless of total size, because Go's `encoding/json` encoder
+serializes the complete payload into a single underlying write. The
+streaming-response exclusion noted above (for example, `logs` and `events`)
+is the practical effect of this 64 KiB threshold combined with the
+`io.WriteFlusher` write pattern used by streaming handlers, where each write
+is immediately drained to the client and is therefore no longer available
+for plugin inspection by the time the handler returns.
+
+> [!NOTE]
+> Plugins that depend on `ResponseBody` inspection for redaction or
+> content-filtering should restrict their policies to endpoints whose
+> response is produced as a single write (typical of REST-style API
+> responses). For commands whose responses are streamed or are likely to
+> exceed the buffer through multiple writes, do not rely on `ResponseBody`
+> for security-relevant decisions; perform the filtering in a separate
+> layer in front of the daemon.
+
 During request/response processing, some authorization flows might
 need to do additional queries to the Docker daemon. To complete such flows,
 plugins can call the daemon API similar to a regular user. To enable these
