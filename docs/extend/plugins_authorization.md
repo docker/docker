@@ -75,8 +75,10 @@ Each request sent to the plugin includes the authenticated user, the HTTP
 headers, and the request/response body. Only the user name and the
 authentication method used are passed to the plugin. Most importantly, no user
 credentials or tokens are passed. Finally, not all request/response bodies
-are sent to the authorization plugin. Only those request/response bodies where
-the `Content-Type` is either `text/*` or `application/json` are sent.
+are sent to the authorization plugin. Only request/response bodies where
+the `Content-Type` is `application/json` are sent to the authorization plugin;
+bodies of any other `Content-Type` are not visible to the plugin and cannot
+be used for enforcement, even though the daemon may still act on this data.
 
 For commands that can potentially hijack the HTTP connection (`HTTP
 Upgrade`), such as `exec`, the authorization plugin is only called for the
