@@ -91,6 +91,10 @@ passed to the authorization plugins. For commands that return chunked HTTP
 response, such as `logs` and `events`, only the HTTP request is sent to the
 authorization plugins.
 
+The Engine's authorization middleware fails closed: when a plugin returns an error or returns `Allow: false`,
+the request is denied and the error is surfaced to the client. Plugins should also fail closed: if the plugin
+cannot confidently evaluate a request, it should return an error or `Allow: false`.
+
 ### Response body size and partial buffering
 
 The internal buffer that holds the response body between the daemon's HTTP
@@ -239,7 +243,7 @@ Name                   | Type              | Description
 User                   | string            | The user identification
 Authentication method  | string            | The authentication method used
 Request method         | enum              | The HTTP method (GET/DELETE/POST)
-Request URI            | string            | The HTTP request URI including API version (e.g., v.1.17/containers/json)
+Request URI            | string            | The HTTP request URI including API version, as sent by the client (e.g., v.1.17/containers/json)
 Request headers        | map[string]string | Request headers as key value pairs (without the authorization header)
 Request body           | []byte            | Raw request body
 
@@ -262,7 +266,7 @@ Name                    | Type              | Description
 User                    | string            | The user identification
 Authentication method   | string            | The authentication method used
 Request method          | string            | The HTTP method (GET/DELETE/POST)
-Request URI             | string            | The HTTP request URI including API version (e.g., v.1.17/containers/json)
+Request URI             | string            | The HTTP request URI including API version, as sent by the client (e.g., v.1.17/containers/json)
 Request headers         | map[string]string | Request headers as key value pairs (without the authorization header)
 Request body            | []byte            | Raw request body
 Response status code    | int               | Status code from the Docker daemon
