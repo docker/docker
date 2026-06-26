@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -191,6 +192,49 @@ func TestDisableIPv6DAD(t *testing.T) {
 
 	if addrList[0].Flags&syscall.IFA_F_NODAD == 0 {
 		t.Fatalf("Unexpected interface flags: 0x%x. Expected to contain 0x%x", addrList[0].Flags, syscall.IFA_F_NODAD)
+	}
+}
+
+// TestApplyOSTweaksNFTablesForwarding checks that, with nftables, an ingress or
+// load-balancer sandbox gets IPv4 forwarding, which the nftables load balancer
+// depends on. A new namespace copies ip_forward from the initial namespace, so
+// it's switched off first rather than relying on the host's value.
+func TestApplyOSTweaksNFTablesForwarding(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+	if err := nftables.Enable(); err != nil {
+		t.Skipf("nftables not available: %v", err)
+	}
+	defer nftables.Disable()
+
+	const ipForward = "/proc/sys/net/ipv4/ip_forward"
+	for _, typ := range []SandboxType{SandboxTypeIngress, SandboxTypeLoadBalancer} {
+		key, err := newKey(t)
+		if err != nil {
+			t.Fatalf("Failed to obtain a key: %v", err)
+		}
+		n, err := NewSandbox(key, true, false)
+		if err != nil {
+			t.Fatalf("Failed to create a new sandbox: %v", err)
+		}
+		defer destroyTest(t, n)
+
+		var got []byte
+		var ferr error
+		if err := n.InvokeFunc(func() {
+			if ferr = os.WriteFile(ipForward, []byte("0"), 0o644); ferr != nil {
+				return
+			}
+			n.ApplyOSTweaks([]SandboxType{typ})
+			got, ferr = os.ReadFile(ipForward)
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if ferr != nil {
+			t.Fatal(ferr)
+		}
+		if v := strings.TrimSpace(string(got)); v != "1" {
+			t.Errorf("sandbox type %d: ip_forward = %q, want \"1\"", typ, v)
+		}
 	}
 }
 

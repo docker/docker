@@ -8,6 +8,12 @@ import (
 	"github.com/containerd/log"
 )
 
+// osSandbox is the OS-specific state a [Sandbox] carries. There is none on this
+// platform.
+type osSandbox struct{}
+
+type osLoadBalancer struct{}
+
 type policyLists struct {
 	ilb *hcsshim.PolicyList
 	elb *hcsshim.PolicyList

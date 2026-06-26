@@ -584,7 +584,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	})
 	if !hasFwBackendArg {
 		if fw := os.Getenv("DOCKER_FIREWALL_BACKEND"); fw != "" {
-			d.args = append(d.args, "--firewall-backend="+fw)
+			d.args = append(d.args, "--firewall-backend="+fw, "--feature=swarm-nftables")
 		}
 	}
 

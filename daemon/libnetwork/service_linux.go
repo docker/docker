@@ -9,8 +9,37 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 )
+
+// osSandbox is the OS-specific state a [Sandbox] carries.
+type osSandbox struct {
+	nftLBMu sync.Mutex
+	// nftLB is the load-balancer data plane this sandbox's nftables tables should
+	// hold. Only a load-balancer sandbox has any; its zero value is empty and is
+	// populated on first use. See [nftLBState].
+	nftLB nftLBState
+}
+
+type osLoadBalancer struct {
+	// serviceProgrammed records whether this service is fully plumbed: its data
+	// plane and, on an ingress network, its published ports. It's the source of
+	// truth for the once-per-service publish/unpublish of those ports, so it must
+	// not be derived from the live backend count, which can transiently drop to
+	// zero and recover without the service being added or removed (e.g. during a
+	// rolling update).
+	//
+	// It's owned by programService/unprogramService and set only once every step
+	// has succeeded, so a partial failure leaves it false and the next backend event
+	// retries the whole setup.
+	//
+	// It does not gate the data plane itself. The IPVS backend asks IPVS whether
+	// its service already exists, and the nftables backend states its whole
+	// desired data plane on every sync and diffs it (see nftLBState), so
+	// neither needs a latch to avoid adding or removing something twice.
+	serviceProgrammed bool
+}
 
 // Populate all loadbalancers on the network that the passed endpoint
 // belongs to, into this sandbox.
@@ -69,29 +98,107 @@ func findIfaceDstName(sb *Sandbox, ep *Endpoint) string {
 	return ""
 }
 
+// hasEnabledBackends reports whether lb has at least one backend that isn't
+// deweighted, i.e. whether it has anything to load-balance to.
+func hasEnabledBackends(lb *loadBalancer) bool {
+	for _, be := range lb.backEnds {
+		if !be.disabled {
+			return true
+		}
+	}
+	return false
+}
+
 // Add loadbalancer backend to the loadbalancer sandbox for the network.
 // If needed add the service as well.
 func (n *Network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	if len(lb.vip) == 0 {
 		return
 	}
-	newService := n.addLBBackendIPTables(ip, lb)
+	ep, sb, err := n.findLBEndpointSandbox()
+	if err != nil {
+		log.G(context.TODO()).Errorf("addLBBackend %s/%s: %v", n.ID(), n.Name(), err)
+		return
+	}
+	if sb.osSbox == nil {
+		return
+	}
 
-	if newService && n.ingress {
-		_, sb, err := n.findLBEndpointSandbox()
-		if err != nil {
-			log.G(context.TODO()).Errorf("Failed to find load balancer endpoint sandbox: %v", err)
+	lb.programService(n.ingress,
+		func() bool {
+			if nftables.Enabled() {
+				return n.syncLBBackendsNFTables(context.TODO(), ep, sb, lb, false)
+			}
+			return n.addLBBackendIPTables(ip, ep, sb, lb)
+		},
+		func() error {
+			gwEP, _ := sb.getGatewayEndpoint()
+			if gwEP == nil {
+				return fmt.Errorf("no gateway endpoint for sandbox %.7s", sb.ID())
+			}
+			return addIngressPorts(gwEP, lb.service.ingressPorts)
+		})
+}
+
+// programService brings lb's data plane up and then, on an ingress network,
+// publishes the service's host-published ports - once per service, however many
+// backend events arrive.
+//
+// dataPlane states lb's whole desired data plane and reports whether it is fully
+// in place. publishPorts publishes the service's ingress ports; it is only called
+// on an ingress network, and only when the ports still need publishing. Both are
+// parameters so that the ordering and the latching below can be exercised without
+// a network namespace.
+//
+// Undo a call that latched with [loadBalancer.unprogramService].
+func (lb *loadBalancer) programService(ingress bool, dataPlane func() bool, publishPorts func() error) {
+	if !dataPlane() {
+		// The data plane isn't fully in place. Leave serviceProgrammed false so the
+		// next backend event retries the whole setup, including any ingress ports.
+		return
+	}
+
+	if lb.serviceProgrammed || !hasEnabledBackends(lb) {
+		// Already programmed, or there's nothing to program yet. The latch must only
+		// be set for a service that actually has a data plane - setting it for one
+		// with no backends would suppress the VIP alias when a backend arrives.
+		return
+	}
+
+	// Publishing the ingress ports is the last step, and lb.serviceProgrammed is
+	// only set once it has succeeded - a failure here must leave the service
+	// un-programmed so the next backend event retries, otherwise the service's
+	// published ports would stay closed for its whole lifetime.
+	if ingress {
+		if err := publishPorts(); err != nil {
+			lb.reportIngressFailure(err)
 			return
-		}
-		gwEP, _ := sb.getGatewayEndpoint()
-		if gwEP == nil {
-			log.G(context.TODO()).Errorf("Failed to add ingress ports: no gateway endpoint for sandbox %.7s", sb.ID())
-			return
-		}
-		if err := addIngressPorts(gwEP, lb.service.ingressPorts); err != nil {
-			log.G(context.TODO()).Errorf("Failed to add ingress: %v", err)
 		}
 	}
+
+	lb.serviceProgrammed = true
+}
+
+// reportIngressFailure reports that this service's host-published ports aren't
+// published on this node.
+//
+// The daemon log is the only channel available. The ports belong to the service
+// rather than to any one task, so a task status would misattribute the failure -
+// and every node attached to the ingress network publishes a service's ports
+// whether or not it runs a task of that service, so there may be no task here to
+// attribute it to at all.
+//
+// It repeats for every backend event while the cause persists - most often the
+// host port already being bound by something outside Swarm. That's deliberate: a
+// once-only report would leave anything watching the log unable to tell an
+// ongoing failure from one that resolved. Log volume is a reason to add a metric,
+// not to hide an unresolved problem.
+func (lb *loadBalancer) reportIngressFailure(err error) {
+	log.G(context.TODO()).WithError(err).WithFields(log.Fields{
+		"service":      lb.service.name,
+		"serviceID":    lb.service.id,
+		"ingressPorts": lb.service.ingressPorts.String(),
+	}).Error("Failed to publish this service's Swarm ingress ports on this node - they will not be reachable via this node, and will be retried on the service's next backend event")
 }
 
 // Remove loadbalancer backend the load balancing endpoint for this
@@ -102,20 +209,75 @@ func (n *Network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 	if len(lb.vip) == 0 {
 		return
 	}
-	n.rmLBBackendIPTables(ip, lb, rmService, fullRemove)
+	ep, sb, err := n.findLBEndpointSandbox()
+	if err != nil {
+		log.G(context.TODO()).Debugf("rmLBBackend for %s/%s: %v -- probably transient state", n.ID(), n.Name(), err)
+		return
+	}
+	if sb.osSbox == nil {
+		return
+	}
 
-	if rmService && n.ingress {
-		_, sb, err := n.findLBEndpointSandbox()
-		if err != nil {
-			log.G(context.TODO()).Errorf("Failed to find load balancer endpoint sandbox: %v", err)
+	// The result is deliberately dropped: there is nothing useful to do with a
+	// failed teardown here, because this loadBalancer has already been removed
+	// from the service, so no later event can retry it. Each backend logs its own
+	// failures. Whether the ingress ports need unpublishing depends only on
+	// whether they were ever published, which lb.serviceProgrammed records.
+	//
+	// Residue differs by backend. The nftables sync states the whole desired data
+	// plane for the network and applies it wholesale, so whatever this call failed
+	// to write is corrected by the next sync from any service on the network. The
+	// iptables path has no such convergence - rules it fails to delete stay until
+	// the sandbox goes away.
+	if nftables.Enabled() {
+		n.syncLBBackendsNFTables(context.TODO(), ep, sb, lb, rmService)
+	} else {
+		n.rmLBBackendIPTables(ip, ep, sb, lb, rmService, fullRemove)
+	}
+
+	if !rmService {
+		// Backends remain, so the service keeps its ingress ports.
+		return
+	}
+
+	lb.unprogramService(n.ingress, func() error {
+		gwEP, _ := sb.getGatewayEndpoint()
+		if gwEP == nil {
+			return fmt.Errorf("no gateway endpoint for sandbox %.7s", sb.ID())
+		}
+		return removeIngressPorts(gwEP, lb.service.ingressPorts)
+	})
+}
+
+// unprogramService undoes a [loadBalancer.programService] call that latched: on an
+// ingress network it unpublishes the service's host-published ports, then clears
+// the latch.
+//
+// unpublishPorts is a parameter for the same reason as programService's, and is
+// likewise only called on an ingress network.
+func (lb *loadBalancer) unprogramService(ingress bool, unpublishPorts func() error) {
+	if !lb.serviceProgrammed {
+		// This service was never fully programmed, so its ingress ports were never
+		// published - unpublishing them here would drop a reference it never took.
+		return
+	}
+
+	if ingress {
+		if err := unpublishPorts(); err != nil {
+			log.G(context.TODO()).WithError(err).WithFields(log.Fields{
+				"service":      lb.service.name,
+				"serviceID":    lb.service.id,
+				"ingressPorts": lb.service.ingressPorts.String(),
+			}).Error("Failed to unpublish this service's Swarm ingress ports on this node")
 			return
 		}
-		if gwEP, _ := sb.getGatewayEndpoint(); gwEP == nil {
-			log.G(context.TODO()).Errorf("Failed to remove ingress ports: no gateway endpoint for sandbox %.7s", sb.ID())
-		} else if err := removeIngressPorts(gwEP, lb.service.ingressPorts); err != nil {
-			log.G(context.TODO()).Errorf("Failed to remove ingress: %v", err)
-		}
 	}
+
+	// The ingress ports are down, so the service is no longer fully plumbed
+	// whatever became of the data plane. Clear the latch so that a service which
+	// comes back gets the complete setup again; the data-plane steps tolerate
+	// anything a failed teardown left behind.
+	lb.serviceProgrammed = false
 }
 
 var (
@@ -282,5 +444,9 @@ func addIngressPorts(gwEP *Endpoint, ingressPorts []*PortConfig) error {
 }
 
 func (sb *Sandbox) addRedirectRules(eIP *net.IPNet, ingressPorts []*PortConfig) error {
-	return sb.addRedirectRulesIPTables(eIP, ingressPorts)
+	if nftables.Enabled() {
+		return sb.addRedirectRulesNFTables(context.TODO(), eIP, ingressPorts)
+	} else {
+		return sb.addRedirectRulesIPTables(eIP, ingressPorts)
+	}
 }

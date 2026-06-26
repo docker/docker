@@ -18,16 +18,11 @@ import (
 
 // addLBBackendIPTables adds a loadbalancer backend to the loadbalancer sandbox
 // for the network.  If needed add the service as well.
-func (n *Network) addLBBackendIPTables(ip net.IP, lb *loadBalancer) bool {
-	ep, sb, err := n.findLBEndpointSandbox()
-	if err != nil {
-		log.G(context.TODO()).Errorf("addLBBackend %s/%s: %v", n.ID(), n.Name(), err)
-		return false
-	}
-	if sb.osSbox == nil {
-		return false
-	}
-
+//
+// It reports whether the service's data plane is in place - true also when the
+// IPVS service already existed, so that a caller which failed a later step (such
+// as publishing ingress ports) can retry that step on the next backend event.
+func (n *Network) addLBBackendIPTables(ip net.IP, ep *Endpoint, sb *Sandbox, lb *loadBalancer) bool {
 	eIP := ep.Iface().Address()
 
 	i, err := ipvs.New(sb.Key())
@@ -43,9 +38,7 @@ func (n *Network) addLBBackendIPTables(ip net.IP, lb *loadBalancer) bool {
 		SchedName:     ipvs.RoundRobin,
 	}
 
-	var newService bool
 	if !i.IsServicePresent(s) {
-		newService = true
 		// Add IP alias for the VIP to the endpoint
 		ifName := findIfaceDstName(sb, ep)
 		if ifName == "" {
@@ -94,23 +87,14 @@ func (n *Network) addLBBackendIPTables(ip net.IP, lb *loadBalancer) bool {
 	// we've initialized ip_vs
 	sb.osSbox.ApplyOSTweaks(sb.oslTypes)
 
-	return newService
+	return true
 }
 
 // rmLBBackendIPTables removes a loadbalancer backend the load balancing
 // endpoint for this network. If 'rmService' is true, then remove the service
 // entry as well. If 'fullRemove' is true then completely remove the entry,
 // otherwise just deweight it for now.
-func (n *Network) rmLBBackendIPTables(ip net.IP, lb *loadBalancer, rmService bool, fullRemove bool) {
-	ep, sb, err := n.findLBEndpointSandbox()
-	if err != nil {
-		log.G(context.TODO()).Debugf("rmLBBackend for %s/%s: %v -- probably transient state", n.ID(), n.Name(), err)
-		return
-	}
-	if sb.osSbox == nil {
-		return
-	}
-
+func (n *Network) rmLBBackendIPTables(ip net.IP, ep *Endpoint, sb *Sandbox, lb *loadBalancer, rmService bool, fullRemove bool) {
 	eIP := ep.Iface().Address()
 
 	i, err := ipvs.New(sb.Key())

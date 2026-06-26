@@ -68,6 +68,8 @@ type Sandbox struct {
 	// This mutex is used to serialize service related operation for an endpoint
 	// The lock is here because the endpoint is saved into the store so is not unique
 	service sync.Mutex
+
+	osSandbox
 }
 
 // These are the container configs used to customize container /etc/hosts file.
