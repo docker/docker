@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/network"
-	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/integration/internal/testutils/networking"
@@ -490,34 +489,6 @@ func createBridge(t *testing.T, ifName string, addrs []string) net.IP {
 		assert.NilError(t, err)
 	}
 	return llAddr
-}
-
-// TestSwarmNoNftables checks that, because swarm does not yet have nftables support,
-// it's not possible to:
-// - enable Swarm when nftables is enabled, or to
-// - restart an already Swarm enabled daemon with nftables enabled as well.
-func TestSwarmNoNftables(t *testing.T) {
-	ctx := testutil.StartSpan(baseContext, t)
-	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-
-	t.Run("start", func(t *testing.T) {
-		d := daemon.New(t)
-		d.Start(t, "--firewall-backend=nftables")
-		defer d.Stop(t)
-		err := d.SwarmInitWithError(ctx, t, swarmtypes.InitRequest{AdvertiseAddr: "127.0.0.1:2377"})
-		assert.Check(t, is.ErrorContains(err, "--firewall-backend=nftables is incompatible with swarm mode"))
-	})
-
-	t.Run("restart", func(t *testing.T) {
-		d := daemon.New(t)
-		d.Start(t, "--firewall-backend=iptables")
-		defer d.Stop(t)
-		d.SwarmInit(ctx, t, swarmtypes.InitRequest{AdvertiseAddr: "127.0.0.1:2377"})
-
-		err := d.RestartWithError("--firewall-backend=nftables")
-		assert.Check(t, is.ErrorContains(err, "daemon exited during startup"))
-	})
 }
 
 // TestDaemonShutsDownQuicklyDespiteEventsConnection checks whether the daemon
