@@ -95,6 +95,18 @@ The Engine's authorization middleware fails closed: when a plugin returns an err
 the request is denied and the error is surfaced to the client. Plugins should also fail closed: if the plugin
 cannot confidently evaluate a request, it should return an error or `Allow: false`.
 
+> [!WARNING]
+> Because the plugin receives the [**raw** request body](#authzpluginauthzreq) from the daemon, it must
+> apply the same decoding semantics as the daemon to be sure it evaluates the request the daemon will
+> act on. The daemon decodes JSON with Go's [`encoding/json.Unmarshal`](https://pkg.go.dev/encoding/json#Unmarshal).
+>
+> The same requirement applies to the response body. Plugins that depend on `ResponseBody`
+> inspection for redaction or content-filtering should restrict their policies to endpoints
+> whose response is produced as a single write (typical of REST-style API responses). For
+> commands whose responses are streamed or are likely to exceed the [buffer](#response-body-size-and-partial-buffering) through multiple
+> writes, do not rely on `ResponseBody` for security-relevant decisions; perform the filtering
+> in a separate layer in front of the daemon.
+
 ### Response body size and partial buffering
 
 The internal buffer that holds the response body between the daemon's HTTP
@@ -110,15 +122,6 @@ is the practical effect of this 64 KiB threshold combined with the
 `io.WriteFlusher` write pattern used by streaming handlers, where each write
 is immediately drained to the client and is therefore no longer available
 for plugin inspection by the time the handler returns.
-
-> [!NOTE]
-> Plugins that depend on `ResponseBody` inspection for redaction or
-> content-filtering should restrict their policies to endpoints whose
-> response is produced as a single write (typical of REST-style API
-> responses). For commands whose responses are streamed or are likely to
-> exceed the buffer through multiple writes, do not rely on `ResponseBody`
-> for security-relevant decisions; perform the filtering in a separate
-> layer in front of the daemon.
 
 During request/response processing, some authorization flows might
 need to do additional queries to the Docker daemon. To complete such flows,
