@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.26.10
+ARG GO_VERSION=1.27.3
 
 FROM golang:${GO_VERSION}-alpine AS base
 RUN apk add --no-cache bash libfyaml make yamllint py3-pip

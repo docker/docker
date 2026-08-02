@@ -12,7 +12,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.26.10"
+  GO_VERSION: "1.27.3"
   TEST_REPEAT: "10"
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
   WINDOWS_BASE_TAG_2025: ltsc2025
