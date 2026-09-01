@@ -25,6 +25,7 @@ A self-sufficient runtime for containers.
 Options:
       --add-runtime runtime                   Register an additional OCI compatible runtime (default [])
       --allow-direct-routing                  Allow remote access to published ports on container IP addresses
+      --apparmor-profile string               Path to AppArmor profile template
       --authorization-plugin list             Authorization plugins to load
       --bip string                            IPv4 address for the default bridge
       --bip6 string                           IPv6 address for the default bridge
@@ -806,6 +807,24 @@ allow the request for it to complete.
 For information about how to create an authorization plugin, refer to the
 [authorization plugin](https://docs.docker.com/engine/extend/plugins_authorization/) section.
 
+### Configure the default AppArmor profile
+
+The `--apparmor-profile` option sets the path to an AppArmor profile definition
+for Docker's default `docker-default` container profile. This option is only
+supported on Linux hosts. The file can be a static profile or a Go template.
+
+The equivalent `daemon.json` configuration is:
+
+```json
+{
+  "apparmor-profile": "/etc/docker/apparmor/docker-default"
+}
+```
+
+Restart the daemon to apply changes. For template values, safe file placement,
+security considerations, and verification, see
+[Customize the default AppArmor profile](https://docs.docker.com/engine/security/apparmor/#customize-the-default-profile).
+
 ### Daemon user namespace options
 
 The Linux kernel
@@ -1079,6 +1098,7 @@ The following is a full example of the allowed configuration options on Linux:
 ```json
 {
   "allow-direct-routing": false,
+  "apparmor-profile": "",
   "authorization-plugins": [],
   "bip": "",
   "bip6": "",
