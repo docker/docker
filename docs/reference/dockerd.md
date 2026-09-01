@@ -51,6 +51,7 @@ Options:
       --default-network-opt mapmap            Default network options (default map[])
       --default-runtime string                Default OCI runtime for containers (default "runc")
       --default-shm-size bytes                Default shm size for containers (default 64MiB)
+      --default-stop-timeout int              Set the default container stop timeout in seconds (0 to terminate immediately) (default 10)
       --default-ulimit ulimit                 Default ulimits for containers (default [])
       --dns list                              DNS server to use
       --dns-opt list                          DNS options to use
@@ -758,6 +759,18 @@ This only adds the proxy and authentication to the Docker daemon's requests.
 To use the proxy when building images and running containers, see
 [Configure Docker to use a proxy server](https://docs.docker.com/engine/cli/proxy/)
 
+### Default container stop timeout
+
+The `--default-stop-timeout` flag sets the number of seconds to wait for a
+container to stop when the container doesn't have a `--stop-timeout` configured.
+The default is `10` seconds on Linux and `30` seconds on Windows. A value of `0`
+doesn't wait before forcefully terminating the container. Negative values are
+invalid.
+
+You can also configure the timeout with the `default-stop-timeout` option in the
+[daemon configuration file](#daemon-configuration-file). You can reload this
+option without restarting the daemon.
+
 ### Default `ulimit` settings
 
 The `--default-ulimit` flag lets you set the default `ulimit` options to use for
@@ -1104,6 +1117,7 @@ The following is a full example of the allowed configuration options on Linux:
   "default-network-opts": {},
   "default-runtime": "runc",
   "default-shm-size": "64M",
+  "default-stop-timeout": 10,
   "default-ulimits": {
     "nofile": {
       "Hard": 64000,
@@ -1225,6 +1239,7 @@ The following is a full example of the allowed configuration options on Windows:
   "debug": true,
   "default-network-opts": {},
   "default-runtime": "",
+  "default-stop-timeout": 30,
   "default-ulimits": {},
   "dns": [],
   "dns-opts": [],
@@ -1317,6 +1332,7 @@ The list of currently supported options that can be reconfigured is this:
 | `max-concurrent-uploads`           | Configures the max concurrent uploads for each push.                                                        |
 | `max-download-attempts`            | Configures the max download attempts for each pull.                                                         |
 | `default-runtime`                  | Configures the runtime to be used if not is specified at container creation.                                |
+| `default-stop-timeout`             | Configures the timeout for stopping containers that have no container-specific timeout.                     |
 | `runtimes`                         | Configures the list of available OCI runtimes that can be used to run containers.                           |
 | `authorization-plugin`             | Specifies the authorization plugins to use.                                                                 |
 | `insecure-registries`              | Specifies a list of registries that the daemon should consider insecure.                                    |
