@@ -10,10 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -190,6 +192,12 @@ func (s *DockerCLISaveLoadSuite) TestSaveAndLoadRepoFlags(c *testing.T) {
 		// was loaded into a different daemon (which should be the case in a
 		// real-world scenario).
 		before[0].Metadata.LastTagTime = after[0].Metadata.LastTagTime
+
+		// Account for annotations added.
+		before[0].Descriptor.Annotations = map[string]string{
+			c8dimages.AnnotationImageName: "docker.io/library/foobar-save-load-test:latest",
+			ocispec.AnnotationRefName:     "latest",
+		}
 	}
 
 	assert.Check(c, is.DeepEqual(before, after), "inspect is not the same after a save / load")
