@@ -139,6 +139,12 @@ func (s *DockerCLIInspectSuite) TestInspectTypeFlagWithInvalidValue(c *testing.T
 	}
 }
 
+// TestInspectImageFilterInt verifies that integer image fields can be
+// compared with integer constants in inspect format templates.
+//
+// regression test for https://github.com/moby/moby/issues/11641
+//
+// FIXME(thaJeztah): this should be a unit tests in docker/cli
 func (s *DockerCLIInspectSuite) TestInspectImageFilterInt(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	imageTest := loadSpecialImage(c, specialimage.EmptyFS)
@@ -154,18 +160,25 @@ func (s *DockerCLIInspectSuite) TestInspectImageFilterInt(c *testing.T) {
 	assert.Equal(c, result, true)
 }
 
+// TestInspectContainerFilterInt verifies that integer container fields can be
+// compared with integer constants in inspect format templates.
+//
+// regression test for https://github.com/moby/moby/issues/11641
+//
+// FIXME(thaJeztah): this should be a unit tests in docker/cli
 func (s *DockerCLIInspectSuite) TestInspectContainerFilterInt(c *testing.T) {
+	// FIXME(thaJeztah): docker CLI 28 no longer prints container-ID; check if that was intentional; https://github.com/moby/moby/pull/51361#issuecomment-5866790292
+	const name = "inspect-container-filter-int"
+
 	result := icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "run", "-i", "-a", "stdin", "busybox", "cat"},
+		Command: []string{dockerBinary, "run", "-i", "-a", "stdin", "--name", name, "busybox", "cat"},
 		Stdin:   strings.NewReader("blahblah"),
-	})
-	result.Assert(c, icmd.Success)
-	out := result.Stdout()
-	id := strings.TrimSpace(out)
+	}).Assert(c, icmd.Success)
+	out := result.Combined()
+	id := name
 
-	out = inspectField(c, id, "State.ExitCode")
-
-	exitCode, err := strconv.Atoi(out)
+	ec := inspectField(c, id, "State.ExitCode")
+	exitCode, err := strconv.Atoi(ec)
 	assert.Assert(c, err == nil, "failed to inspect exitcode of the container: %s, %v", out, err)
 
 	// now get the exit code to verify
