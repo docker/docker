@@ -21,12 +21,9 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/countmap"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/hashable"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
-	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
-	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
 
@@ -58,12 +55,11 @@ type network struct {
 	endpoints endpointTable
 	joinCnt   int
 	// Ref count of VXLAN Forwarding Database entries programmed into the kernel
-	fdbCnt    countmap.Map[hashable.IPMAC]
-	sboxInit  bool
-	initEpoch int
-	initErr   error
-	subnets   []*subnet
-	peerdb    peerMap
+	fdbCnt   countmap.Map[hashable.IPMAC]
+	sboxInit bool
+	initErr  error
+	subnets  []*subnet
+	peerdb   peerMap
 }
 
 func init() {
@@ -358,59 +354,6 @@ func (n *network) releaseEncryptionRefs() {
 	clear(n.fdbCnt)
 }
 
-func (d *driver) populateVNITbl() {
-	vniTbl := make(map[uint32]string)
-	filepath.WalkDir(d.netnsDir,
-		// NOTE(cpuguy83): The linter picked up on the fact that this walk function was not using this error argument
-		// That seems wrong... however I'm not familiar with this code or if that error matters
-		func(path string, _ os.DirEntry, _ error) error {
-			_, fname := filepath.Split(path)
-
-			// Skip namespaces which are not network sandboxes: see
-			// sandboxKey.
-			if len(strings.Split(fname, "-")) <= 1 {
-				return nil
-			}
-
-			n, err := netns.GetFromPath(path)
-			if err != nil {
-				log.G(context.TODO()).Errorf("Could not open namespace path %s during vni population: %v", path, err)
-				return nil
-			}
-			defer n.Close()
-
-			nlh, err := nlwrap.NewHandleAt(n, unix.NETLINK_ROUTE)
-			if err != nil {
-				log.G(context.TODO()).Errorf("Could not open netlink handle during vni population for ns %s: %v", path, err)
-				return nil
-			}
-			defer nlh.Close()
-
-			err = nlh.SetSocketTimeout(soTimeout)
-			if err != nil {
-				log.G(context.TODO()).Warnf("Failed to set the timeout on the netlink handle sockets for vni table population: %v", err)
-			}
-
-			links, err := nlh.LinkList()
-			if err != nil {
-				log.G(context.TODO()).Errorf("Failed to list interfaces during vni population for ns %s: %v", path, err)
-				return nil
-			}
-
-			for _, l := range links {
-				if l.Type() == "vxlan" {
-					vniTbl[uint32(l.(*netlink.Vxlan).VxlanId)] = path
-				}
-			}
-
-			return nil
-		})
-
-	d.mu.Lock()
-	d.vniTbl = vniTbl
-	d.mu.Unlock()
-}
-
 func (n *network) generateVxlanName(s *subnet) string {
 	id := n.id
 	if len(n.id) > 5 {
@@ -434,27 +377,6 @@ func (n *network) getBridgeNamePrefix(s *subnet) string {
 }
 
 func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error {
-	// Try to find this subnet's vni is being used in some
-	// other namespace by looking at vniTbl that we just
-	// populated in the once init. If a hit is found then
-	// it must a stale namespace from previous
-	// life. Destroy it completely and reclaim resourced.
-	n.driver.mu.Lock()
-	path, ok := n.driver.vniTbl[s.vni]
-	n.driver.mu.Unlock()
-
-	if ok {
-		deleteVxlanByVNI(path, s.vni)
-		if err := unix.Unmount(path, unix.MNT_FORCE); err != nil {
-			log.G(context.TODO()).Errorf("unmount of %s failed: %v", path, err)
-		}
-		os.Remove(path)
-
-		n.driver.mu.Lock()
-		delete(n.driver.vniTbl, s.vni)
-		n.driver.mu.Unlock()
-	}
-
 	// create a bridge and vxlan device for this subnet and move it to the sandbox
 	sbox := n.sbox
 
@@ -571,59 +493,21 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 	return nil
 }
 
-func (n *network) cleanupStaleSandboxes() {
-	filepath.WalkDir(n.driver.netnsDir,
-		func(path string, _ os.DirEntry, _ error) error {
-			_, fname := filepath.Split(path)
-
-			// Skip namespaces which are not network sandboxes, and
-			// find the network a sandbox belongs to: see sandboxKey.
-			pList := strings.Split(fname, "-")
-			if len(pList) <= 1 {
-				return nil
-			}
-
-			pattern := pList[1]
-			if strings.Contains(n.id, pattern) {
-				// Delete all vnis
-				deleteVxlanByVNI(path, 0)
-				unix.Unmount(path, unix.MNT_DETACH)
-				os.Remove(path)
-
-				// Now that we have destroyed this
-				// sandbox, remove all references to
-				// it in vniTbl so that we don't
-				// inadvertently destroy the sandbox
-				// created in this life.
-				n.driver.mu.Lock()
-				for vni, tblPath := range n.driver.vniTbl {
-					if tblPath == path {
-						delete(n.driver.vniTbl, vni)
-					}
-				}
-				n.driver.mu.Unlock()
-			}
-
-			return nil
-		})
-}
-
 func (n *network) initSandbox() error {
-	if n.driver.netnsDir == "" {
+	if n.driver.sandboxDir == "" {
 		return errors.New("no netns directory is configured")
 	}
-
-	// If there is a race between two go routines here only one will win
-	// the other will wait.
-	n.driver.networkOnce.Do(n.driver.populateVNITbl)
-
-	n.initEpoch++
-
-	// If there are any stale sandboxes related to this network
-	// from previous daemon life clean it up here
-	n.cleanupStaleSandboxes()
-
-	key := sandboxKey(n.driver.netnsDir, n.initEpoch, n.id)
+	if err := os.MkdirAll(n.driver.sandboxDir, 0o755); err != nil {
+		return fmt.Errorf("could not create network sandbox directory: %w", err)
+	}
+	// Earlier versions of the driver walk the whole netns directory,
+	// this subdirectory included, and take a namespace with a "-" in its
+	// name to be a network sandbox. They destroy it when a network needs
+	// one of its VNIs, or when they initialize the network whose ID
+	// follows the "-". So a sandbox this driver leaves behind can still be
+	// cleaned up by an earlier one. Their epochs start at 1, so "0-"
+	// cannot clash with their names.
+	key := filepath.Join(n.driver.sandboxDir, "0-"+n.id)
 	sbox, err := osl.NewSandbox(key, true, false)
 	if err != nil {
 		return fmt.Errorf("could not get network sandbox: %v", err)
@@ -636,20 +520,54 @@ func (n *network) initSandbox() error {
 	return nil
 }
 
-// sandboxKey returns the key of the network sandbox for network nid created
-// in the given epoch: the path of its network namespace, named
-// "<epoch>-<nid>" truncated to 12 characters.
-//
-// netnsDir may also hold network namespaces which the driver did not
-// create: the daemon gives the driver the controller's netns directory,
-// where the controller names the namespaces of its sandboxes after their
-// IDs, without a "-". So populateVNITbl and cleanupStaleSandboxes take only
-// the namespaces with a "-" in their names to be network sandboxes, and
-// cleanupStaleSandboxes takes the part of the name after the "-", a prefix
-// of the network's ID, to find the stale sandboxes of a network.
-func sandboxKey(netnsDir string, epoch int, nid string) string {
-	name := fmt.Sprintf("%d-%s", epoch, nid)
-	return filepath.Join(netnsDir, name[:min(len(name), 12)])
+// removeStaleSandboxes destroys the network sandboxes which earlier
+// daemons left behind. None of them can be in use: a node
+// cannot be in a Swarm with live-restore enabled, so no container attached
+// to an overlay network outlives the daemon.
+func (d *driver) removeStaleSandboxes() {
+	if d.sandboxDir == "" {
+		return
+	}
+	ents, err := os.ReadDir(d.sandboxDir)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.G(context.TODO()).WithError(err).Warn("Failed to list stale overlay network sandboxes")
+	}
+	for _, ent := range ents {
+		destroyStaleSandbox(filepath.Join(d.sandboxDir, ent.Name()))
+	}
+
+	// Earlier versions of the driver named their network sandboxes
+	// "<epoch>-<network ID>". legacySandboxDir may also hold network
+	// namespaces which the driver did not create: the daemon gives the
+	// driver the controller's netns directory, where the controller names
+	// the namespaces of its sandboxes after their IDs, without a "-". So
+	// take only the namespaces with a "-" in their names to be network
+	// sandboxes, and leave the rest alone.
+	ents, err = os.ReadDir(d.legacySandboxDir)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.G(context.TODO()).WithError(err).Warn("Failed to list stale overlay network sandboxes")
+	}
+	for _, ent := range ents {
+		if !ent.IsDir() && strings.Contains(ent.Name(), "-") {
+			destroyStaleSandbox(filepath.Join(d.legacySandboxDir, ent.Name()))
+		}
+	}
+}
+
+func destroyStaleSandbox(path string) {
+	l := log.G(context.TODO()).WithField("path", path)
+	// Delete the VXLAN links first. The kernel deletes them when it tears
+	// the namespace down, but it does that asynchronously, and until then
+	// their VNIs cannot be used by a new VXLAN link.
+	if err := deleteVxlans(path); err != nil {
+		l.WithError(err).Warn("Failed to delete VXLAN links in stale overlay network sandbox")
+	}
+	if err := unix.Unmount(path, unix.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
+		l.WithError(err).Warn("Failed to unmount stale overlay network sandbox")
+	}
+	if err := os.Remove(path); err != nil {
+		l.WithError(err).Warn("Failed to remove stale overlay network sandbox")
+	}
 }
 
 // lockNetwork returns the network object for nid, locked for exclusive access.
