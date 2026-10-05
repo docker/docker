@@ -472,13 +472,30 @@ func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *testing.T) {
 	}, checker.Equals(true)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// check container alias config
-	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .NetworkSettings.Networks.test_swarm_br.Aliases}}", task.Status.ContainerStatus.ContainerID)
+	/*
+		This works when run manually;
+
+		docker pull busybox
+		docker network create --scope=swarm test_swarm_br
+		docker service create --no-resolve-image --detach=true --network=name=test_swarm_br,alias=srv_alias --name=alias_tst_container busybox top
+
+		docker ps
+		CONTAINER ID   IMAGE            COMMAND                  CREATED          STATUS          PORTS           NAMES
+		a6b3a4fec528   busybox:latest   "top"                    24 minutes ago   Up 24 minutes                   alias_tst_container.1.5mfcyrzhq2tui1rtlo99881wp
+
+		docker inspect a6b3a4fec528 --format '{{json .NetworkSettings.Networks.test_swarm_br.DNSNames}}'
+		["alias_tst_container.1.5mfcyrzhq2tui1rtlo99881wp","a6b3a4fec528"]
+	*/
+	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .NetworkSettings.Networks}}", task.Status.ContainerStatus.ContainerID)
+	assert.NilError(c, err, out)
+	c.Log(out)
+
+	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .NetworkSettings.Networks.test_swarm_br.DNSNames}}", task.Status.ContainerStatus.ContainerID)
 	assert.NilError(c, err, out)
 
 	// Make sure the only alias seen is the container-id
-	var aliases []string
-	assert.NilError(c, json.Unmarshal([]byte(out), &aliases))
-	assert.Equal(c, len(aliases), 1)
-
-	assert.Assert(c, is.Contains(task.Status.ContainerStatus.ContainerID, aliases[0]))
+	var dnsNames []string
+	assert.NilError(c, json.Unmarshal([]byte(out), &dnsNames))
+	assert.Check(c, is.Len(dnsNames, 1), out)
+	assert.Assert(c, is.Contains(task.Status.ContainerStatus.ContainerID, dnsNames[0]))
 }
