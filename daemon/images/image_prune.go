@@ -14,6 +14,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/server/imagebackend"
 	"github.com/moby/moby/v2/errdefs"
@@ -33,7 +34,8 @@ var imagesAcceptedFilters = map[string]bool{
 var errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
 
 // ImagePrune removes unused images
-func (i *ImageService) ImagePrune(ctx context.Context, pruneFilters filters.Args) (*imagetypes.PruneReport, error) {
+func (i *ImageService) ImagePrune(ctx context.Context, opts pruneprogress.Options) (*imagetypes.PruneReport, error) {
+	pruneFilters := opts.Filters
 	if !i.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errPruneRunning
 	}
@@ -137,6 +139,14 @@ deleteImagesLoop:
 		}
 
 		rep.ImagesDeleted = append(rep.ImagesDeleted, deletedImages...)
+		for _, deleted := range deletedImages {
+			if deleted.Untagged != "" {
+				pruneprogress.Notify(opts.Progress, deleted.Untagged, "untagged")
+			}
+			if deleted.Deleted != "" {
+				pruneprogress.Notify(opts.Progress, deleted.Deleted, "deleted")
+			}
+		}
 	}
 
 	// Compute how much space was freed

@@ -3,6 +3,8 @@ package volume
 import (
 	"context"
 
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
+
 	"github.com/moby/moby/api/types/volume"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/server/volumebackend"
@@ -16,7 +18,7 @@ type Backend interface {
 	Get(ctx context.Context, name string, opts ...opts.GetOption) (*volume.Volume, error)
 	Create(ctx context.Context, name, driverName string, opts ...opts.CreateOption) (*volume.Volume, error)
 	Remove(ctx context.Context, name string, opts ...opts.RemoveOption) error
-	Prune(ctx context.Context, pruneFilters filters.Args) (*volume.PruneReport, error)
+	Prune(ctx context.Context, opts pruneprogress.Options) (*volume.PruneReport, error)
 }
 
 // ClusterBackend is the backend used for Swarm Cluster Volumes. Regular

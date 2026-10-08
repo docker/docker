@@ -290,6 +290,35 @@ func TestUnrepresentableContent(t *testing.T) {
 	}
 }
 
+func TestSelectedResponseSchema(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ name, selector, content, error string }{
+		{"selected report", "application/json", `{application/json: {schema: {type: object, properties: {SpaceReclaimed: {type: integer}}}}, application/jsonl: {schema: {type: object, properties: {object: {type: object}}}}}`, ""},
+		{"unknown media", "text/plain", `{application/json: {schema: {type: object}}}`, "selects missing schema"},
+		{"missing schema", "application/json", `{application/json: {}}`, "selects missing schema"},
+		{"missing content", "application/json", "null", "selects missing schema"},
+		{"invalid selector", "true", `{}`, "must name a response media type"},
+		{"empty selector", "''", `{}`, "must name a response media type"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			value := parseTest(t, `{responses: {200: {description: report, x-swagger-schema-media-type: `+tc.selector+`, content: `+tc.content+`}}}`)
+			original := clone(value)
+			result, err := projectOperation(value, parseTest(t, `{consumes: [], produces: []}`))
+			assert.DeepEqual(t, value, original)
+			if tc.error != "" {
+				assert.ErrorContains(t, err, tc.error)
+				return
+			}
+			assert.NilError(t, err)
+			assert.DeepEqual(t, decoded(t, get(result, "produces")), []any{"application/json", "application/jsonl"})
+			response := get(result, "responses", "200")
+			assertYAML(t, get(response, "schema"), `{type: object, properties: {SpaceReclaimed: {type: integer}}}`)
+			assert.Assert(t, get(response, "x-swagger-schema-media-type") == nil)
+		})
+	}
+}
+
 func TestUnsupportedOperations(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct{ name, operation, error string }{

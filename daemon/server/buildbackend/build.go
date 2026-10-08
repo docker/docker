@@ -3,6 +3,8 @@ package buildbackend
 import (
 	"io"
 
+	"github.com/moby/moby/api/types/prune"
+
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/moby/moby/api/types/build"
@@ -19,6 +21,7 @@ type DiskUsageOptions struct {
 type DiskUsage = build.DiskUsage
 
 type CachePruneOptions struct {
+	Progress      func(prune.Object)
 	All           bool
 	ReservedSpace int64
 	MaxUsedSpace  int64

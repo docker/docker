@@ -15,6 +15,16 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.57 API changes
 
+* `POST /containers/prune`, `POST /networks/prune`, `POST /volumes/prune`,
+  `POST /images/prune`, and `POST /build/prune` now accept a `stream` query
+  parameter (default `false`). When enabled, the response uses
+  `application/jsonl` and reports successful deletions as they occur, with
+  `object.id` and `object.action` fields. The final message contains the complete prune
+  report in `report`, or `error` if the operation fails after progress
+  has begun. The default response remains a single JSON report. Daemons with
+  authorization plugins also return that report so response authorization
+  remains effective. Each streaming write has a 30-second timeout; object
+  deletion time is not limited by this timeout.
 * `GET /events`: `die` events for containers now include a `restarting`
   attribute, set to `"true"` when the container is going to be restarted,
   either by its restart policy or by a manual restart in progress. The

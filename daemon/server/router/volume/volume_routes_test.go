@@ -10,6 +10,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
+
 	"gotest.tools/v3/assert"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -644,7 +646,7 @@ func (b *fakeVolumeBackend) Remove(_ context.Context, name string, o ...opts.Rem
 	return nil
 }
 
-func (b *fakeVolumeBackend) Prune(_ context.Context, _ filters.Args) (*volume.PruneReport, error) {
+func (b *fakeVolumeBackend) Prune(_ context.Context, _ pruneprogress.Options) (*volume.PruneReport, error) {
 	return nil, nil
 }
 

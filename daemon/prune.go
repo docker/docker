@@ -5,12 +5,15 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/moby/moby/api/types/prune"
+
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/lazyregexp"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	dnetwork "github.com/moby/moby/v2/daemon/network"
@@ -32,7 +35,8 @@ var (
 )
 
 // ContainerPrune removes unused containers
-func (daemon *Daemon) ContainerPrune(ctx context.Context, pruneFilters filters.Args) (*container.PruneReport, error) {
+func (daemon *Daemon) ContainerPrune(ctx context.Context, opts pruneprogress.Options) (*container.PruneReport, error) {
+	pruneFilters := opts.Filters
 	if !daemon.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errPruneRunning
 	}
@@ -86,6 +90,7 @@ func (daemon *Daemon) ContainerPrune(ctx context.Context, pruneFilters filters.A
 				rep.SpaceReclaimed += uint64(cSize)
 			}
 			rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
+			pruneprogress.Notify(opts.Progress, c.ID, "deleted")
 		}
 	}
 	daemon.EventsService.Log(events.ActionPrune, events.ContainerEventType, events.Actor{
@@ -95,7 +100,7 @@ func (daemon *Daemon) ContainerPrune(ctx context.Context, pruneFilters filters.A
 }
 
 // localNetworkPrune removes unused local networks
-func (daemon *Daemon) localNetworkPrune(ctx context.Context, pruneFilters dnetwork.Filter) *network.PruneReport {
+func (daemon *Daemon) localNetworkPrune(ctx context.Context, pruneFilters dnetwork.Filter, progress func(prune.Object)) *network.PruneReport {
 	rep := &network.PruneReport{}
 
 	// When the function returns true, the walk will stop.
@@ -123,6 +128,7 @@ func (daemon *Daemon) localNetworkPrune(ctx context.Context, pruneFilters dnetwo
 			return false
 		}
 		rep.NetworksDeleted = append(rep.NetworksDeleted, nw.Name())
+		pruneprogress.Notify(progress, nw.Name(), "deleted")
 		return false
 	})
 	return rep
@@ -131,7 +137,7 @@ func (daemon *Daemon) localNetworkPrune(ctx context.Context, pruneFilters dnetwo
 var networkIsInUse = lazyregexp.New(`network ([[:alnum:]]+) is in use`)
 
 // clusterNetworkPrune removes unused cluster networks
-func (daemon *Daemon) clusterNetworkPrune(ctx context.Context, pruneFilters dnetwork.Filter) (*network.PruneReport, error) {
+func (daemon *Daemon) clusterNetworkPrune(ctx context.Context, pruneFilters dnetwork.Filter, progress func(prune.Object)) (*network.PruneReport, error) {
 	rep := &network.PruneReport{}
 
 	cluster := daemon.GetCluster()
@@ -167,13 +173,15 @@ func (daemon *Daemon) clusterNetworkPrune(ctx context.Context, pruneFilters dnet
 				continue
 			}
 			rep.NetworksDeleted = append(rep.NetworksDeleted, nw.Name)
+			pruneprogress.Notify(progress, nw.Name, "deleted")
 		}
 	}
 	return rep, nil
 }
 
 // NetworkPrune removes unused networks
-func (daemon *Daemon) NetworkPrune(ctx context.Context, filterArgs filters.Args) (*network.PruneReport, error) {
+func (daemon *Daemon) NetworkPrune(ctx context.Context, opts pruneprogress.Options) (*network.PruneReport, error) {
+	filterArgs := opts.Filters
 	if !daemon.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errPruneRunning
 	}
@@ -185,11 +193,11 @@ func (daemon *Daemon) NetworkPrune(ctx context.Context, filterArgs filters.Args)
 	}
 
 	rep := &network.PruneReport{}
-	if clusterRep, err := daemon.clusterNetworkPrune(ctx, pruneFilters); err == nil {
+	if clusterRep, err := daemon.clusterNetworkPrune(ctx, pruneFilters, opts.Progress); err == nil {
 		rep.NetworksDeleted = append(rep.NetworksDeleted, clusterRep.NetworksDeleted...)
 	}
 
-	localRep := daemon.localNetworkPrune(ctx, pruneFilters)
+	localRep := daemon.localNetworkPrune(ctx, pruneFilters, opts.Progress)
 	rep.NetworksDeleted = append(rep.NetworksDeleted, localRep.NetworksDeleted...)
 
 	select {

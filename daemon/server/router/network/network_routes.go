@@ -6,6 +6,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/moby/moby/api/types/prune"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
+
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/versions"
@@ -349,11 +352,9 @@ func (n *networkRouter) postNetworkPrune(ctx context.Context, w http.ResponseWri
 		return err
 	}
 
-	pruneReport, err := n.backend.NetworkPrune(ctx, pruneFilters)
-	if err != nil {
-		return err
-	}
-	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+	return httputils.WritePruneResponse(ctx, w, r, func(ctx context.Context, progress func(prune.Object)) (any, error) {
+		return n.backend.NetworkPrune(ctx, pruneprogress.Options{Filters: pruneFilters, Progress: progress})
+	})
 }
 
 // findUniqueNetwork will search network across different scopes (both local and swarm).

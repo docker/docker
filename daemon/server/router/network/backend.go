@@ -3,8 +3,9 @@ package network
 import (
 	"context"
 
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
+
 	"github.com/moby/moby/api/types/network"
-	"github.com/moby/moby/v2/daemon/internal/filters"
 	dnetwork "github.com/moby/moby/v2/daemon/network"
 	"github.com/moby/moby/v2/daemon/server/backend"
 )
@@ -18,7 +19,7 @@ type Backend interface {
 	ConnectContainerToNetwork(ctx context.Context, containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error
 	DeleteNetwork(networkID string) error
-	NetworkPrune(ctx context.Context, pruneFilters filters.Args) (*network.PruneReport, error)
+	NetworkPrune(ctx context.Context, opts pruneprogress.Options) (*network.PruneReport, error)
 }
 
 // ClusterBackend is all the methods that need to be implemented

@@ -2,10 +2,12 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"iter"
 	"net/url"
 	"strconv"
+
+	"github.com/moby/moby/api/types/prune"
 
 	"github.com/moby/moby/api/types/build"
 	"github.com/moby/moby/client/pkg/versions"
@@ -18,16 +20,21 @@ type BuildCachePruneOptions struct {
 	MaxUsedSpace  int64
 	MinFreeSpace  int64
 	Filters       Filters
+
+	// Stream requests a streaming result; consume Events or Wait, or call Close.
+	// Requires API v1.57. The default returns a completed report.
+	Stream bool
 }
 
 // BuildCachePruneResult holds the result from the BuildCachePrune method.
 type BuildCachePruneResult struct {
+	// Report is populated when Stream is false. Use Wait for streaming results.
 	Report build.CachePruneReport
+	stream *pruneStream[build.CachePruneReport]
 }
 
 // BuildCachePrune requests the daemon to delete unused cache data.
 func (cli *Client) BuildCachePrune(ctx context.Context, opts BuildCachePruneOptions) (BuildCachePruneResult, error) {
-	var out BuildCachePruneResult
 	query := url.Values{}
 	if opts.All {
 		query.Set("all", "1")
@@ -50,18 +57,42 @@ func (cli *Client) BuildCachePrune(ctx context.Context, opts BuildCachePruneOpti
 	}
 	opts.Filters.updateURLValues(query)
 
-	resp, err := cli.post(ctx, "/build/prune", query, nil, nil)
-	defer ensureReaderClosed(resp)
-
+	stream, err := startPrune[build.CachePruneReport](cli, ctx, "/build/prune", query, opts.Stream)
 	if err != nil {
 		return BuildCachePruneResult{}, err
 	}
-
-	report := build.CachePruneReport{}
-	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
-		return BuildCachePruneResult{}, fmt.Errorf("error retrieving disk usage: %w", err)
+	out := BuildCachePruneResult{stream: stream}
+	if !opts.Stream {
+		out.Report, err = stream.wait(ctx)
+		if err != nil {
+			return BuildCachePruneResult{}, fmt.Errorf("error retrieving prune report: %w", err)
+		}
 	}
-
-	out.Report = report
 	return out, nil
 }
+
+// Events yields confirmed object changes and closes the request when iteration ends.
+func (r BuildCachePruneResult) Events(ctx context.Context) iter.Seq2[prune.Object, error] {
+	if r.stream == nil {
+		return func(func(prune.Object, error) bool) {}
+	}
+	return r.stream.events(ctx)
+}
+
+// Wait returns the complete report, consuming any remaining progress.
+func (r BuildCachePruneResult) Wait(ctx context.Context) (build.CachePruneReport, error) {
+	if r.stream == nil {
+		return r.Report, nil
+	}
+	return r.stream.wait(ctx)
+}
+
+// Close cancels an unfinished request without draining its response.
+func (r BuildCachePruneResult) Close() error {
+	if r.stream == nil {
+		return nil
+	}
+	return r.stream.close()
+}
+
+var _ PruneResponse[build.CachePruneReport] = BuildCachePruneResult{}

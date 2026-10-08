@@ -147,7 +147,7 @@ func projectResponse(value *yaml.Node) (*yaml.Node, error) {
 	if err := requireKeys(value, "description"); err != nil {
 		return nil, err
 	}
-	result := without(value, "headers", "content")
+	result := without(value, "headers", "content", "x-swagger-schema-media-type")
 	if headers := get(value, "headers"); headers != nil {
 		projected, err := projectMapping(headers, func(header *yaml.Node) (*yaml.Node, error) {
 			if err := checkKeys(header, "description", "schema"); err != nil {
@@ -168,8 +168,23 @@ func projectResponse(value *yaml.Node) (*yaml.Node, error) {
 		}
 		set(result, "headers", projected)
 	}
-	if content := get(value, "content"); content != nil {
-		schema, err := contentSchema(content, false)
+	content := get(value, "content")
+	schemaContent := content
+	if selected := get(value, "x-swagger-schema-media-type"); selected != nil {
+		// Swagger has only one response schema. An explicit selection preserves
+		// the JSON report model when OpenAPI also documents a typed event stream.
+		if selected.Kind != yaml.ScalarNode || selected.Tag != "!!str" || selected.Value == "" {
+			return nil, errors.New("x-swagger-schema-media-type must name a response media type")
+		}
+		media := get(content, selected.Value)
+		if media == nil || get(media, "schema") == nil {
+			return nil, fmt.Errorf("x-swagger-schema-media-type selects missing schema for %q", selected.Value)
+		}
+		schemaContent = mapping()
+		set(schemaContent, selected.Value, media)
+	}
+	if content != nil {
+		schema, err := contentSchema(schemaContent, false)
 		if err != nil {
 			return nil, err
 		}

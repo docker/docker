@@ -31,6 +31,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter/mobyexporter"
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter/overrides"
 	"github.com/moby/moby/v2/daemon/internal/ocihook"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
 	"github.com/moby/moby/v2/daemon/internal/streamformatter"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/libnetwork"
@@ -252,6 +253,7 @@ func (b *Builder) Prune(ctx context.Context, opts buildbackend.CachePruneOptions
 		for r := range ch {
 			size += r.Size
 			cacheIDs = append(cacheIDs, r.ID)
+			pruneprogress.Notify(opts.Progress, r.ID, "deleted")
 		}
 		return nil
 	})

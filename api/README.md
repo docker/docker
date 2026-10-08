@@ -57,6 +57,10 @@ Keep `x-nullable` and other Go generator extensions: they control the generated 
 Media-level request examples override schema examples and become the Swagger body schema's `example`.
 The converter currently requires matching schemas and effective examples across request media types.
 Response examples can differ by media type.
+When response schemas differ, set `x-swagger-schema-media-type` on the response
+to select the media type whose schema Swagger should retain. The selected media
+type must have a schema. Other response media types remain listed in `produces`;
+their distinct schemas remain available in the OpenAPI source.
 
 After editing `openapi.yaml`, run `make -C api swagger-spec` from the repository root and commit `swagger.yaml` too.
 Do not edit `swagger.yaml` directly.

@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/moby/moby/api/types/prune"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
+
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/pkg/authconfig"
@@ -651,11 +654,9 @@ func (ir *imageRouter) postImagesPrune(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 
-	pruneReport, err := ir.backend.ImagePrune(ctx, pruneFilters)
-	if err != nil {
-		return err
-	}
-	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+	return httputils.WritePruneResponse(ctx, w, r, func(ctx context.Context, progress func(prune.Object)) (any, error) {
+		return ir.backend.ImagePrune(ctx, pruneprogress.Options{Filters: pruneFilters, Progress: progress})
+	})
 }
 
 func (ir *imageRouter) getImageAttestations(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
