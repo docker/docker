@@ -78,7 +78,7 @@ func withSandbox(t *testing.T, n *network, key string) {
 	n.sbox = sbox
 	n.sboxInit = true
 	n.subnets = []*subnet{{
-		sboxInit:  true,
+		initDone:  true,
 		vxlanName: "vx-absent",
 		subnetIP:  netip.MustParsePrefix("10.0.0.0/24"),
 	}}

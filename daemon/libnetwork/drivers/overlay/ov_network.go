@@ -30,7 +30,7 @@ import (
 type networkTable map[string]*network
 
 type subnet struct {
-	sboxInit  bool
+	initDone  bool
 	vxlanName string
 	brName    string
 	vni       uint32
@@ -254,16 +254,16 @@ func (n *network) joinSandbox(s *subnet, incJoinCount bool) error {
 	}
 
 	subnetErr := s.initErr
-	if !s.sboxInit {
-		subnetErr = n.initSubnetSandbox(s)
+	if !s.initDone {
+		subnetErr = n.initSubnet(s)
 		// We can recover from these errors
 		if subnetErr == nil {
 			s.initErr = subnetErr
-			s.sboxInit = true
+			s.initDone = true
 		}
 	}
 	if subnetErr != nil {
-		return fmt.Errorf("subnet sandbox join failed for %q: %v", s.subnetIP.String(), subnetErr)
+		return fmt.Errorf("network sandbox join failed for subnet %q: %v", s.subnetIP.String(), subnetErr)
 	}
 
 	if incJoinCount {
@@ -293,7 +293,7 @@ func (n *network) leaveSandbox() {
 	n.sboxInit = false
 	n.initErr = nil
 	for _, s := range n.subnets {
-		s.sboxInit = false
+		s.initDone = false
 		s.initErr = nil
 	}
 }
@@ -376,7 +376,7 @@ func (n *network) getBridgeNamePrefix(s *subnet) string {
 	return fmt.Sprintf("ov-%06x", s.vni)
 }
 
-func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error {
+func (n *network) setupSubnet(s *subnet, brName, vxlanName string) error {
 	// create a bridge and vxlan device for this subnet and move it to the sandbox
 	sbox := n.sbox
 
@@ -472,7 +472,7 @@ func setDefaultVLAN(ns *osl.Namespace) error {
 }
 
 // Must be called with the network lock
-func (n *network) initSubnetSandbox(s *subnet) error {
+func (n *network) initSubnet(s *subnet) error {
 	brName := n.generateBridgeName(s)
 	vxlanName := n.generateVxlanName(s)
 
@@ -483,7 +483,7 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 		return err
 	}
 
-	if err := n.setupSubnetSandbox(s, brName, vxlanName); err != nil {
+	if err := n.setupSubnet(s, brName, vxlanName); err != nil {
 		return err
 	}
 
