@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -519,34 +520,37 @@ func (n *Namespace) RefreshIPv6LoEnabled() {
 	n.ipv6LoEnabledCached = len(addrs) > 0
 }
 
-// ApplyOSTweaks applies operating system specific knobs on the sandbox.
-func (n *Namespace) ApplyOSTweaks(types []SandboxType) {
-	for _, t := range types {
-		switch t {
-		case SandboxTypeLoadBalancer, SandboxTypeIngress:
-			if nftables.Enabled() {
-				kernel.ApplyOSTweaks(map[string]*kernel.OSValue{
-					// The nftables load balancer DNATs in prerouting and routes the
-					// result to a backend, so it needs IPv4 forwarding. A new network
-					// namespace copies ip_forward from the initial network namespace,
-					// not from the daemon's, so it can't be assumed to be enabled.
-					"net.ipv4.ip_forward": {Value: "1", CheckFn: nil},
-				})
-				continue
-			}
-			kernel.ApplyOSTweaks(map[string]*kernel.OSValue{
-				// disables any special handling on port reuse of existing IPVS connection table entries
-				// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L32
-				"net.ipv4.vs.conn_reuse_mode": {Value: "0", CheckFn: nil},
-				// expires connection from the IPVS connection table when the backend is not available
-				// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L133
-				"net.ipv4.vs.expire_nodest_conn": {Value: "1", CheckFn: nil},
-				// expires persistent connections to destination servers with weights set to 0
-				// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L151
-				"net.ipv4.vs.expire_quiescent_template": {Value: "1", CheckFn: nil},
-			})
-		}
+// ApplyOSTweaks applies operating system specific knobs in the sandbox's
+// network namespace.
+func (n *Namespace) ApplyOSTweaks(types []SandboxType) error {
+	if !slices.ContainsFunc(types, func(t SandboxType) bool {
+		return t == SandboxTypeLoadBalancer || t == SandboxTypeIngress
+	}) {
+		return nil
 	}
+	return n.InvokeFunc(func() {
+		if nftables.Enabled() {
+			kernel.ApplyOSTweaks(map[string]*kernel.OSValue{
+				// The nftables load balancer DNATs in prerouting and routes the
+				// result to a backend, so it needs IPv4 forwarding. A new network
+				// namespace copies ip_forward from the initial network namespace,
+				// not from the daemon's, so it can't be assumed to be enabled.
+				"net.ipv4.ip_forward": {Value: "1", CheckFn: nil},
+			})
+			return
+		}
+		kernel.ApplyOSTweaks(map[string]*kernel.OSValue{
+			// disables any special handling on port reuse of existing IPVS connection table entries
+			// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L32
+			"net.ipv4.vs.conn_reuse_mode": {Value: "0", CheckFn: nil},
+			// expires connection from the IPVS connection table when the backend is not available
+			// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L133
+			"net.ipv4.vs.expire_nodest_conn": {Value: "1", CheckFn: nil},
+			// expires persistent connections to destination servers with weights set to 0
+			// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L151
+			"net.ipv4.vs.expire_quiescent_template": {Value: "1", CheckFn: nil},
+		})
+	})
 }
 
 func setIPv6(nspath, iface string, enable bool) error {

@@ -85,7 +85,9 @@ func (n *Network) addLBBackendIPTables(ip net.IP, ep *Endpoint, sb *Sandbox, lb 
 
 	// Ensure that kernel tweaks are applied in case this is the first time
 	// we've initialized ip_vs
-	sb.osSbox.ApplyOSTweaks(sb.oslTypes)
+	if err := sb.osSbox.ApplyOSTweaks(sb.oslTypes); err != nil {
+		log.G(context.TODO()).Errorf("Failed to apply performance tuning sysctls to the sandbox: %v", err)
+	}
 
 	return true
 }
