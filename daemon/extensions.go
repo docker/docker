@@ -2,7 +2,10 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"slices"
@@ -21,7 +24,7 @@ import (
 // newExtensionHost builds the daemon's extension host.
 func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) {
 	cfg := daemon.Config()
-	runtimeDir := filepath.Join(cfg.ExecRoot, "extensions")
+	runtimeDir := extensionRuntimeDir(&cfg)
 	if err := os.MkdirAll(runtimeDir, 0o700); err != nil {
 		return nil, fmt.Errorf("create extension runtime directory: %w", err)
 	}
@@ -44,6 +47,38 @@ func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) 
 		host.WithDependencyProviders(dependencyProviders()...),
 		host.WithExtensionConfig(extensionConfig(&cfg)),
 	)
+}
+
+// extensionRuntimeDir holds the extension sockets.
+// It is private to the daemon user.
+func extensionRuntimeDir(cfg *config.Config) string {
+	return filepath.Join(cfg.ExecRoot, "extensions")
+}
+
+// extensionAPISocket is the path of the API socket served for extensions.
+func extensionAPISocket(cfg *config.Config) string {
+	return filepath.Join(extensionRuntimeDir(cfg), "api.sock")
+}
+
+// ExtensionAPIListener listens on the API socket that the daemon.api point
+// gives to extensions.
+// It is separate from the configured hosts, which may be TLS-only TCP or
+// socket-activated and so unusable by extensions.
+// It returns nil if the daemon has no extension host.
+func (daemon *Daemon) ExtensionAPIListener() (net.Listener, error) {
+	if daemon.extensionHost == nil {
+		return nil, nil
+	}
+	cfg := daemon.Config()
+	path := extensionAPISocket(&cfg)
+	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("remove stale extension API socket: %w", err)
+	}
+	ls, err := net.Listen("unix", path)
+	if err != nil {
+		return nil, fmt.Errorf("listen on extension API socket: %w", err)
+	}
+	return ls, nil
 }
 
 // extensionConfig converts daemon.json's extensions.configs entries to host form.
