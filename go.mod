@@ -77,7 +77,7 @@ require (
 	github.com/moby/profiles/apparmor v0.2.2
 	github.com/moby/profiles/seccomp v0.2.4
 	github.com/moby/pubsub v1.0.0
-	github.com/moby/swarmkit/v2 v2.1.3-0.20260917205909-1fd637ba5cc3
+	github.com/moby/swarmkit/v2 v2.1.3-0.20261016144904-5d8dbdc21997
 	github.com/moby/sys/atomicwriter v0.1.0
 	github.com/moby/sys/mount v0.3.5
 	github.com/moby/sys/mountinfo v0.7.2
