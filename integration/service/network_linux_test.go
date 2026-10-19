@@ -10,12 +10,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
@@ -327,6 +329,81 @@ func TestRestoreIngressRulesOnFirewalldReload(t *testing.T) {
 	t.Log("Checking http access to the service")
 	// It takes a while before this works ...
 	poll.WaitOn(t, checkHTTP, poll.WithTimeout(30*time.Second))
+}
+
+// TestRestoreEncryptedOverlayRulesOnFirewalldReload checks that the iptables
+// rules for an encrypted overlay network are restored after a firewalld reload
+// deletes them.
+func TestRestoreEncryptedOverlayRulesOnFirewalldReload(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
+	skip.If(t, testEnv.FirewallBackendDriver() != "iptables+firewalld", "test is for the iptables backend with firewalld")
+	skip.If(t, !networking.FirewalldRunning(), "Need firewalld to test restoration of encrypted overlay rules")
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv, daemon.WithSwarmIptables(true))
+	defer d.Stop(t)
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	type ruleset struct{ MangleOutput, FilterInput []string }
+	// The order of the rules does not matter as each rule in a chain
+	// matches a disjoint set of packets.
+	chainRules := func(table, chain string) []string {
+		t.Helper()
+		res := icmd.RunCommand("iptables", "-t", table, "-S", chain)
+		res.Assert(t, icmd.Success)
+		rules := strings.Split(strings.TrimSpace(res.Stdout()), "\n")
+		slices.Sort(rules)
+		return rules
+	}
+	dump := func() ruleset {
+		t.Helper()
+		return ruleset{
+			MangleOutput: chainRules("mangle", "OUTPUT"),
+			FilterInput:  chainRules("filter", "INPUT"),
+		}
+	}
+
+	// firewalld deletes the chain on reload if, and only if, the reload
+	// deletes Docker's iptables rules.
+	const markerChain = "TEST-FIREWALLD-RELOAD-MARKER"
+	t.Cleanup(func() { icmd.RunCommand("iptables", "-X", markerChain) })
+	reload := func() {
+		t.Helper()
+		icmd.RunCommand("iptables", "-N", markerChain).Assert(t, icmd.Success)
+		networking.FirewalldReload(t, d)
+		if icmd.RunCommand("iptables", "-S", markerChain).ExitCode == 0 {
+			t.Skip("firewalld reload does not delete iptables rules")
+		}
+	}
+
+	// Reload once before setting up the network to clear out any rules
+	// left behind by other daemons, which this daemon would not restore.
+	reload()
+	noNetwork := dump()
+
+	const netName = "test-enc-overlay-on-firewalld-reload"
+	net.CreateNoError(ctx, t, c, netName,
+		net.WithDriver("overlay"),
+		net.WithAttachable(),
+		net.WithOption("encrypted", ""),
+	)
+	defer func() {
+		_, err := c.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
+		assert.NilError(t, err)
+	}()
+
+	// The rules are installed when the first endpoint joins the network.
+	ctrID := container.Run(ctx, t, c, container.WithNetworkMode(netName))
+	defer c.ContainerRemove(ctx, ctrID, client.ContainerRemoveOptions{Force: true})
+
+	want := dump()
+	assert.Assert(t, !cmp.Equal(want, noNetwork), "TEST BUG! No rules were installed for the encrypted network")
+
+	reload()
+	assert.Check(t, is.DeepEqual(dump(), want),
+		"the rules must be restored correctly after a firewalld reload")
 }
 
 // TestServiceVIPAcrossRollingUpdate checks that a service's VIP keeps carrying

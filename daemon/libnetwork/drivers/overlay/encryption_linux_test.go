@@ -9,11 +9,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/overlay/overlayutils"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 )
 
 // mangleOutputRules returns the rules programmed into the mangle table's OUTPUT
@@ -21,7 +24,15 @@ import (
 // that an empty chain yields an empty slice.
 func mangleOutputRules(t *testing.T, iptable *iptables.IPTable) []string {
 	t.Helper()
-	out, err := iptable.Raw("-t", string(iptables.Mangle), "-S", "OUTPUT")
+	return chainRules(t, iptable, iptables.Mangle, "OUTPUT")
+}
+
+// chainRules returns the rules programmed into a chain of an iptables table,
+// in the order they are evaluated. The chain policy line is omitted so that an
+// empty chain yields an empty slice.
+func chainRules(t *testing.T, iptable *iptables.IPTable, table iptables.Table, chain string) []string {
+	t.Helper()
+	out, err := iptable.Raw("-t", string(table), "-S", chain)
 	assert.NilError(t, err)
 	var rules []string
 	for _, l := range strings.Split(strings.TrimSpace(string(out)), "\n") {
@@ -184,4 +195,71 @@ func TestProgramMangleIPv6Transport(t *testing.T) {
 	rules4 := mangleOutputRules(t, iptables.GetIptable(iptables.IPv4))
 	assert.Check(t, is.Len(rules4, 0), "IPv4 mangle OUTPUT should be untouched:\n%s",
 		strings.Join(rules4, "\n"))
+}
+
+func TestRestoreIptablesEncryptionRulesOnFirewalldReload(t *testing.T) {
+	skip.If(t, nftables.Enabled(), "test is for the iptables backend")
+	defer netnsutils.SetupTestOSContext(t)()
+
+	const encVNI, clearVNI, noSboxVNI = 4097, 4098, 4099
+	d := newDriver(t.TempDir())
+	d.advertiseAddress = netip.MustParseAddr("192.0.2.1")
+	d.networks["enc"] = &network{id: "enc", driver: d, secure: true, subnets: []*subnet{
+		{vni: encVNI, sboxInit: true},
+		// A subnet whose sandbox has not been set up.
+		{vni: noSboxVNI},
+	}}
+	d.networks["clear"] = &network{id: "clear", driver: d, subnets: []*subnet{{vni: clearVNI, sboxInit: true}}}
+
+	ipt := iptables.GetIptable(iptables.IPv4)
+	type ruleset struct{ MangleOutput, FilterInput []string }
+	// The order of the rules does not matter as each rule in a chain
+	// matches a disjoint set of packets.
+	dump := func() ruleset {
+		t.Helper()
+		rs := ruleset{
+			MangleOutput: chainRules(t, ipt, iptables.Mangle, "OUTPUT"),
+			FilterInput:  chainRules(t, ipt, iptables.Filter, "INPUT"),
+		}
+		slices.Sort(rs.MangleOutput)
+		slices.Sort(rs.FilterInput)
+		return rs
+	}
+	noRules := dump()
+
+	// Install the rules as initSubnetSandbox does for the subnet of the
+	// secure network with a sandbox.
+	// Install and remove the rules for the other network's VNI, as for a
+	// deleted secure network whose VNI was reassigned.
+	ctx := t.Context()
+	assert.NilError(t, d.programOverlayEncryptionFirewall(ctx, encVNI, true))
+	assert.Assert(t, !cmp.Equal(dump(), noRules), "TEST BUG! No rules were installed for VNI %d", encVNI)
+	assert.NilError(t, d.programOverlayEncryptionFirewall(ctx, clearVNI, true))
+	assert.NilError(t, d.programOverlayEncryptionFirewall(ctx, clearVNI, false))
+
+	noSpoofProtection := dump()
+
+	// Install the local-spoof-protection rule as setupEncryption does for
+	// the first remote peer, without programming any XFRM state.
+	assert.NilError(t, d.programMangleMarkSpoofProtection(true))
+	d.secMap[netip.MustParseAddr("192.0.2.2")] = encrNode{count: 1}
+
+	want := dump()
+	assert.Assert(t, !cmp.Equal(want, noSpoofProtection), "TEST BUG! The local-spoof-protection rule was not installed")
+
+	// Flush the chains, as firewalld does on reload.
+	_, err := ipt.Raw("-t", string(iptables.Mangle), "-F", "OUTPUT")
+	assert.NilError(t, err)
+	_, err = ipt.Raw("-t", string(iptables.Filter), "-F", "INPUT")
+	assert.NilError(t, err)
+	assert.Assert(t, !cmp.Equal(dump(), want), "TEST BUG! The iptables chains could not be flushed")
+
+	d.restoreOverlayEncryptionFirewall(t.Context())
+	assert.Check(t, is.DeepEqual(dump(), want),
+		"the rules must be restored correctly after a firewalld reload")
+
+	// A reload which did not delete the rules must not duplicate them.
+	d.restoreOverlayEncryptionFirewall(t.Context())
+	assert.Check(t, is.DeepEqual(dump(), want),
+		"a reload which did not delete the rules must not duplicate them")
 }
