@@ -145,26 +145,15 @@ func signalHandler() {
 
 func dbusConnectionChanged(args []any) {
 	name := args[0].(string)
-	oldOwner := args[1].(string)
-	newOwner := args[2].(string)
 
 	if name != dbusInterface {
 		return
 	}
 
-	if newOwner != "" {
-		connectionEstablished()
-	} else if oldOwner != "" {
-		connectionLost()
-	}
-}
-
-func connectionEstablished() {
+	// With CleanupOnExit=yes, firewalld deletes the iptables rules before it
+	// releases its D-Bus name. Restore our iptables rules when firewalld
+	// starts or exits.
 	reloaded()
-}
-
-func connectionLost() {
-	// Doesn't do anything for now. Libvirt also doesn't react to this.
 }
 
 // call all callbacks

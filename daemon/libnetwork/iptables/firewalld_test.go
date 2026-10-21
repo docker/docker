@@ -89,6 +89,35 @@ func TestReloaded(t *testing.T) {
 	}
 }
 
+func TestDBusConnectionChanged(t *testing.T) {
+	saved := onReloaded
+	t.Cleanup(func() { onReloaded = saved })
+
+	tests := []struct {
+		name               string
+		service            string
+		oldOwner, newOwner string
+		expCalls           int
+	}{
+		{name: "firewalld started", service: dbusInterface, newOwner: ":1.42", expCalls: 1},
+		{name: "firewalld stopped", service: dbusInterface, oldOwner: ":1.42", expCalls: 1},
+		{name: "other service stopped", service: "org.example.Other", oldOwner: ":1.43", expCalls: 0},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			onReloaded = nil
+			var calls int
+			OnReloaded(func() { calls++ })
+			before := FirewalldReloadedAt()
+
+			dbusConnectionChanged([]any{tc.service, tc.oldOwner, tc.newOwner})
+
+			assert.Check(t, is.Equal(calls, tc.expCalls))
+			assert.Check(t, FirewalldReloadedAt().After(before) == (tc.expCalls > 0))
+		})
+	}
+}
+
 func TestPassthrough(t *testing.T) {
 	skipIfNoFirewalld(t)
 	rule1 := []string{
