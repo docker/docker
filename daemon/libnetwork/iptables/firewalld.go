@@ -88,29 +88,33 @@ func firewalldInit() error {
 		return err
 	}
 	firewalldRunning.Store(running)
+	// Keep the connection when firewalld is not running, to start using
+	// firewalld if it is started later.
+	go signalHandler()
 	if !running {
-		connection.sysconn.Close()
-		connection = nil
+		return nil
 	}
-	if connection != nil {
-		go signalHandler()
-		zoneAdded, err := setupDockerZone()
-		if err != nil {
+	return setupFirewalld()
+}
+
+// setupFirewalld creates the docker zone and forwarding policy in firewalld,
+// if they do not already exist.
+func setupFirewalld() error {
+	zoneAdded, err := setupDockerZone()
+	if err != nil {
+		return err
+	}
+	policyAdded, policyAddErr := setupDockerForwardingPolicy()
+	if policyAddErr != nil {
+		// Log the error, but still reload firewalld if necessary.
+		log.G(context.TODO()).WithError(policyAddErr).Warnf("Firewalld: failed to add policy %s", dockerFwdPolicy)
+	}
+	if zoneAdded || policyAdded {
+		// Reload for changes to take effect.
+		if err := connection.sysObj.Call(dbusInterface+".reload", 0).Err; err != nil {
 			return err
 		}
-		policyAdded, policyAddErr := setupDockerForwardingPolicy()
-		if policyAddErr != nil {
-			// Log the error, but still reload firewalld if necessary.
-			log.G(context.TODO()).WithError(policyAddErr).Warnf("Firewalld: failed to add policy %s", dockerFwdPolicy)
-		}
-		if zoneAdded || policyAdded {
-			// Reload for changes to take effect.
-			if err := connection.sysObj.Call(dbusInterface+".reload", 0).Err; err != nil {
-				return err
-			}
-		}
 	}
-
 	return nil
 }
 
@@ -186,6 +190,15 @@ func dbusConnectionChanged(args []any) {
 
 	running := newOwner != ""
 	firewalldRunning.Store(running)
+	if running {
+		// firewalld may have been started for the first time since the daemon
+		// started, or its permanent configuration may have changed.
+		// firewalld does not handle method calls until it has finished starting,
+		// so we can set up the docker zone as soon as it owns its name.
+		if err := setupFirewalld(); err != nil {
+			log.G(context.TODO()).WithError(err).Error("Firewalld: failed to set up docker zone")
+		}
+	}
 	// With CleanupOnExit=yes, firewalld deletes the iptables rules before it
 	// releases its D-Bus name. Restore our iptables rules when firewalld
 	// starts or exits.

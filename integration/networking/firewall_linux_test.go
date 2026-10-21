@@ -93,6 +93,45 @@ func TestFirewalldStop(t *testing.T) {
 	assert.Check(t, is.Equal(d.FirewallBackendDriver(t), "iptables+firewalld"))
 }
 
+// TestFirewalldStartedAfterDaemon checks that the daemon starts using firewalld
+// when firewalld is started after the daemon.
+func TestFirewalldStartedAfterDaemon(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootless mode does not use firewalld")
+	skip.If(t, testEnv.FirewallBackendDriver() != "iptables+firewalld", "test is for the iptables backend with firewalld")
+	ctx := setupTest(t)
+
+	t.Cleanup(func() { startFirewalld(t) })
+	stopFirewalld(t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	t.Cleanup(func() { d.Stop(t) })
+	c := d.NewClientT(t)
+	t.Cleanup(func() { c.Close() })
+	assert.Check(t, is.Equal(d.FirewallBackendDriver(t), "iptables"))
+
+	const bridgeName = "br-fwlate"
+	want := setupPublishedPort(ctx, t, c, bridgeName)
+
+	deleted := firewalldDeletesRules(t, func() { startFirewalld(t) })
+	poll.WaitOn(t, func(poll.LogT) poll.Result {
+		if drv := d.FirewallBackendDriver(t); drv != "iptables+firewalld" {
+			return poll.Continue("firewall backend driver is %q", drv)
+		}
+		return poll.Success()
+	})
+	poll.WaitOn(t, func(poll.LogT) poll.Result {
+		res := icmd.RunCommand("firewall-cmd", "--zone=docker", "--list-interfaces")
+		if !slices.Contains(strings.Fields(res.Stdout()), bridgeName) {
+			return poll.Continue("%s is not in the docker zone: %s", bridgeName, res.Combined())
+		}
+		return poll.Success()
+	})
+	if deleted {
+		waitForRules(t, "after firewalld started", bridgeName, want)
+	}
+}
+
 // setupPublishedPort creates a bridge network with the given bridge name, and
 // a container on it with a published port. It returns the iptables rules which
 // refer to the bridge.

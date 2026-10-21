@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -89,9 +90,21 @@ func TestReloaded(t *testing.T) {
 	}
 }
 
+// fakeFirewalldObject records the methods called on it, and fails every call.
+type fakeFirewalldObject struct {
+	dbus.BusObject
+	methods []string
+}
+
+func (o *fakeFirewalldObject) Call(method string, _ dbus.Flags, _ ...any) *dbus.Call {
+	o.methods = append(o.methods, method)
+	return &dbus.Call{Err: errors.New("fake firewalld")}
+}
+
 func TestDBusConnectionChanged(t *testing.T) {
-	savedCallbacks, savedRunning := onReloaded, firewalldRunning.Load()
+	savedConn, savedCallbacks, savedRunning := connection, onReloaded, firewalldRunning.Load()
 	t.Cleanup(func() {
+		connection = savedConn
 		onReloaded = savedCallbacks
 		firewalldRunning.Store(savedRunning)
 	})
@@ -102,20 +115,25 @@ func TestDBusConnectionChanged(t *testing.T) {
 		wasRunning bool
 		expRunning bool
 		expCalls   int
+		expSetup   bool
 	}{
-		{name: "firewalld started", args: []any{dbusInterface, "", ":1.42"}, expRunning: true, expCalls: 1},
+		{name: "firewalld started", args: []any{dbusInterface, "", ":1.42"}, expRunning: true, expCalls: 1, expSetup: true},
 		{name: "firewalld stopped", args: []any{dbusInterface, ":1.42", ""}, wasRunning: true, expRunning: false, expCalls: 1},
 		{name: "other service stopped", args: []any{"org.example.Other", ":1.43", ""}, wasRunning: true, expRunning: true, expCalls: 0},
 		{name: "malformed signal", args: []any{dbusInterface, ":1.42"}, wasRunning: true, expRunning: true, expCalls: 0},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			fw := &fakeFirewalldObject{}
+			connection = &Conn{sysObj: fw, sysConfObj: fw}
 			onReloaded = nil
 			var calls int
 			var runningInCallback bool
+			var methodsBeforeCallback []string
 			OnReloaded(func() {
 				calls++
 				runningInCallback = firewalldRunning.Load()
+				methodsBeforeCallback = slices.Clone(fw.methods)
 			})
 			firewalldRunning.Store(tc.wasRunning)
 			before := FirewalldReloadedAt()
@@ -126,6 +144,11 @@ func TestDBusConnectionChanged(t *testing.T) {
 			assert.Check(t, is.Equal(calls, tc.expCalls))
 			if tc.expCalls > 0 {
 				assert.Check(t, is.Equal(runningInCallback, tc.expRunning), "callbacks must see the new state")
+			}
+			if tc.expSetup {
+				assert.Check(t, is.Contains(methodsBeforeCallback, dbusInterface+".zone.getZones"), "the docker zone must be set up before the callbacks run")
+			} else {
+				assert.Check(t, is.Len(fw.methods, 0))
 			}
 			assert.Check(t, FirewalldReloadedAt().After(before) == (tc.expCalls > 0))
 		})
