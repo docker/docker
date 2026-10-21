@@ -20,9 +20,9 @@ func skipIfNoFirewalld(t *testing.T) {
 	if err != nil {
 		t.Skipf("cannot connect to D-bus system bus: %v", err)
 	}
-	var zone string
-	err = conn.Object(dbusInterface, dbusPath).Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
-	if err != nil {
+	var running bool
+	err = conn.BusObject().Call("org.freedesktop.DBus.NameHasOwner", 0, dbusInterface).Store(&running)
+	if err != nil || !running {
 		t.Skipf("firewalld is not running: %v", err)
 	}
 }
@@ -90,29 +90,43 @@ func TestReloaded(t *testing.T) {
 }
 
 func TestDBusConnectionChanged(t *testing.T) {
-	saved := onReloaded
-	t.Cleanup(func() { onReloaded = saved })
+	savedCallbacks, savedRunning := onReloaded, firewalldRunning.Load()
+	t.Cleanup(func() {
+		onReloaded = savedCallbacks
+		firewalldRunning.Store(savedRunning)
+	})
 
 	tests := []struct {
-		name               string
-		service            string
-		oldOwner, newOwner string
-		expCalls           int
+		name       string
+		args       []any
+		wasRunning bool
+		expRunning bool
+		expCalls   int
 	}{
-		{name: "firewalld started", service: dbusInterface, newOwner: ":1.42", expCalls: 1},
-		{name: "firewalld stopped", service: dbusInterface, oldOwner: ":1.42", expCalls: 1},
-		{name: "other service stopped", service: "org.example.Other", oldOwner: ":1.43", expCalls: 0},
+		{name: "firewalld started", args: []any{dbusInterface, "", ":1.42"}, expRunning: true, expCalls: 1},
+		{name: "firewalld stopped", args: []any{dbusInterface, ":1.42", ""}, wasRunning: true, expRunning: false, expCalls: 1},
+		{name: "other service stopped", args: []any{"org.example.Other", ":1.43", ""}, wasRunning: true, expRunning: true, expCalls: 0},
+		{name: "malformed signal", args: []any{dbusInterface, ":1.42"}, wasRunning: true, expRunning: true, expCalls: 0},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			onReloaded = nil
 			var calls int
-			OnReloaded(func() { calls++ })
+			var runningInCallback bool
+			OnReloaded(func() {
+				calls++
+				runningInCallback = firewalldRunning.Load()
+			})
+			firewalldRunning.Store(tc.wasRunning)
 			before := FirewalldReloadedAt()
 
-			dbusConnectionChanged([]any{tc.service, tc.oldOwner, tc.newOwner})
+			dbusConnectionChanged(tc.args)
 
+			assert.Check(t, is.Equal(firewalldRunning.Load(), tc.expRunning))
 			assert.Check(t, is.Equal(calls, tc.expCalls))
+			if tc.expCalls > 0 {
+				assert.Check(t, is.Equal(runningInCallback, tc.expRunning), "callbacks must see the new state")
+			}
 			assert.Check(t, FirewalldReloadedAt().After(before) == (tc.expCalls > 0))
 		})
 	}

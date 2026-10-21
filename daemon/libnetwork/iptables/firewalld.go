@@ -78,8 +78,17 @@ func firewalldInit() error {
 	if connection, err = newConnection(); err != nil {
 		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
 	}
-	firewalldRunning.Store(checkRunning())
-	if !firewalldRunning.Load() {
+
+	// firewalld does not handle method calls until it has finished starting,
+	// so we can start calling its methods as soon as it owns its name.
+	running, err := connection.nameHasOwner()
+	if err != nil {
+		connection.sysconn.Close()
+		connection = nil
+		return err
+	}
+	firewalldRunning.Store(running)
+	if !running {
 		connection.sysconn.Close()
 		connection = nil
 	}
@@ -119,37 +128,64 @@ func newConnection() (*Conn, error) {
 	c.sysObj = c.sysconn.Object(dbusInterface, dbusPath)
 	c.sysConfObj = c.sysconn.Object(dbusInterface, dbusConfigPath)
 
-	rule := fmt.Sprintf("type='signal',path='%s',interface='%s',sender='%s',member='Reloaded'", dbusPath, dbusInterface, dbusInterface)
-	c.sysconn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
-
-	rule = fmt.Sprintf("type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',path='/org/freedesktop/DBus',sender='org.freedesktop.DBus',arg0='%s'", dbusInterface)
-	c.sysconn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, rule)
-
 	c.signal = make(chan *dbus.Signal, 10)
 	c.sysconn.Signal(c.signal)
+
+	if err := c.sysconn.AddMatchSignal(
+		dbus.WithMatchSender(dbusInterface),
+		dbus.WithMatchObjectPath(dbusPath),
+		dbus.WithMatchInterface(dbusInterface),
+		dbus.WithMatchMember("Reloaded"),
+	); err != nil {
+		return nil, fmt.Errorf("failed to subscribe to firewalld reload signal: %w", err)
+	}
+	if err := c.sysconn.AddMatchSignal(
+		dbus.WithMatchSender("org.freedesktop.DBus"),
+		dbus.WithMatchObjectPath("/org/freedesktop/DBus"),
+		dbus.WithMatchInterface("org.freedesktop.DBus"),
+		dbus.WithMatchMember("NameOwnerChanged"),
+		dbus.WithMatchArg(0, dbusInterface),
+	); err != nil {
+		return nil, fmt.Errorf("failed to subscribe to firewalld name owner changes: %w", err)
+	}
 	return c, nil
+}
+
+// nameHasOwner reports whether firewalld owns its D-Bus name. Call it after
+// subscribing to NameOwnerChanged, so that no change of owner is missed
+// between the two.
+func (c *Conn) nameHasOwner() (bool, error) {
+	var hasOwner bool
+	if err := c.sysconn.BusObject().Call("org.freedesktop.DBus.NameHasOwner", 0, dbusInterface).Store(&hasOwner); err != nil {
+		return false, fmt.Errorf("failed to check whether firewalld is running: %w", err)
+	}
+	return hasOwner, nil
 }
 
 func signalHandler() {
 	for signal := range connection.signal {
-		switch {
-		case strings.Contains(signal.Name, "NameOwnerChanged"):
-			firewalldRunning.Store(checkRunning())
+		switch signal.Name {
+		case "org.freedesktop.DBus.NameOwnerChanged":
 			dbusConnectionChanged(signal.Body)
-
-		case strings.Contains(signal.Name, "Reloaded"):
+		case dbusInterface + ".Reloaded":
 			reloaded()
 		}
 	}
 }
 
 func dbusConnectionChanged(args []any) {
-	name := args[0].(string)
+	var name, oldOwner, newOwner string
+	if err := dbus.Store(args, &name, &oldOwner, &newOwner); err != nil {
+		log.G(context.TODO()).WithError(err).Error("Could not parse D-Bus NameOwnerChanged signal")
+		return
+	}
 
 	if name != dbusInterface {
 		return
 	}
 
+	running := newOwner != ""
+	firewalldRunning.Store(running)
 	// With CleanupOnExit=yes, firewalld deletes the iptables rules before it
 	// releases its D-Bus name. Restore our iptables rules when firewalld
 	// starts or exits.
@@ -172,16 +208,6 @@ func OnReloaded(callback func()) {
 		return
 	}
 	onReloaded = append(onReloaded, &callback)
-}
-
-// Call some remote method to see whether the service is actually running.
-func checkRunning() bool {
-	if connection == nil {
-		return false
-	}
-	var zone string
-	err := connection.sysObj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
-	return err == nil
 }
 
 // passthrough method simply passes args through to iptables/ip6tables
