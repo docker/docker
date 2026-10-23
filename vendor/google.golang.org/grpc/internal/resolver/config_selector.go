@@ -42,6 +42,10 @@ type RPCInfo struct {
 	// efficiency reasons.  SelectConfig should not be blocking.
 	Context context.Context
 	Method  string // i.e. "/Service/Method"
+	// Authority is the target authority (host) name of the RPC. This is required
+	// for HTTP filters (such as external processing) to populate request
+	// attributes.
+	Authority string
 }
 
 // RPCConfig describes the configuration to use for each RPC.
@@ -52,17 +56,6 @@ type RPCConfig struct {
 	MethodConfig serviceconfig.MethodConfig // configuration to use for this RPC
 	OnCommitted  func()                     // Called when the RPC has been committed (retries no longer possible)
 	Interceptor  any
-}
-
-// ServerInterceptor is an interceptor for incoming RPC's on gRPC server side.
-type ServerInterceptor interface {
-	// AllowRPC checks if an incoming RPC is allowed to proceed based on
-	// information about connection RPC was received on, and HTTP Headers. This
-	// information will be piped into context.
-	AllowRPC(ctx context.Context) error // TODO: Make this a real interceptor for filters such as rate limiting.
-	// Close closes the interceptor. Once called, no new calls to NewStream are
-	// accepted. Ongoing calls to NewStream are allowed to complete.
-	Close()
 }
 
 type csKeyType string

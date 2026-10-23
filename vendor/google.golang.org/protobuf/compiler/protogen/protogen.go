@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/internal/editiondefaults"
 	"google.golang.org/protobuf/internal/filedesc"
 	"google.golang.org/protobuf/internal/genid"
 	"google.golang.org/protobuf/internal/strs"
@@ -113,15 +114,16 @@ type Plugin struct {
 	SupportedEditionsMinimum descriptorpb.Edition
 	SupportedEditionsMaximum descriptorpb.Edition
 
-	fileReg        *protoregistry.Files
-	enumsByName    map[protoreflect.FullName]*Enum
-	messagesByName map[protoreflect.FullName]*Message
-	annotateCode   bool
-	pathType       pathType
-	module         string
-	genFiles       []*GeneratedFile
-	opts           Options
-	err            error
+	featureSetDefaults *descriptorpb.FeatureSetDefaults
+	fileReg            *protoregistry.Files
+	enumsByName        map[protoreflect.FullName]*Enum
+	messagesByName     map[protoreflect.FullName]*Message
+	annotateCode       bool
+	pathType           pathType
+	module             string
+	genFiles           []*GeneratedFile
+	opts               Options
+	err                error
 }
 
 type Options struct {
@@ -129,10 +131,11 @@ type Options struct {
 	// generator parameter.
 	//
 	// Plugins for protoc can accept parameters from the command line,
-	// passed in the --<lang>_out protoc, separated from the output
-	// directory with a colon; e.g.,
+	// passed in the --<lang>_opt protoc flag, in addition to the
+	// (required) output directory in --<lang>_out; e.g.,
 	//
-	//   --go_out=<param1>=<value1>,<param2>=<value2>:<output_directory>
+	//   --go_opt=<param1>=<value1>,<param2>=<value2>
+	//   --go_out=<output_directory>
 	//
 	// Parameters passed in this fashion as a comma-separated list of
 	// key=value pairs will be passed to the ParamFunc.
@@ -154,6 +157,13 @@ type Options struct {
 	// imported by a generated file. It returns the import path to use
 	// for this package.
 	ImportRewriteFunc func(GoImportPath) GoImportPath
+
+	// A custom FeatureSetDefaults to use instead of the compiled-in defaults.
+	// If nil, the compiled-in go defaults are used.
+	//
+	// This is useful to override for plugins that need to use other languages' features.  It can be
+	// produced by using protoc or the compile_edition_defaults bazel rule.
+	FeatureSetDefaults *descriptorpb.FeatureSetDefaults
 
 	// StripForEditionsDiff true means that the plugin will not emit certain
 	// parts of the generated code in order to make it possible to compare a
@@ -181,6 +191,15 @@ func (opts Options) New(req *pluginpb.CodeGeneratorRequest) (*Plugin, error) {
 		enumsByName:    make(map[protoreflect.FullName]*Enum),
 		messagesByName: make(map[protoreflect.FullName]*Message),
 		opts:           opts,
+	}
+
+	if opts.FeatureSetDefaults != nil {
+		gen.featureSetDefaults = proto.Clone(opts.FeatureSetDefaults).(*descriptorpb.FeatureSetDefaults)
+	} else {
+		gen.featureSetDefaults = &descriptorpb.FeatureSetDefaults{}
+		if err := proto.Unmarshal(editiondefaults.Defaults, gen.featureSetDefaults); err != nil {
+			return nil, fmt.Errorf("unmarshal editions defaults: %v", err)
+		}
 	}
 
 	packageNames := make(map[string]GoPackageName)                // filename -> package name
@@ -518,6 +537,38 @@ func (gen *Plugin) Response() *pluginpb.CodeGeneratorResponse {
 	return resp
 }
 
+func (gen *Plugin) defaultFeatures(fileDesc *descriptorpb.FileDescriptorProto) (*descriptorpb.FeatureSet, error) {
+	defaults := gen.featureSetDefaults
+	var edition descriptorpb.Edition
+	switch fileDesc.GetSyntax() {
+	case "editions":
+		edition = fileDesc.GetEdition()
+	case "proto3":
+		edition = descriptorpb.Edition_EDITION_PROTO3
+	default:
+		edition = descriptorpb.Edition_EDITION_PROTO2
+	}
+	if edition < defaults.GetMinimumEdition() {
+		return nil, fmt.Errorf("edition %v is lower than the minimum supported edition %v", edition, defaults.GetMinimumEdition())
+	}
+	if edition > defaults.GetMaximumEdition() && edition != descriptorpb.Edition_EDITION_UNSTABLE {
+		return nil, fmt.Errorf("edition %v is greater than the maximum supported edition %v", edition, defaults.GetMaximumEdition())
+	}
+	var match *descriptorpb.FeatureSetDefaults_FeatureSetEditionDefault
+	for _, d := range gen.featureSetDefaults.GetDefaults() {
+		if d.GetEdition().Number() > edition.Number() {
+			break
+		}
+		match = d
+	}
+	if match == nil {
+		return nil, fmt.Errorf("edition %v does not have a default FeatureSet supplied", edition)
+	}
+	result := proto.Clone(match.GetOverridableFeatures()).(*descriptorpb.FeatureSet)
+	proto.Merge(result, match.GetFixedFeatures())
+	return result, nil
+}
+
 // A File describes a .proto source file.
 type File struct {
 	Desc  protoreflect.FileDescriptor
@@ -531,6 +582,8 @@ type File struct {
 	Messages   []*Message   // top-level message declarations
 	Extensions []*Extension // top-level extension declarations
 	Services   []*Service   // top-level service declarations
+
+	ResolvedFeatures *descriptorpb.FeatureSet // resolved features for this file
 
 	Generate bool // true if we should generate code for this file
 
@@ -559,12 +612,18 @@ func newFile(gen *Plugin, p *descriptorpb.FileDescriptorProto, packageName GoPac
 	if apiLevel != gofeaturespb.GoFeatures_API_LEVEL_UNSPECIFIED {
 		defaultAPILevel = apiLevel
 	}
+	features, err := gen.defaultFeatures(p)
+	if err != nil {
+		return nil, err
+	}
+	proto.Merge(features, p.GetOptions().GetFeatures())
 	f := &File{
-		Desc:          desc,
-		Proto:         p,
-		GoPackageName: packageName,
-		GoImportPath:  importPath,
-		location:      Location{SourceFile: desc.Path()},
+		Desc:             desc,
+		Proto:            p,
+		GoPackageName:    packageName,
+		GoImportPath:     importPath,
+		ResolvedFeatures: features,
+		location:         Location{SourceFile: desc.Path()},
 
 		APILevel: fileAPILevel(desc, defaultAPILevel),
 	}
@@ -595,7 +654,7 @@ func newFile(gen *Plugin, p *descriptorpb.FileDescriptorProto, packageName GoPac
 		f.Messages = append(f.Messages, newMessage(gen, f, nil, mds.Get(i)))
 	}
 	for i, xds := 0, desc.Extensions(); i < xds.Len(); i++ {
-		f.Extensions = append(f.Extensions, newField(gen, f, nil, xds.Get(i)))
+		f.Extensions = append(f.Extensions, newField(gen, f, nil, nil, xds.Get(i)))
 	}
 	for i, sds := 0, desc.Services(); i < sds.Len(); i++ {
 		f.Services = append(f.Services, newService(gen, f, sds.Get(i)))
@@ -639,20 +698,30 @@ type Enum struct {
 
 	Location Location   // location of this enum
 	Comments CommentSet // comments associated with this enum
+
+	ResolvedFeatures *descriptorpb.FeatureSet // resolved features for this enum
 }
 
 func newEnum(gen *Plugin, f *File, parent *Message, desc protoreflect.EnumDescriptor) *Enum {
 	var loc Location
+	var features *descriptorpb.FeatureSet
 	if parent != nil {
 		loc = parent.Location.appendPath(genid.DescriptorProto_EnumType_field_number, desc.Index())
+		features = parent.ResolvedFeatures
 	} else {
 		loc = f.location.appendPath(genid.FileDescriptorProto_EnumType_field_number, desc.Index())
+		features = f.ResolvedFeatures
+	}
+	if desc.Options().(*descriptorpb.EnumOptions).GetFeatures() != nil {
+		features = proto.Clone(features).(*descriptorpb.FeatureSet)
+		proto.Merge(features, desc.Options().(*descriptorpb.EnumOptions).GetFeatures())
 	}
 	enum := &Enum{
-		Desc:     desc,
-		GoIdent:  newGoIdent(f, desc),
-		Location: loc,
-		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		Desc:             desc,
+		GoIdent:          newGoIdent(f, desc),
+		Location:         loc,
+		Comments:         makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		ResolvedFeatures: features,
 	}
 	gen.enumsByName[desc.FullName()] = enum
 	for i, vds := 0, enum.Desc.Values(); i < vds.Len(); i++ {
@@ -677,6 +746,8 @@ type EnumValue struct {
 
 	Location Location   // location of this enum value
 	Comments CommentSet // comments associated with this enum value
+
+	ResolvedFeatures *descriptorpb.FeatureSet // resolved features for this enum value
 }
 
 func newEnumValue(gen *Plugin, f *File, message *Message, enum *Enum, desc protoreflect.EnumValueDescriptor) *EnumValue {
@@ -718,12 +789,18 @@ func newEnumValue(gen *Plugin, f *File, message *Message, enum *Enum, desc proto
 			name = parentIdent.GoName + "_" + strs.TrimEnumPrefix(string(desc.Name()), prefix)
 		}
 	}
+	features := enum.ResolvedFeatures
+	if desc.Options().(*descriptorpb.EnumValueOptions).GetFeatures() != nil {
+		features = proto.Clone(features).(*descriptorpb.FeatureSet)
+		proto.Merge(features, desc.Options().(*descriptorpb.EnumValueOptions).GetFeatures())
+	}
 	ev := &EnumValue{
-		Desc:     desc,
-		GoIdent:  f.GoImportPath.Ident(name),
-		Parent:   enum,
-		Location: loc,
-		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		Desc:             desc,
+		GoIdent:          f.GoImportPath.Ident(name),
+		Parent:           enum,
+		Location:         loc,
+		Comments:         makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		ResolvedFeatures: features,
 	}
 	if prefixedName != "" {
 		ev.PrefixedAlias = f.GoImportPath.Ident(prefixedName)
@@ -747,16 +824,21 @@ type Message struct {
 	Location Location   // location of this message
 	Comments CommentSet // comments associated with this message
 
+	ResolvedFeatures *descriptorpb.FeatureSet // resolved features for this message
+
 	// APILevel specifies which API to generate. One of OPEN, HYBRID or OPAQUE.
 	APILevel gofeaturespb.GoFeatures_APILevel
 }
 
 func newMessage(gen *Plugin, f *File, parent *Message, desc protoreflect.MessageDescriptor) *Message {
 	var loc Location
+	var features *descriptorpb.FeatureSet
 	if parent != nil {
 		loc = parent.Location.appendPath(genid.DescriptorProto_NestedType_field_number, desc.Index())
+		features = parent.ResolvedFeatures
 	} else {
 		loc = f.location.appendPath(genid.FileDescriptorProto_MessageType_field_number, desc.Index())
+		features = f.ResolvedFeatures
 	}
 
 	def := f.APILevel
@@ -765,11 +847,16 @@ func newMessage(gen *Plugin, f *File, parent *Message, desc protoreflect.Message
 		def = parent.APILevel
 	}
 
+	if desc.Options().(*descriptorpb.MessageOptions).GetFeatures() != nil {
+		features = proto.Clone(features).(*descriptorpb.FeatureSet)
+		proto.Merge(features, desc.Options().(*descriptorpb.MessageOptions).GetFeatures())
+	}
 	message := &Message{
-		Desc:     desc,
-		GoIdent:  newGoIdent(f, desc),
-		Location: loc,
-		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		Desc:             desc,
+		GoIdent:          newGoIdent(f, desc),
+		Location:         loc,
+		Comments:         makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		ResolvedFeatures: features,
 
 		APILevel: messageAPILevel(desc, def),
 	}
@@ -780,14 +867,18 @@ func newMessage(gen *Plugin, f *File, parent *Message, desc protoreflect.Message
 	for i, mds := 0, desc.Messages(); i < mds.Len(); i++ {
 		message.Messages = append(message.Messages, newMessage(gen, f, message, mds.Get(i)))
 	}
-	for i, fds := 0, desc.Fields(); i < fds.Len(); i++ {
-		message.Fields = append(message.Fields, newField(gen, f, message, fds.Get(i)))
-	}
 	for i, ods := 0, desc.Oneofs(); i < ods.Len(); i++ {
 		message.Oneofs = append(message.Oneofs, newOneof(gen, f, message, ods.Get(i)))
 	}
+	for i, fds := 0, desc.Fields(); i < fds.Len(); i++ {
+		var oneof *Oneof
+		if fds.Get(i).ContainingOneof() != nil {
+			oneof = message.Oneofs[fds.Get(i).ContainingOneof().Index()]
+		}
+		message.Fields = append(message.Fields, newField(gen, f, message, oneof, fds.Get(i)))
+	}
 	for i, xds := 0, desc.Extensions(); i < xds.Len(); i++ {
-		message.Extensions = append(message.Extensions, newField(gen, f, message, xds.Get(i)))
+		message.Extensions = append(message.Extensions, newField(gen, f, message, nil, xds.Get(i)))
 	}
 
 	// Resolve local references between fields and oneofs.
@@ -918,6 +1009,8 @@ type Field struct {
 	Location Location   // location of this field
 	Comments CommentSet // comments associated with this field
 
+	ResolvedFeatures *descriptorpb.FeatureSet // resolved features for the field
+
 	// camelCase is the same as GoName, but without the name
 	// mangling.  This is used in builders, where only the single
 	// name "Build" needs to be mangled.
@@ -931,20 +1024,32 @@ type Field struct {
 	hasConflictHybrid bool
 }
 
-func newField(gen *Plugin, f *File, message *Message, desc protoreflect.FieldDescriptor) *Field {
+func newField(gen *Plugin, f *File, message *Message, oneof *Oneof, desc protoreflect.FieldDescriptor) *Field {
 	var loc Location
+	var features *descriptorpb.FeatureSet
 	switch {
 	case desc.IsExtension() && message == nil:
 		loc = f.location.appendPath(genid.FileDescriptorProto_Extension_field_number, desc.Index())
+		features = f.ResolvedFeatures
 	case desc.IsExtension() && message != nil:
 		loc = message.Location.appendPath(genid.DescriptorProto_Extension_field_number, desc.Index())
+		features = message.ResolvedFeatures
 	default:
 		loc = message.Location.appendPath(genid.DescriptorProto_Field_field_number, desc.Index())
+		if oneof != nil {
+			features = oneof.ResolvedFeatures
+		} else {
+			features = message.ResolvedFeatures
+		}
 	}
 	camelCased := strs.GoCamelCase(string(desc.Name()))
 	var parentPrefix string
 	if message != nil {
 		parentPrefix = message.GoIdent.GoName + "_"
+	}
+	if desc.Options().(*descriptorpb.FieldOptions).GetFeatures() != nil {
+		features = proto.Clone(features).(*descriptorpb.FeatureSet)
+		proto.Merge(features, desc.Options().(*descriptorpb.FieldOptions).GetFeatures())
 	}
 	field := &Field{
 		Desc:   desc,
@@ -953,9 +1058,10 @@ func newField(gen *Plugin, f *File, message *Message, desc protoreflect.FieldDes
 			GoImportPath: f.GoImportPath,
 			GoName:       parentPrefix + camelCased,
 		},
-		Parent:   message,
-		Location: loc,
-		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		Parent:           message,
+		Location:         loc,
+		Comments:         makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		ResolvedFeatures: features,
 	}
 
 	opaqueNewFieldHook(desc, field)
@@ -1011,6 +1117,8 @@ type Oneof struct {
 	Location Location   // location of this oneof
 	Comments CommentSet // comments associated with this oneof
 
+	ResolvedFeatures *descriptorpb.FeatureSet // resolved features for the oneof
+
 	// camelCase is the same as GoName, but without the name mangling.
 	// This is used in builders, which never have their names mangled
 	camelCase string
@@ -1027,6 +1135,11 @@ func newOneof(gen *Plugin, f *File, message *Message, desc protoreflect.OneofDes
 	loc := message.Location.appendPath(genid.DescriptorProto_OneofDecl_field_number, desc.Index())
 	camelCased := strs.GoCamelCase(string(desc.Name()))
 	parentPrefix := message.GoIdent.GoName + "_"
+	features := message.ResolvedFeatures
+	if desc.Options().(*descriptorpb.OneofOptions).GetFeatures() != nil {
+		features = proto.Clone(features).(*descriptorpb.FeatureSet)
+		proto.Merge(features, desc.Options().(*descriptorpb.OneofOptions).GetFeatures())
+	}
 	oneof := &Oneof{
 		Desc:   desc,
 		Parent: message,
@@ -1035,8 +1148,9 @@ func newOneof(gen *Plugin, f *File, message *Message, desc protoreflect.OneofDes
 			GoImportPath: f.GoImportPath,
 			GoName:       parentPrefix + camelCased,
 		},
-		Location: loc,
-		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		Location:         loc,
+		Comments:         makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		ResolvedFeatures: features,
 	}
 
 	opaqueNewOneofHook(desc, oneof)
@@ -1057,15 +1171,23 @@ type Service struct {
 
 	Location Location   // location of this service
 	Comments CommentSet // comments associated with this service
+
+	ResolvedFeatures *descriptorpb.FeatureSet // resolved features for the service
 }
 
 func newService(gen *Plugin, f *File, desc protoreflect.ServiceDescriptor) *Service {
 	loc := f.location.appendPath(genid.FileDescriptorProto_Service_field_number, desc.Index())
+	features := f.ResolvedFeatures
+	if desc.Options().(*descriptorpb.ServiceOptions).GetFeatures() != nil {
+		features = proto.Clone(features).(*descriptorpb.FeatureSet)
+		proto.Merge(features, desc.Options().(*descriptorpb.ServiceOptions).GetFeatures())
+	}
 	service := &Service{
-		Desc:     desc,
-		GoName:   strs.GoCamelCase(string(desc.Name())),
-		Location: loc,
-		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		Desc:             desc,
+		GoName:           strs.GoCamelCase(string(desc.Name())),
+		Location:         loc,
+		Comments:         makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		ResolvedFeatures: features,
 	}
 	for i, mds := 0, desc.Methods(); i < mds.Len(); i++ {
 		service.Methods = append(service.Methods, newMethod(gen, f, service, mds.Get(i)))
@@ -1086,16 +1208,24 @@ type Method struct {
 
 	Location Location   // location of this method
 	Comments CommentSet // comments associated with this method
+
+	ResolvedFeatures *descriptorpb.FeatureSet // resolved features for the service
 }
 
 func newMethod(gen *Plugin, f *File, service *Service, desc protoreflect.MethodDescriptor) *Method {
 	loc := service.Location.appendPath(genid.ServiceDescriptorProto_Method_field_number, desc.Index())
+	features := service.ResolvedFeatures
+	if desc.Options().(*descriptorpb.MethodOptions).GetFeatures() != nil {
+		features = proto.Clone(features).(*descriptorpb.FeatureSet)
+		proto.Merge(features, desc.Options().(*descriptorpb.MethodOptions).GetFeatures())
+	}
 	method := &Method{
-		Desc:     desc,
-		GoName:   strs.GoCamelCase(string(desc.Name())),
-		Parent:   service,
-		Location: loc,
-		Comments: makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		Desc:             desc,
+		GoName:           strs.GoCamelCase(string(desc.Name())),
+		Parent:           service,
+		Location:         loc,
+		Comments:         makeCommentSet(gen, f.Desc.SourceLocations().ByDescriptor(desc)),
+		ResolvedFeatures: features,
 	}
 	return method
 }

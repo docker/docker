@@ -3,7 +3,7 @@
 
 // Code generated from semantic convention specification. DO NOT EDIT.
 
-package semconv // import "go.opentelemetry.io/otel/semconv/v1.30.0"
+package semconv
 
 const (
 	// AzureCosmosDBClientActiveInstanceCount is the metric conforming to the
