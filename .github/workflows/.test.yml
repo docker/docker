@@ -21,7 +21,7 @@ on:
         default: "graphdriver"
 
 env:
-  GO_VERSION: "1.26.6"
+  GO_VERSION: "1.26.10"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   ITG_CLI_MATRIX_SIZE: 6
