@@ -1281,8 +1281,8 @@ components:
               description: |-
                 Set the initial umask for a Unix container.
 
-                If omitted, the daemon does not set a umask in the OCI process
-                specification, and the runtime's default behavior applies.
+                If omitted, the daemon uses the umask `0022` for the container's
+                entrypoint, exec processes, and healthchecks.
 
                 JSON integers are decimal. For example, use `18` for the octal
                 umask `0022`, and `511` for the octal umask `0777`.
