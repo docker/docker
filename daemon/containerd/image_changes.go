@@ -2,6 +2,7 @@ package containerd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/containerd/containerd/v2/core/mount"
@@ -12,7 +13,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 )
 
-func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) ([]archive.Change, error) {
+func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) (_ []archive.Change, retErr error) {
 	rwl := ctr.RWLayer
 	if rwl == nil {
 		return nil, fmt.Errorf("RWLayer is unexpectedly nil for container %s", ctr.ID)
@@ -55,7 +56,11 @@ func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) ([
 	// Use a temporary activation, so that a single-mount view is mounted too
 	active, err := mm.Activate(ctx, parentViewKey, imageMounts, mount.WithTemporary)
 	if err == nil {
-		defer mm.Deactivate(ctx, parentViewKey)
+		defer func() {
+			if err := mm.Deactivate(context.WithoutCancel(ctx), parentViewKey); err != nil {
+				retErr = errors.Join(retErr, fmt.Errorf("failed to deactivate mounts: %w", err))
+			}
+		}()
 		imageMounts = active.System
 	} else if !cerrdefs.IsNotImplemented(err) {
 		return nil, fmt.Errorf("failed to activate mounts: %w", err)

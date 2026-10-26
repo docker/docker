@@ -21,6 +21,7 @@ type fakeMountManager struct {
 	activated     []string
 	deactivated   []string
 	deactivateCtx context.Context
+	events        *[]string
 }
 
 func (m *fakeMountManager) Activate(_ context.Context, name string, _ []mount.Mount, _ ...mount.ActivateOpt) (mount.ActivationInfo, error) {
@@ -34,6 +35,9 @@ func (m *fakeMountManager) Activate(_ context.Context, name string, _ []mount.Mo
 func (m *fakeMountManager) Deactivate(ctx context.Context, name string) error {
 	m.deactivated = append(m.deactivated, name)
 	m.deactivateCtx = ctx
+	if m.events != nil {
+		*m.events = append(*m.events, "deactivate")
+	}
 	return m.deactivateErr
 }
 
