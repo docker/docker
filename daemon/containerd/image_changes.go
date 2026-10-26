@@ -34,7 +34,10 @@ func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) (_
 
 	id := stringid.GenerateRandomID()
 	parentViewKey := ctr.ID + "-parent-view-" + id
-	imageMounts, _ := snapshotter.View(ctx, parentViewKey, info.Parent)
+	imageMounts, err := snapshotter.View(ctx, parentViewKey, info.Parent)
+	if err != nil {
+		return nil, err
+	}
 
 	defer func() {
 		if err := snapshotter.Remove(ctx, parentViewKey); err != nil {

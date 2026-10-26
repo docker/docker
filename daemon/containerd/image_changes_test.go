@@ -20,8 +20,9 @@ import (
 
 type viewRecordingSnapshotter struct {
 	snapshots.Snapshotter
-	views  []string
-	events *[]string
+	viewErr error
+	views   []string
+	events  *[]string
 }
 
 func (s *viewRecordingSnapshotter) Stat(_ context.Context, key string) (snapshots.Info, error) {
@@ -29,6 +30,9 @@ func (s *viewRecordingSnapshotter) Stat(_ context.Context, key string) (snapshot
 }
 
 func (s *viewRecordingSnapshotter) View(_ context.Context, key, _ string, _ ...snapshots.Opt) ([]mount.Mount, error) {
+	if s.viewErr != nil {
+		return nil, s.viewErr
+	}
 	s.views = append(s.views, key)
 	return nil, nil
 }
@@ -53,11 +57,13 @@ func (l *fakeRWLayer) Unmount() error {
 func (l *fakeRWLayer) Metadata() (map[string]string, error) { return nil, nil }
 
 func TestChanges(t *testing.T) {
+	errView := errors.New("view failed")
 	errActivate := errors.New("activate failed")
 	errDeactivate := errors.New("deactivate failed")
 
 	tests := []struct {
 		name          string
+		viewErr       error
 		activateErr   error
 		deactivateErr error
 		compareFails  bool
@@ -68,6 +74,11 @@ func TestChanges(t *testing.T) {
 		{
 			name:       "success",
 			wantEvents: []string{"deactivate", "unmount rwlayer", "remove view"},
+		},
+		{
+			name:     "view fails",
+			viewErr:  errView,
+			wantErrs: []error{errView},
 		},
 		{
 			name:        "activate fails",
@@ -110,7 +121,7 @@ func TestChanges(t *testing.T) {
 			}
 
 			var events []string
-			sn := &viewRecordingSnapshotter{events: &events}
+			sn := &viewRecordingSnapshotter{viewErr: tc.viewErr, events: &events}
 			mm := &fakeMountManager{activateErr: tc.activateErr, deactivateErr: tc.deactivateErr, events: &events}
 			c8dCli, err := containerd.New("", containerd.WithServices(
 				containerd.WithSnapshotters(map[string]snapshots.Snapshotter{defaults.DefaultSnapshotter: sn}),
