@@ -1,14 +1,24 @@
-//go:build amd64 && !appengine && !noasm && gc
+//go:build amd64 && !noasm && gc
 
 package zstd
 
 import (
+	"math"
+
 	"github.com/klauspost/compress/internal/cpuinfo"
 )
 
 // The shared decode/decodeSync/executeSimple wrappers and context structs live
 // in seqdec_asm.go; this file only declares the amd64 asm routines and the
 // dispatch helpers that pick the BMI2 / non-BMI2 (and 56-bit / safe) variant.
+
+// See seqdec_arm64.go. Disabled here: on Sapphire Rapids, Granite Rapids
+// and Zen 4 the two-pass decode costs 7-12% on real data; their caches
+// already cover the offsets involved.
+var (
+	twoPassMinFarShare     = 257 // never: the share is at most 256
+	decodeTwoPassMinWindow = math.MaxInt
+)
 
 // sequenceDecs_decode implements the main loop of sequenceDecs in x86 asm.
 //

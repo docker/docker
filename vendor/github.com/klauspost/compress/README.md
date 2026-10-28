@@ -29,8 +29,41 @@ Use the links above for more information on each.
 
 # changelog
 
+* Sep 25th, 2026 [1.20.1](https://github.com/klauspost/compress/releases/tag/v1.20.1)
+	* zstd: Apply reset options to reused frame decoders by @pellared in https://github.com/klauspost/compress/pull/1226
+	* flate: Report unexpected EOF for truncated Huffman extra bits by @rupayon123 in https://github.com/klauspost/compress/pull/1229
+	* flate: Avoid FMA in EstimatedBits for portable rounding by @malt3 in https://github.com/klauspost/compress/pull/1224
+	* gzhttp: Preserve caller request headers in Transport by @jakezwang in https://github.com/klauspost/compress/pull/1225
+	* gzhttp: Only decompress a request when gzip is the outermost coding by @youdie006 in https://github.com/klauspost/compress/pull/1223
+	* zstd/huff0: Optimizations by @lizthegrey in https://github.com/klauspost/compress/pull/1203 https://github.com/klauspost/compress/pull/1205 https://github.com/klauspost/compress/pull/1207 https://github.com/klauspost/compress/pull/1204 https://github.com/klauspost/compress/pull/1208 https://github.com/klauspost/compress/pull/1211 https://github.com/klauspost/compress/pull/1209 https://github.com/klauspost/compress/pull/1210
+	* flate: Speed improvements by @alex in https://github.com/klauspost/compress/pull/1220 https://github.com/klauspost/compress/pull/1218 https://github.com/klauspost/compress/pull/1216 https://github.com/klauspost/compress/pull/1215 https://github.com/klauspost/compress/pull/1214 https://github.com/klauspost/compress/pull/1217
+
+* Sep 2nd, 2026 [1.20.0](https://github.com/klauspost/compress/releases/tag/v1.20.0)
+	* lzw: Add lzw reader/writer in https://github.com/klauspost/compress/pull/1189
+	* xpress: Add Microsoft XPRESS (MS-XCA) decompression by @MP-GOWTHAM in https://github.com/klauspost/compress/pull/1195
+	* s2: arm64 assembly encoders by @lizthegrey in https://github.com/klauspost/compress/pull/1187
+	* zstd, huff0: Improved arm64 assembly by @lizthegrey in https://github.com/klauspost/compress/pull/1175 https://github.com/klauspost/compress/pull/1199 https://github.com/klauspost/compress/pull/1197
+	* flate: Writer L7-9 with dictionary can emit the dictionary to stream in https://github.com/klauspost/compress/pull/1201
+	* gzhttp: Limit jitter hash to jitterBuffer bytes by @VedantMadane in https://github.com/klauspost/compress/pull/1192
+	* s2: Clamp the Go EncodeBetter skip to match the assembly by @lizthegrey in https://github.com/klauspost/compress/pull/1190
+	* xxhash: Bound input of non-preemptive assembly by @AskAlexSharov in https://github.com/klauspost/compress/pull/1196
+
+* Aug 6th, 2026 [1.19.2](https://github.com/klauspost/compress/releases/tag/v1.19.2)
+	* huff0: Add arm64 assembly for Decompress4X/1X by @lizthegrey in https://github.com/klauspost/compress/pull/1172
+	* zstd: Re-enable unsafe decodeSync memory copies by @lizthegrey in https://github.com/klauspost/compress/pull/1171
+	* zstd: Fix arm64 asm frame offsets placing locals on the saved LR slot by @lizthegrey in https://github.com/klauspost/compress/pull/1176
+	* zstd: Avoid racing MaxDecodedSize write on shared dict litEnc by @zanarellidev in https://github.com/klauspost/compress/pull/1182
+	* zstd: Keep BuildDict recent-offsets positive and loadable by @zanarellidev in https://github.com/klauspost/compress/pull/1184
+	* zstd: Handle zero-literal BuildDict corpus by @cyphercodes in https://github.com/klauspost/compress/pull/1178
+	* zstd: Don't clear the registered dictionary when decoding past the window by @sueun-dev in https://github.com/klauspost/compress/pull/1177
+
+* Jul 20th, 2026 [1.19.1](https://github.com/klauspost/compress/releases/tag/v1.19.1)
+	* zstd: Validate SnappyConverter literal copies in https://github.com/klauspost/compress/pull/1170
+	* flate: Use `Peek` instead of `ReadByte` for the `bufio.Reader` decode path by @joechenrh in https://github.com/klauspost/compress/pull/1169
+	* zstd: Bump avo pin, regenerate arm64 asm by @lizthegrey in https://github.com/klauspost/compress/pull/1167
+
 * Jul 1st, 2026 [1.19.0](https://github.com/klauspost/compress/releases/tag/v1.19.0)
-	* zstd: Add true concurrent stream encodingin https://github.com/klauspost/compress/pull/1136
+	* zstd: Add true concurrent stream encoding in https://github.com/klauspost/compress/pull/1136
 	* zstd: arm64 decoder asm by @lizthegrey in https://github.com/klauspost/compress/pull/1160
 	* flate: Add inflate checkpoints in https://github.com/klauspost/compress/pull/1154
 	* zstd: avoid unused BuildDict encoder allocation by @snissn in https://github.com/klauspost/compress/pull/1147
@@ -40,6 +73,22 @@ Use the links above for more information on each.
 	* huff0: Allow building tables from histogram in https://github.com/klauspost/compress/pull/1155
 	* huff0: Allow building table from oversized histogram in https://github.com/klauspost/compress/pull/1156
 	* s2sx: Clean symlink targets in https://github.com/klauspost/compress/pull/1163
+
+<details>
+	<summary>See changes to v1.18.x</summary>
+
+* Jun 30th, 2026 [1.18.7](https://github.com/klauspost/compress/releases/tag/v1.18.7)
+	* s2: Fix `NewDict` out-of-bounds read. Security release without other changes.
+
+* Apr 30th, 2026 [1.18.6](https://github.com/klauspost/compress/releases/tag/v1.18.6)
+	* s2: Fix amd64 stack frame corruption in https://github.com/klauspost/compress/pull/1145
+	* gzhttp: Canonicalize ETag header by @justinmayhew in https://github.com/klauspost/compress/pull/1139
+	* Pool hash tables in Go encode paths to reduce allocations by @huynhanx03 in https://github.com/klauspost/compress/pull/1143
+
+* Mar 20th, 2026 [1.18.5](https://github.com/klauspost/compress/releases/tag/v1.18.5)
+	* zstd: Fix crash when changing encoder dictionary with same ID in https://github.com/klauspost/compress/pull/1135
+	* zstd: Default to full zero frames in https://github.com/klauspost/compress/pull/1134
+	* flate: Clean up histogram order in https://github.com/klauspost/compress/pull/1133
 
 * Feb 9th, 2026 [1.18.4](https://github.com/klauspost/compress/releases/tag/v1.18.4)
 	* gzhttp: Add zstandard to server handler wrapper https://github.com/klauspost/compress/pull/1121
@@ -71,6 +120,8 @@ Use the links above for more information on each.
   * s2: Improve small block compression speed w/o asm https://github.com/klauspost/compress/pull/1048
   * flate: Fix matchlen L5+L6 https://github.com/klauspost/compress/pull/1049
   * flate: Cleanup & reduce casts https://github.com/klauspost/compress/pull/1050
+
+</details>
 
 <details>
 	<summary>See changes to v1.17.x</summary>

@@ -1,4 +1,4 @@
-//go:build arm64 && !appengine && !noasm && gc
+//go:build arm64 && !noasm && gc
 
 package zstd
 
@@ -6,6 +6,17 @@ package zstd
 // in seqdec_asm.go; this file only declares the arm64 asm routines (generated
 // by the avo arm64 lowering printer) and the dispatch helpers. arm64 has no
 // BMI2, so each helper selects only between the 56-bit / safe variants.
+
+// The synchronous decoder takes the two-pass path, and executeSimple
+// prefetches, when the window is at least decodeTwoPassMinWindow and the
+// block's offset table puts at least twoPassMinFarShare/256 of its
+// sequences 128 KiB or more back (sequenceDecs.useTwoPass). Thresholds
+// from the per-file N1 measurement in #1212; variables so tests can force
+// either path.
+var (
+	twoPassMinFarShare     = 46
+	decodeTwoPassMinWindow = 1 << 20
+)
 
 // sequenceDecs_decode_arm64 implements the main loop of sequenceDecs in arm64 asm.
 //

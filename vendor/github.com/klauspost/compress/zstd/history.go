@@ -24,16 +24,26 @@ type history struct {
 	// when checking for matches in history
 	ignoreBuffer int
 
-	windowSize       int
-	allocFrameBuffer int // needed?
-	error            bool
-	dict             *dict
+	windowSize int
+	error      bool
+	dict       *dict
+
+	// ring backs b when streaming (see ensureBlockRing).
+	// ext holds the part of the previous lap of ring still in the window,
+	// which precedes b[0] in the stream; nil when b holds all history.
+	// The previous lap is ring[extStart:extEnd].
+	ring     []byte
+	ext      []byte
+	extStart int
+	extEnd   int
 }
 
 // reset will reset the history to initial state of a frame.
 // The history must already have been initialized to the desired size.
 func (h *history) reset() {
 	h.b = h.b[:0]
+	h.ext = nil
+	h.extStart, h.extEnd = 0, 0
 	h.ignoreBuffer = 0
 	h.error = false
 	h.recentOffsets = [3]int{1, 4, 8}
@@ -67,47 +77,40 @@ func (h *history) setDict(dict *dict) {
 	h.huffTree = dict.litEnc
 }
 
-// append bytes to history.
-// This function will make sure there is space for it,
-// if the buffer has been allocated with enough extra space.
-func (h *history) append(b []byte) {
-	if len(b) >= h.windowSize {
-		// Discard all history by simply overwriting
-		h.b = h.b[:h.windowSize]
-		copy(h.b, b[len(b)-h.windowSize:])
-		return
+// ensureBlockRing makes room for the next block without moving history,
+// as the reference decoder does. b is a prefix of ring capped to one block
+// of space. When a block no longer fits, the data written so far becomes
+// ext and writing restarts at the front of ring. ext is trimmed so the
+// block space ahead of b never overlaps it; with ring sized to window plus
+// two blocks of space, b and ext together always hold a full window.
+func (h *history) ensureBlockRing() {
+	// Room for the largest block plus the overrun of the fast copies.
+	ringBlockSpace := min(h.windowSize, maxCompressedBlockSize) + compressedBlockOverAlloc
+	size := h.windowSize + 2*ringBlockSpace
+	pos := len(h.b)
+	if cap(h.ring) < size || (pos > 0 && &h.b[0] != &h.ring[0]) {
+		// No ring yet, or b no longer lives in it: start one, keeping up
+		// to a window of what was decoded so far as the previous lap.
+		keep := min(pos, h.windowSize)
+		if cap(h.ring) < size {
+			h.ring = make([]byte, size)
+		}
+		h.ring = h.ring[:size]
+		copy(h.ring[size-keep:], h.b[pos-keep:])
+		h.extStart, h.extEnd = size-keep, size
+		pos = 0
+	} else if pos+ringBlockSpace > size {
+		// Wrap: everything written this lap becomes the previous lap.
+		h.extStart, h.extEnd = 0, pos
+		pos = 0
 	}
-
-	// If there is space, append it.
-	if len(b) < cap(h.b)-len(h.b) {
-		h.b = append(h.b, b...)
-		return
+	h.ring = h.ring[:size]
+	end := pos + ringBlockSpace
+	h.b = h.ring[:pos:end]
+	h.ext = nil
+	if start := max(end, h.extStart); start < h.extEnd {
+		h.ext = h.ring[start:h.extEnd]
 	}
-
-	// Move data down so we only have window size left.
-	// We know we have less than window size in b at this point.
-	discard := len(b) + len(h.b) - h.windowSize
-	copy(h.b, h.b[discard:])
-	h.b = h.b[:h.windowSize]
-	copy(h.b[h.windowSize-len(b):], b)
-}
-
-// ensureBlock will ensure there is space for at least one block...
-func (h *history) ensureBlock() {
-	if cap(h.b) < h.allocFrameBuffer {
-		h.b = make([]byte, 0, h.allocFrameBuffer)
-		return
-	}
-
-	avail := cap(h.b) - len(h.b)
-	if avail >= h.windowSize || avail > maxCompressedBlockSize {
-		return
-	}
-	// Move data down so we only have window size left.
-	// We know we have less than window size in b at this point.
-	discard := len(h.b) - h.windowSize
-	copy(h.b, h.b[discard:])
-	h.b = h.b[:h.windowSize]
 }
 
 // append bytes to history without ever discarding anything.

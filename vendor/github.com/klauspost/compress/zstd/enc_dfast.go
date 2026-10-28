@@ -22,6 +22,16 @@ const (
 
 )
 
+// dFastHashL is hashLen(u, dFastLongTableBits, dFastLongLen) with prime = prime8bytes.
+func dFastHashL(u, prime uint64) uint32 {
+	return uint32((u * prime) >> (64 - dFastLongTableBits))
+}
+
+// dFastHashS is hashLen(u, dFastShortTableBits, dFastShortLen) with prime = prime5bytes.
+func dFastHashS(u, prime uint64) uint32 {
+	return uint32(((u << (64 - 40)) * prime) >> (64 - dFastShortTableBits))
+}
+
 type doubleFastEncoder struct {
 	fastEncoder
 	longTable [dFastLongTableSize]tableEntry
@@ -87,6 +97,7 @@ func (e *doubleFastEncoder) Encode(blk *blockEnc, src []byte) {
 	// Override src
 	src = e.hist
 	sLimit := int32(len(src)) - inputMargin
+	primeL, primeS := hashPrimes8and5()
 	// stepSize is the number of bytes to skip on every main loop iteration.
 	// It should be >= 1.
 	const stepSize = 1
@@ -123,8 +134,8 @@ encodeLoop:
 				panic("offset0 was 0")
 			}
 
-			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
-			nextHashS := hashLen(cv, dFastShortTableBits, dFastShortLen)
+			nextHashL := dFastHashL(cv, primeL)
+			nextHashS := dFastHashS(cv, primeS)
 			candidateL := e.longTable[nextHashL]
 			candidateS := e.table[nextHashS]
 
@@ -204,7 +215,7 @@ encodeLoop:
 				// See if we can find a long match at s+1
 				const checkAt = 1
 				cv := load6432(src, s+checkAt)
-				nextHashL = hashLen(cv, dFastLongTableBits, dFastLongLen)
+				nextHashL = dFastHashL(cv, primeL)
 				candidateL = e.longTable[nextHashL]
 				coffsetL = s - (candidateL.offset - e.cur) + checkAt
 
@@ -297,16 +308,16 @@ encodeLoop:
 		cv1 := load6432(src, index1)
 		te0 := tableEntry{offset: index0 + e.cur, val: uint32(cv0)}
 		te1 := tableEntry{offset: index1 + e.cur, val: uint32(cv1)}
-		e.longTable[hashLen(cv0, dFastLongTableBits, dFastLongLen)] = te0
-		e.longTable[hashLen(cv1, dFastLongTableBits, dFastLongLen)] = te1
+		e.longTable[dFastHashL(cv0, primeL)] = te0
+		e.longTable[dFastHashL(cv1, primeL)] = te1
 		cv0 >>= 8
 		cv1 >>= 8
 		te0.offset++
 		te1.offset++
 		te0.val = uint32(cv0)
 		te1.val = uint32(cv1)
-		e.table[hashLen(cv0, dFastShortTableBits, dFastShortLen)] = te0
-		e.table[hashLen(cv1, dFastShortTableBits, dFastShortLen)] = te1
+		e.table[dFastHashS(cv0, primeS)] = te0
+		e.table[dFastHashS(cv1, primeS)] = te1
 
 		cv = load6432(src, s)
 
@@ -323,8 +334,8 @@ encodeLoop:
 			}
 
 			// Store this, since we have it.
-			nextHashS := hashLen(cv, dFastShortTableBits, dFastShortLen)
-			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
+			nextHashS := dFastHashS(cv, primeS)
+			nextHashL := dFastHashL(cv, primeL)
 
 			// We have at least 4 byte match.
 			// No need to check backwards. We come straight from a match
@@ -399,6 +410,7 @@ func (e *doubleFastEncoder) EncodeNoHist(blk *blockEnc, src []byte) {
 
 	// Override src
 	sLimit := int32(len(src)) - inputMargin
+	primeL, primeS := hashPrimes8and5()
 	// stepSize is the number of bytes to skip on every main loop iteration.
 	// It should be >= 1.
 	const stepSize = 1
@@ -429,8 +441,8 @@ encodeLoop:
 		var t int32
 		for {
 
-			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
-			nextHashS := hashLen(cv, dFastShortTableBits, dFastShortLen)
+			nextHashL := dFastHashL(cv, primeL)
+			nextHashS := dFastHashS(cv, primeS)
 			candidateL := e.longTable[nextHashL]
 			candidateS := e.table[nextHashS]
 
@@ -511,7 +523,7 @@ encodeLoop:
 				// See if we can find a long match at s+1
 				const checkAt = 1
 				cv := load6432(src, s+checkAt)
-				nextHashL = hashLen(cv, dFastLongTableBits, dFastLongLen)
+				nextHashL = dFastHashL(cv, primeL)
 				candidateL = e.longTable[nextHashL]
 				coffsetL = s - (candidateL.offset - e.cur) + checkAt
 
@@ -601,16 +613,16 @@ encodeLoop:
 		cv1 := load6432(src, index1)
 		te0 := tableEntry{offset: index0 + e.cur, val: uint32(cv0)}
 		te1 := tableEntry{offset: index1 + e.cur, val: uint32(cv1)}
-		e.longTable[hashLen(cv0, dFastLongTableBits, dFastLongLen)] = te0
-		e.longTable[hashLen(cv1, dFastLongTableBits, dFastLongLen)] = te1
+		e.longTable[dFastHashL(cv0, primeL)] = te0
+		e.longTable[dFastHashL(cv1, primeL)] = te1
 		cv0 >>= 8
 		cv1 >>= 8
 		te0.offset++
 		te1.offset++
 		te0.val = uint32(cv0)
 		te1.val = uint32(cv1)
-		e.table[hashLen(cv0, dFastShortTableBits, dFastShortLen)] = te0
-		e.table[hashLen(cv1, dFastShortTableBits, dFastShortLen)] = te1
+		e.table[dFastHashS(cv0, primeS)] = te0
+		e.table[dFastHashS(cv1, primeS)] = te1
 
 		cv = load6432(src, s)
 
@@ -627,8 +639,8 @@ encodeLoop:
 			}
 
 			// Store this, since we have it.
-			nextHashS := hashLen(cv1>>8, dFastShortTableBits, dFastShortLen)
-			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
+			nextHashS := dFastHashS(cv1>>8, primeS)
+			nextHashL := dFastHashL(cv, primeL)
 
 			// We have at least 4 byte match.
 			// No need to check backwards. We come straight from a match
@@ -733,6 +745,7 @@ func (e *doubleFastEncoderDict) Encode(blk *blockEnc, src []byte) {
 	// Override src
 	src = e.hist
 	sLimit := int32(len(src)) - inputMargin
+	primeL, primeS := hashPrimes8and5()
 	// stepSize is the number of bytes to skip on every main loop iteration.
 	// It should be >= 1.
 	const stepSize = 1
@@ -769,8 +782,8 @@ encodeLoop:
 				panic("offset0 was 0")
 			}
 
-			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
-			nextHashS := hashLen(cv, dFastShortTableBits, dFastShortLen)
+			nextHashL := dFastHashL(cv, primeL)
+			nextHashS := dFastHashS(cv, primeS)
 			candidateL := e.longTable[nextHashL]
 			candidateS := e.table[nextHashS]
 
@@ -852,7 +865,7 @@ encodeLoop:
 				// See if we can find a long match at s+1
 				const checkAt = 1
 				cv := load6432(src, s+checkAt)
-				nextHashL = hashLen(cv, dFastLongTableBits, dFastLongLen)
+				nextHashL = dFastHashL(cv, primeL)
 				candidateL = e.longTable[nextHashL]
 				coffsetL = s - (candidateL.offset - e.cur) + checkAt
 
@@ -946,8 +959,8 @@ encodeLoop:
 		cv1 := load6432(src, index1)
 		te0 := tableEntry{offset: index0 + e.cur, val: uint32(cv0)}
 		te1 := tableEntry{offset: index1 + e.cur, val: uint32(cv1)}
-		longHash1 := hashLen(cv0, dFastLongTableBits, dFastLongLen)
-		longHash2 := hashLen(cv1, dFastLongTableBits, dFastLongLen)
+		longHash1 := dFastHashL(cv0, primeL)
+		longHash2 := dFastHashL(cv1, primeL)
 		e.longTable[longHash1] = te0
 		e.longTable[longHash2] = te1
 		e.markLongShardDirty(longHash1)
@@ -958,8 +971,8 @@ encodeLoop:
 		te1.offset++
 		te0.val = uint32(cv0)
 		te1.val = uint32(cv1)
-		hashVal1 := hashLen(cv0, dFastShortTableBits, dFastShortLen)
-		hashVal2 := hashLen(cv1, dFastShortTableBits, dFastShortLen)
+		hashVal1 := dFastHashS(cv0, primeS)
+		hashVal2 := dFastHashS(cv1, primeS)
 		e.table[hashVal1] = te0
 		e.markShardDirty(hashVal1)
 		e.table[hashVal2] = te1
@@ -980,8 +993,8 @@ encodeLoop:
 			}
 
 			// Store this, since we have it.
-			nextHashL := hashLen(cv, dFastLongTableBits, dFastLongLen)
-			nextHashS := hashLen(cv, dFastShortTableBits, dFastShortLen)
+			nextHashL := dFastHashL(cv, primeL)
+			nextHashS := dFastHashS(cv, primeS)
 
 			// We have at least 4 byte match.
 			// No need to check backwards. We come straight from a match

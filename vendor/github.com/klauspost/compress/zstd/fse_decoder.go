@@ -43,13 +43,36 @@ type fseDecoder struct {
 	preDefined bool
 }
 
+// codeShare returns, in 1/256ths, the table's probability mass on symbols
+// minCode and above: for a table read from the block, the share of its
+// sequences with those codes. The predefined tables describe the format's
+// defaults, not the block, and RLE tables have no distribution; both
+// report -1.
+func (s *fseDecoder) codeShare(minCode int) int {
+	if s == nil || s.preDefined || s.actualTableLog == 0 {
+		return -1
+	}
+	n := 0
+	for c := minCode; c < int(s.symbolLen); c++ {
+		switch v := int(s.norm[c]); {
+		case v > 0:
+			n += v
+		case v < 0:
+			n++ // -1 marks a probability below one slot; it occupies one
+		}
+	}
+	return n * 256 >> s.actualTableLog
+}
+
 // tableStep returns the next table index.
 func tableStep(tableSize uint32) uint32 {
 	return (tableSize >> 1) + (tableSize >> 3) + 3
 }
 
-// readNCount will read the symbol distribution so decoding tables can be constructed.
-func (s *fseDecoder) readNCount(b *byteReader, maxSymbol uint16) error {
+// readNCount will read the symbol distribution for table t and build its
+// decoding table.
+func (s *fseDecoder) readNCount(b *byteReader, t tableIndex) error {
+	maxSymbol := uint16(maxTableSymbol[t])
 	var (
 		charnum   uint16
 		previous0 bool
@@ -167,7 +190,8 @@ func (s *fseDecoder) readNCount(b *byteReader, maxSymbol uint16) error {
 	if s.symbolLen <= 1 {
 		return fmt.Errorf("symbolLen (%d) too small", s.symbolLen)
 	}
-	if s.symbolLen > maxSymbolValue+1 {
+	// A run of zero counts can step past maxSymbol, so check the total.
+	if s.symbolLen > maxSymbol+1 {
 		return fmt.Errorf("symbolLen (%d) too big", s.symbolLen)
 	}
 	if remaining != 1 {
@@ -180,7 +204,30 @@ func (s *fseDecoder) readNCount(b *byteReader, maxSymbol uint16) error {
 		return fmt.Errorf("corruption detected (total %d != %d)", gotTotal, 1<<s.actualTableLog)
 	}
 	b.advance((bitCount + 7) >> 3)
-	return s.buildDtable()
+	return s.buildDtable(&symbolExtX[t])
+}
+
+// symbolExt holds, per symbol, a decSymbol with only addBits and baseline set.
+type symbolExt [maxMatchLengthSymbol + 1]decSymbol
+
+// buildDtable builds the decoding table, taking each state's addBits and
+// baseline from its symbol's entry in ext.
+func (s *fseDecoder) buildDtable(ext *symbolExt) error {
+	if int(s.symbolLen) > len(ext) {
+		return fmt.Errorf("symbolLen (%d) too big", s.symbolLen)
+	}
+	if err := s.fillDtable(ext); err != nil {
+		return err
+	}
+	// addBits never decreases with the symbol (checked in initPredefined),
+	// so the last symbol has the most. It may exceed the table's actual
+	// maximum only if the last symbol has no states, which just costs an
+	// extra bitreader fill.
+	s.maxBits = 0
+	if s.symbolLen > 0 {
+		s.maxBits = ext[s.symbolLen-1].addBits()
+	}
+	return nil
 }
 
 func (s *fseDecoder) mustReadFrom(r io.Reader) {
@@ -266,27 +313,6 @@ func (s *fseDecoder) setRLE(symbol decSymbol) {
 	s.actualTableLog = 0
 	s.maxBits = symbol.addBits()
 	s.dt[0] = symbol
-}
-
-// transform will transform the decoder table into a table usable for
-// decoding without having to apply the transformation while decoding.
-// The state will contain the base value and the number of bits to read.
-func (s *fseDecoder) transform(t []baseOffset) error {
-	tableSize := uint16(1 << s.actualTableLog)
-	s.maxBits = 0
-	for i, v := range s.dt[:tableSize] {
-		add := v.addBits()
-		if int(add) >= len(t) {
-			return fmt.Errorf("invalid decoding table entry %d, symbol %d >= max (%d)", i, v.addBits(), len(t))
-		}
-		lu := t[add]
-		if lu.addBits > s.maxBits {
-			s.maxBits = lu.addBits
-		}
-		v.setExt(lu.addBits, lu.baseLine)
-		s.dt[i] = v
-	}
-	return nil
 }
 
 type fseState struct {

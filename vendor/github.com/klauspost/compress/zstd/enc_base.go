@@ -194,6 +194,7 @@ func (e *fastBase) resetBase(d *dict, singleBlock bool) {
 		}
 		// Transfer litenc.
 		e.blk.dictLitEnc = d.litEnc
+		e.blk.coders.seedPrevFromDict(d)
 		e.hist = append(e.hist, d.content...)
 	}
 }

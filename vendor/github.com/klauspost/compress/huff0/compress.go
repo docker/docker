@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"runtime"
+	"slices"
 	"sync"
 )
 
@@ -243,23 +244,27 @@ func (s *Scratch) compress1xDo(dst, src []byte) []byte {
 		bw.encSymbol(cTable, src[n+i-1])
 	}
 	n -= 4
-	if s.actualTableLog <= 8 {
-		for ; n >= 0; n -= 4 {
-			tmp := src[n : n+4]
-			// tmp should be len 4
-			bw.flush32()
-			bw.encFourSymbols(cTable[tmp[3]], cTable[tmp[2]], cTable[tmp[1]], cTable[tmp[0]])
+
+	// flush leaves at most 7 bits, so four symbols (at most 4*tableLogMax
+	// bits) always fit. Each chunk checks room for bytesPer4 per four
+	// symbols plus the 8-byte store.
+	const bytesPer4 = (7 + 4*tableLogMax) / 8
+	w := bitState{c: bw.bitContainer, nb: uint(bw.nBits), pos: len(bw.out)}
+	buf := bw.out[:cap(bw.out)]
+	for n >= 0 {
+		k := (len(buf) - w.pos - 8) / bytesPer4
+		if k <= 0 {
+			buf = slices.Grow(buf[:w.pos], (n/4+1)*bytesPer4+8)
+			buf = buf[:cap(buf)]
+			continue
 		}
-	} else {
-		for ; n >= 0; n -= 4 {
+		for stop := max(n-4*k, -4); n > stop; n -= 4 {
+			w = w.flush(buf)
 			tmp := src[n : n+4]
-			// tmp should be len 4
-			bw.flush32()
-			bw.encTwoSymbols(cTable, tmp[3], tmp[2])
-			bw.flush32()
-			bw.encTwoSymbols(cTable, tmp[1], tmp[0])
+			w = w.add(fourSymbols(cTable[tmp[3]], cTable[tmp[2]], cTable[tmp[1]], cTable[tmp[0]]))
 		}
 	}
+	bw.bitContainer, bw.nBits, bw.out = w.c, uint8(w.nb), buf[:w.pos]
 	bw.close()
 	return bw.out
 }
