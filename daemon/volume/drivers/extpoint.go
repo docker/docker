@@ -100,19 +100,11 @@ func (s *Store) lookup(name string, mode int) (volume.Driver, error) {
 
 		d, err := makePluginAdapter(p)
 		if err != nil {
+			s.releasePluginRef(name, mode, "make-plugin-adapter", err)
 			return nil, errors.Wrap(err, "error making plugin client")
 		}
 		if err := validateDriver(d); err != nil {
-			if mode > 0 {
-				// Undo any reference count changes from the initial `Get`
-				if _, getErr := s.pluginGetter.Get(name, extName, mode*-1); getErr != nil {
-					log.G(context.TODO()).WithFields(log.Fields{
-						"error":  getErr,
-						"action": "validate-driver",
-						"plugin": name,
-					}).Errorf("error releasing reference to plugin after validation error: %v", err)
-				}
-			}
+			s.releasePluginRef(name, mode, "validate-driver", err)
 			return nil, err
 		}
 
@@ -124,6 +116,19 @@ func (s *Store) lookup(name string, mode int) (volume.Driver, error) {
 		return d, nil
 	}
 	return nil, driverNotFoundError(name)
+}
+
+func (s *Store) releasePluginRef(name string, mode int, action string, cause error) {
+	if mode > 0 {
+		// Undo any reference count changes from the initial `Get`
+		if _, err := s.pluginGetter.Get(name, extName, mode*-1); err != nil {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"error":  err,
+				"action": action,
+				"plugin": name,
+			}).Errorf("error releasing reference to plugin: %v", cause)
+		}
+	}
 }
 
 func validateDriver(vd volume.Driver) error {
@@ -227,7 +232,11 @@ func (s *Store) GetAllDrivers() ([]volume.Driver, error) {
 
 func makePluginAdapter(p plugingetter.CompatPlugin) (*volumeDriverAdapter, error) {
 	if pc, ok := p.(plugingetter.PluginWithV1Client); ok {
-		return &volumeDriverAdapter{name: p.Name(), scopePath: p.ScopedPath, proxy: &volumeDriverProxy{pc.Client()}}, nil
+		client := pc.Client()
+		if client == nil {
+			return nil, fmt.Errorf("volume plugin %q is not initialized: client is nil", p.Name())
+		}
+		return &volumeDriverAdapter{name: p.Name(), scopePath: p.ScopedPath, proxy: &volumeDriverProxy{client}}, nil
 	}
 
 	pa, ok := p.(plugingetter.PluginAddr)
