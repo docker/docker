@@ -27,6 +27,11 @@ func getUserFromContainerd(ctx context.Context, containerdCli *containerd.Client
 		return specs.User{}, err
 	}
 
+	// Preserve OCI additional groups from container creation.
+	inheritedGids := append(
+		[]uint32(nil),
+		spec.Process.User.AdditionalGids...,)
+
 	opts := []coci.SpecOpts{
 		coci.WithUser(ec.User),
 		coci.WithAdditionalGIDs(ec.User),
@@ -35,6 +40,21 @@ func getUserFromContainerd(ctx context.Context, containerdCli *containerd.Client
 	for _, opt := range opts {
 		if err := opt(ctx, containerdCli, &cinfo, spec); err != nil {
 			return specs.User{}, err
+		}
+	}
+
+	// Merge inherited OCI groups.
+	existing := map[uint32]struct{}{}
+
+	for _, gid := range spec.Process.User.AdditionalGids {
+		existing[gid] = struct{}{}
+	}
+
+	for _, gid := range inheritedGids {
+		if _, ok := existing[gid]; !ok {
+			spec.Process.User.AdditionalGids = append(
+				spec.Process.User.AdditionalGids,
+				gid,)
 		}
 	}
 
