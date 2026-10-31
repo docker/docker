@@ -12,6 +12,7 @@ import (
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/diff"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
@@ -222,6 +223,11 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	opts = append(opts, containerd.WithImageHandler(ah))
 
 	opts = append(opts, containerd.WithPullUnpack)
+	// Sync unpacked files before committing the snapshot metadata. This keeps
+	// the snapshot contents durable before a successful pull can be reused.
+	opts = append(opts, containerd.WithUnpackOpts([]containerd.UnpackOpt{
+		containerd.WithUnpackApplyOpts(diff.WithSyncFs(true)),
+	}))
 	// TODO(thaJeztah): we may have to pass the snapshotter to use if the pull is part of a "docker run" (container create -> pull image if missing). See https://github.com/moby/moby/issues/45273
 	opts = append(opts, containerd.WithPullSnapshotter(i.snapshotter))
 
