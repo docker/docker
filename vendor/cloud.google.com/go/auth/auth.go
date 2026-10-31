@@ -386,7 +386,7 @@ func (c *cachedTokenProvider) tokenBlocking(ctx context.Context) (*Token, error)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.isRefreshErr = false
-	if c.cachedToken.IsValid() || (!c.autoRefresh && !c.cachedToken.isEmpty()) {
+	if c.cachedToken.isValidWithEarlyExpiry(c.expireEarly) || (!c.autoRefresh && !c.cachedToken.isEmpty()) {
 		return c.cachedToken, nil
 	}
 	t, err := c.tp.Token(ctx)

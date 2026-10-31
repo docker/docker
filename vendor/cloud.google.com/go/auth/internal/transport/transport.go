@@ -67,15 +67,16 @@ func CloneDetectOptions(oldDo *credentials.DetectOptions) *credentials.DetectOpt
 	}
 	newDo := &credentials.DetectOptions{
 		// Simple types
-		TokenBindingType:  oldDo.TokenBindingType,
-		Audience:          oldDo.Audience,
-		Subject:           oldDo.Subject,
-		EarlyTokenRefresh: oldDo.EarlyTokenRefresh,
-		TokenURL:          oldDo.TokenURL,
-		STSAudience:       oldDo.STSAudience,
-		CredentialsFile:   oldDo.CredentialsFile,
-		UseSelfSignedJWT:  oldDo.UseSelfSignedJWT,
-		UniverseDomain:    oldDo.UniverseDomain,
+		TokenBindingType:    oldDo.TokenBindingType,
+		Audience:            oldDo.Audience,
+		Subject:             oldDo.Subject,
+		EarlyTokenRefresh:   oldDo.EarlyTokenRefresh,
+		DisableAsyncRefresh: oldDo.DisableAsyncRefresh,
+		TokenURL:            oldDo.TokenURL,
+		STSAudience:         oldDo.STSAudience,
+		CredentialsFile:     oldDo.CredentialsFile,
+		UseSelfSignedJWT:    oldDo.UseSelfSignedJWT,
+		UniverseDomain:      oldDo.UniverseDomain,
 
 		// These fields are pointer types that we just want to use exactly as
 		// the user set, copy the ref

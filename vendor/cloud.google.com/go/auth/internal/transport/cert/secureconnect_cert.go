@@ -76,9 +76,17 @@ func NewSecureConnectProvider(configFilePath string) (Provider, error) {
 	if err := validateMetadata(metadata); err != nil {
 		return nil, fmt.Errorf("cert: invalid config in %q: %w", configFilePath, err)
 	}
-	return (&secureConnectSource{
+	source := &secureConnectSource{
 		metadata: metadata,
-	}).getClientCertificate, nil
+	}
+	cert, err := source.getClientCertificate(nil)
+	if err != nil {
+		return nil, err
+	}
+	if cert == nil {
+		return nil, errSourceUnavailable
+	}
+	return source.getClientCertificate, nil
 }
 
 func validateMetadata(metadata secureConnectMetadata) error {
@@ -101,7 +109,9 @@ func (s *secureConnectSource) getClientCertificate(info *tls.CertificateRequestI
 	command := s.metadata.Cmd
 	data, err := exec.Command(command[0], command[1:]...).Output()
 	if err != nil {
-		return nil, err
+		// Intentionally return nil, nil when the helper fails so the probe in
+		// NewSecureConnectProvider can recognize the source as unavailable.
+		return nil, nil
 	}
 	cert, err := tls.X509KeyPair(data, data)
 	if err != nil {

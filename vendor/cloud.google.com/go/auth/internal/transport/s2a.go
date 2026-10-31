@@ -126,7 +126,7 @@ func shouldUseS2A(clientCertSource cert.Provider, opts *Options) bool {
 		return false
 	}
 	// If directPath is enabled, skip S2A.
-	return !opts.EnableDirectPath && !opts.EnableDirectPathXds
+	return !opts.EnableDirectPath && !opts.EnableDirectPathXds && !opts.EnableDirectPathXdsOverInterconnect
 }
 
 func isGoogleS2AEnabled() bool {

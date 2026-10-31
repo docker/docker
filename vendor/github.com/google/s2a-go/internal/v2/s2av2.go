@@ -168,7 +168,8 @@ func (c *s2av2TransportCreds) ClientHandshake(ctx context.Context, serverAuthori
 	}
 	retry.Run(timeoutCtx,
 		func() error {
-			config, err = tlsconfigstore.GetTLSConfigurationForClient(sn, s2AStream, tokenManager, c.localIdentity, c.verificationMode, c.serverAuthorizationPolicy)
+			// The gRPC transport requires HTTP/2, so this path never overrides ALPN.
+			config, err = tlsconfigstore.GetTLSConfigurationForClient(sn, s2AStream, tokenManager, c.localIdentity, c.verificationMode, c.serverAuthorizationPolicy, nil)
 			return err
 		})
 	if err != nil {
@@ -307,14 +308,16 @@ func NewClientTLSConfig(
 	verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode,
 	serverName string,
 	serverAuthorizationPolicy []byte,
-	getStream stream.GetS2AStream) (*tls.Config, error) {
+	getStream stream.GetS2AStream,
+	localIdentity *commonpb.Identity,
+	nextProtos []string) (*tls.Config, error) {
 	s2AStream, err := createStream(ctx, s2av2Address, transportCreds, getStream)
 	if err != nil {
 		grpclog.Infof("Failed to connect to S2Av2: %v", err)
 		return nil, err
 	}
 
-	return tlsconfigstore.GetTLSConfigurationForClient(removeServerNamePort(serverName), s2AStream, tokenManager, nil, verificationMode, serverAuthorizationPolicy)
+	return tlsconfigstore.GetTLSConfigurationForClient(removeServerNamePort(serverName), s2AStream, tokenManager, localIdentity, verificationMode, serverAuthorizationPolicy, nextProtos)
 }
 
 // OverrideServerName sets the ServerName in the s2av2TransportCreds protocol

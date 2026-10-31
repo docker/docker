@@ -110,6 +110,22 @@ func (x enableDirectPathXds) Apply(o *internal.DialSettings) {
 	o.EnableDirectPathXds = bool(x)
 }
 
+// EnableDirectPathXdsOverInterconnect returns a ClientOption that enables
+// DirectPath xDS over Cloud Interconnect. It is only valid when DirectPath
+// and DirectPath xDS are enabled.
+//
+// It should only be used internally by generated clients.
+// This is an EXPERIMENTAL API and may be changed or removed in the future.
+func EnableDirectPathXdsOverInterconnect() option.ClientOption {
+	return enableDirectPathXdsOverInterconnect(true)
+}
+
+type enableDirectPathXdsOverInterconnect bool
+
+func (x enableDirectPathXdsOverInterconnect) Apply(o *internal.DialSettings) {
+	o.EnableDirectPathXdsOverInterconnect = bool(x)
+}
+
 // AllowNonDefaultServiceAccount returns a ClientOption that overrides the default
 // requirement for using the default service account for DirectPath.
 //

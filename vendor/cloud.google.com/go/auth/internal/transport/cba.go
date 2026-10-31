@@ -65,15 +65,16 @@ const (
 // transport packages in order to avoid cyclic deps. It correlates 1:1 with
 // fields on httptransport.Options and grpctransport.Options.
 type Options struct {
-	Endpoint                string
-	DefaultEndpointTemplate string
-	DefaultMTLSEndpoint     string
-	ClientCertProvider      cert.Provider
-	Client                  *http.Client
-	UniverseDomain          string
-	EnableDirectPath        bool
-	EnableDirectPathXds     bool
-	Logger                  *slog.Logger
+	Endpoint                            string
+	DefaultEndpointTemplate             string
+	DefaultMTLSEndpoint                 string
+	ClientCertProvider                  cert.Provider
+	Client                              *http.Client
+	UniverseDomain                      string
+	EnableDirectPath                    bool
+	EnableDirectPathXds                 bool
+	EnableDirectPathXdsOverInterconnect bool
+	Logger                              *slog.Logger
 }
 
 // getUniverseDomain returns the default service domain for a given Cloud

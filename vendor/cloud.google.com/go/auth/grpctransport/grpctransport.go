@@ -52,6 +52,9 @@ const (
 	// Check env to decide if using google-c2p resolver for DirectPath traffic.
 	enableDirectPathXdsEnvVar = "GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"
 
+	// Check env to decide if using DirectPath over Interconnect (on-premises xDS).
+	enableDirectPathXdsOverInterconnectEnvVar = "GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS_OVER_INTERCONNECT"
+
 	quotaProjectHeaderKey = "X-goog-user-project"
 )
 
@@ -152,6 +155,16 @@ func (o *Options) logger() *slog.Logger {
 	return internallog.New(o.Logger)
 }
 
+func (o *Options) clientUniverseDomain() string {
+	if o != nil && o.UniverseDomain != "" {
+		return o.UniverseDomain
+	}
+	if envUD := os.Getenv(internal.UniverseDomainEnvVar); envUD != "" {
+		return envUD
+	}
+	return internal.DefaultUniverseDomain
+}
+
 func (o *Options) validate() error {
 	if o == nil {
 		return errors.New("grpctransport: opts required to be non-nil")
@@ -212,6 +225,9 @@ type InternalOptions struct {
 	// EnableDirectPathXds overrides the default DirectPath type. It is only
 	// valid when DirectPath is enabled.
 	EnableDirectPathXds bool
+	// EnableDirectPathXdsOverInterconnect enables DirectPath over Google Cloud
+	// Interconnect (on-premises xDS name resolution via google-c2p with force-xds).
+	EnableDirectPathXdsOverInterconnect bool
 	// EnableJWTWithScope specifies if scope can be used with self-signed JWT.
 	EnableJWTWithScope bool
 	// AllowHardBoundTokens allows libraries to request a hard-bound token.
@@ -284,6 +300,7 @@ func dial(ctx context.Context, secure bool, opts *Options) (*grpc.ClientConn, er
 		tOpts.DefaultMTLSEndpoint = io.DefaultMTLSEndpoint
 		tOpts.EnableDirectPath = io.EnableDirectPath
 		tOpts.EnableDirectPathXds = io.EnableDirectPathXds
+		tOpts.EnableDirectPathXdsOverInterconnect = io.EnableDirectPathXdsOverInterconnect
 	}
 	transportCreds, err := transport.GetGRPCTransportCredsAndEndpoint(tOpts)
 	if err != nil {
@@ -358,10 +375,11 @@ func dial(ctx context.Context, secure bool, opts *Options) (*grpc.ClientConn, er
 				creds:                creds,
 				metadata:             metadata,
 				clientUniverseDomain: opts.UniverseDomain,
+				endpoint:             transportCreds.Endpoint,
 			}),
 		)
 		// Attempt Direct Path
-		grpcOpts, transportCreds.Endpoint, err = configureDirectPath(grpcOpts, opts, transportCreds.Endpoint, creds)
+		grpcOpts, transportCreds.Endpoint, err = configureDirectPath(grpcOpts, opts, transportCreds.Endpoint, creds, metadata)
 		if err != nil {
 			return nil, err
 		}
@@ -405,6 +423,7 @@ type grpcCredentialsProvider struct {
 	// Additional metadata attached as headers.
 	metadata             map[string]string
 	clientUniverseDomain string
+	endpoint             string
 }
 
 // getClientUniverseDomain returns the default service domain for a given Cloud
@@ -447,7 +466,7 @@ func (c *grpcCredentialsProvider) GetRequestMetadata(ctx context.Context, uri ..
 		}
 	}
 	metadata := make(map[string]string, len(c.metadata)+1)
-	headers.SetAuthMetadata(token, metadata)
+	headers.SetAuthMetadata(ctx, token, c.endpoint, metadata)
 	for k, v := range c.metadata {
 		metadata[k] = v
 	}
@@ -504,6 +523,9 @@ func extractHostPort(target string) (string, int) {
 		if slashIdx := strings.Index(target, "/"); slashIdx != -1 {
 			target = target[slashIdx+1:]
 		}
+	}
+	if qIdx := strings.Index(target, "?"); qIdx != -1 {
+		target = target[:qIdx]
 	}
 	host, portStr, err := net.SplitHostPort(target)
 	if err != nil {
