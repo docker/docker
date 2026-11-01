@@ -11,7 +11,7 @@ fi
 DOCKER_COMMAND="$(command -v dockerd)"
 
 DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-native}
-DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
+DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-false}
 
 # example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
 storage_params=""

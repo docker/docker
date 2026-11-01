@@ -1933,18 +1933,18 @@ func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *testing.T) {
 	assert.NilError(c, cmd.Run())
 
 	// custom one
-	s.d.StartWithBusybox(testutil.GetContext(c), c, "--userland-proxy-path", newProxyPath)
+	s.d.StartWithBusybox(testutil.GetContext(c), c, "--userland-proxy=true", "--userland-proxy-path", newProxyPath)
 	out, err := s.d.Cmd("run", "-p", "5000:5000", "busybox:latest", "true")
 	assert.NilError(c, err, out)
 
 	// try with the original one
-	s.d.Restart(c, "--userland-proxy-path", dockerProxyPath)
+	s.d.Restart(c, "--userland-proxy=true", "--userland-proxy-path", dockerProxyPath)
 	out, err = s.d.Cmd("run", "-p", "5000:5000", "busybox:latest", "true")
 	assert.NilError(c, err, out)
 
 	// not exist
 	s.d.Stop(c)
-	err = s.d.StartWithError("--userland-proxy-path", "/does/not/exist")
+	err = s.d.StartWithError("--userland-proxy=true", "--userland-proxy-path", "/does/not/exist")
 	assert.ErrorContains(c, err, "", "daemon should fail to start")
 	expected := "invalid userland-proxy-path"
 	ok, _ := s.d.ScanLogsT(ctx, c, testdaemon.ScanLogsMatchString(expected))
@@ -1952,7 +1952,7 @@ func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *testing.T) {
 
 	// not an absolute path
 	s.d.Stop(c)
-	err = s.d.StartWithError("--userland-proxy-path", "docker-proxy")
+	err = s.d.StartWithError("--userland-proxy=true", "--userland-proxy-path", "docker-proxy")
 	assert.ErrorContains(c, err, "", "daemon should fail to start")
 	expected = "invalid userland-proxy-path: must be an absolute path: docker-proxy"
 	ok, _ = s.d.ScanLogsT(ctx, c, testdaemon.ScanLogsMatchString(expected))
