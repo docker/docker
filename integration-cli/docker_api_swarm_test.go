@@ -27,6 +27,7 @@ import (
 	testdaemon "github.com/moby/moby/v2/internal/testutil/daemon"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	"github.com/moby/swarmkit/v2/ca"
+	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -313,7 +314,11 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *testing.T) {
 			followers = nil
 			for _, d := range nodes {
 				n := d.GetNode(ctx, t, d.NodeID(), func(err error) bool {
-					if strings.Contains(err.Error(), context.DeadlineExceeded.Error()) || strings.Contains(err.Error(), "swarm does not have a leader") {
+					if os.IsTimeout(errors.Cause(err)) {
+						lastErr = err
+						return true
+					}
+					if strings.Contains(err.Error(), "swarm does not have a leader") {
 						lastErr = err
 						return true
 					}

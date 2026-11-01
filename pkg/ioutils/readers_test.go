@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -47,6 +48,8 @@ func TestCancelReadCloser(t *testing.T) {
 		var buf [128]byte
 		_, err := crc.Read(buf[:])
 		if errors.Is(err, context.DeadlineExceeded) {
+			break
+		} else if os.IsTimeout(err) {
 			break
 		} else if err != nil {
 			t.Fatalf("got unexpected error: %v", err)

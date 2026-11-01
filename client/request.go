@@ -161,7 +161,7 @@ func (cli *Client) doRequest(req *http.Request) (*http.Response, error) {
 
 	// Don't decorate context sentinel errors; users may be comparing to
 	// them directly.
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err) {
 		return nil, err
 	}
 
