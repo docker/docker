@@ -188,8 +188,11 @@ func verifyDaemonSettings(config *config.Config) error {
 func checkSystem() error {
 	// Validate the OS version. Note that dockerd.exe must be manifested for this
 	// call to return the correct version.
-	if osversion.Get().MajorVersion < 10 || osversion.Build() < osversion.RS5 {
-		return fmt.Errorf("this version of Windows does not support the docker daemon (Windows build %d or higher is required)", osversion.RS5)
+	if osver := osversion.Get(); osver.MajorVersion < 10 || osver.Build < osversion.RS5 {
+		if osver.Build == 9200 { // TODO implement a proper check / constant for this build number? https://github.com/microsoft/hcsshim/issues/1080#issuecomment-1281601474
+			return fmt.Errorf("this build is not 'manifested', which breaks many Windows APIs (see https://github.com/golang/go/issues/44466 for a list of some)")
+		}
+		return fmt.Errorf("this version of Windows (%s) does not support the docker daemon (Windows build %d or higher is required)", osver.ToString(), osversion.RS5)
 	}
 
 	vmcompute := windows.NewLazySystemDLL("vmcompute.dll")
