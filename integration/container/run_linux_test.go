@@ -666,3 +666,35 @@ func TestContainerRunWithUmask(t *testing.T) {
 		}
 	}
 }
+
+func TestShortNetworkIDIsReplacedWithNetworkName(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	ctx := testutil.StartSpan(baseContext, t)
+
+	d := daemon.New(t)
+	d.StartWithBusybox(ctx, t)
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+
+	n := net.CreateNoError(ctx, t, apiClient, "testnet",
+		net.WithIPAM("192.168.100.0/24", "192.168.100.1"))
+
+	cid := container.Run(ctx, t, apiClient,
+		container.WithImage("busybox:latest"),
+		container.WithCmd("/bin/sleep", "infinity"),
+		container.WithStopSignal("SIGKILL"),
+		container.WithNetworkMode(n[:10]),
+		container.WithIPv4(n[:10], "192.168.100.10"))
+	defer container.Remove(ctx, t, apiClient, cid, types.ContainerRemoveOptions{Force: true})
+
+	c := container.Inspect(ctx, t, apiClient, cid)
+	networks := make([]string, 0, len(c.NetworkSettings.Networks))
+	for n := range c.NetworkSettings.Networks {
+		networks = append(networks, n)
+	}
+
+	assert.DeepEqual(t, networks, []string{"testnet"})
+}

@@ -730,6 +730,11 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 			return err
 		}
 	}
+	// If idOrName is a partial ID, we just delete the matching entry from container's endpoint settings. An entry
+	// will be recreated below with the network name used as a key.
+	if idOrName != n.ID() && idOrName != nwName {
+		delete(container.NetworkSettings.Networks, idOrName)
+	}
 
 	endpointConfig.IPAMOperational = false
 	if nwCfg != nil {
