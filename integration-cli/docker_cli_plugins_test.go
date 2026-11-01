@@ -233,7 +233,7 @@ func (ps *DockerPluginSuite) TestPluginInstallImage(c *testing.T) {
 
 	out, _, err := dockerCmdWithError("plugin", "install", imgRepo)
 	assert.ErrorContains(c, err, "")
-	assert.Check(c, is.Contains(out, `Encountered remote "application/vnd.docker.container.image.v1+json"(image) when fetching`))
+	assert.Check(c, is.Contains(out, `did not find plugin config for specified reference`))
 }
 
 func (ps *DockerPluginSuite) TestPluginEnableDisableNegative(c *testing.T) {
