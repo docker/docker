@@ -371,11 +371,18 @@ func ParseLink(val string) (string, string, error) {
 	// This is kept because we can actually get a HostConfig with links
 	// from an already created container and the format is not `foo:bar`
 	// but `/foo:/c1/bar`
+	// futhermore, we need to deal with `foo:/c1/bar`, or `foo:c1/bar`
+	name := arr[0]
+
 	if strings.HasPrefix(arr[0], "/") {
-		_, alias := path.Split(arr[1])
-		return arr[0][1:], alias, nil
+		name = arr[0][1:]
 	}
-	return arr[0], arr[1], nil
+	// For /test/, we need to clean
+	_, alias := path.Split(path.Clean(arr[1]))
+	if len(alias) == 0 {
+		return "", "", fmt.Errorf("bad format for links: %s", val)
+	}
+	return name, alias, nil
 }
 
 // MemBytes is a type for human readable memory bytes (like 128M, 2g, etc)
