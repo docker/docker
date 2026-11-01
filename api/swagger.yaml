@@ -2210,7 +2210,7 @@ definitions:
           empty if no tags reference the image, in which case the image is
           "untagged", in which case it can still be referenced by its ID.
         type: "array"
-        x-nullable: false
+        x-nullable: true
         items:
           type: "string"
         example:
@@ -2228,7 +2228,7 @@ definitions:
           from a registry, or if the image was pushed to a registry, which is when
           the manifest is generated and its digest calculated.
         type: "array"
-        x-nullable: false
+        x-nullable: true
         items:
           type: "string"
         example:
@@ -2262,7 +2262,7 @@ definitions:
       Labels:
         description: "User-defined key/value metadata."
         type: "object"
-        x-nullable: false
+        x-nullable: true
         additionalProperties:
           type: "string"
         example:
