@@ -431,7 +431,7 @@ WORKDIR /usr/src/containerutil
 ARG CONTAINERUTILITY_VERSION=aa1ba87e99b68e0113bd27ec26c60b88f9d4ccd9
 ADD https://github.com/docker-archive/windows-container-utility.git?commit=${CONTAINERUTILITY_VERSION}&keep-git-dir=1 .
 
-FROM base AS containerutil-build
+FROM --platform=$TARGETPLATFORM base AS containerutil-build
 WORKDIR /usr/src/containerutil
 ARG TARGETPLATFORM
 RUN xx-apt-get install -y --no-install-recommends \
@@ -450,6 +450,7 @@ EOT
 
 FROM binary-dummy AS containerutil-linux
 FROM containerutil-build AS containerutil-windows-amd64
+FROM containerutil-build AS containerutil-windows-arm64
 FROM containerutil-windows-${TARGETARCH} AS containerutil-windows
 FROM containerutil-${TARGETOS} AS containerutil
 FROM docker/buildx-bin:${BUILDX_VERSION} AS buildx

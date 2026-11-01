@@ -87,7 +87,8 @@ target "_platforms" {
     "linux/arm64",
     "linux/ppc64le",
     "linux/s390x",
-    "windows/amd64"
+    "windows/amd64",
+    "windows/arm64"
   ]
 }
 
