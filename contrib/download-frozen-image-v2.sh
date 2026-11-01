@@ -112,7 +112,7 @@ handle_single_manifest_v2() {
 		# save the previous layer's ID
 		local parentId="$layerId"
 		# create a new fake layer ID based on this layer's digest and the previous layer's fake ID
-		layerId="$(echo "$parentId"$'\n'"$layerDigest" | sha256sum | cut -d' ' -f1)"
+		layerId="$(echo "$parentId"$'\n'"$layerDigest" | shasum | cut -d' ' -f1)"
 		# this accounts for the possibility that an image contains the same layer twice (and thus has a duplicate digest value)
 
 		mkdir -p "$dir/$layerId"
@@ -419,7 +419,12 @@ echo -n $'\n}\n' >> "$dir/repositories"
 rm -f "$dir"/tags-*.tmp
 
 if [ -z "$doNotGenerateManifestJson" ] && [ "${#manifestJsonEntries[@]}" -gt 0 ]; then
-	echo '[]' | jq --raw-output ".$(for entry in "${manifestJsonEntries[@]}"; do echo " + [ $entry ]"; done)" > "$dir/manifest.json"
+  if [ -f $dir/manifest.json ] && [ $(echo $(<$dir/manifest.json) | jq empty; echo $?) = 0 ]; then
+    tmpManifestJsonEntries=$(<$dir/manifest.json)
+  else
+    tmpManifestJsonEntries=[]
+  fi
+  echo $tmpManifestJsonEntries | jq ".$(for entry in "${manifestJsonEntries[@]}"; do echo " += [ $entry ]"; done)" | jq 'unique' > "$dir/manifest.json"
 else
 	rm -f "$dir/manifest.json"
 fi
