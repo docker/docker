@@ -22,7 +22,6 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/directory"
 	"github.com/moby/moby/v2/daemon/internal/fstype"
 	"github.com/moby/moby/v2/daemon/internal/mountref"
-	"github.com/moby/moby/v2/pkg/parsers/kernel"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
@@ -76,9 +75,6 @@ func init() {
 func Init(home string, options []string, idMap user.IdentityMapping) (graphdriver.Driver, error) {
 	if _, err := exec.LookPath(binary); err != nil {
 		logger.Error(err)
-		return nil, graphdriver.ErrNotSupported
-	}
-	if !kernel.CheckKernelVersion(4, 18, 0) {
 		return nil, graphdriver.ErrNotSupported
 	}
 
