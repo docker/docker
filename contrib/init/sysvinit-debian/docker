@@ -19,28 +19,26 @@ set -e
 
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
-BASE=docker
-
-# modify these in /etc/default/$BASE (/etc/default/docker)
-DOCKERD=/usr/bin/dockerd
+NAME=$(basename $(readlink -f "$0"))
+DAEMON=/usr/bin/dockerd
 # This is the pid file managed by docker itself
-DOCKER_PIDFILE=/var/run/$BASE.pid
+DOCKER_PIDFILE=/var/run/$NAME.pid
 # This is the pid file created/managed by start-stop-daemon
-DOCKER_SSD_PIDFILE=/var/run/$BASE-ssd.pid
-DOCKER_LOGFILE=/var/log/$BASE.log
+DOCKER_SSD_PIDFILE=/var/run/$NAME-ssd.pid
+DOCKER_LOGFILE=/var/log/$NAME.log
 DOCKER_OPTS=
 DOCKER_DESC="Docker"
 
 # Get lsb functions
 . /lib/lsb/init-functions
 
-if [ -f /etc/default/$BASE ]; then
-	. /etc/default/$BASE
+if [ -f /etc/default/$NAME ]; then
+	. /etc/default/$NAME
 fi
 
 # Check docker is present
-if [ ! -x $DOCKERD ]; then
-	log_failure_msg "$DOCKERD not present or not executable"
+if [ ! -x $DAEMON ]; then
+	log_failure_msg "$DAEMON not present or not executable"
 	exit 1
 fi
 
@@ -69,10 +67,10 @@ case "$1" in
 			ulimit -p unlimited
 		fi
 
-		log_begin_msg "Starting $DOCKER_DESC: $BASE"
+		log_begin_msg "Starting $DOCKER_DESC: $NAME"
 		start-stop-daemon --start --background \
 			--no-close \
-			--exec "$DOCKERD" \
+			--exec "$DAEMON" \
 			--pidfile "$DOCKER_SSD_PIDFILE" \
 			--make-pidfile \
 			-- \
@@ -85,8 +83,8 @@ case "$1" in
 	stop)
 		fail_unless_root
 		if [ -f "$DOCKER_SSD_PIDFILE" ]; then
-			log_begin_msg "Stopping $DOCKER_DESC: $BASE"
-			start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE" --retry 10
+			log_begin_msg "Stopping $DOCKER_DESC: $NAME"
+			start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE" --remove-pidfile --retry 10
 			log_end_msg $?
 		else
 			log_warning_msg "Docker already stopped - file $DOCKER_SSD_PIDFILE not found."
@@ -108,7 +106,7 @@ case "$1" in
 		;;
 
 	status)
-		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKERD" "$DOCKER_DESC"
+		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DAEMON" "$DOCKER_DESC"
 		;;
 
 	*)
