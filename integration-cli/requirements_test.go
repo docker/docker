@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"net"
 	"net/http"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/containerd/containerd/v2/plugins"
 	"github.com/moby/moby/api/types/swarm"
-	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil/registry"
 )
 
@@ -26,18 +24,6 @@ func DaemonIsWindows() bool {
 
 func DaemonIsLinux() bool {
 	return testEnv.DaemonInfo.OSType == "linux"
-}
-
-func OnlyDefaultNetworks(ctx context.Context) bool {
-	apiClient, err := client.New(client.FromEnv)
-	if err != nil {
-		return false
-	}
-	res, err := apiClient.NetworkList(ctx, client.NetworkListOptions{})
-	if err != nil || len(res.Items) > 0 {
-		return false
-	}
-	return true
 }
 
 func IsAmd64() bool {
