@@ -36,7 +36,7 @@ func (daemon *Daemon) containerUnpause(ctr *container.Container) error {
 		return fmt.Errorf("Cannot unpause container %s: %s", ctr.ID, err)
 	}
 
-	ctr.State.Paused = false
+	ctr.State.SetPaused(false)
 	daemon.setStateCounter(ctr)
 	daemon.updateHealthMonitor(ctr)
 	daemon.LogContainerEvent(ctr, events.ActionUnPause)

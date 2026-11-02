@@ -90,9 +90,7 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 	if e != nil {
 		ctrExitStatus.ExitCode = int(e.ExitCode)
 		ctrExitStatus.ExitedAt = e.ExitedAt
-		if e.Error != nil {
-			c.State.SetError(e.Error)
-		}
+		ctrExitStatus.Error = e.Error
 	}
 
 	daemonShutdown := daemon.IsShuttingDown()
@@ -172,7 +170,11 @@ func (daemon *Daemon) handleContainerExit(c *container.Container, e *libcontaine
 			}
 			if waitErr != nil {
 				c.Lock()
-				c.State.SetStopped(&ctrExitStatus)
+				// Keep the recorded error, which a failed restart may have replaced.
+				c.State.SetStopped(&container.ExitStatus{
+					ExitCode: ctrExitStatus.ExitCode,
+					ExitedAt: ctrExitStatus.ExitedAt,
+				})
 				daemon.setStateCounter(c)
 				c.CheckpointTo(context.TODO(), daemon.containersReplica)
 				c.Unlock()
@@ -315,7 +317,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		defer c.Unlock()
 
 		if !c.State.Paused {
-			c.State.Paused = true
+			c.State.SetPaused(true)
 			daemon.setStateCounter(c)
 			daemon.updateHealthMonitor(c)
 			if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
@@ -329,7 +331,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		defer c.Unlock()
 
 		if c.State.Paused {
-			c.State.Paused = false
+			c.State.SetPaused(false)
 			daemon.setStateCounter(c)
 			daemon.updateHealthMonitor(c)
 

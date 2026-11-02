@@ -504,7 +504,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 					default:
 						// running
 						c.Lock()
-						c.State.Paused = false
+						c.State.SetPaused(false)
 						daemon.setStateCounter(c)
 						daemon.initHealthMonitor(c)
 						if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
@@ -601,7 +601,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 				// be removed. So we put the container in the "dead"
 				// state and leave further processing up to them.
 				c.State.RemovalInProgress = false
-				c.State.Dead = true
+				c.State.SetDead()
 				if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
 					baseLogger.WithError(err).Error("failed to update RemovalInProgress container state")
 				} else {

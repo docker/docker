@@ -49,6 +49,14 @@ type State struct {
 	stopWaiters       []chan<- StateStatus
 	removeOnlyWaiters []chan<- StateStatus
 
+	// lastStatus is the last status change. It lives in memory only.
+	lastStatus StatusResult
+	// statusMu guards statusSubscribers and their queues, so that consumers
+	// of [State.StatusChanges] don't wait for the state lock.
+	// It is taken while holding the state lock, never the other way around.
+	statusMu          sync.Mutex
+	statusSubscribers []*statusSubscriber
+
 	// The libcontainerd reference fields are unexported to force consumers
 	// to access them through the getter methods with multi-valued returns
 	// so that they can't forget to nil-check: the code won't compile unless
@@ -244,12 +252,12 @@ func (s *State) SetExitCode(ec int) {
 
 // SetRunning sets the running state along with StartedAt time.
 func (s *State) SetRunning(ctr libcontainerdtypes.Container, tsk libcontainerdtypes.Task, start time.Time) {
-	s.setRunning(ctr, tsk, &start)
+	s.change(func() { s.setRunning(ctr, tsk, &start) })
 }
 
 // SetRunningExternal sets the running state without setting the `StartedAt` time (used for containers not started by Docker instead of SetRunning).
 func (s *State) SetRunningExternal(ctr libcontainerdtypes.Container, tsk libcontainerdtypes.Task) {
-	s.setRunning(ctr, tsk, nil)
+	s.change(func() { s.setRunning(ctr, tsk, nil) })
 }
 
 // setRunning sets the state of the container to "running".
@@ -277,37 +285,63 @@ func (s *State) setRunning(ctr libcontainerdtypes.Container, tsk libcontainerdty
 
 // SetStopped sets the container state to "stopped" without locking.
 func (s *State) SetStopped(exitStatus *ExitStatus) {
-	s.Running = false
-	s.Paused = false
-	s.Restarting = false
-	s.Pid = 0
-	if exitStatus.ExitedAt.IsZero() {
-		s.FinishedAt = time.Now().UTC()
-	} else {
-		s.FinishedAt = exitStatus.ExitedAt
-	}
-	s.ExitCode = exitStatus.ExitCode
+	s.change(func() {
+		s.Running = false
+		s.Paused = false
+		s.Restarting = false
+		s.Pid = 0
 
-	s.notifyAndClear(&s.stopWaiters)
+		if exitStatus.ExitedAt.IsZero() {
+			s.FinishedAt = time.Now().UTC()
+		} else {
+			s.FinishedAt = exitStatus.ExitedAt
+		}
+
+		s.ExitCode = exitStatus.ExitCode
+
+		if exitStatus.Error != nil {
+			s.SetError(exitStatus.Error)
+		}
+
+		s.notifyAndClear(&s.stopWaiters)
+	})
 }
 
 // SetRestarting sets the container state to "restarting" without locking.
 // It also sets the container PID to 0.
 func (s *State) SetRestarting(exitStatus *ExitStatus) {
-	// we should consider the container running when it is restarting because of
-	// all the checks in docker around rm/stop/etc
-	s.Running = true
-	s.Restarting = true
-	s.Paused = false
-	s.Pid = 0
-	finishedAt := exitStatus.ExitedAt
-	if finishedAt.IsZero() {
-		finishedAt = time.Now().UTC()
-	}
-	s.FinishedAt = finishedAt
-	s.ExitCode = exitStatus.ExitCode
+	s.change(func() {
+		// we should consider the container running when it is restarting because of
+		// all the checks in docker around rm/stop/etc
+		s.Running = true
+		s.Restarting = true
+		s.Paused = false
+		s.Pid = 0
 
-	s.notifyAndClear(&s.stopWaiters)
+		finishedAt := exitStatus.ExitedAt
+		if finishedAt.IsZero() {
+			finishedAt = time.Now().UTC()
+		}
+
+		s.FinishedAt = finishedAt
+		s.ExitCode = exitStatus.ExitCode
+
+		if exitStatus.Error != nil {
+			s.SetError(exitStatus.Error)
+		}
+
+		s.notifyAndClear(&s.stopWaiters)
+	})
+}
+
+// SetPaused sets whether the container is paused, without locking.
+func (s *State) SetPaused(paused bool) {
+	s.change(func() { s.Paused = paused })
+}
+
+// SetDead marks the container as dead without locking.
+func (s *State) SetDead() {
+	s.change(func() { s.Dead = true })
 }
 
 // SetError sets the container's error state. This is useful when we want to
@@ -366,15 +400,18 @@ func (s *State) SetRemovalInProgress() bool {
 	if s.RemovalInProgress {
 		return true
 	}
-	s.RemovalInProgress = true
+
+	s.change(func() { s.RemovalInProgress = true })
+
 	return false
 }
 
 // ResetRemovalInProgress makes the RemovalInProgress state to false.
 func (s *State) ResetRemovalInProgress() {
 	s.Lock()
-	s.RemovalInProgress = false
-	s.Unlock()
+	defer s.Unlock()
+
+	s.change(func() { s.RemovalInProgress = false })
 }
 
 // IsRemovalInProgress returns whether the RemovalInProgress flag is set.
@@ -393,14 +430,29 @@ func (s *State) IsDead() bool {
 }
 
 // SetRemoved assumes this container is already in the "dead" state and notifies all waiters.
+// It is the last status change that [State.StatusChanges] yields.
 func (s *State) SetRemoved() {
-	s.SetRemovalError(nil)
+	s.Lock()
+	defer s.Unlock()
+
+	prev := s.snapshot()
+	s.setRemovalError(nil)
+
+	if !s.lastStatus.Removed {
+		s.recordStatus(StatusResult{Current: s.snapshot(), Previous: prev, Removed: true})
+	}
 }
 
 // SetRemovalError is to be called in case a container remove failed.
 // It sets an error and notifies all waiters.
 func (s *State) SetRemovalError(err error) {
 	s.Lock()
+	defer s.Unlock()
+
+	s.setRemovalError(err)
+}
+
+func (s *State) setRemovalError(err error) {
 	s.ErrorMsg = ""
 	if err != nil {
 		s.ErrorMsg = err.Error()
@@ -408,7 +460,6 @@ func (s *State) SetRemovalError(err error) {
 	s.removed = true
 	s.notifyAndClear(&s.removeOnlyWaiters)
 	s.notifyAndClear(&s.stopWaiters)
-	s.Unlock()
 }
 
 // Err returns an error if there is one.

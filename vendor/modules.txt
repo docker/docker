@@ -1292,6 +1292,7 @@ github.com/moby/extensions/sdk/sdkapi
 github.com/moby/extensions/sdk/sdkapi/protogen
 github.com/moby/extensions/serverpoint
 github.com/moby/extensions/servicegrpc
+github.com/moby/extensions/stream
 # github.com/moby/go-archive v0.3.3
 ## explicit; go 1.25
 github.com/moby/go-archive

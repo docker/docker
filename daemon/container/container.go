@@ -64,6 +64,9 @@ type ExitStatus struct {
 
 	// Time at which the container died
 	ExitedAt time.Time
+
+	// Error, if not nil, replaces the container's recorded error.
+	Error error
 }
 
 // Container holds the structure defining a container object.
