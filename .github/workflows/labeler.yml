@@ -53,10 +53,7 @@ jobs:
             const classicBuilder = anyFile('daemon/images/*_build*', 'daemon/builder/**');
             const current = new Set(pr.labels.map((l) => l.name));
 
-            let labels = Object.entries({
-              'module/client': anyFile('client/**'),
-              'module/api': anyFile('api/**'),
-              'area/daemon': anyFile('daemon/**'),
+            const areas = {
               'area/builder/buildkit': buildkit,
               'area/builder/classic-builder': classicBuilder,
               'area/builder': buildkit || classicBuilder,
@@ -70,12 +67,23 @@ jobs:
               ),
               'area/volumes': anyFile('api/types/volume/**', 'daemon/volume/**', 'integration/volume/**'),
               'area/swarm': anyFile('api/types/swarm/**', 'daemon/cluster/**'),
-              'area/images': anyFile('api/types/image/**', 'daemon/images/**', 'integration/image/**'),
+              'area/images': anyFile('api/types/image/**', 'daemon/images/**', 'daemon/internal/image/**', 'integration/image/**'),
+              'area/plugins': anyFile('api/types/plugin/**', 'daemon/pkg/plugin/**'),
+              'area/extensions': anyFile('extpoints/**'),
               'area/logging': anyFile('daemon/logger/**') || anyNonVendorFile('**/*logs*', '**/*logdriver*', '**/*logging*'),
               'area/security': anyNonVendorFile('**/*apparmor*', '**/*seccomp*', '**/*selinux*'),
               'area/security/apparmor': anyFile('contrib/apparmor/**') || anyNonVendorFile('**/*apparmor*'),
               'area/security/selinux': anyFile('contrib/selinux/**') || anyNonVendorFile('**/*selinux*'),
               'area/security/seccomp': anyNonVendorFile('**/*seccomp*'),
+              'containerd-integration': anyFile('daemon/containerd/**'),
+              'area/rootless': anyFile('contrib/dockerd-rootless*') || anyNonVendorFile('**/*rootless*'),
+            };
+
+            let labels = Object.entries({
+              'module/client': anyFile('client/**'),
+              'module/api': anyFile('api/**'),
+              'area/daemon': anyFile('daemon/**') && !Object.entries(areas).some(([label, matched]) => matched || current.has(label)),
+              ...areas,
               'area/systemd': anyFile('contrib/init/systemd/**') || anyNonVendorFile('**/*systemd*'),
               'area/contrib': anyFile('contrib/**'),
               'area/packaging': anyFile(
@@ -83,12 +91,10 @@ jobs:
                 'contrib/dockerd-rootless-setuptool.sh',
                 'contrib/init/systemd/**',
               ),
-              'containerd-integration': anyFile('daemon/containerd/**'),
-              'area/rootless': anyFile('contrib/dockerd-rootless*') || anyNonVendorFile('**/*rootless*'),
               'area/testing': anyNonVendorFile('integration/**', 'integration-cli/**', 'internal/test*', 'internal/testutil/**'),
               'area/docs': anyNonVendorFile('api/docs/*.yaml', 'docs/**', '**/*.md', 'man/**'),
-              'area/dependencies': anyFile('go.mod', 'go.sum', 'vendor/**') && !anyFile('client/**', 'api/**'),
-              'area/ci': anyFile('.github/**'),
+              'area/dependencies': files.every((f) => matches(f, ['go.mod', 'go.sum', 'vendor/**'])),
+              'area/ci': anyFile('.github/**', 'hack/validate/**', '.golangci.yml'),
               'platform/windows': allNonVendorFiles('**/*_windows.go', 'Dockerfile.windows'),
               'impact/changelog': anyFile('api/docs/CHANGELOG.md'),
             }).filter(([label, matched]) => matched && !current.has(label)).map(([label]) => label);
