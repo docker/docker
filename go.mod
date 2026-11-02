@@ -10,6 +10,9 @@ tool (
 	google.golang.org/protobuf/cmd/protoc-gen-go
 )
 
+// FIXME(thaJeztah): testing https://github.com/moby/swarmkit/pull/3308
+replace github.com/moby/swarmkit/v2 => github.com/thaJeztah/swarmkit/v2 v2.0.0-20261102154500-0562f4d2fe70
+
 require (
 	cloud.google.com/go/compute/metadata v0.10.0
 	cloud.google.com/go/logging v1.21.0
@@ -216,7 +219,8 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.17 // indirect
 	github.com/googleapis/gax-go/v2 v2.26.2 // indirect
-	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.1 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
