@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/internal/grpcmetrics"
 	"github.com/moby/swarmkit/v2/remotes"
 	"google.golang.org/grpc"
 )
@@ -66,8 +66,8 @@ func (b *Broker) SelectRemote(dialOpts ...grpc.DialOption) (*Conn, error) {
 	// gRPC dialer connects to proxy first. Provide a custom dialer here avoid that.
 	// TODO(anshul) Add an option to configure this.
 	dialOpts = append(dialOpts,
-		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+		grpc.WithUnaryInterceptor(grpcmetrics.Client.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(grpcmetrics.Client.StreamClientInterceptor()),
 		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
 			return net.DialTimeout("tcp", addr, timeout)
 		}))

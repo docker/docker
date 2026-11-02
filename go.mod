@@ -77,7 +77,7 @@ require (
 	github.com/moby/profiles/apparmor v0.2.2
 	github.com/moby/profiles/seccomp v0.2.4
 	github.com/moby/pubsub v1.0.0
-	github.com/moby/swarmkit/v2 v2.1.3-0.20261016144904-5d8dbdc21997
+	github.com/moby/swarmkit/v2 v2.1.3-0.20261102175146-49925db4331f
 	github.com/moby/sys/atomicwriter v0.1.0
 	github.com/moby/sys/mount v0.3.5
 	github.com/moby/sys/mountinfo v0.7.2
@@ -216,7 +216,8 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.17 // indirect
 	github.com/googleapis/gax-go/v2 v2.23.0 // indirect
-	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.1 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect

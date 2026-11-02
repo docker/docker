@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/internal/csi/capability"
 	"github.com/moby/swarmkit/v2/log"
@@ -93,7 +94,7 @@ func NewPlugin(p mobyplugin.AddrPlugin, provider SecretProvider) Plugin {
 // connect is a private method that initializes a gRPC ClientConn and creates
 // the IdentityClient and ControllerClient.
 func (p *plugin) connect(ctx context.Context) error {
-	cc, err := grpc.DialContext(ctx, p.socket, grpc.WithInsecure())
+	cc, err := grpc.DialContext(ctx, p.socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}
