@@ -1,3 +1,13 @@
+# Release (2026-10-27)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.28.7
+  * **Bug Fix**: Fix a panic or `EOF` error when deserializing a JSON union that contains a member not modeled by the client and whose value is not `null`.
+  * **Bug Fix**: Log the underlying error when dumping an HTTP request or response for logging fails
+
 # Release (2026-10-21)
 
 ## General Highlights

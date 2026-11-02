@@ -4,6 +4,8 @@ package ssooidc
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/ssooidc/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -72,6 +74,30 @@ type RegisterClientInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *RegisterClientInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.RegisterClientRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *RegisterClientInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ClientName != nil {
+		s.WriteString(schemas.RegisterClientRequest_clientName, *v.ClientName)
+	}
+	if v.ClientType != nil {
+		s.WriteString(schemas.RegisterClientRequest_clientType, *v.ClientType)
+	}
+	if v.EntitledApplicationArn != nil {
+		s.WriteString(schemas.RegisterClientRequest_entitledApplicationArn, *v.EntitledApplicationArn)
+	}
+	serializeGrantTypes(s, schemas.RegisterClientRequest_grantTypes, v.GrantTypes)
+	if v.IssuerUrl != nil {
+		s.WriteString(schemas.RegisterClientRequest_issuerUrl, *v.IssuerUrl)
+	}
+	serializeRedirectUris(s, schemas.RegisterClientRequest_redirectUris, v.RedirectUris)
+	serializeScopes(s, schemas.RegisterClientRequest_scopes, v.Scopes)
+}
+
 type RegisterClientOutput struct {
 
 	// An endpoint that the client can use to request authorization.
@@ -100,13 +126,60 @@ type RegisterClientOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *RegisterClientOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.RegisterClientResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *RegisterClientOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AuthorizationEndpoint != nil {
+		s.WriteString(schemas.RegisterClientResponse_authorizationEndpoint, *v.AuthorizationEndpoint)
+	}
+	if v.ClientId != nil {
+		s.WriteString(schemas.RegisterClientResponse_clientId, *v.ClientId)
+	}
+	if v.ClientIdIssuedAt != 0 {
+		s.WriteInt64(schemas.RegisterClientResponse_clientIdIssuedAt, v.ClientIdIssuedAt)
+	}
+	if v.ClientSecret != nil {
+		s.WriteString(schemas.RegisterClientResponse_clientSecret, *v.ClientSecret)
+	}
+	if v.ClientSecretExpiresAt != 0 {
+		s.WriteInt64(schemas.RegisterClientResponse_clientSecretExpiresAt, v.ClientSecretExpiresAt)
+	}
+	if v.TokenEndpoint != nil {
+		s.WriteString(schemas.RegisterClientResponse_tokenEndpoint, *v.TokenEndpoint)
+	}
+}
+func (v *RegisterClientOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.RegisterClientResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.RegisterClientResponse_authorizationEndpoint:
+			v.AuthorizationEndpoint = new(string)
+			return d.ReadString(schemas.RegisterClientResponse_authorizationEndpoint, v.AuthorizationEndpoint)
+		case schemas.RegisterClientResponse_clientId:
+			v.ClientId = new(string)
+			return d.ReadString(schemas.RegisterClientResponse_clientId, v.ClientId)
+		case schemas.RegisterClientResponse_clientIdIssuedAt:
+			return d.ReadInt64(schemas.RegisterClientResponse_clientIdIssuedAt, &v.ClientIdIssuedAt)
+		case schemas.RegisterClientResponse_clientSecret:
+			v.ClientSecret = new(string)
+			return d.ReadString(schemas.RegisterClientResponse_clientSecret, v.ClientSecret)
+		case schemas.RegisterClientResponse_clientSecretExpiresAt:
+			return d.ReadInt64(schemas.RegisterClientResponse_clientSecretExpiresAt, &v.ClientSecretExpiresAt)
+		case schemas.RegisterClientResponse_tokenEndpoint:
+			v.TokenEndpoint = new(string)
+			return d.ReadString(schemas.RegisterClientResponse_tokenEndpoint, v.TokenEndpoint)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationRegisterClientMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsRestjson1_serializeOpRegisterClient{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.RegisterClient, schemas.RegisterClientRequest, schemas.RegisterClientResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsRestjson1_deserializeOpRegisterClient{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.RegisterClient, schemas.RegisterClientRequest, schemas.RegisterClientResponse), output: &RegisterClientOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

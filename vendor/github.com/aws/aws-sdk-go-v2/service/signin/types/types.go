@@ -3,25 +3,26 @@
 package types
 
 import (
+	"github.com/aws/aws-sdk-go-v2/service/signin/schemas"
+	smithy "github.com/aws/smithy-go"
 	smithydocument "github.com/aws/smithy-go/document"
 )
 
-// AWS credentials structure containing temporary access credentials
-//
-// Scoped, temporary AWS credentials with a 15-minute duration.
+// Contains the scoped, temporary AWS credentials used to sign requests with
+// SigV4. Valid for 15 minutes.
 type AccessToken struct {
 
-	// AWS access key ID for temporary credentials
+	// The AWS access key ID for the temporary credentials.
 	//
 	// This member is required.
 	AccessKeyId *string
 
-	// AWS secret access key for temporary credentials
+	// The AWS secret access key used to sign requests.
 	//
 	// This member is required.
 	SecretAccessKey *string
 
-	// AWS session token for temporary credentials
+	// The session token that validates the temporary security credentials.
 	//
 	// This member is required.
 	SessionToken *string
@@ -29,85 +30,212 @@ type AccessToken struct {
 	noSmithyDocumentSerde
 }
 
-// Request body payload for CreateOAuth2Token operation
-//
-// The operation type is determined by the grant_type parameter:
-//
-//   - grant_type=authorization_code: Requires code, redirect_uri, code_verifier
-//   - grant_type=refresh_token: Requires refresh_token
+func (v *AccessToken) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AccessToken)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AccessToken) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AccessKeyId != nil {
+		s.WriteString(schemas.AccessToken_accessKeyId, *v.AccessKeyId)
+	}
+	if v.SecretAccessKey != nil {
+		s.WriteString(schemas.AccessToken_secretAccessKey, *v.SecretAccessKey)
+	}
+	if v.SessionToken != nil {
+		s.WriteString(schemas.AccessToken_sessionToken, *v.SessionToken)
+	}
+}
+func (v *AccessToken) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.AccessToken, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.AccessToken_accessKeyId:
+			v.AccessKeyId = new(string)
+			return d.ReadString(schemas.AccessToken_accessKeyId, v.AccessKeyId)
+		case schemas.AccessToken_secretAccessKey:
+			v.SecretAccessKey = new(string)
+			return d.ReadString(schemas.AccessToken_secretAccessKey, v.SecretAccessKey)
+		case schemas.AccessToken_sessionToken:
+			v.SessionToken = new(string)
+			return d.ReadString(schemas.AccessToken_sessionToken, v.SessionToken)
+		}
+		return nil
+	})
+}
+
+// The request body for creating an OAuth 2.0 token. Supports both the
+// authorization code and refresh token flows, selected by the "grant_type"
+// parameter.
 type CreateOAuth2TokenRequestBody struct {
 
-	// The client identifier (ARN) used during Sign-In onboarding Required for both
-	// authorization code and refresh token flows
+	// The OAuth 2.0 client identifier. Expected values:
+	// "arn:aws:signin:::devtools/same-device" or
+	// "arn:aws:signin:::devtools/cross-device".
 	//
 	// This member is required.
 	ClientId *string
 
-	// OAuth 2.0 grant type - determines which flow is used Must be
-	// "authorization_code" or "refresh_token"
+	// The OAuth 2.0 grant type. Supported values:
+	//
+	//   - "authorization_code" - Exchange an authorization code for tokens.
+	//   - "refresh_token" - Use a refresh token to obtain a new access token.
 	//
 	// This member is required.
 	GrantType *string
 
-	// The authorization code received from /v1/authorize Required only when
-	// grant_type=authorization_code
+	// The authorization code received from the "/v1/authorize" endpoint. Required
+	// when "grant_type=authorization_code".
 	Code *string
 
-	// PKCE code verifier to prove possession of the original code challenge Required
-	// only when grant_type=authorization_code
+	// The PKCE code verifier that proves possession of the original code challenge.
+	// Required when "grant_type=authorization_code".
 	CodeVerifier *string
 
-	// The redirect URI that must match the original authorization request Required
-	// only when grant_type=authorization_code
+	// The redirect URI that was used in the original authorization request. Must
+	// match exactly. Required when "grant_type=authorization_code".
 	RedirectUri *string
 
-	// The refresh token returned from auth_code redemption Required only when
-	// grant_type=refresh_token
+	// The refresh token issued by a previous token response. Required when
+	// "grant_type=refresh_token".
 	RefreshToken *string
 
 	noSmithyDocumentSerde
 }
 
-// Response body payload for CreateOAuth2Token operation
-//
-// The response content depends on the grant_type from the request:
-//
-//   - grant_type=authorization_code: Returns all fields including refresh_token
-//     and id_token
-//   - grant_type=refresh_token: Returns access_token, token_type, expires_in,
-//     refresh_token (no id_token)
+func (v *CreateOAuth2TokenRequestBody) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateOAuth2TokenRequestBody)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateOAuth2TokenRequestBody) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ClientId != nil {
+		s.WriteString(schemas.CreateOAuth2TokenRequestBody_clientId, *v.ClientId)
+	}
+	if v.Code != nil {
+		s.WriteString(schemas.CreateOAuth2TokenRequestBody_code, *v.Code)
+	}
+	if v.CodeVerifier != nil {
+		s.WriteString(schemas.CreateOAuth2TokenRequestBody_codeVerifier, *v.CodeVerifier)
+	}
+	if v.GrantType != nil {
+		s.WriteString(schemas.CreateOAuth2TokenRequestBody_grantType, *v.GrantType)
+	}
+	if v.RedirectUri != nil {
+		s.WriteString(schemas.CreateOAuth2TokenRequestBody_redirectUri, *v.RedirectUri)
+	}
+	if v.RefreshToken != nil {
+		s.WriteString(schemas.CreateOAuth2TokenRequestBody_refreshToken, *v.RefreshToken)
+	}
+}
+func (v *CreateOAuth2TokenRequestBody) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.CreateOAuth2TokenRequestBody, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.CreateOAuth2TokenRequestBody_clientId:
+			v.ClientId = new(string)
+			return d.ReadString(schemas.CreateOAuth2TokenRequestBody_clientId, v.ClientId)
+		case schemas.CreateOAuth2TokenRequestBody_code:
+			v.Code = new(string)
+			return d.ReadString(schemas.CreateOAuth2TokenRequestBody_code, v.Code)
+		case schemas.CreateOAuth2TokenRequestBody_codeVerifier:
+			v.CodeVerifier = new(string)
+			return d.ReadString(schemas.CreateOAuth2TokenRequestBody_codeVerifier, v.CodeVerifier)
+		case schemas.CreateOAuth2TokenRequestBody_grantType:
+			v.GrantType = new(string)
+			return d.ReadString(schemas.CreateOAuth2TokenRequestBody_grantType, v.GrantType)
+		case schemas.CreateOAuth2TokenRequestBody_redirectUri:
+			v.RedirectUri = new(string)
+			return d.ReadString(schemas.CreateOAuth2TokenRequestBody_redirectUri, v.RedirectUri)
+		case schemas.CreateOAuth2TokenRequestBody_refreshToken:
+			v.RefreshToken = new(string)
+			return d.ReadString(schemas.CreateOAuth2TokenRequestBody_refreshToken, v.RefreshToken)
+		}
+		return nil
+	})
+}
+
+// The response body for an OAuth 2.0 token request. The fields returned depend on
+// the "grant_type". The authorization code flow returns "refresh_token" and
+// "id_token". The refresh token flow omits "id_token".
 type CreateOAuth2TokenResponseBody struct {
 
-	// Scoped-down AWS credentials (15 minute duration) Present for both authorization
-	// code redemption and token refresh
+	// The access token issued by the authorization server. The token contains
+	// temporary AWS security credentials that you use to sign requests with SigV4.
 	//
 	// This member is required.
 	AccessToken *AccessToken
 
-	// Time to expiry in seconds (maximum 900) Present for both authorization code
-	// redemption and token refresh
+	// The number of seconds until the access token expires. Maximum value is 900
+	// seconds (15 minutes).
 	//
 	// This member is required.
 	ExpiresIn *int32
 
-	// Encrypted refresh token with cnf.jkt (SHA-256 thumbprint of presented jwk)
-	// Always present in responses (required for both flows)
+	// A refresh token that can be used to obtain new access tokens without
+	// re-authenticating.
 	//
 	// This member is required.
 	RefreshToken *string
 
-	// Token type indicating this is AWS SigV4 credentials Value is "aws_sigv4" for
-	// both flows
+	// The type of token issued. Value is "aws_sigv4".
 	//
 	// This member is required.
 	TokenType *string
 
-	// ID token containing user identity information Present only in authorization
-	// code redemption response (grant_type=authorization_code) Not included in token
-	// refresh responses
+	// A JSON Web Token (JWT) containing user identity claims. Present only when
+	// "grant_type=authorization_code". Not included in refresh token responses.
 	IdToken *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *CreateOAuth2TokenResponseBody) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateOAuth2TokenResponseBody)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateOAuth2TokenResponseBody) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AccessToken != nil {
+		s.WriteStruct(schemas.CreateOAuth2TokenResponseBody_accessToken)
+		v.AccessToken.SerializeMembers(s)
+		s.CloseStruct()
+	}
+	if v.ExpiresIn != nil {
+		s.WriteInt32(schemas.CreateOAuth2TokenResponseBody_expiresIn, *v.ExpiresIn)
+	}
+	if v.IdToken != nil {
+		s.WriteString(schemas.CreateOAuth2TokenResponseBody_idToken, *v.IdToken)
+	}
+	if v.RefreshToken != nil {
+		s.WriteString(schemas.CreateOAuth2TokenResponseBody_refreshToken, *v.RefreshToken)
+	}
+	if v.TokenType != nil {
+		s.WriteString(schemas.CreateOAuth2TokenResponseBody_tokenType, *v.TokenType)
+	}
+}
+func (v *CreateOAuth2TokenResponseBody) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.CreateOAuth2TokenResponseBody, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.CreateOAuth2TokenResponseBody_accessToken:
+			v.AccessToken = &AccessToken{}
+			return v.AccessToken.Deserialize(d)
+		case schemas.CreateOAuth2TokenResponseBody_expiresIn:
+			v.ExpiresIn = new(int32)
+			return d.ReadInt32(schemas.CreateOAuth2TokenResponseBody_expiresIn, v.ExpiresIn)
+		case schemas.CreateOAuth2TokenResponseBody_idToken:
+			v.IdToken = new(string)
+			return d.ReadString(schemas.CreateOAuth2TokenResponseBody_idToken, v.IdToken)
+		case schemas.CreateOAuth2TokenResponseBody_refreshToken:
+			v.RefreshToken = new(string)
+			return d.ReadString(schemas.CreateOAuth2TokenResponseBody_refreshToken, v.RefreshToken)
+		case schemas.CreateOAuth2TokenResponseBody_tokenType:
+			v.TokenType = new(string)
+			return d.ReadString(schemas.CreateOAuth2TokenResponseBody_tokenType, v.TokenType)
+		}
+		return nil
+	})
 }
 
 // Summary of a permission statement
@@ -122,6 +250,31 @@ type PermissionStatementSummary struct {
 	Condition map[string]map[string][]string
 
 	noSmithyDocumentSerde
+}
+
+func (v *PermissionStatementSummary) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PermissionStatementSummary)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PermissionStatementSummary) SerializeMembers(s smithy.ShapeSerializer) {
+	serializeConditionBlock(s, schemas.PermissionStatementSummary_condition, v.Condition)
+	if v.Sid != nil {
+		s.WriteString(schemas.PermissionStatementSummary_sid, *v.Sid)
+	}
+}
+func (v *PermissionStatementSummary) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PermissionStatementSummary, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PermissionStatementSummary_condition:
+			return deserializeConditionBlock(d, schemas.PermissionStatementSummary_condition, &v.Condition)
+		case schemas.PermissionStatementSummary_sid:
+			v.Sid = new(string)
+			return d.ReadString(schemas.PermissionStatementSummary_sid, v.Sid)
+		}
+		return nil
+	})
 }
 
 // Individual policy statement within a resource-based policy
@@ -145,6 +298,43 @@ type PolicyStatement struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PolicyStatement) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PolicyStatement)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PolicyStatement) SerializeMembers(s smithy.ShapeSerializer) {
+	serializePolicyActions(s, schemas.PolicyStatement_action, v.Action)
+	serializeConditionBlock(s, schemas.PolicyStatement_condition, v.Condition)
+	if v.Effect != nil {
+		s.WriteString(schemas.PolicyStatement_effect, *v.Effect)
+	}
+	serializePrincipal(s, schemas.PolicyStatement_principal, v.Principal)
+	if v.Resource != nil {
+		s.WriteString(schemas.PolicyStatement_resource, *v.Resource)
+	}
+}
+func (v *PolicyStatement) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PolicyStatement, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PolicyStatement_action:
+			return deserializePolicyActions(d, schemas.PolicyStatement_action, &v.Action)
+		case schemas.PolicyStatement_condition:
+			return deserializeConditionBlock(d, schemas.PolicyStatement_condition, &v.Condition)
+		case schemas.PolicyStatement_effect:
+			v.Effect = new(string)
+			return d.ReadString(schemas.PolicyStatement_effect, v.Effect)
+		case schemas.PolicyStatement_principal:
+			return deserializePrincipal(d, schemas.PolicyStatement_principal, &v.Principal)
+		case schemas.PolicyStatement_resource:
+			v.Resource = new(string)
+			return d.ReadString(schemas.PolicyStatement_resource, v.Resource)
+		}
+		return nil
+	})
+}
+
 // SignIn resource-based policy document
 type SigninResourceBasedPolicy struct {
 
@@ -155,6 +345,31 @@ type SigninResourceBasedPolicy struct {
 	Version *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *SigninResourceBasedPolicy) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.SigninResourceBasedPolicy)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *SigninResourceBasedPolicy) SerializeMembers(s smithy.ShapeSerializer) {
+	serializePolicyStatements(s, schemas.SigninResourceBasedPolicy_statement, v.Statement)
+	if v.Version != nil {
+		s.WriteString(schemas.SigninResourceBasedPolicy_version, *v.Version)
+	}
+}
+func (v *SigninResourceBasedPolicy) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.SigninResourceBasedPolicy, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.SigninResourceBasedPolicy_statement:
+			return deserializePolicyStatements(d, schemas.SigninResourceBasedPolicy_statement, &v.Statement)
+		case schemas.SigninResourceBasedPolicy_version:
+			v.Version = new(string)
+			return d.ReadString(schemas.SigninResourceBasedPolicy_version, v.Version)
+		}
+		return nil
+	})
 }
 
 type noSmithyDocumentSerde = smithydocument.NoSerde

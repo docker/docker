@@ -4,6 +4,8 @@ package ssooidc
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/ssooidc/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -90,6 +92,40 @@ type CreateTokenInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *CreateTokenInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateTokenRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateTokenInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ClientId != nil {
+		s.WriteString(schemas.CreateTokenRequest_clientId, *v.ClientId)
+	}
+	if v.ClientSecret != nil {
+		s.WriteString(schemas.CreateTokenRequest_clientSecret, *v.ClientSecret)
+	}
+	if v.Code != nil {
+		s.WriteString(schemas.CreateTokenRequest_code, *v.Code)
+	}
+	if v.CodeVerifier != nil {
+		s.WriteString(schemas.CreateTokenRequest_codeVerifier, *v.CodeVerifier)
+	}
+	if v.DeviceCode != nil {
+		s.WriteString(schemas.CreateTokenRequest_deviceCode, *v.DeviceCode)
+	}
+	if v.GrantType != nil {
+		s.WriteString(schemas.CreateTokenRequest_grantType, *v.GrantType)
+	}
+	if v.RedirectUri != nil {
+		s.WriteString(schemas.CreateTokenRequest_redirectUri, *v.RedirectUri)
+	}
+	if v.RefreshToken != nil {
+		s.WriteString(schemas.CreateTokenRequest_refreshToken, *v.RefreshToken)
+	}
+	serializeScopes(s, schemas.CreateTokenRequest_scope, v.Scope)
+}
+
 type CreateTokenOutput struct {
 
 	// A bearer token to access Amazon Web Services accounts and applications assigned
@@ -129,13 +165,55 @@ type CreateTokenOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *CreateTokenOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateTokenResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateTokenOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AccessToken != nil {
+		s.WriteString(schemas.CreateTokenResponse_accessToken, *v.AccessToken)
+	}
+	if v.ExpiresIn != 0 {
+		s.WriteInt32(schemas.CreateTokenResponse_expiresIn, v.ExpiresIn)
+	}
+	if v.IdToken != nil {
+		s.WriteString(schemas.CreateTokenResponse_idToken, *v.IdToken)
+	}
+	if v.RefreshToken != nil {
+		s.WriteString(schemas.CreateTokenResponse_refreshToken, *v.RefreshToken)
+	}
+	if v.TokenType != nil {
+		s.WriteString(schemas.CreateTokenResponse_tokenType, *v.TokenType)
+	}
+}
+func (v *CreateTokenOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.CreateTokenResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.CreateTokenResponse_accessToken:
+			v.AccessToken = new(string)
+			return d.ReadString(schemas.CreateTokenResponse_accessToken, v.AccessToken)
+		case schemas.CreateTokenResponse_expiresIn:
+			return d.ReadInt32(schemas.CreateTokenResponse_expiresIn, &v.ExpiresIn)
+		case schemas.CreateTokenResponse_idToken:
+			v.IdToken = new(string)
+			return d.ReadString(schemas.CreateTokenResponse_idToken, v.IdToken)
+		case schemas.CreateTokenResponse_refreshToken:
+			v.RefreshToken = new(string)
+			return d.ReadString(schemas.CreateTokenResponse_refreshToken, v.RefreshToken)
+		case schemas.CreateTokenResponse_tokenType:
+			v.TokenType = new(string)
+			return d.ReadString(schemas.CreateTokenResponse_tokenType, v.TokenType)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationCreateTokenMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsRestjson1_serializeOpCreateToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.CreateToken, schemas.CreateTokenRequest, schemas.CreateTokenResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsRestjson1_deserializeOpCreateToken{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.CreateToken, schemas.CreateTokenRequest, schemas.CreateTokenResponse), output: &CreateTokenOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

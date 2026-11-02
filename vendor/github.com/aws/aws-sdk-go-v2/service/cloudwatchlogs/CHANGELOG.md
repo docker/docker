@@ -1,3 +1,22 @@
+# v1.90.3 (2026-10-27)
+
+* **Dependency Update**: Update to smithy-go v1.28.7.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.90.2 (2026-10-22)
+
+* **Bug Fix**: Update smithy-go to v1.28.6
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.90.1 (2026-10-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.90.0 (2026-10-19)
+
+* **Feature**: Amazon CloudWatch Logs now supports filtering DescribeDeliverySources by resourceArns, DescribeDeliveryDestinations by names, and DescribeDeliveries by deliverySourceNames.
+* **Bug Fix**: Allow lists with null values to deserialize into its zero value instead of failing
+
 # v1.89.3 (2026-10-09.2)
 
 * **Dependency Update**: Update to smithy-go v1.28.5.

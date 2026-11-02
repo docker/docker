@@ -141,6 +141,13 @@ func encodePrelude(w io.Writer, crc hash.Hash32, headersLen, payloadLen uint32) 
 // stream format. Returns an error if a header fails to encode.
 func EncodeHeaders(w io.Writer, headers Headers) error {
 	for _, h := range headers {
+		if len(h.Name) > maxHeaderNameLen {
+			return LengthError{
+				Part: "header name",
+				Want: maxHeaderNameLen, Have: len(h.Name),
+				Value: h.Name,
+			}
+		}
 		hn := headerName{
 			Len: uint8(len(h.Name)),
 		}

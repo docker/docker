@@ -34,6 +34,10 @@ type DescribeDeliveryDestinationsInput struct {
 	// response.
 	Limit *int32
 
+	// An array of delivery destination names that filters the results to delivery
+	// destinations with any specified name.
+	Names []string
+
 	// The token for the next set of items to return. The token expires after 24 hours.
 	NextToken *string
 
@@ -50,6 +54,7 @@ func (v *DescribeDeliveryDestinationsInput) SerializeMembers(s smithy.ShapeSeria
 	if v.Limit != nil {
 		s.WriteInt32(schemas.DescribeDeliveryDestinationsRequest_limit, *v.Limit)
 	}
+	serializeDeliveryDestinationNames(s, schemas.DescribeDeliveryDestinationsRequest_names, v.Names)
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeDeliveryDestinationsRequest_nextToken, *v.NextToken)
 	}

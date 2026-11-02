@@ -3,4 +3,4 @@
 package eventstream
 
 // goModuleVersion is the tagged release for this module
-const goModuleVersion = "1.7.22"
+const goModuleVersion = "1.7.25"

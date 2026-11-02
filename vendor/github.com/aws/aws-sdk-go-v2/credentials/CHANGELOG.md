@@ -1,3 +1,19 @@
+# v1.20.12 (2026-10-27)
+
+* **Bug Fix**: Fixed the login credential panic when a retrieved token missed required fields
+* **Bug Fix**: Return an error instead of panicking when an STS AssumeRole or AssumeRoleWithWebIdentity response is missing credentials.
+* **Dependency Update**: Update to smithy-go v1.28.7.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.11 (2026-10-26)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.20.10 (2026-10-22)
+
+* **Bug Fix**: Update smithy-go to v1.28.6
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.20.9 (2026-10-09.2)
 
 * **Dependency Update**: Update to smithy-go v1.28.5.

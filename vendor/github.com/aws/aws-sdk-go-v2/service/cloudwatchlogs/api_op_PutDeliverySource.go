@@ -127,7 +127,12 @@ type PutDeliverySourceInput struct {
 	//   - For Elemental MediaTailor, the valid values are AD_DECISION_SERVER_LOGS ,
 	//   MANIFEST_SERVICE_LOGS , and TRANSCODE_LOGS .
 	//
+	//   - For Amazon ECS, the valid value is ACTION_LOGS .
+	//
 	//   - For Entity Resolution, the valid value is WORKFLOW_LOGS .
+	//
+	//   - For Amazon EventBridge Event Bus (Custom), the valid values are INFO_LOGS
+	//   and ERROR_LOGS .
 	//
 	//   - For IAM Identity Center, the valid value is ERROR_LOGS .
 	//
@@ -136,8 +141,8 @@ type PutDeliverySourceInput struct {
 	//
 	//   - For Network Load Balancer, the valid value is NLB_ACCESS_LOGS .
 	//
-	//   - For PCS, the valid values are PCS_SCHEDULER_LOGS , PCS_JOBCOMP_LOGS , and
-	//   PCS_SCHEDULER_AUDIT_LOGS .
+	//   - For PCS, the valid values are PCS_SCHEDULER_LOGS , PCS_JOBCOMP_LOGS ,
+	//   PCS_SCHEDULER_AUDIT_LOGS , and PCS_SCALING_LOGS .
 	//
 	//   - For Amazon Q, the valid values are EVENT_LOGS and SYNC_JOB_LOGS .
 	//

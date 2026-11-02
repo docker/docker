@@ -36,6 +36,10 @@ type DescribeDeliverySourcesInput struct {
 	// The token for the next set of items to return. The token expires after 24 hours.
 	NextToken *string
 
+	// An array of Amazon Resource Names (ARNs) that filters the results to delivery
+	// sources associated with any specified ARN.
+	ResourceArns []string
+
 	noSmithyDocumentSerde
 }
 
@@ -52,6 +56,7 @@ func (v *DescribeDeliverySourcesInput) SerializeMembers(s smithy.ShapeSerializer
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeDeliverySourcesRequest_nextToken, *v.NextToken)
 	}
+	serializeFilterResourceArns(s, schemas.DescribeDeliverySourcesRequest_resourceArns, v.ResourceArns)
 }
 
 type DescribeDeliverySourcesOutput struct {

@@ -3,6 +3,8 @@
 package types
 
 import (
+	"github.com/aws/aws-sdk-go-v2/service/sso/schemas"
+	smithy "github.com/aws/smithy-go"
 	smithydocument "github.com/aws/smithy-go/document"
 )
 
@@ -19,6 +21,40 @@ type AccountInfo struct {
 	EmailAddress *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *AccountInfo) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AccountInfo)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AccountInfo) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AccountId != nil {
+		s.WriteString(schemas.AccountInfo_accountId, *v.AccountId)
+	}
+	if v.AccountName != nil {
+		s.WriteString(schemas.AccountInfo_accountName, *v.AccountName)
+	}
+	if v.EmailAddress != nil {
+		s.WriteString(schemas.AccountInfo_emailAddress, *v.EmailAddress)
+	}
+}
+func (v *AccountInfo) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.AccountInfo, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.AccountInfo_accountId:
+			v.AccountId = new(string)
+			return d.ReadString(schemas.AccountInfo_accountId, v.AccountId)
+		case schemas.AccountInfo_accountName:
+			v.AccountName = new(string)
+			return d.ReadString(schemas.AccountInfo_accountName, v.AccountName)
+		case schemas.AccountInfo_emailAddress:
+			v.EmailAddress = new(string)
+			return d.ReadString(schemas.AccountInfo_emailAddress, v.EmailAddress)
+		}
+		return nil
+	})
 }
 
 // Provides information about the role credentials that are assigned to the user.
@@ -48,6 +84,45 @@ type RoleCredentials struct {
 	noSmithyDocumentSerde
 }
 
+func (v *RoleCredentials) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.RoleCredentials)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *RoleCredentials) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AccessKeyId != nil {
+		s.WriteString(schemas.RoleCredentials_accessKeyId, *v.AccessKeyId)
+	}
+	if v.Expiration != 0 {
+		s.WriteInt64(schemas.RoleCredentials_expiration, v.Expiration)
+	}
+	if v.SecretAccessKey != nil {
+		s.WriteString(schemas.RoleCredentials_secretAccessKey, *v.SecretAccessKey)
+	}
+	if v.SessionToken != nil {
+		s.WriteString(schemas.RoleCredentials_sessionToken, *v.SessionToken)
+	}
+}
+func (v *RoleCredentials) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.RoleCredentials, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.RoleCredentials_accessKeyId:
+			v.AccessKeyId = new(string)
+			return d.ReadString(schemas.RoleCredentials_accessKeyId, v.AccessKeyId)
+		case schemas.RoleCredentials_expiration:
+			return d.ReadInt64(schemas.RoleCredentials_expiration, &v.Expiration)
+		case schemas.RoleCredentials_secretAccessKey:
+			v.SecretAccessKey = new(string)
+			return d.ReadString(schemas.RoleCredentials_secretAccessKey, v.SecretAccessKey)
+		case schemas.RoleCredentials_sessionToken:
+			v.SessionToken = new(string)
+			return d.ReadString(schemas.RoleCredentials_sessionToken, v.SessionToken)
+		}
+		return nil
+	})
+}
+
 // Provides information about the role that is assigned to the user.
 type RoleInfo struct {
 
@@ -58,6 +133,34 @@ type RoleInfo struct {
 	RoleName *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *RoleInfo) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.RoleInfo)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *RoleInfo) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AccountId != nil {
+		s.WriteString(schemas.RoleInfo_accountId, *v.AccountId)
+	}
+	if v.RoleName != nil {
+		s.WriteString(schemas.RoleInfo_roleName, *v.RoleName)
+	}
+}
+func (v *RoleInfo) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.RoleInfo, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.RoleInfo_accountId:
+			v.AccountId = new(string)
+			return d.ReadString(schemas.RoleInfo_accountId, v.AccountId)
+		case schemas.RoleInfo_roleName:
+			v.RoleName = new(string)
+			return d.ReadString(schemas.RoleInfo_roleName, v.RoleName)
+		}
+		return nil
+	})
 }
 
 type noSmithyDocumentSerde = smithydocument.NoSerde

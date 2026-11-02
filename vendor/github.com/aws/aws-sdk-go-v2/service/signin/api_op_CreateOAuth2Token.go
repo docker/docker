@@ -4,53 +4,15 @@ package signin
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/signin/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/signin/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 	"github.com/aws/smithy-go/ptr"
 )
 
-// CreateOAuth2Token API
-//
-// Path: /v1/token Request Method: POST Content-Type: application/json or
-// application/x-www-form-urlencoded
-//
-// This API implements OAuth 2.0 flows for AWS Sign-In CLI clients, supporting
-// both:
-//
-//   - Authorization code redemption (grant_type=authorization_code) - NOT
-//     idempotent
-//   - Token refresh (grant_type=refresh_token) - Idempotent within token validity
-//     window
-//
-// The operation behavior is determined by the grant_type parameter in the request
-// body:
-//
-// Authorization Code Flow (NOT Idempotent):
-//
-//   - JSON or form-encoded body with client_id, grant_type=authorization_code,
-//     code, redirect_uri, code_verifier
-//   - Returns access_token, token_type, expires_in, refresh_token, and id_token
-//   - Each authorization code can only be used ONCE for security (prevents replay
-//     attacks)
-//
-// Token Refresh Flow (Idempotent):
-//
-//   - JSON or form-encoded body with client_id, grant_type=refresh_token,
-//     refresh_token
-//   - Returns access_token, token_type, expires_in, and refresh_token (no
-//     id_token)
-//   - Multiple calls with same refresh_token return consistent results within
-//     validity window
-//
-// Authentication and authorization:
-//
-//   - Confidential clients: sigv4 signing required with signin:ExchangeToken
-//     permissions
-//   - CLI clients (public): authn/authz skipped based on client_id & grant_type
-//
-// Note: This operation cannot be marked as @idempotent because it handles both
-// idempotent (token refresh) and non-idempotent (auth code redemption) flows in a
-// single endpoint.
+// Exchanges an authorization code or refresh token for an OAuth 2.0 access token
+// and refresh token.
 func (c *Client) CreateOAuth2Token(ctx context.Context, params *CreateOAuth2TokenInput, optFns ...func(*Options)) (*CreateOAuth2TokenOutput, error) {
 	if params == nil {
 		params = &CreateOAuth2TokenInput{}
@@ -73,8 +35,8 @@ func (c *Client) CreateOAuth2Token(ctx context.Context, params *CreateOAuth2Toke
 // parameter in the request body.
 type CreateOAuth2TokenInput struct {
 
-	// Flattened token operation inputs The specific operation is determined by
-	// grant_type in the request body
+	// Flattened token operation inputs. The "grant_type" in the request body
+	// determines the specific operation.
 	//
 	// This member is required.
 	TokenInput *types.CreateOAuth2TokenRequestBody
@@ -82,6 +44,19 @@ type CreateOAuth2TokenInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *CreateOAuth2TokenInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateOAuth2TokenRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateOAuth2TokenInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.TokenInput != nil {
+		s.WriteStruct(schemas.CreateOAuth2TokenRequest_tokenInput)
+		v.TokenInput.SerializeMembers(s)
+		s.CloseStruct()
+	}
+}
 func (in *CreateOAuth2TokenInput) bindEndpointParams(p *EndpointParameters) {
 
 	p.IsControlPlane = ptr.Bool(false)
@@ -94,8 +69,8 @@ func (in *CreateOAuth2TokenInput) bindEndpointParams(p *EndpointParameters) {
 // original request.
 type CreateOAuth2TokenOutput struct {
 
-	// Flattened token operation outputs The specific response fields depend on the
-	// grant_type used in the request
+	// Flattened token operation outputs. The specific response fields depend on the
+	// grant_type used in the request.
 	//
 	// This member is required.
 	TokenOutput *types.CreateOAuth2TokenResponseBody
@@ -106,13 +81,34 @@ type CreateOAuth2TokenOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *CreateOAuth2TokenOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.CreateOAuth2TokenResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *CreateOAuth2TokenOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.TokenOutput != nil {
+		s.WriteStruct(schemas.CreateOAuth2TokenResponse_tokenOutput)
+		v.TokenOutput.SerializeMembers(s)
+		s.CloseStruct()
+	}
+}
+func (v *CreateOAuth2TokenOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.CreateOAuth2TokenResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.CreateOAuth2TokenResponse_tokenOutput:
+			v.TokenOutput = &types.CreateOAuth2TokenResponseBody{}
+			return v.TokenOutput.Deserialize(d)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationCreateOAuth2TokenMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsRestjson1_serializeOpCreateOAuth2Token{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.CreateOAuth2Token, schemas.CreateOAuth2TokenRequest, schemas.CreateOAuth2TokenResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsRestjson1_deserializeOpCreateOAuth2Token{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.CreateOAuth2Token, schemas.CreateOAuth2TokenRequest, schemas.CreateOAuth2TokenResponse), output: &CreateOAuth2TokenOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

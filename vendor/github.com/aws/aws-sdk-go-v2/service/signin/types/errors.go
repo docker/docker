@@ -4,19 +4,11 @@ package types
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/signin/schemas"
 	smithy "github.com/aws/smithy-go"
 )
 
-// Error thrown for access denied scenarios with flexible HTTP status mapping
-//
-// Runtime HTTP Status Code Mapping:
-//
-//   - HTTP 401 (Unauthorized): TOKEN_EXPIRED, AUTHCODE_EXPIRED
-//   - HTTP 403 (Forbidden): USER_CREDENTIALS_CHANGED, INSUFFICIENT_PERMISSIONS
-//
-// The specific HTTP status code is determined at runtime based on the error enum
-// value. Consumers should use the error field to determine the specific access
-// denial reason.
+// You do not have sufficient access to perform this action.
 type AccessDeniedException struct {
 	Message *string
 
@@ -43,6 +35,37 @@ func (e *AccessDeniedException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *AccessDeniedException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *AccessDeniedException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AccessDeniedException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AccessDeniedException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != "" {
+		s.WriteString(schemas.AccessDeniedException_error, string(v.Error_))
+	}
+	if v.Message != nil {
+		s.WriteString(schemas.AccessDeniedException_message, *v.Message)
+	}
+}
+func (v *AccessDeniedException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.AccessDeniedException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.AccessDeniedException_error:
+			var ev string
+			if err := d.ReadString(schemas.AccessDeniedException_error, &ev); err != nil {
+				return err
+			}
+			v.Error_ = OAuth2ErrorCode(ev)
+			return nil
+		case schemas.AccessDeniedException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.AccessDeniedException_message, v.Message)
+		}
+		return nil
+	})
+}
 
 // Error thrown when request conflicts with current state
 //
@@ -75,12 +98,39 @@ func (e *ConflictException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *ConflictException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *ConflictException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ConflictException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
 
-// Error thrown when an internal server error occurs
-//
-// HTTP Status Code: 500 Internal Server Error
-//
-// Used for unexpected server-side errors that prevent request processing.
+func (v *ConflictException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != "" {
+		s.WriteString(schemas.ConflictException_error, string(v.Error_))
+	}
+	if v.Message != nil {
+		s.WriteString(schemas.ConflictException_message, *v.Message)
+	}
+}
+func (v *ConflictException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ConflictException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ConflictException_error:
+			var ev string
+			if err := d.ReadString(schemas.ConflictException_error, &ev); err != nil {
+				return err
+			}
+			v.Error_ = OAuth2ErrorCode(ev)
+			return nil
+		case schemas.ConflictException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.ConflictException_message, v.Message)
+		}
+		return nil
+	})
+}
+
+// The request failed because of an internal server error.
 type InternalServerException struct {
 	Message *string
 
@@ -107,6 +157,156 @@ func (e *InternalServerException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *InternalServerException) ErrorFault() smithy.ErrorFault { return smithy.FaultServer }
+func (v *InternalServerException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InternalServerException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InternalServerException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != "" {
+		s.WriteString(schemas.InternalServerException_error, string(v.Error_))
+	}
+	if v.Message != nil {
+		s.WriteString(schemas.InternalServerException_message, *v.Message)
+	}
+}
+func (v *InternalServerException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InternalServerException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InternalServerException_error:
+			var ev string
+			if err := d.ReadString(schemas.InternalServerException_error, &ev); err != nil {
+				return err
+			}
+			v.Error_ = OAuth2ErrorCode(ev)
+			return nil
+		case schemas.InternalServerException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.InternalServerException_message, v.Message)
+		}
+		return nil
+	})
+}
+
+// The request failed because the provided grant is invalid or expired.
+type InvalidGrantException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	Error_ OAuth2ErrorCode
+
+	noSmithyDocumentSerde
+}
+
+func (e *InvalidGrantException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *InvalidGrantException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *InvalidGrantException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "InvalidGrantException"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *InvalidGrantException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *InvalidGrantException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InvalidGrantException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InvalidGrantException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != "" {
+		s.WriteString(schemas.InvalidGrantException_error, string(v.Error_))
+	}
+	if v.Message != nil {
+		s.WriteString(schemas.InvalidGrantException_message, *v.Message)
+	}
+}
+func (v *InvalidGrantException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InvalidGrantException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InvalidGrantException_error:
+			var ev string
+			if err := d.ReadString(schemas.InvalidGrantException_error, &ev); err != nil {
+				return err
+			}
+			v.Error_ = OAuth2ErrorCode(ev)
+			return nil
+		case schemas.InvalidGrantException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.InvalidGrantException_message, v.Message)
+		}
+		return nil
+	})
+}
+
+// The request failed because the requested scope is invalid or exceeds the scope
+// that can be granted.
+type InvalidScopeException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	Error_ OAuth2ErrorCode
+
+	noSmithyDocumentSerde
+}
+
+func (e *InvalidScopeException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *InvalidScopeException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *InvalidScopeException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "InvalidScopeException"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *InvalidScopeException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *InvalidScopeException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InvalidScopeException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InvalidScopeException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != "" {
+		s.WriteString(schemas.InvalidScopeException_error, string(v.Error_))
+	}
+	if v.Message != nil {
+		s.WriteString(schemas.InvalidScopeException_message, *v.Message)
+	}
+}
+func (v *InvalidScopeException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InvalidScopeException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InvalidScopeException_error:
+			var ev string
+			if err := d.ReadString(schemas.InvalidScopeException_error, &ev); err != nil {
+				return err
+			}
+			v.Error_ = OAuth2ErrorCode(ev)
+			return nil
+		case schemas.InvalidScopeException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.InvalidScopeException_message, v.Message)
+		}
+		return nil
+	})
+}
 
 // Error thrown when requested resource is not found
 //
@@ -139,6 +339,37 @@ func (e *ResourceNotFoundException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *ResourceNotFoundException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *ResourceNotFoundException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ResourceNotFoundException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ResourceNotFoundException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != "" {
+		s.WriteString(schemas.ResourceNotFoundException_error, string(v.Error_))
+	}
+	if v.Message != nil {
+		s.WriteString(schemas.ResourceNotFoundException_message, *v.Message)
+	}
+}
+func (v *ResourceNotFoundException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ResourceNotFoundException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ResourceNotFoundException_error:
+			var ev string
+			if err := d.ReadString(schemas.ResourceNotFoundException_error, &ev); err != nil {
+				return err
+			}
+			v.Error_ = OAuth2ErrorCode(ev)
+			return nil
+		case schemas.ResourceNotFoundException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.ResourceNotFoundException_message, v.Message)
+		}
+		return nil
+	})
+}
 
 // Error thrown when service quota is exceeded
 //
@@ -171,21 +402,100 @@ func (e *ServiceQuotaExceededException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *ServiceQuotaExceededException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *ServiceQuotaExceededException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ServiceQuotaExceededException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
 
-// Error thrown when rate limit is exceeded
-//
-// HTTP Status Code: 429 Too Many Requests
-//
-// Possible OAuth2ErrorCode values:
-//
-//   - INVALID_REQUEST: Rate limiting, too many requests, abuse prevention
-//
-// Possible causes:
-//
-//   - Too many token requests from the same client
-//   - Rate limiting based on client_id or IP address
-//   - Abuse prevention mechanisms triggered
-//   - Service protection against excessive token generation
+func (v *ServiceQuotaExceededException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != "" {
+		s.WriteString(schemas.ServiceQuotaExceededException_error, string(v.Error_))
+	}
+	if v.Message != nil {
+		s.WriteString(schemas.ServiceQuotaExceededException_message, *v.Message)
+	}
+}
+func (v *ServiceQuotaExceededException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ServiceQuotaExceededException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ServiceQuotaExceededException_error:
+			var ev string
+			if err := d.ReadString(schemas.ServiceQuotaExceededException_error, &ev); err != nil {
+				return err
+			}
+			v.Error_ = OAuth2ErrorCode(ev)
+			return nil
+		case schemas.ServiceQuotaExceededException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.ServiceQuotaExceededException_message, v.Message)
+		}
+		return nil
+	})
+}
+
+// The request failed because a dependency is temporarily unavailable. You can
+// retry the request.
+type ServiceUnavailableException struct {
+	Message *string
+
+	ErrorCodeOverride *string
+
+	Error_ OAuth2ErrorCode
+
+	noSmithyDocumentSerde
+}
+
+func (e *ServiceUnavailableException) Error() string {
+	return fmt.Sprintf("%s: %s", e.ErrorCode(), e.ErrorMessage())
+}
+func (e *ServiceUnavailableException) ErrorMessage() string {
+	if e.Message == nil {
+		return ""
+	}
+	return *e.Message
+}
+func (e *ServiceUnavailableException) ErrorCode() string {
+	if e == nil || e.ErrorCodeOverride == nil {
+		return "ServiceUnavailableException"
+	}
+	return *e.ErrorCodeOverride
+}
+func (e *ServiceUnavailableException) ErrorFault() smithy.ErrorFault { return smithy.FaultServer }
+func (v *ServiceUnavailableException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ServiceUnavailableException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ServiceUnavailableException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != "" {
+		s.WriteString(schemas.ServiceUnavailableException_error, string(v.Error_))
+	}
+	if v.Message != nil {
+		s.WriteString(schemas.ServiceUnavailableException_message, *v.Message)
+	}
+}
+func (v *ServiceUnavailableException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ServiceUnavailableException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ServiceUnavailableException_error:
+			var ev string
+			if err := d.ReadString(schemas.ServiceUnavailableException_error, &ev); err != nil {
+				return err
+			}
+			v.Error_ = OAuth2ErrorCode(ev)
+			return nil
+		case schemas.ServiceUnavailableException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.ServiceUnavailableException_message, v.Message)
+		}
+		return nil
+	})
+}
+
+// The request failed because you exceeded the request rate limit for this
+// operation.
 type TooManyRequestsError struct {
 	Message *string
 
@@ -212,13 +522,40 @@ func (e *TooManyRequestsError) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *TooManyRequestsError) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *TooManyRequestsError) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.TooManyRequestsError)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
 
-// Error thrown when request validation fails
-//
-// HTTP Status Code: 400 Bad Request
-//
-// Used for request validation errors such as malformed parameters, missing
-// required fields, or invalid parameter values.
+func (v *TooManyRequestsError) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != "" {
+		s.WriteString(schemas.TooManyRequestsError_error, string(v.Error_))
+	}
+	if v.Message != nil {
+		s.WriteString(schemas.TooManyRequestsError_message, *v.Message)
+	}
+}
+func (v *TooManyRequestsError) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.TooManyRequestsError, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.TooManyRequestsError_error:
+			var ev string
+			if err := d.ReadString(schemas.TooManyRequestsError_error, &ev); err != nil {
+				return err
+			}
+			v.Error_ = OAuth2ErrorCode(ev)
+			return nil
+		case schemas.TooManyRequestsError_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.TooManyRequestsError_message, v.Message)
+		}
+		return nil
+	})
+}
+
+// The request failed because it contains a malformed, missing, or invalid
+// parameter.
 type ValidationException struct {
 	Message *string
 
@@ -245,3 +582,34 @@ func (e *ValidationException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *ValidationException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *ValidationException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ValidationException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ValidationException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != "" {
+		s.WriteString(schemas.ValidationException_error, string(v.Error_))
+	}
+	if v.Message != nil {
+		s.WriteString(schemas.ValidationException_message, *v.Message)
+	}
+}
+func (v *ValidationException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ValidationException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ValidationException_error:
+			var ev string
+			if err := d.ReadString(schemas.ValidationException_error, &ev); err != nil {
+				return err
+			}
+			v.Error_ = OAuth2ErrorCode(ev)
+			return nil
+		case schemas.ValidationException_message:
+			v.Message = new(string)
+			return d.ReadString(schemas.ValidationException_message, v.Message)
+		}
+		return nil
+	})
+}

@@ -5,7 +5,9 @@ package sso
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/sso/schemas"
 	"github.com/aws/aws-sdk-go-v2/service/sso/types"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -50,6 +52,27 @@ type ListAccountRolesInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListAccountRolesInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListAccountRolesRequest)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListAccountRolesInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.AccessToken != nil {
+		s.WriteString(schemas.ListAccountRolesRequest_accessToken, *v.AccessToken)
+	}
+	if v.AccountId != nil {
+		s.WriteString(schemas.ListAccountRolesRequest_accountId, *v.AccountId)
+	}
+	if v.MaxResults != nil {
+		s.WriteInt32(schemas.ListAccountRolesRequest_maxResults, *v.MaxResults)
+	}
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListAccountRolesRequest_nextToken, *v.NextToken)
+	}
+}
+
 type ListAccountRolesOutput struct {
 
 	// The page token client that is used to retrieve the list of accounts.
@@ -65,13 +88,35 @@ type ListAccountRolesOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *ListAccountRolesOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ListAccountRolesResponse)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ListAccountRolesOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.NextToken != nil {
+		s.WriteString(schemas.ListAccountRolesResponse_nextToken, *v.NextToken)
+	}
+	serializeRoleListType(s, schemas.ListAccountRolesResponse_roleList, v.RoleList)
+}
+func (v *ListAccountRolesOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ListAccountRolesResponse, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ListAccountRolesResponse_nextToken:
+			v.NextToken = new(string)
+			return d.ReadString(schemas.ListAccountRolesResponse_nextToken, v.NextToken)
+		case schemas.ListAccountRolesResponse_roleList:
+			return deserializeRoleListType(d, schemas.ListAccountRolesResponse_roleList, &v.RoleList)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationListAccountRolesMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsRestjson1_serializeOpListAccountRoles{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListAccountRoles, schemas.ListAccountRolesRequest, schemas.ListAccountRolesResponse)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsRestjson1_deserializeOpListAccountRoles{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.ListAccountRoles, schemas.ListAccountRolesRequest, schemas.ListAccountRolesResponse), output: &ListAccountRolesOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

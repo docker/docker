@@ -1167,6 +1167,12 @@ var _DeliveryDestinationName = smithy.NewSchema(smithy.ShapeID{
 	Name:      "DeliveryDestinationName",
 }, smithy.ShapeTypeString, 0)
 
+var _DeliveryDestinationNames = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.cloudwatchlogs",
+	Name:      "DeliveryDestinationNames",
+}, smithy.ShapeTypeList, 1)
+var _DeliveryDestinationNames_member *smithy.Schema
+
 var _DeliveryDestinationPolicy = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
 	Name:      "DeliveryDestinationPolicy",
@@ -1297,6 +1303,12 @@ var _DeliverySourceName = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
 	Name:      "DeliverySourceName",
 }, smithy.ShapeTypeString, 0)
+
+var _DeliverySourceNames = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.cloudwatchlogs",
+	Name:      "DeliverySourceNames",
+}, smithy.ShapeTypeList, 1)
+var _DeliverySourceNames_member *smithy.Schema
 
 var _DeliverySources = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
@@ -1816,6 +1828,12 @@ var _FilterPattern = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
 	Name:      "FilterPattern",
 }, smithy.ShapeTypeString, 0)
+
+var _FilterResourceArns = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.cloudwatchlogs",
+	Name:      "FilterResourceArns",
+}, smithy.ShapeTypeList, 1)
+var _FilterResourceArns_member *smithy.Schema
 
 var _Flatten = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
@@ -4792,10 +4810,12 @@ var DescribeConfigurationTemplatesResponse_nextToken *smithy.Schema
 var DescribeDeliveriesRequest = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
 	Name:      "DescribeDeliveriesRequest",
-}, smithy.ShapeTypeStructure, 2)
+}, smithy.ShapeTypeStructure, 3)
 var DescribeDeliveriesRequest_nextToken *smithy.Schema
 
 var DescribeDeliveriesRequest_limit *smithy.Schema
+
+var DescribeDeliveriesRequest_deliverySourceNames *smithy.Schema
 
 var DescribeDeliveriesResponse = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
@@ -4808,10 +4828,12 @@ var DescribeDeliveriesResponse_nextToken *smithy.Schema
 var DescribeDeliveryDestinationsRequest = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
 	Name:      "DescribeDeliveryDestinationsRequest",
-}, smithy.ShapeTypeStructure, 2)
+}, smithy.ShapeTypeStructure, 3)
 var DescribeDeliveryDestinationsRequest_nextToken *smithy.Schema
 
 var DescribeDeliveryDestinationsRequest_limit *smithy.Schema
+
+var DescribeDeliveryDestinationsRequest_names *smithy.Schema
 
 var DescribeDeliveryDestinationsResponse = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
@@ -4824,10 +4846,12 @@ var DescribeDeliveryDestinationsResponse_nextToken *smithy.Schema
 var DescribeDeliverySourcesRequest = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
 	Name:      "DescribeDeliverySourcesRequest",
-}, smithy.ShapeTypeStructure, 2)
+}, smithy.ShapeTypeStructure, 3)
 var DescribeDeliverySourcesRequest_nextToken *smithy.Schema
 
 var DescribeDeliverySourcesRequest_limit *smithy.Schema
+
+var DescribeDeliverySourcesRequest_resourceArns *smithy.Schema
 
 var DescribeDeliverySourcesResponse = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
@@ -6728,6 +6752,8 @@ func init() {
 
 	DeliveryDestination_tags = DeliveryDestination.AddMember("tags", _Tags)
 
+	_DeliveryDestinationNames_member = _DeliveryDestinationNames.AddMember("member", _DeliveryDestinationName)
+
 	_DeliveryDestinations_member = _DeliveryDestinations.AddMember("member", DeliveryDestination)
 
 	_DeliveryDestinationTypes_member = _DeliveryDestinationTypes.AddMember("member", DeliveryDestinationType)
@@ -6761,6 +6787,8 @@ func init() {
 	DeliverySource_status = DeliverySource.AddMember("status", DeliverySourceStatus)
 
 	DeliverySource_statusReason = DeliverySource.AddMember("statusReason", DeliverySourceStatusReason)
+
+	_DeliverySourceNames_member = _DeliverySourceNames.AddMember("member", _DeliverySourceName)
 
 	_DeliverySources_member = _DeliverySources.AddMember("member", DeliverySource)
 
@@ -6951,6 +6979,8 @@ func init() {
 	FilteredLogEvent_eventId = FilteredLogEvent.AddMember("eventId", _EventId)
 
 	_FilteredLogEvents_member = _FilteredLogEvents.AddMember("member", FilteredLogEvent)
+
+	_FilterResourceArns_member = _FilterResourceArns.AddMember("member", _Arn)
 
 	FlattenedElement_FIRST = FlattenedElement.AddMember("FIRST", smithyprelude.Unit)
 
@@ -8130,6 +8160,8 @@ func init() {
 
 	DescribeDeliveriesRequest_limit = DescribeDeliveriesRequest.AddMember("limit", _DescribeLimit)
 
+	DescribeDeliveriesRequest_deliverySourceNames = DescribeDeliveriesRequest.AddMember("deliverySourceNames", _DeliverySourceNames)
+
 	DescribeDeliveriesResponse_deliveries = DescribeDeliveriesResponse.AddMember("deliveries", _Deliveries)
 
 	DescribeDeliveriesResponse_nextToken = DescribeDeliveriesResponse.AddMember("nextToken", _NextToken)
@@ -8138,6 +8170,8 @@ func init() {
 
 	DescribeDeliveryDestinationsRequest_limit = DescribeDeliveryDestinationsRequest.AddMember("limit", _DescribeLimit)
 
+	DescribeDeliveryDestinationsRequest_names = DescribeDeliveryDestinationsRequest.AddMember("names", _DeliveryDestinationNames)
+
 	DescribeDeliveryDestinationsResponse_deliveryDestinations = DescribeDeliveryDestinationsResponse.AddMember("deliveryDestinations", _DeliveryDestinations)
 
 	DescribeDeliveryDestinationsResponse_nextToken = DescribeDeliveryDestinationsResponse.AddMember("nextToken", _NextToken)
@@ -8145,6 +8179,8 @@ func init() {
 	DescribeDeliverySourcesRequest_nextToken = DescribeDeliverySourcesRequest.AddMember("nextToken", _NextToken)
 
 	DescribeDeliverySourcesRequest_limit = DescribeDeliverySourcesRequest.AddMember("limit", _DescribeLimit)
+
+	DescribeDeliverySourcesRequest_resourceArns = DescribeDeliverySourcesRequest.AddMember("resourceArns", _FilterResourceArns)
 
 	DescribeDeliverySourcesResponse_deliverySources = DescribeDeliverySourcesResponse.AddMember("deliverySources", _DeliverySources)
 

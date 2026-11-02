@@ -528,20 +528,7 @@ func (d *ShapeDeserializer) ReadUnion(s *smithy.Schema) (*smithy.Schema, error) 
 			return nil, nil
 		}
 
-		// save escaped before peek overwrites it
-		keyEscaped := d.p.escaped
-
-		// inline null check
-		ptok, err := d.peek()
-		if err != nil {
-			return nil, err
-		}
-		if isN(ptok) {
-			d.peeked = nil
-			continue
-		}
-
-		member, err := memberFromToken(s, tok, keyEscaped)
+		member, err := memberFromToken(s, tok, d.p.escaped)
 		if err != nil {
 			return nil, err
 		}
@@ -562,6 +549,16 @@ func (d *ShapeDeserializer) ReadUnion(s *smithy.Schema) (*smithy.Schema, error) 
 			if err := d.p.Skip(); err != nil {
 				return nil, err
 			}
+			continue
+		}
+
+		// inline null check
+		ptok, err := d.peek()
+		if err != nil {
+			return nil, err
+		}
+		if isN(ptok) {
+			d.peeked = nil
 			continue
 		}
 
