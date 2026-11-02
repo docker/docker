@@ -5,8 +5,8 @@ import (
 	"net"
 	"time"
 
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/moby/swarmkit/v2/api"
+	"github.com/moby/swarmkit/v2/internal/grpcmetrics"
 	"github.com/moby/swarmkit/v2/manager/state"
 	"github.com/moby/swarmkit/v2/manager/state/store"
 	"google.golang.org/grpc"
@@ -19,8 +19,8 @@ func dial(addr string, _ string, creds credentials.TransportCredentials, timeout
 	grpcOptions := []grpc.DialOption{
 		grpc.WithBackoffMaxDelay(2 * time.Second),
 		grpc.WithTransportCredentials(creds),
-		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+		grpc.WithUnaryInterceptor(grpcmetrics.Client.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(grpcmetrics.Client.StreamClientInterceptor()),
 		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
 			return net.DialTimeout("tcp", addr, timeout)
 		}),

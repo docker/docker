@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"math"
 	"net"
 	"os"
@@ -16,11 +17,11 @@ import (
 	"github.com/docker/go-events"
 	gmetrics "github.com/docker/go-metrics"
 	gogotypes "github.com/gogo/protobuf/types"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/ca"
 	"github.com/moby/swarmkit/v2/connectionbroker"
 	"github.com/moby/swarmkit/v2/identity"
+	"github.com/moby/swarmkit/v2/internal/grpcmetrics"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/moby/swarmkit/v2/manager/allocator"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
@@ -249,6 +250,9 @@ func New(config *Config) (*Manager, error) {
 	}
 	raftNode := raft.NewNode(newNodeOpts)
 
+	streamMetricsInterceptor := grpcmetrics.Server.StreamServerInterceptor()
+	unaryMetricsInterceptor := grpcmetrics.Server.UnaryServerInterceptor()
+
 	// the interceptorWrappers are functions that wrap the prometheus grpc
 	// interceptor, and add some of code to log errors locally. one for stream
 	// and one for unary. this is needed because the grpc unary interceptor
@@ -263,30 +267,26 @@ func New(config *Config) (*Manager, error) {
 	// they are not automatically tested. If you modify them later, make _sure_
 	// that they are correct. If you add substantial side effects, abstract
 	// these out and test them!
-	unaryInterceptorWrapper := func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		// pass the call down into the grpc_prometheus interceptor
-		resp, err := grpc_prometheus.UnaryServerInterceptor(ctx, req, info, handler)
-		if err != nil {
-			log.G(ctx).WithField("rpc", info.FullMethod).WithError(err).Debug("error handling rpc")
-		}
-		return resp, err
-	}
-
-	streamInterceptorWrapper := func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		// we can't re-write a stream context, so don't bother creating a
-		// sub-context like in unary methods
-		// pass the call down into the grpc_prometheus interceptor
-		err := grpc_prometheus.StreamServerInterceptor(srv, ss, info, handler)
-		if err != nil {
-			log.G(ss.Context()).WithField("rpc", info.FullMethod).WithError(err).Debug("error handling streaming rpc")
-		}
-		return err
-	}
-
 	opts := []grpc.ServerOption{
 		grpc.Creds(config.SecurityConfig.ServerTLSCreds),
-		grpc.StreamInterceptor(streamInterceptorWrapper),
-		grpc.UnaryInterceptor(unaryInterceptorWrapper),
+		grpc.StreamInterceptor(func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+			// pass the call down into the grpc_prometheus interceptor
+			err := streamMetricsInterceptor(srv, ss, info, handler)
+			if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, context.Canceled) {
+				log.G(ss.Context()).WithField("rpc", info.FullMethod).WithError(err).Debug("error handling streaming rpc")
+			}
+			return err
+		}),
+		grpc.UnaryInterceptor(func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+			// we can't re-write a stream context, so don't bother creating a
+			// sub-context like in unary methods
+			// pass the call down into the grpc_prometheus interceptor
+			resp, err := unaryMetricsInterceptor(ctx, req, info, handler)
+			if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, context.Canceled) {
+				log.G(ctx).WithField("rpc", info.FullMethod).WithError(err).Debug("error handling rpc")
+			}
+			return resp, err
+		}),
 		grpc.MaxRecvMsgSize(transport.GRPCMaxMsgSize),
 	}
 
@@ -549,7 +549,7 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterLogBrokerServer(m.server, proxyLogBrokerAPI)
 	api.RegisterResourceAllocatorServer(m.server, proxyResourceAPI)
 	api.RegisterDispatcherServer(m.server, proxyDispatcherAPI)
-	grpc_prometheus.Register(m.server)
+	grpcmetrics.Server.InitializeMetrics(m.server)
 
 	api.RegisterControlServer(m.localserver, localProxyControlAPI)
 	api.RegisterWatchServer(m.localserver, m.watchServer)
@@ -560,7 +560,7 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterNodeCAServer(m.localserver, localProxyNodeCAAPI)
 	api.RegisterResourceAllocatorServer(m.localserver, localProxyResourceAPI)
 	api.RegisterLogBrokerServer(m.localserver, localProxyLogBrokerAPI)
-	grpc_prometheus.Register(m.localserver)
+	grpcmetrics.Server.InitializeMetrics(m.localserver)
 
 	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_NOT_SERVING)
 	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_NOT_SERVING)
@@ -772,8 +772,8 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 
 			conn, err := grpc.Dial(
 				m.config.ControlAPI,
-				grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-				grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+				grpc.WithUnaryInterceptor(grpcmetrics.Client.UnaryClientInterceptor()),
+				grpc.WithStreamInterceptor(grpcmetrics.Client.StreamClientInterceptor()),
 				grpc.WithTransportCredentials(insecureCreds),
 				grpc.WithDialer(
 					func(addr string, timeout time.Duration) (net.Conn, error) {
