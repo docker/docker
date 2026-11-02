@@ -8,7 +8,9 @@ integrated development environment's (IDE) features like syntax highlighting and
 The repository has to be placed under `src` directory in GOPATH.
 The default location for Linux and macOS users is `~/go`, while for Windows it is `%USERPROFILE%\go`.
 
-Move the previously cloned repository or clone it again to the `<GOPATH>/src/github.com/docker/docker` directory.
+Move the previously cloned repository or clone it again to the `<GOPATH>/src/github.com/docker/docker` directory. 
+
+(Note, if cloning the repository into `..../docker/docker`, make sure to clone the files into the directory itself using `git clone git@github.com:YER_FORK_NAME/moby.git .`, rather than the `git clone` default which places the files in a `moby` subdirectory (note the difference of `.` at the end).  Not doing so will result in self-inflicted sadness).
 
 ## 2. Configure IDE
 
