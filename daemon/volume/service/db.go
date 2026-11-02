@@ -3,6 +3,10 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime/debug"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/errdefs"
@@ -74,11 +78,27 @@ func removeMeta(tx *bolt.Tx, name string) error {
 // listMeta is used during restore to get the list of volume metadata
 // from the on-disk database.
 // Any errors that occur are only logged.
-func listMeta(tx *bolt.Tx) []volumeMetadata {
+func listMeta(tx *bolt.Tx, rootPath string) []volumeMetadata {
 	var ls []volumeMetadata
 	b := tx.Bucket(volumeBucketName)
 	b.ForEach(func(k, v []byte) error {
 		if len(v) == 0 {
+			//Given that emptying the metadata.db of a volume does not affect the use of the volume
+			defer func() {
+				if v := recover(); v != nil {
+					//Save the stack information, and throw an error
+					dbPath := filepath.Join(rootPath, "volumes/metadata.db")
+					log.L.Errorf("Error while reading volume metadata Bucket is nil, Please fix it manually first : %v", dbPath)
+					log.L.Errorf("List stack:\n %s \n", string(debug.Stack()))
+					fmt.Printf("Error while reading volume metadata Bucket is nil, Please fix it manually first : %v", dbPath)
+					os.Exit(1)
+				}
+			}()
+			//value is empty, debug record. The actual purpose is to directly panic and exit when the key has an invalid value,
+			//thus avoiding the creation of an array with invalid values in an infinite loop
+			if b.Bucket(k) == nil {
+				log.L.Debugf("The value is empty while reading volume metadata : %v", k)
+			}
 			// don't try to unmarshal an empty value
 			return nil
 		}

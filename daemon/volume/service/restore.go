@@ -16,10 +16,10 @@ import (
 // This only attempts to track volumes that are actually stored in the on-disk db.
 // It does not probe the available drivers to find anything that may have been added
 // out of band.
-func (s *VolumeStore) restore() {
+func (s *VolumeStore) restore(rootPath string) {
 	var ls []volumeMetadata
 	s.db.View(func(tx *bolt.Tx) error {
-		ls = listMeta(tx)
+		ls = listMeta(tx, rootPath)
 		return nil
 	})
 	ctx := context.Background()
