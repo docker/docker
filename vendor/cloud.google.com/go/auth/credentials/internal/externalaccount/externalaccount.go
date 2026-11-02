@@ -100,6 +100,13 @@ type Options struct {
 	// for AWS credentials. One of SubjectTokenProvider,
 	// AWSSecurityCredentialProvider or CredentialSource must be provided. Optional.
 	AwsSecurityCredentialsProvider AwsSecurityCredentialsProvider
+	// EarlyTokenRefresh configures how early before a token expires that it
+	// should be refreshed. If unset, the default value is 3 minutes and 45
+	// seconds. Optional.
+	EarlyTokenRefresh time.Duration
+	// DisableAsyncRefresh configures a synchronous workflow that refreshes
+	// stale tokens while blocking. The default is false. Optional.
+	DisableAsyncRefresh bool
 	// Client for token request.
 	Client *http.Client
 	// IsDefaultClient marks whether the client passed in is a default client that can be overriden.
@@ -249,8 +256,12 @@ func NewTokenProvider(opts *Options) (auth.TokenProvider, error) {
 		logger: logger,
 	}
 
+	cacheOpts := &auth.CachedTokenProviderOptions{
+		ExpireEarly:         opts.EarlyTokenRefresh,
+		DisableAsyncRefresh: opts.DisableAsyncRefresh,
+	}
 	if opts.ServiceAccountImpersonationURL == "" {
-		return auth.NewCachedTokenProvider(tp, nil), nil
+		return auth.NewCachedTokenProvider(tp, cacheOpts), nil
 	}
 
 	scopes := make([]string, len(opts.Scopes))
@@ -261,14 +272,14 @@ func NewTokenProvider(opts *Options) (auth.TokenProvider, error) {
 		Client:               client,
 		URL:                  opts.ServiceAccountImpersonationURL,
 		Scopes:               scopes,
-		Tp:                   auth.NewCachedTokenProvider(tp, nil),
+		Tp:                   auth.NewCachedTokenProvider(tp, cacheOpts),
 		TokenLifetimeSeconds: opts.ServiceAccountImpersonationLifetimeSeconds,
 		Logger:               logger,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return auth.NewCachedTokenProvider(imp, nil), nil
+	return auth.NewCachedTokenProvider(imp, cacheOpts), nil
 }
 
 type subjectTokenProvider interface {

@@ -51,6 +51,14 @@ type Options struct {
 	// Scopes contains the desired scopes for the returned access token.
 	Scopes []string
 
+	// EarlyTokenRefresh configures how early before a token expires that it
+	// should be refreshed. If unset, the default value is 3 minutes and 45
+	// seconds. Optional.
+	EarlyTokenRefresh time.Duration
+	// DisableAsyncRefresh configures a synchronous workflow that refreshes
+	// stale tokens while blocking. The default is false. Optional.
+	DisableAsyncRefresh bool
+
 	// Client for token request.
 	Client *http.Client
 	// Logger for logging.
@@ -71,7 +79,10 @@ func NewTokenProvider(opts *Options) (auth.TokenProvider, error) {
 	tp := &tokenProvider{
 		o: opts,
 	}
-	return auth.NewCachedTokenProvider(tp, nil), nil
+	return auth.NewCachedTokenProvider(tp, &auth.CachedTokenProviderOptions{
+		ExpireEarly:         opts.EarlyTokenRefresh,
+		DisableAsyncRefresh: opts.DisableAsyncRefresh,
+	}), nil
 }
 
 type tokenProvider struct {

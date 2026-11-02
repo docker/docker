@@ -284,6 +284,11 @@ func (t *otelAttributeTransport) RoundTrip(req *http.Request) (*http.Response, e
 	}
 
 	resp, err := t.base.RoundTrip(req)
+	if gax.IsFeatureEnabled("METRICS") {
+		if data != nil && resp != nil {
+			data.SetHTTPStatusCode(resp.StatusCode)
+		}
+	}
 
 	var logger *slog.Logger
 	if gax.IsFeatureEnabled("LOGGING") {

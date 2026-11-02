@@ -44,30 +44,31 @@ type DialSettings struct {
 	// Deprecated: Use AuthCredentialsFile instead, due to security risk.
 	CredentialsFile string
 	// Deprecated: Use AuthCredentialsJSON instead, due to security risk.
-	CredentialsJSON               []byte
-	InternalCredentials           *google.Credentials
-	UserAgent                     string
-	APIKey                        string
-	Audiences                     []string
-	DefaultAudience               string
-	HTTPClient                    *http.Client
-	GRPCDialOpts                  []grpc.DialOption
-	GRPCConn                      *grpc.ClientConn
-	GRPCConnPool                  ConnPool
-	GRPCConnPoolSize              int
-	NoAuth                        bool
-	TelemetryDisabled             bool
-	ClientCertSource              func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
-	CustomClaims                  map[string]interface{}
-	SkipValidation                bool
-	ImpersonationConfig           *impersonate.Config
-	EnableDirectPath              bool
-	EnableDirectPathXds           bool
-	AllowNonDefaultServiceAccount bool
-	DefaultUniverseDomain         string
-	UniverseDomain                string
-	AllowHardBoundTokens          []string
-	Logger                        *slog.Logger
+	CredentialsJSON                     []byte
+	InternalCredentials                 *google.Credentials
+	UserAgent                           string
+	APIKey                              string
+	Audiences                           []string
+	DefaultAudience                     string
+	HTTPClient                          *http.Client
+	GRPCDialOpts                        []grpc.DialOption
+	GRPCConn                            *grpc.ClientConn
+	GRPCConnPool                        ConnPool
+	GRPCConnPoolSize                    int
+	NoAuth                              bool
+	TelemetryDisabled                   bool
+	ClientCertSource                    func(*tls.CertificateRequestInfo) (*tls.Certificate, error)
+	CustomClaims                        map[string]interface{}
+	SkipValidation                      bool
+	ImpersonationConfig                 *impersonate.Config
+	EnableDirectPath                    bool
+	EnableDirectPathXds                 bool
+	EnableDirectPathXdsOverInterconnect bool
+	AllowNonDefaultServiceAccount       bool
+	DefaultUniverseDomain               string
+	UniverseDomain                      string
+	AllowHardBoundTokens                []string
+	Logger                              *slog.Logger
 	// Google API system parameters. For more information please read:
 	// https://cloud.google.com/apis/docs/system-parameters
 	QuotaProject  string
