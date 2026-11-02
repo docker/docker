@@ -201,7 +201,9 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 // Network represents a logical connectivity zone that containers may
 // join using the Link method. A network is managed by a specific driver.
 type Network struct {
-	ctrlr            *Controller
+	ctrlr *Controller // set when constructed; not mutated afterward.
+
+	// TODO(thaJeztah): determine which fields require synchronization; see https://github.com/moby/moby/pull/54090#discussion_r4474702813
 	name             string
 	networkType      string // networkType is the name of the netdriver used by this network
 	id               string
@@ -1451,8 +1453,6 @@ func (n *Network) deleteSvcRecords(eID, name, serviceID string, epIPv4, epIPv6 n
 }
 
 func (n *Network) getController() *Controller {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	return n.ctrlr
 }
 
