@@ -236,8 +236,6 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img c8dimages.Imag
 
 	anyMissing := false
 
-	var bestMatchPlatform ocispec.Platform
-	var bestMatch *ImageManifest
 	var presentMatchingManifests []*ImageManifest
 	err := i.walkReachableImageManifests(ctx, img, func(im *ImageManifest) error {
 		available, err := im.CheckContentAvailable(ctx)
@@ -264,11 +262,6 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img c8dimages.Imag
 		}
 
 		presentMatchingManifests = append(presentMatchingManifests, im)
-		if bestMatch == nil || pm.Less(imgPlatform, bestMatchPlatform) {
-			bestMatchPlatform = imgPlatform
-			bestMatch = im
-		}
-
 		return nil
 	})
 	if err != nil {
@@ -302,12 +295,6 @@ func (i *ImageService) getPushDescriptor(ctx context.Context, img c8dimages.Imag
 			if !anyMissing {
 				// No specific platform requested, and all manifests are available, select the full index.
 				return img.Target, nil
-			}
-
-			// No specific platform requested and not all manifests are available.
-			// Select the manifest that matches the host platform the best.
-			if bestMatch != nil && i.hostPlatformMatcher().Match(bestMatchPlatform) {
-				return bestMatch.Target(), nil
 			}
 
 			return ocispec.Descriptor{}, errdefs.Conflict(errors.Errorf("multiple matching manifests found but no specific platform requested"))

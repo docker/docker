@@ -65,7 +65,7 @@ func TestImagePushIndex(t *testing.T) {
 
 			indexPlatforms:     []ocispec.Platform{linuxAmd64, darwinArm64, windowsAmd64},
 			availablePlatforms: []ocispec.Platform{linuxAmd64, darwinArm64},
-			check:              singleManifestSelected(linuxAmd64),
+			check:              multipleCandidates,
 		},
 		{
 			name: "none requested, two present, daemon platform NOT available",
@@ -152,7 +152,7 @@ func TestImagePushIndex(t *testing.T) {
 			availablePlatforms: []ocispec.Platform{linuxArmv7, linuxArmv5},
 			daemonPlatform:     &linuxArmv5,
 			requestPlatform:    nil,
-			check:              singleManifestSelected(linuxArmv5),
+			check:              multipleCandidates,
 		},
 		{
 			name: "none requested on v7 daemon, arm64 not available",
@@ -161,7 +161,7 @@ func TestImagePushIndex(t *testing.T) {
 			availablePlatforms: []ocispec.Platform{linuxArmv7, linuxArmv5},
 			daemonPlatform:     &linuxArmv7,
 			requestPlatform:    nil,
-			check:              singleManifestSelected(linuxArmv7),
+			check:              multipleCandidates,
 		},
 		{
 			name: "none requested on v7 daemon, v7 not available",
@@ -170,7 +170,7 @@ func TestImagePushIndex(t *testing.T) {
 			availablePlatforms: []ocispec.Platform{linuxArm64, linuxArmv5},
 			daemonPlatform:     &linuxArmv7,
 			requestPlatform:    nil,
-			check:              singleManifestSelected(linuxArmv5), // Should it fail, because v5 can't be pushed?
+			check:              multipleCandidates,
 		},
 
 		{
