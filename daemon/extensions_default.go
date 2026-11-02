@@ -39,6 +39,7 @@ func (daemon *Daemon) daemonExtensions() []extensions.Extension {
 	cfg := daemon.Config()
 	return []extensions.Extension{
 		extensionconfig.New(&cfg),
+		runtimeExtension(daemon),
 	}
 }
 
