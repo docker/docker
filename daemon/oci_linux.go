@@ -149,7 +149,13 @@ func WithApparmor(daemon *Daemon, c *container.Container) coci.SpecOpts {
 				s.Process = &specs.Process{}
 			}
 			s.Process.ApparmorProfile = appArmorProfile
+		} else {
+			// If AppArmor is not supported but a profile was specified, return an error
+			if c.AppArmorProfile != "" {
+				return errors.New("AppArmor is not supported on this host, but the profile '" + c.AppArmorProfile + "' was specified")
+			}
 		}
+
 		return nil
 	}
 }

@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 
 	containerd "github.com/containerd/containerd/v2/client"
 	coci "github.com/containerd/containerd/v2/pkg/oci"
@@ -90,7 +91,13 @@ func (daemon *Daemon) execSetPlatformOpt(ctx context.Context, daemonCfg *config.
 			}
 		}
 		p.ApparmorProfile = appArmorProfile
+	} else {
+		// If AppArmor is not supported but a profile was specified, return an error
+		if ec.Container.AppArmorProfile != "" {
+			return errors.New("AppArmor is not supported on this host, but the profile '" + ec.Container.AppArmorProfile + "' was specified")
+		}
 	}
+
 	s := &specs.Spec{Process: p}
 	return withRlimits(daemon, daemonCfg, ec.Container)(ctx, nil, nil, s)
 }

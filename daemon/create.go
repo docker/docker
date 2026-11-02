@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/pkg/apparmor"
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	containertypes "github.com/moby/moby/api/types/container"
@@ -76,6 +77,32 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	start := time.Now()
 	if opts.params.Config == nil {
 		return containertypes.CreateResponse{}, errdefs.InvalidParameter(errors.New("config cannot be empty in order to create a container"))
+	}
+
+	var apparmorProfile string
+	for _, opt := range opts.params.HostConfig.SecurityOpt {
+		if strings.HasPrefix(opt, "apparmor") {
+			var value string
+			var ok bool
+
+			if strings.Contains(opt, "=") {
+				_, value, ok = strings.Cut(opt, "=")
+			} else if strings.Contains(opt, ":") {
+				_, value, ok = strings.Cut(opt, ":")
+			}
+
+			if !ok {
+				return containertypes.CreateResponse{}, fmt.Errorf("invalid apparmor security option: %s", opt)
+			}
+
+			apparmorProfile = value
+
+			break
+		}
+	}
+
+	if apparmorProfile != "" && !apparmor.HostSupports() {
+		return containertypes.CreateResponse{}, fmt.Errorf("AppArmor is not supported on this host, but the profile %s was specified", apparmorProfile)
 	}
 
 	// Normalize some defaults. Doing this "ad-hoc" here for now, as there's

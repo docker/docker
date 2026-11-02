@@ -92,6 +92,7 @@ func TestExecSetPlatformOptAppArmor(t *testing.T) {
 			if !appArmorEnabled {
 				// no profile should be set if the host does not support AppArmor
 				doc += " (apparmor disabled)"
+				tc.appArmorProfile = ""
 				tc.expectedProfile = ""
 			}
 			if execPrivileged {
