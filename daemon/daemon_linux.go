@@ -168,59 +168,49 @@ func ifaceAddrs(linkName string, family int) ([]netlink.Addr, error) {
 	return nl.AddrList(link, family)
 }
 
-var (
-	kernelSupportsRROOnce sync.Once
-	kernelSupportsRROErr  error
-)
-
-func kernelSupportsRecursivelyReadOnly() error {
-	fn := func() error {
-		tmpMnt, err := os.MkdirTemp("", "moby-detect-rro")
-		if err != nil {
-			return fmt.Errorf("failed to create a temp directory: %w", err)
-		}
-		for {
-			err = unix.Mount("", tmpMnt, "tmpfs", 0, "")
-			if !errors.Is(err, unix.EINTR) {
-				break
-			}
-		}
-		if err != nil {
-			return fmt.Errorf("failed to mount tmpfs on %q: %w", tmpMnt, err)
-		}
-		defer func() {
-			var umErr error
-			for {
-				umErr = unix.Unmount(tmpMnt, 0)
-				if !errors.Is(umErr, unix.EINTR) {
-					break
-				}
-			}
-			if umErr != nil {
-				log.G(context.TODO()).WithError(umErr).Warnf("Failed to unmount %q", tmpMnt)
-			}
-		}()
-		attr := &unix.MountAttr{
-			Attr_set: unix.MOUNT_ATTR_RDONLY,
-		}
-		for {
-			err = unix.MountSetattr(-1, tmpMnt, unix.AT_RECURSIVE, attr)
-			if !errors.Is(err, unix.EINTR) {
-				break
-			}
-		}
-		// ENOSYS on kernel < 5.12
-		if err != nil {
-			return fmt.Errorf("failed to call mount_setattr: %w", err)
-		}
-		return nil
+var kernelSupportsRecursivelyReadOnly = sync.OnceValue(func() error {
+	tmpMnt, err := os.MkdirTemp("", "moby-detect-rro")
+	if err != nil {
+		return fmt.Errorf("failed to create a temp directory: %w", err)
 	}
+	defer func() { _ = os.Remove(tmpMnt) }()
 
-	kernelSupportsRROOnce.Do(func() {
-		kernelSupportsRROErr = fn()
-	})
-	return kernelSupportsRROErr
-}
+	for {
+		err = unix.Mount("", tmpMnt, "tmpfs", 0, "")
+		if !errors.Is(err, unix.EINTR) {
+			break
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("failed to mount tmpfs on %q: %w", tmpMnt, err)
+	}
+	defer func() {
+		var umErr error
+		for {
+			umErr = unix.Unmount(tmpMnt, 0)
+			if !errors.Is(umErr, unix.EINTR) {
+				break
+			}
+		}
+		if umErr != nil {
+			log.G(context.TODO()).WithError(umErr).Warnf("Failed to unmount %q", tmpMnt)
+		}
+	}()
+	attr := &unix.MountAttr{
+		Attr_set: unix.MOUNT_ATTR_RDONLY,
+	}
+	for {
+		err = unix.MountSetattr(-1, tmpMnt, unix.AT_RECURSIVE, attr)
+		if !errors.Is(err, unix.EINTR) {
+			break
+		}
+	}
+	// ENOSYS on kernel < 5.12
+	if err != nil {
+		return fmt.Errorf("failed to call mount_setattr: %w", err)
+	}
+	return nil
+})
 
 func supportsRecursivelyReadOnly(cfg *configStore, runtime string) error {
 	if err := kernelSupportsRecursivelyReadOnly(); err != nil {
