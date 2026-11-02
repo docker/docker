@@ -49,7 +49,7 @@ func TestPublishedPortIgnoresTargetPort(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Equal(a, b))
-	assert.Check(t, is.Equal(a, types.PublishedPort{Proto: types.TCP, Port: 8080, HostPort: 8080}))
+	assert.Check(t, is.Equal(a, types.PublishedPort{Proto: types.TCP, Port: 8080, HostPort: 8080, NoSelfConnect: true}))
 
 	// A differing protocol is a different reservation.
 	udp, err := publishedPort(&PortConfig{Protocol: ProtocolUDP, PublishedPort: 8080, TargetPort: 80})
@@ -84,7 +84,7 @@ func TestIngressPortRefsAcrossGenerations(t *testing.T) {
 	ppsB, err := publishedPorts([]*PortConfig{{Protocol: ProtocolTCP, PublishedPort: 8080, TargetPort: 8080}})
 	assert.NilError(t, err)
 
-	want := types.PublishedPort{Proto: types.TCP, Port: 8080, HostPort: 8080}
+	want := types.PublishedPort{Proto: types.TCP, Port: 8080, HostPort: 8080, NoSelfConnect: true}
 
 	// The first generation publishes the reservation.
 	assert.Check(t, is.DeepEqual(refIngressPorts(ppsA), []types.PublishedPort{want}))

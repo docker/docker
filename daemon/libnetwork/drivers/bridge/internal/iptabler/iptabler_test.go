@@ -15,6 +15,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
@@ -264,4 +265,64 @@ func testIptabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 	assert.NilError(t, err)
 	checkResults("iptables", rnWSL2Mirrored(fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin)), config.IPv4)
 	checkResults("ip6tables", fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin), config.IPv6)
+}
+
+// TestDNATFromOwnBridge checks when a port binding's DNAT rule leaves packets
+// arriving from the network's own bridge to the userland proxy, and that the
+// rule is deleted with the binding.
+func TestDNATFromOwnBridge(t *testing.T) {
+	skip.If(t, iptables.UsingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
+
+	testcases := []struct {
+		hairpin, icc, noSelfConnect bool
+		expProxySkip                bool
+	}{
+		{hairpin: true, icc: true},
+		{hairpin: true, icc: false, noSelfConnect: true},
+		{icc: true, expProxySkip: true},
+		{icc: true, noSelfConnect: true, expProxySkip: true},
+		{icc: false, expProxySkip: true},
+		{icc: false, noSelfConnect: true},
+	}
+	for _, tc := range testcases {
+		t.Run(fmt.Sprintf("hairpin=%v/icc=%v/noSelfConnect=%v", tc.hairpin, tc.icc, tc.noSelfConnect), func(t *testing.T) {
+			defer netnsutils.SetupTestOSContext(t, netnsutils.WithSetNsHandles(false))()
+
+			fw, err := NewIptabler(t.Context(), firewaller.Config{IPv4: true, Hairpin: tc.hairpin})
+			assert.NilError(t, err)
+			nw, err := fw.NewNetwork(t.Context(), firewaller.NetworkConfig{
+				IfName:     "br-dummy",
+				ICC:        tc.icc,
+				Masquerade: true,
+				Config4:    firewaller.NetworkConfigFam{Prefix: netip.MustParsePrefix("192.168.0.0/24")},
+			})
+			assert.NilError(t, err)
+			pb := types.PortBinding{
+				Proto:         types.TCP,
+				IP:            net.ParseIP("192.168.0.2"),
+				Port:          80,
+				HostIP:        net.IPv4zero,
+				HostPort:      8080,
+				HostPortEnd:   8080,
+				NoSelfConnect: tc.noSelfConnect,
+			}
+
+			dnatRules := func() []string {
+				t.Helper()
+				out, err := iptables.GetIptable(iptables.IPv4).Raw("-t", "nat", "-S", dockerChain)
+				assert.NilError(t, err)
+				return slices.DeleteFunc(strings.Split(string(out), "\n"), func(r string) bool {
+					return !strings.Contains(r, "-j DNAT")
+				})
+			}
+
+			assert.NilError(t, nw.AddPorts(t.Context(), []types.PortBinding{pb}))
+			rules := dnatRules()
+			assert.Assert(t, is.Len(rules, 1))
+			assert.Check(t, strings.Contains(rules[0], "! -i br-dummy") == tc.expProxySkip, "DNAT rule: %s", rules[0])
+
+			assert.NilError(t, nw.DelPorts(t.Context(), []types.PortBinding{pb}))
+			assert.Check(t, is.Len(dnatRules(), 0))
+		})
+	}
 }

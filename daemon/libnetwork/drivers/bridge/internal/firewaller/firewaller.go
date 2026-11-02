@@ -71,6 +71,22 @@ type NetworkConfigFam struct {
 	Unprotected bool
 }
 
+// DNATFromOwnBridge returns true if packets that arrive from the network's own
+// bridge should be DNATed to pb's container address. If it returns false,
+// they're left for the userland proxy.
+//
+// Without the proxy (config.Hairpin), they're always DNATed. With the proxy,
+// DNATing them needs two things the proxy avoids. First, br_netfilter: the
+// container's replies are bridged straight back to the client, so conntrack
+// only sees them, and restores their source address, if bridged packets go
+// through netfilter. The network has that when ICC is disabled. Second, for a
+// container that connects to its own published port, hairpin mode on its
+// bridge port and a MASQUERADE rule. A binding marked NoSelfConnect doesn't
+// need those.
+func (nc NetworkConfig) DNATFromOwnBridge(config Config, pb types.PortBinding) bool {
+	return config.Hairpin || (!nc.ICC && pb.NoSelfConnect)
+}
+
 // Firewaller implements firewall rules for bridge networks.
 type Firewaller interface {
 	// NewNetwork returns an object that can be used to add published ports and legacy

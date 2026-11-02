@@ -995,17 +995,21 @@ func probeUDPPort(t *testing.T, host networking.Host, hostAddr, port string) err
 
 // TestIngressPortFromTaskOnSameNode checks that a container on the node can
 // reach a service's published port via one of the node's own addresses, with
-// and without the userland proxy.
+// and without the userland proxy, while the node drops unsolicited input.
 //
 // The ingress load balancer's published ports are mapped onto its
 // docker_gwbridge endpoint, and docker_gwbridge is created with inter-container
-// communication disabled. With docker-proxy, the connection is served from the
-// host's netns and never crosses that bridge. Without it, the packets are
-// DNATed across the bridge, so they have to get past the rules that implement
-// icc=false. Reaching a published port shouldn't depend on the userland proxy,
-// so both modes are checked and expected to behave the same.
+// communication disabled. The container's packets are DNATed across that
+// bridge, so they have to get past the rules that implement icc=false. With
+// the userland proxy enabled, packets from a container's own bridge are
+// normally left for docker-proxy instead, which receives them through the
+// host's INPUT chain, where a host firewall such as ufw drops them. Ingress
+// ports are DNATed anyway, so that reaching a published port doesn't depend
+// on the userland proxy or the host's input policy. Both modes are checked
+// and expected to behave the same.
 //
-// Regression test for https://github.com/moby/moby/issues/53713
+// Regression test for https://github.com/moby/moby/issues/53713 and
+// https://github.com/moby/moby/issues/53962
 func TestIngressPortFromTaskOnSameNode(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
@@ -1030,6 +1034,12 @@ func TestIngressPortFromTaskOnSameNode(t *testing.T) {
 			l3 := networking.NewL3Segment(t, "test-"+l3SegHost)
 			defer l3.Destroy(t)
 			l3.AddHost(t, l3SegHost, "ns-"+l3SegHost, "eth0", netip.MustParsePrefix(hostAddr+"/24"))
+
+			// Drop unsolicited input, like ufw's default "deny incoming" policy.
+			host := l3.Hosts[l3SegHost]
+			host.MustRun(t, "iptables", "-A", "INPUT", "-i", "lo", "-j", "ACCEPT")
+			host.MustRun(t, "iptables", "-A", "INPUT", "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT")
+			host.MustRun(t, "iptables", "-P", "INPUT", "DROP")
 
 			l3.Hosts[l3SegHost].Do(t, func() {
 				// Not swarm.NewSwarm, because it can't pass extra daemon flags.

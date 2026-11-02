@@ -471,12 +471,13 @@ func collectFirewallPorts(pbs []portmapperapi.PortBinding) []types.PortBinding {
 // that can be passed to firewaller.Network for setting up a NAT rule.
 func toNATBinding(pb portmapperapi.PortBinding) types.PortBinding {
 	return types.PortBinding{
-		IP:          pb.IP,
-		Port:        pb.Port,
-		Proto:       pb.Proto,
-		HostIP:      pb.NAT.Addr().AsSlice(),
-		HostPort:    pb.NAT.Port(),
-		HostPortEnd: pb.NAT.Port(),
+		IP:            pb.IP,
+		Port:          pb.Port,
+		Proto:         pb.Proto,
+		HostIP:        pb.NAT.Addr().AsSlice(),
+		HostPort:      pb.NAT.Port(),
+		HostPortEnd:   pb.NAT.Port(),
+		NoSelfConnect: pb.NoSelfConnect,
 	}
 }
 

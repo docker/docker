@@ -144,10 +144,6 @@ func (n *network) setPerPortHairpinForwarding(pbs []types.PortBinding, updater f
 }
 
 func (n *network) setPerPortDNAT(pbs []types.PortBinding, updater func(nftables.Obj), ipv nftables.Family) {
-	var proxySkip string
-	if !n.fw.config.Hairpin {
-		proxySkip = fmt.Sprintf("iifname != %s ", n.config.IfName)
-	}
 	var v6LLSkip string
 	if ipv == nftables.IPv6 {
 		v6LLSkip = "ip6 saddr != fe80::/10 "
@@ -161,6 +157,10 @@ func (n *network) setPerPortDNAT(pbs []types.PortBinding, updater func(nftables.
 		// is handled by docker-proxy).
 		if (pb.IP.To4() != nil) != (pb.HostIP.To4() != nil) {
 			continue
+		}
+		var proxySkip string
+		if !n.config.DNATFromOwnBridge(n.fw.config, pb) {
+			proxySkip = fmt.Sprintf("iifname != %s ", n.config.IfName)
 		}
 		var daddrMatch string
 		if !pb.HostIP.IsUnspecified() {

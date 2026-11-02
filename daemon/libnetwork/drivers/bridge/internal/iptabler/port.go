@@ -102,7 +102,7 @@ func (n *network) setPerPortNAT(ipv iptables.IPVersion, b types.PortBinding, ena
 		"-j", "DNAT",
 		"--to-destination", net.JoinHostPort(b.IP.String(), strconv.Itoa(int(b.Port))),
 	}
-	if !n.ipt.config.Hairpin {
+	if !n.config.DNATFromOwnBridge(n.ipt.config, b) {
 		args = append(args, "!", "-i", n.config.IfName)
 	}
 	if ipv == iptables.IPv6 {

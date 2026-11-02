@@ -284,6 +284,10 @@ func publishedPort(pc *PortConfig) (types.PublishedPort, error) {
 		Proto:    types.ParseProtocol(strings.ToLower(pc.Protocol.String())),
 		Port:     uint16(pc.PublishedPort),
 		HostPort: uint16(pc.PublishedPort),
+		// The ports are published on the load-balancer sandbox's gateway
+		// endpoint. The sandbox has no container, so nothing behind the
+		// endpoint connects to them.
+		NoSelfConnect: true,
 	}, nil
 }
 

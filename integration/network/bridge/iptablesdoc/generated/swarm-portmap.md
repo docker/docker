@@ -91,7 +91,11 @@ Note that:
  - The published port is set up as an ordinary port mapping on the ingress
    load-balancer sandbox's `docker_gwbridge` gateway endpoint (`172.18.0.2`),
    using the same rules as any other published container port:
-   - a DNAT rule in the nat `DOCKER` chain, and
+   - a DNAT rule in the nat `DOCKER` chain. Unlike a container's port mapping
+     when the userland proxy is running, it doesn't skip packets arriving on
+     `docker_gwbridge`. The load-balancer never connects to its own published
+     port, so a task that reaches the port via its node's address is DNATed
+     like any other client, and doesn't go through docker-proxy, and
    - ACCEPT rules in the filter `DOCKER` chain. There are two, because
      `docker_gwbridge` has inter-container communication disabled: one for
      packets from outside the network, and one for packets from the network
@@ -118,7 +122,7 @@ And the corresponding nat table:
     
     Chain DOCKER (2 references)
     num   pkts bytes target     prot opt in     out     source               destination         
-    1        0     0 DNAT       tcp  --  !docker_gwbridge any     anywhere             anywhere             tcp dpt:http-alt to:172.18.0.2:8080
+    1        0     0 DNAT       tcp  --  any    any     anywhere             anywhere             tcp dpt:http-alt to:172.18.0.2:8080
     
 
 <details>
@@ -133,7 +137,7 @@ And the corresponding nat table:
     -A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER
     -A POSTROUTING -s 172.18.0.0/16 ! -o docker_gwbridge -j MASQUERADE
     -A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
-    -A DOCKER ! -i docker_gwbridge -p tcp -m tcp --dport 8080 -j DNAT --to-destination 172.18.0.2:8080
+    -A DOCKER -p tcp -m tcp --dport 8080 -j DNAT --to-destination 172.18.0.2:8080
     
 
 </details>
