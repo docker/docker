@@ -1353,7 +1353,7 @@ github.com/moby/policy-helpers/types
 # github.com/moby/profiles/apparmor v0.3.0
 ## explicit; go 1.23.0
 github.com/moby/profiles/apparmor
-# github.com/moby/profiles/seccomp v0.2.4
+# github.com/moby/profiles/seccomp v0.3.0
 ## explicit; go 1.23.0
 github.com/moby/profiles/seccomp
 # github.com/moby/pubsub v1.0.0
