@@ -59,6 +59,12 @@ func (e *imageExporter) Resolve(ctx context.Context, id int, attrs map[string]st
 		attrs:         attrs,
 	}
 	for k, v := range attrs {
+		if ak, ok, err := exptypes.ParseAnnotationKey(k); ok && err == nil {
+			switch ak.Type {
+			case exptypes.AnnotationIndex, exptypes.AnnotationIndexDescriptor:
+				return nil, errors.New("index annotations not supported for single platform export")
+			}
+		}
 		switch exptypes.ImageExporterOptKey(k) {
 		case exptypes.OptKeyName:
 			for v := range strings.SplitSeq(v, ",") {
