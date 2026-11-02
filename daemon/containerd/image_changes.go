@@ -56,8 +56,7 @@ func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) (_
 	}()
 
 	mm := i.client.MountManager()
-	// Use a temporary activation, so that a single-mount view is mounted too
-	active, err := mm.Activate(ctx, parentViewKey, imageMounts, mount.WithTemporary)
+	active, err := mm.Activate(ctx, parentViewKey, imageMounts)
 	if err == nil {
 		defer func() {
 			if err := mm.Deactivate(context.WithoutCancel(ctx), parentViewKey); err != nil {
@@ -65,6 +64,15 @@ func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) (_
 			}
 		}()
 		imageMounts = active.System
+		// Mount Manager performed every mount itself (e.g. a single-mount
+		// view), so the last active mount point is the root of the view.
+		if len(imageMounts) == 0 && len(active.Active) > 0 {
+			imageMounts = []mount.Mount{{
+				Type:    "bind",
+				Source:  active.Active[len(active.Active)-1].MountPoint,
+				Options: []string{"ro", "rbind"},
+			}}
+		}
 	} else if !cerrdefs.IsNotImplemented(err) {
 		return nil, fmt.Errorf("failed to activate mounts: %w", err)
 	}
