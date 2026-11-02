@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ import (
 	req "github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -115,6 +117,14 @@ func TestExec(t *testing.T) {
 	assert.Check(t, is.Contains(out, "FOO=BAR"), "exec command not running with expected environment variable FOO")
 }
 
+func TestExecResizeStress(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "windows")
+
+	for i := range 100 {
+		t.Run(strconv.Itoa(i), TestExecResize)
+	}
+}
+
 func TestExecResize(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := testEnv.APIClient()
@@ -137,6 +147,23 @@ func TestExecResize(t *testing.T) {
 		Detach: true,
 	})
 	assert.NilError(t, err)
+
+	if runtime.GOOS == "windows" {
+		// Try to fix flakiness on Windows 2025, which often fails:
+		//
+		//	=== FAIL: github.com/docker/docker/integration/container TestExecResize/success (0.01s)
+		//		exec_test.go:144: assertion failed: error is not nil: Error response from daemon: NotFound: exec: '9c19c467436132df24d8b606b0c462b1110dacfbbd13b63e5b42579eda76d7fc' in task: '7d1f371218285a0c653ae77024a1ab3f5d61a5d097c651ddf7df97364fafb454' not found: not found
+		poll.WaitOn(t, func(poll.LogT) poll.Result {
+			i, err := apiClient.ContainerExecInspect(ctx, execID)
+			if cerrdefs.IsNotFound(err) {
+				return poll.Continue("waiting for exec %s to exist", execID)
+			}
+			if !i.Running {
+				return poll.Continue("waiting for exec %s to be running", execID)
+			}
+			return poll.Success()
+		})
+	}
 
 	t.Run("success", func(t *testing.T) {
 		_, err := apiClient.ExecResize(ctx, execID, client.ExecResizeOptions{
