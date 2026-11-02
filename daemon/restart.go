@@ -3,11 +3,14 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"runtime"
 
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/server/backend"
+	"github.com/moby/moby/v2/errdefs"
+	"github.com/moby/sys/signal"
 )
 
 // ContainerRestart stops and starts a container. It attempts to
@@ -23,7 +26,7 @@ func (daemon *Daemon) ContainerRestart(ctx context.Context, name string, options
 	}
 	err = daemon.containerRestart(ctx, daemon.config(), ctr, options)
 	if err != nil {
-		return fmt.Errorf("Cannot restart container %s: %v", name, err)
+		return fmt.Errorf("Cannot restart container %s: %w", name, err)
 	}
 	return nil
 }
@@ -33,6 +36,17 @@ func (daemon *Daemon) ContainerRestart(ctx context.Context, name string, options
 // gracefully stop, before forcefully terminating the container. If
 // given a negative duration, wait forever for a graceful stop.
 func (daemon *Daemon) containerRestart(ctx context.Context, daemonCfg *configStore, container *container.Container, options backend.ContainerStopOptions) (retErr error) {
+	if options.Signal != "" {
+		sig, err := signal.ParseSignal(options.Signal)
+		if err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+
+		if !signal.ValidSignalForPlatform(sig) {
+			return errdefs.InvalidParameter(fmt.Errorf("the %s daemon does not support signal %d", runtime.GOOS, sig))
+		}
+	}
+
 	// Restarting is expected to be an atomic operation, and cancelling
 	// the request should not cancel the stop -> start sequence.
 	ctx = context.WithoutCancel(ctx)
