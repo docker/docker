@@ -1,4 +1,4 @@
-FROM docker:17.12-dind
+FROM docker:29.9-dind
 RUN apk add --no-cache curl
 ENV DIND_CLIENT=true
 COPY daemon.json /etc/docker/daemon.json
