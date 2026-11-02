@@ -2,6 +2,7 @@ package network
 
 import (
 	"net"
+	"slices"
 	"sync"
 
 	networktypes "github.com/moby/moby/api/types/network"
@@ -29,6 +30,17 @@ type EndpointSettings struct {
 	// DesiredMacAddress is the configured value, it's copied from MacAddress (the
 	// API param field) when the container is created.
 	DesiredMacAddress networktypes.HardwareAddr
+}
+
+// Copy returns a deep copy of es.
+func (es *EndpointSettings) Copy() *EndpointSettings {
+	if es == nil {
+		return nil
+	}
+	esCopy := *es
+	esCopy.EndpointSettings = es.EndpointSettings.Copy()
+	esCopy.DesiredMacAddress = slices.Clone(es.DesiredMacAddress)
+	return &esCopy
 }
 
 // AttachmentStore stores the load balancer IP address for a network id.

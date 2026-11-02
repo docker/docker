@@ -623,6 +623,31 @@ func TestPublishedPortAlreadyInUse(t *testing.T) {
 	inspect, err := apiClient.ContainerInspect(ctx, ctr2, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.Container.State.Status, containertypes.StateCreated))
+
+	_, err = apiClient.ContainerStart(ctx, ctr2, client.ContainerStartOptions{})
+	assert.Assert(t, is.ErrorContains(err, "failed to set up container networking"))
+
+	inspect, err = apiClient.ContainerInspect(ctx, ctr2, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(inspect.Container.State.Status, containertypes.StateCreated))
+	assert.Assert(t, is.Len(inspect.Container.HostConfig.PortBindings[mappedPort], 1))
+	assert.Check(t, is.Equal(inspect.Container.HostConfig.PortBindings[mappedPort][0].HostPort, "8000"))
+	// The bridge entry must survive the failed start, otherwise the next start
+	// would silently succeed with no networking attached.
+	assert.Assert(t, is.Contains(inspect.Container.NetworkSettings.Networks, "bridge"))
+
+	// The container list must not report the endpoint that was rolled back.
+	res, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
+		All:     true,
+		Filters: make(client.Filters).Add("id", ctr2),
+	})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Items, 1))
+	assert.Assert(t, res.Items[0].NetworkSettings != nil)
+	ep := res.Items[0].NetworkSettings.Networks["bridge"]
+	assert.Assert(t, ep != nil)
+	assert.Check(t, is.Equal(ep.EndpointID, ""))
+	assert.Check(t, !ep.IPAddress.IsValid())
 }
 
 // TestAllPortMappingsAreReturned check that dual-stack ports mapped through
@@ -1458,6 +1483,55 @@ func TestJoinError(t *testing.T) {
 	assert.Check(t, is.Equal(res.ExitCode, 0), "container should have an eth0")
 	res = ctr.ExecT(ctx, t, c, cid, []string{"ip", "link", "show", "eth1"})
 	assert.Check(t, is.Equal(res.ExitCode, 0), "container should have an eth1")
+}
+
+// TestEndpointCreateErrorRollback checks that if connecting a running container
+// to a network fails while creating the endpoint (here, because the requested
+// static IPv4 address is already in use), the failed network is not left in the
+// container's network settings. Otherwise, the container could not be restarted.
+func TestEndpointCreateErrorRollback(t *testing.T) {
+	ctx := setupTest(t)
+	c := testEnv.APIClient()
+
+	const netName = "testnetrollback"
+	const gwAddr = "192.168.126.1"
+	const staticIP = "192.168.126.10"
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithIPAM("192.168.126.0/24", gwAddr),
+	)
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	// Hold the static address, so that connecting another container to it fails.
+	holderID := ctr.Run(ctx, t, c,
+		ctr.WithNetworkMode(netName),
+		ctr.WithIPv4(netName, staticIP),
+	)
+	defer c.ContainerRemove(ctx, holderID, client.ContainerRemoveOptions{Force: true})
+
+	cid := ctr.Run(ctx, t, c)
+	defer c.ContainerRemove(ctx, cid, client.ContainerRemoveOptions{Force: true})
+
+	_, err := c.NetworkConnect(ctx, netName, client.NetworkConnectOptions{
+		Container: cid,
+		EndpointConfig: &networktypes.EndpointSettings{
+			IPAMConfig: &networktypes.EndpointIPAMConfig{
+				IPv4Address: netip.MustParseAddr(staticIP),
+			},
+		},
+	})
+	assert.Check(t, is.ErrorContains(err, "Address already in use"))
+
+	// Only the default bridge network should show up in container inspect.
+	ctrInsp := ctr.Inspect(ctx, t, c, cid)
+	assert.Check(t, is.Len(ctrInsp.NetworkSettings.Networks, 1))
+	assert.Check(t, is.Contains(ctrInsp.NetworkSettings.Networks, "bridge"))
+
+	// Restarting would fail if the failed network config had been kept.
+	_, err = c.ContainerRestart(ctx, cid, client.ContainerRestartOptions{})
+	assert.NilError(t, err)
+	ctrInsp = ctr.Inspect(ctx, t, c, cid)
+	assert.Check(t, is.Equal(ctrInsp.State.Running, true))
+	assert.Check(t, is.Len(ctrInsp.NetworkSettings.Networks, 1))
 }
 
 func TestPreferredSubnetRestore(t *testing.T) {
