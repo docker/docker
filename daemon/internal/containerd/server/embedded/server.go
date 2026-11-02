@@ -141,10 +141,10 @@ func Start(ctx context.Context, rootDir, stateDir string) (*Daemon, error) {
 }
 
 // setContainerdVersion makes the embedded server report the vendored containerd
-// version in "docker info" instead of the source default ("2.2.4+unknown").
+// version in "docker info" and "docker version" instead of the source default.
 //
-// The version comes from the build's module info. The git commit is not
-// recorded there, so only the version is set.
+// The version comes from the build's module info.
+// The git commit is not recorded there, so only the version is set.
 func setContainerdVersion() {
 	bi, ok := debug.ReadBuildInfo()
 	if !ok {

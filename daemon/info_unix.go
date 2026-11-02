@@ -441,13 +441,15 @@ func (daemon *Daemon) populateContainerdVersion(ctx context.Context, v *system.V
 		return nil
 	}
 
-	v.Components = append(v.Components, system.ComponentVersion{
+	component := system.ComponentVersion{
 		Name:    "containerd",
 		Version: rv.Version,
-		Details: map[string]string{
-			"GitCommit": rv.Revision,
-		},
-	})
+	}
+	if rv.Revision != "" {
+		component.Details = map[string]string{"GitCommit": rv.Revision}
+	}
+
+	v.Components = append(v.Components, component)
 	return nil
 }
 
