@@ -1,0 +1,80 @@
+on:
+  push:
+    tags:
+      - "api/v*" # Push events to matching api/v*, i.e. api/v1.0, api/v20.15.10
+
+name: API Release
+
+env:
+  GO_VERSION: "1.24.5"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check Signed Tag
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/api/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      stringver: ${{ steps.contentrel.outputs.stringver }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.ref }}
+          path: src/github.com/moby/moby
+
+      - name: Check signature
+        run: |
+          releasever=${{ github.ref }}
+          releasever="${releasever#refs/tags/}"
+          TAGCHECK=$(git tag -v ${releasever} 2>&1 >/dev/null) ||
+          echo "${TAGCHECK}" | grep -q "error" && {
+              echo "::error::tag ${releasever} is not a signed tag. Failing release process."
+              exit 1
+          } || {
+              echo "Tag ${releasever} is signed."
+              exit 0
+          }
+        working-directory: src/github.com/moby/moby
+
+      - name: Release content
+        id: contentrel
+        run: |
+          RELEASEVER=${{ github.ref }}
+          echo "stringver=${RELEASEVER#refs/tags/api/v}" >> $GITHUB_OUTPUT
+          git tag -l ${RELEASEVER#refs/tags/} -n20000 | tail -n +3 | cut -c 5- >release-notes.md
+        working-directory: src/github.com/moby/moby
+
+      - name: Save release notes
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: moby-release-notes
+          path: src/github.com/moby/moby/release-notes.md
+
+  release:
+    name: Create Moby API Release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/api/v')
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [check]
+    steps:
+      - name: Download release notes
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: builds
+      - name: Create Release
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fail_on_unmatched_files: true
+          name: Moby API ${{ needs.check.outputs.stringver }}
+          draft: false
+          make_latest: false
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          body_path: ./builds/moby-release-notes/release-notes.md
