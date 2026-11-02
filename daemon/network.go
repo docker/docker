@@ -109,24 +109,6 @@ func (daemon *Daemon) GetNetworkByID(id string) (*libnetwork.Network, error) {
 	return c.NetworkByID(id)
 }
 
-// GetNetworksByIDPrefix returns a list of networks whose ID partially matches zero or more networks
-func (daemon *Daemon) GetNetworksByIDPrefix(partialID string) []*libnetwork.Network {
-	c := daemon.netController
-	if c == nil {
-		return nil
-	}
-	list := []*libnetwork.Network{}
-	l := func(nw *libnetwork.Network) bool {
-		if strings.HasPrefix(nw.ID(), partialID) {
-			list = append(list, nw)
-		}
-		return false
-	}
-	c.WalkNetworks(l)
-
-	return list
-}
-
 // getAllNetworks returns a list containing all networks
 func (daemon *Daemon) getAllNetworks() []*libnetwork.Network {
 	c := daemon.netController
