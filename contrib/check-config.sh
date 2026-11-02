@@ -34,6 +34,17 @@ kernelMajor="${kernelVersion%%.*}"
 kernelMinor="${kernelVersion#$kernelMajor.}"
 kernelMinor="${kernelMinor%%.*}"
 
+check_cgroup() {
+    sys_fs_cgroup="$(grep -E '\s+/sys/fs/cgroup\s+' /proc/mounts | head -n 1 | awk '{ print $1 }')"
+
+    if [ "$sys_fs_cgroup" != "cgroup2" ]; then
+        echo 1
+        return
+    fi
+    echo 2
+}
+cgroupVersion=$(check_cgroup)
+
 is_set() {
 	zgrep "CONFIG_$1=[y|m]" "$CONFIG" > /dev/null
 }
@@ -212,7 +223,7 @@ fi
 
 check_flags \
 	NAMESPACES NET_NS PID_NS IPC_NS UTS_NS \
-	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG \
+	CGROUPS CGROUP_SCHED CPUSETS MEMCG \
 	KEYS \
 	VETH BRIDGE BRIDGE_NETFILTER \
 	IP_NF_FILTER IP_NF_MANGLE IP_NF_TARGET_MASQUERADE \
@@ -225,6 +236,10 @@ check_flags \
 	IP6_NF_RAW IP6_NF_NAT NF_NAT \
 	POSIX_MQUEUE
 # (POSIX_MQUEUE is required for bind-mounting /dev/mqueue into containers)
+
+if [ "$cgroupVersion" -eq 1 ]; then
+	check_flags CGROUP_FREEZER CGROUP_DEVICE CGROUP_CPUACCT
+fi
 
 if [ "$kernelMajor" -lt 4 ] || ([ "$kernelMajor" -eq 4 ] && [ "$kernelMinor" -lt 8 ]); then
 	check_flags DEVPTS_MULTIPLE_INSTANCES
