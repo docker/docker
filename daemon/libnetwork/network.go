@@ -201,7 +201,7 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 // Network represents a logical connectivity zone that containers may
 // join using the Link method. A network is managed by a specific driver.
 type Network struct {
-	ctrlr *Controller // set when constructed; not mutated afterward.
+	controller *Controller // set when constructed; not mutated afterward.
 
 	// TODO(thaJeztah): determine which fields require synchronization; see https://github.com/moby/moby/pull/54090#discussion_r4474702813
 	name             string
@@ -344,9 +344,9 @@ func (n *Network) New() datastore.KVObject {
 	defer n.mu.Unlock()
 
 	return &Network{
-		ctrlr:   n.ctrlr,
-		drvOnce: &sync.Once{},
-		scope:   n.scope,
+		controller: n.controller,
+		drvOnce:    &sync.Once{},
+		scope:      n.scope,
 	}
 }
 
@@ -954,7 +954,7 @@ func NetworkDeleteOptionRemoveLB(p *networkDeleteParams) {
 }
 
 func (n *Network) driverIsMultihost() bool {
-	_, capabilities, err := n.getController().resolveDriver(n.networkType, true)
+	_, capabilities, err := n.controller.resolveDriver(n.networkType, true)
 	if err != nil {
 		return false
 	}
@@ -962,7 +962,7 @@ func (n *Network) driverIsMultihost() bool {
 }
 
 func (n *Network) driver(load bool) (driverapi.Driver, error) {
-	d, capabilities, err := n.getController().resolveDriver(n.networkType, load)
+	d, capabilities, err := n.controller.resolveDriver(n.networkType, load)
 	if err != nil {
 		return nil, err
 	}
@@ -1000,7 +1000,7 @@ func (n *Network) Delete(options ...NetworkDeleteOption) error {
 //     remove the network no matter what
 func (n *Network) delete(force bool, rmLBEndpoint bool) error {
 	n.mu.Lock()
-	c := n.ctrlr
+	c := n.controller
 	name := n.name
 	id := n.id
 	n.mu.Unlock()
@@ -1174,8 +1174,8 @@ func (n *Network) CreateEndpoint(ctx context.Context, name string, options ...En
 		return nil, types.ForbiddenErrorf("endpoint with name %s already exists in network %s", name, n.Name())
 	}
 
-	n.ctrlr.networkLocker.Lock(n.id)
-	defer n.ctrlr.networkLocker.Unlock(n.id) //nolint:errcheck
+	n.controller.networkLocker.Lock(n.id)
+	defer n.controller.networkLocker.Unlock(n.id) //nolint:errcheck
 
 	return n.createEndpoint(ctx, name, options...)
 }
@@ -1210,7 +1210,7 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 		}
 	}
 
-	ipam, capability, err := n.getController().getIPAMDriver(n.ipamType)
+	ipam, capability, err := n.controller.getIPAMDriver(n.ipamType)
 	if err != nil {
 		return nil, err
 	}
@@ -1247,12 +1247,12 @@ func (n *Network) createEndpoint(ctx context.Context, name string, options ...En
 
 	// We should perform storeEndpoint call right after addEndpoint
 	// in order to have iface properly configured
-	if err = n.getController().storeEndpoint(ctx, ep); err != nil {
+	if err = n.controller.storeEndpoint(ctx, ep); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			if e := n.getController().deleteStoredEndpoint(ep); e != nil {
+			if e := n.controller.deleteStoredEndpoint(ep); e != nil {
 				log.G(ctx).Warnf("error rolling back endpoint %s from store: %v", name, e)
 			}
 		}
@@ -1390,7 +1390,7 @@ func (n *Network) addSvcRecords(eID, name, serviceID string, epIPv4, epIPv6 net.
 	networkID := n.ID()
 	log.G(context.TODO()).Debugf("%s (%.7s).addSvcRecords(%s, %s, %s, %t) %s sid:%s", eID, networkID, name, epIPv4, epIPv6, ipMapUpdate, method, serviceID)
 
-	c := n.getController()
+	c := n.controller
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -1426,7 +1426,7 @@ func (n *Network) deleteSvcRecords(eID, name, serviceID string, epIPv4, epIPv6 n
 	networkID := n.ID()
 	log.G(context.TODO()).Debugf("%s (%.7s).deleteSvcRecords(%s, %s, %s, %t) %s sid:%s ", eID, networkID, name, epIPv4, epIPv6, ipMapUpdate, method, serviceID)
 
-	c := n.getController()
+	c := n.controller
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -1452,16 +1452,12 @@ func (n *Network) deleteSvcRecords(eID, name, serviceID string, epIPv4, epIPv6 n
 	}
 }
 
-func (n *Network) getController() *Controller {
-	return n.ctrlr
-}
-
 func (n *Network) ipamAllocate() (retErr error) {
 	if n.hasSpecialDriver() {
 		return nil
 	}
 
-	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+	ipam, _, err := n.controller.getIPAMDriver(n.ipamType)
 	if err != nil {
 		return err
 	}
@@ -1629,7 +1625,7 @@ func (n *Network) ipamRelease() {
 	if n.hasSpecialDriver() {
 		return
 	}
-	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+	ipam, _, err := n.controller.getIPAMDriver(n.ipamType)
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to retrieve ipam driver to release address pool(s) on delete of network %s (%s): %v", n.Name(), n.ID(), err)
 		return
@@ -1720,7 +1716,7 @@ func (n *Network) getIPData(ipVer int) []driverapi.IPAMData {
 }
 
 func (n *Network) deriveAddressSpace() (string, error) {
-	ipam, _ := n.getController().ipamRegistry.IPAM(n.ipamType)
+	ipam, _ := n.controller.ipamRegistry.IPAM(n.ipamType)
 	if ipam == nil {
 		return "", types.NotFoundErrorf("failed to get default address space: unknown ipam type %q", n.ipamType)
 	}
@@ -1743,7 +1739,7 @@ func (n *Network) Peers() []networkdb.PeerInfo {
 		return []networkdb.PeerInfo{}
 	}
 
-	a := n.getController().getAgent()
+	a := n.controller.getAgent()
 	if a == nil {
 		return []networkdb.PeerInfo{}
 	}
@@ -1910,7 +1906,7 @@ func (n *Network) hasLoadBalancerEndpoint() bool {
 // there are no addresses of ipType. If the name is not found, the bool return
 // will be false.
 func (n *Network) ResolveName(ctx context.Context, req string, ipType types.IPFamily) ([]net.IP, bool) {
-	c := n.getController()
+	c := n.controller
 	networkID := n.ID()
 
 	_, span := otel.Tracer("").Start(ctx, "Network.ResolveName", trace.WithAttributes(
@@ -1954,7 +1950,7 @@ func (n *Network) ResolveName(ctx context.Context, req string, ipType types.IPFa
 
 func (n *Network) HandleQueryResp(name string, ip net.IP) {
 	networkID := n.ID()
-	c := n.getController()
+	c := n.controller
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	sr, ok := c.svcRecords[networkID]
@@ -1974,7 +1970,7 @@ func (n *Network) HandleQueryResp(name string, ip net.IP) {
 
 func (n *Network) ResolveIP(_ context.Context, ip string) string {
 	networkID := n.ID()
-	c := n.getController()
+	c := n.controller
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	sr, ok := c.svcRecords[networkID]
@@ -2003,7 +1999,7 @@ func (n *Network) ResolveIP(_ context.Context, ip string) string {
 }
 
 func (n *Network) ResolveService(ctx context.Context, name string) ([]*net.SRV, []net.IP) {
-	c := n.getController()
+	c := n.controller
 
 	log.G(ctx).Debugf("Service name To resolve: %v", name)
 
@@ -2097,13 +2093,13 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 	if n.ingress {
 		sbOptions = append(sbOptions, OptionIngress())
 	}
-	sb, err := n.ctrlr.NewSandbox(context.TODO(), sandboxName, sbOptions...)
+	sb, err := n.controller.NewSandbox(context.TODO(), sandboxName, sbOptions...)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if retErr != nil {
-			if e := n.ctrlr.SandboxDestroy(context.WithoutCancel(context.TODO()), sandboxName); e != nil {
+			if e := n.controller.SandboxDestroy(context.WithoutCancel(context.TODO()), sandboxName); e != nil {
 				log.G(context.TODO()).Warnf("could not delete sandbox %s on failure on failure (%v): %v", sandboxName, retErr, e)
 			}
 		}
@@ -2136,7 +2132,7 @@ func (n *Network) createLoadBalancerSandbox() (retErr error) {
 
 func (n *Network) deleteLoadBalancerSandbox() error {
 	n.mu.Lock()
-	c := n.ctrlr
+	c := n.controller
 	name := n.name
 	n.mu.Unlock()
 
@@ -2180,7 +2176,7 @@ func (n *Network) IPAMStatus(ctx context.Context) (network.IPAMStatus, error) {
 		return status, nil
 	}
 
-	ipamdriver, _, err := n.getController().getIPAMDriver(n.ipamType)
+	ipamdriver, _, err := n.controller.getIPAMDriver(n.ipamType)
 	if err != nil {
 		return status, err
 	}

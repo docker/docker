@@ -437,7 +437,7 @@ func (ep *Endpoint) getNetworkFromStore() (*Network, error) {
 		return nil, fmt.Errorf("invalid network object in endpoint %s", ep.Name())
 	}
 
-	return ep.network.getController().getNetworkFromStore(ep.network.id)
+	return ep.network.controller.getNetworkFromStore(ep.network.id)
 }
 
 // Join joins the sandbox to the endpoint and populates into the sandbox
@@ -566,7 +566,7 @@ func (ep *Endpoint) sbJoin(ctx context.Context, sb *Sandbox, options ...Endpoint
 		}
 	}
 
-	if err := n.getController().storeEndpoint(ctx, ep); err != nil {
+	if err := n.controller.storeEndpoint(ctx, ep); err != nil {
 		return err
 	}
 	return nil
@@ -709,7 +709,7 @@ func (ep *Endpoint) rename(name string) error {
 	ep.mu.Unlock()
 
 	// Update the store with the updated name
-	if err := ep.getNetwork().getController().storeEndpoint(context.TODO(), ep); err != nil {
+	if err := ep.getNetwork().controller.storeEndpoint(context.TODO(), ep); err != nil {
 		return err
 	}
 
@@ -718,7 +718,7 @@ func (ep *Endpoint) rename(name string) error {
 
 func (ep *Endpoint) UpdateDNSNames(dnsNames []string) error {
 	nw := ep.getNetwork()
-	c := nw.getController()
+	c := nw.controller
 	sb, ok := ep.getSandbox()
 	if !ok {
 		log.G(context.TODO()).WithFields(log.Fields{
@@ -886,7 +886,7 @@ func (ep *Endpoint) sbLeave(ctx context.Context, sb *Sandbox, n *Network, force 
 	// spurious logs when cleaning up the sandbox when the daemon
 	// ungracefully exits and restarts before completing sandbox
 	// detach but after store has been updated.
-	if err := n.getController().storeEndpoint(ctx, ep); err != nil {
+	if err := n.controller.storeEndpoint(ctx, ep); err != nil {
 		errs = append(errs, fmt.Errorf("failed to store endpoint: %w", err))
 		// Do not return early and continue with deleting driver info from the
 		// cluster (NetworkDB) so that remote nodes learn about the endpoint
@@ -970,7 +970,7 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 	sbid := ep.sandboxID
 	ep.mu.Unlock()
 
-	if sb, _ := n.getController().SandboxByID(sbid); sb != nil {
+	if sb, _ := n.controller.SandboxByID(sbid); sb != nil {
 		if !force {
 			return &ActiveContainerError{name: name, id: epid}
 		}
@@ -986,20 +986,20 @@ func (ep *Endpoint) Delete(ctx context.Context, force bool) error {
 		}()
 	}
 
-	if err = n.getController().deleteStoredEndpoint(ep); err != nil {
+	if err = n.controller.deleteStoredEndpoint(ep); err != nil {
 		return err
 	}
 
 	defer func() {
 		if err != nil && !force {
 			ep.dbExists = false
-			if e := n.getController().storeEndpoint(context.WithoutCancel(ctx), ep); e != nil {
+			if e := n.controller.storeEndpoint(context.WithoutCancel(ctx), ep); e != nil {
 				log.G(ctx).Warnf("failed to recreate endpoint in store %s : %v", name, e)
 			}
 		}
 	}()
 
-	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
+	if !n.controller.isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
 		n.updateSvcRecord(context.WithoutCancel(ctx), ep, false)
 	}
 
@@ -1042,7 +1042,7 @@ func (ep *Endpoint) deleteEndpoint(force bool) error {
 }
 
 func (ep *Endpoint) getSandbox() (*Sandbox, bool) {
-	c := ep.network.getController()
+	c := ep.network.controller
 	ep.mu.Lock()
 	sid := ep.sandboxID
 	ep.mu.Unlock()
@@ -1197,7 +1197,7 @@ func CreateOptionLoadBalancer() EndpointOption {
 func JoinOptionPriority(prio int) EndpointOption {
 	return func(ep *Endpoint) {
 		// ep lock already acquired
-		c := ep.network.getController()
+		c := ep.network.controller
 		c.mu.Lock()
 		sb, ok := c.sandboxes[ep.sandboxID]
 		c.mu.Unlock()
@@ -1303,7 +1303,7 @@ func (ep *Endpoint) releaseIPAddresses() {
 
 	log.G(context.TODO()).Debugf("Releasing addresses for endpoint %s's interface on network %s", ep.Name(), n.Name())
 
-	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+	ipam, _, err := n.controller.getIPAMDriver(n.ipamType)
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to retrieve ipam driver to release interface address on delete of endpoint %s (%s): %v", ep.Name(), ep.ID(), err)
 		return
@@ -1336,7 +1336,7 @@ func (ep *Endpoint) releaseIPv6Address(ctx context.Context) error {
 
 	log.G(ctx).Debug("Releasing IPv6 address for endpoint")
 
-	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+	ipam, _, err := n.controller.getIPAMDriver(n.ipamType)
 	if err != nil {
 		log.G(ctx).WithError(err).Warn("Failed to retrieve ipam driver to release IPv6 address")
 		return err
@@ -1362,7 +1362,7 @@ func (ep *Endpoint) releaseIPv6Address(ctx context.Context) error {
 		}
 	}
 
-	if err := ep.network.getController().updateToStore(ctx, ep); err != nil {
+	if err := ep.network.controller.updateToStore(ctx, ep); err != nil {
 		return err
 	}
 

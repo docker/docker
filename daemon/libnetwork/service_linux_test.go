@@ -143,7 +143,7 @@ func TestAddIngressPortsRollsBackEveryReference(t *testing.T) {
 	// An endpoint that isn't joined to a sandbox can't publish anything, so
 	// AddEphemeralPorts fails before it reaches a driver - no root, no live
 	// network, no host state.
-	gwEP := &Endpoint{network: &Network{ctrlr: &Controller{}}}
+	gwEP := &Endpoint{network: &Network{controller: &Controller{}}}
 	err = addIngressPorts(gwEP, []*PortConfig{shared, fresh})
 	assert.Check(t, is.ErrorContains(err, "failed to program ingress ports"))
 
