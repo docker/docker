@@ -13,7 +13,7 @@ type wobble struct {
 }
 
 // Fooer is an empty interface used for tests.
-type Fooer interface{} //nolint:revive // any Alias is not supported yet
+type Fooer interface{} //nolint:revive // keep it for testing
 
 // Fooer2 is an interface used for tests.
 type Fooer2 interface {
@@ -92,3 +92,6 @@ type FooerWithMultilineAnnotation interface {
 	// pluginrpc-gen:timeout-type=long
 	WithMultilineAnnotation() (err error)
 }
+
+// FooAny is an empty interface used for tests.
+type FooAny any

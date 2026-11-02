@@ -99,52 +99,57 @@ func Parse(filePath string, objName string) (*ParsedPkg, error) {
 	if !ok {
 		return nil, errUnexpectedType{"*ast.TypeSpec", obj.Decl}
 	}
-	iface, ok := spec.Type.(*ast.InterfaceType)
-	if !ok {
-		return nil, errUnexpectedType{"*ast.InterfaceType", spec.Type}
-	}
 
-	p.Functions, err = parseInterface(iface)
-	if err != nil {
-		return nil, err
-	}
+	switch t := spec.Type.(type) {
+	case *ast.Ident:
+		if t.Name != "any" {
+			return nil, fmt.Errorf("expected *ast.Ident to be 'any', got: %s", t.Name)
+		}
+	case *ast.InterfaceType:
+		p.Functions, err = parseInterface(t)
+		if err != nil {
+			return nil, err
+		}
 
-	// figure out what imports will be needed
-	imports := make(map[string]importSpec)
-	for _, f := range p.Functions {
-		args := append(f.Args, f.Returns...)
-		for _, arg := range args {
-			if arg.PackageSelector == "" {
-				continue
-			}
+		// figure out what imports will be needed
+		imports := make(map[string]importSpec)
+		for _, f := range p.Functions {
+			args := append(f.Args, f.Returns...)
+			for _, arg := range args {
+				if arg.PackageSelector == "" {
+					continue
+				}
 
-			for _, i := range pkg.Imports {
-				if i.Name != nil {
-					if i.Name.Name != arg.PackageSelector {
-						continue
+				for _, i := range pkg.Imports {
+					if i.Name != nil {
+						if i.Name.Name != arg.PackageSelector {
+							continue
+						}
+						imports[i.Path.Value] = importSpec{Name: arg.PackageSelector, Path: i.Path.Value}
+						break
 					}
-					imports[i.Path.Value] = importSpec{Name: arg.PackageSelector, Path: i.Path.Value}
-					break
-				}
 
-				_, name := path.Split(i.Path.Value)
-				splitName := strings.Split(name, "-")
-				if len(splitName) > 1 {
-					name = splitName[len(splitName)-1]
-				}
-				// import paths have quotes already added in, so need to remove them for name comparison
-				name = strings.TrimPrefix(name, `"`)
-				name = strings.TrimSuffix(name, `"`)
-				if name == arg.PackageSelector {
-					imports[i.Path.Value] = importSpec{Path: i.Path.Value}
-					break
+					_, name := path.Split(i.Path.Value)
+					splitName := strings.Split(name, "-")
+					if len(splitName) > 1 {
+						name = splitName[len(splitName)-1]
+					}
+					// import paths have quotes already added in, so need to remove them for name comparison
+					name = strings.TrimPrefix(name, `"`)
+					name = strings.TrimSuffix(name, `"`)
+					if name == arg.PackageSelector {
+						imports[i.Path.Value] = importSpec{Path: i.Path.Value}
+						break
+					}
 				}
 			}
 		}
-	}
 
-	for _, is := range imports {
-		p.Imports = append(p.Imports, is)
+		for _, is := range imports {
+			p.Imports = append(p.Imports, is)
+		}
+	default:
+		return nil, errUnexpectedType{"*ast.Ident or *ast.InterfaceType", spec.Type}
 	}
 
 	return p, nil

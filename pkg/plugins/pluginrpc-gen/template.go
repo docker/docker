@@ -107,7 +107,7 @@ const (
 )
 
 type client interface{
-	CallWithOptions(serviceMethod string, args interface{}, ret interface{}, opts ...func(*plugins.RequestOpts)) error
+	CallWithOptions(serviceMethod string, args, ret any, opts ...func(*plugins.RequestOpts)) error
 }
 
 type {{ .InterfaceType }}Proxy struct {

@@ -246,6 +246,16 @@ func TestParseWithMultilineAnnotation(t *testing.T) {
 	assertName(t, "// Foo is a method that does something", f.Doc)
 }
 
+func TestParseEmptyAny(t *testing.T) {
+	pkg, err := Parse(testFixture, "FooAny")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assertName(t, "foo", pkg.Name)
+	assertNum(t, 0, len(pkg.Functions))
+}
+
 func assertName(t *testing.T, expected, actual string) {
 	if expected != actual {
 		fatalOut(t, fmt.Sprintf("expected name to be %#q, got: %s", expected, actual))
