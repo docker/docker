@@ -18,6 +18,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/versions"
 	"github.com/moby/moby/v2/daemon/pkg/opts"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
+	"github.com/moby/moby/v2/daemon/config/extensions"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"golang.org/x/text/encoding"
@@ -211,10 +212,10 @@ type CommonConfig struct {
 	Labels                []string         `json:"labels,omitempty"`
 	NetworkDiagnosticPort int              `json:"network-diagnostic-port,omitempty"`
 	Pidfile               string           `json:"pidfile,omitempty"`
-	Root                  string           `json:"data-root,omitempty"`
-	ExecRoot              string           `json:"exec-root,omitempty"`
-	Extensions            ExtensionsConfig `json:"extensions,omitempty"`
-	SocketGroup           string           `json:"group,omitempty"`
+	Root                  string              `json:"data-root,omitempty"`
+	ExecRoot              string              `json:"exec-root,omitempty"`
+	Extensions            extensions.Config   `json:"extensions,omitempty"`
+	SocketGroup           string              `json:"group,omitempty"`
 
 	// Proxies holds the proxies that are configured for the daemon.
 	Proxies `json:"proxies"`
