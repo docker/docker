@@ -3,8 +3,10 @@ package ca
 import (
 	"context"
 
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -40,10 +42,18 @@ func isForwardedRequest(ctx context.Context) bool {
 	return md[certForwardedKey][0] == "true"
 }
 
-// WithMetadataForwardTLSInfo reads certificate from context and returns context where
-// ForwardCert is set based on original certificate.
+// WithMetadataForwardTLSInfo adds the client's TLS information to the outgoing
+// gRPC context, replacing any TLS information already there and leaving the
+// rest of the outgoing metadata alone.
+//
+// A request which arrived already forwarded is refused. Forwarding it again
+// would present the node which forwarded it as the client.
 func WithMetadataForwardTLSInfo(ctx context.Context) (context.Context, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
+	if isForwardedRequest(ctx) {
+		return ctx, status.Errorf(codes.ResourceExhausted, "more than one redirect to leader: request was already forwarded")
+	}
+
+	md, ok := metadata.FromOutgoingContext(ctx)
 	if !ok {
 		md = metadata.MD{}
 	}
@@ -72,6 +82,8 @@ func WithMetadataForwardTLSInfo(ctx context.Context) (context.Context, error) {
 	peer, ok := peer.FromContext(ctx)
 	if ok {
 		md[remoteAddrKey] = []string{peer.Addr.String()}
+	} else {
+		delete(md, remoteAddrKey)
 	}
 
 	return metadata.NewOutgoingContext(ctx, md), nil

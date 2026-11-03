@@ -491,8 +491,8 @@ github.com/moby/profiles/seccomp v0.3.0 h1:1vJ94fIWXz206DLWq7ddPD6qLP82N7351JI/9
 github.com/moby/profiles/seccomp v0.3.0/go.mod h1:H3JkVP4MWq+Q87sSWRUEdiZvK52WErUbcxr+mJHKVoM=
 github.com/moby/pubsub v1.0.0 h1:jkp/imWsmJz2f6LyFsk7EkVeN2HxR/HTTOY8kHrsxfA=
 github.com/moby/pubsub v1.0.0/go.mod h1:bXSO+3h5MNXXCaEG+6/NlAIk7MMZbySZlnB+cUQhKKc=
-github.com/moby/swarmkit/v2 v2.1.3-0.20261102175146-49925db4331f h1:9aNKBbp9jQCn57EtaEjdVdu+qfjS5oJwv/1LMIy+IWo=
-github.com/moby/swarmkit/v2 v2.1.3-0.20261102175146-49925db4331f/go.mod h1:KhkxT93Hm4wHoNUPJ4JRD384pS7OODFGzJWoDRj9bLE=
+github.com/moby/swarmkit/v2 v2.1.3 h1:UcwtwkIRjr75qSgUWCTIuzKUzAXlidxsiqVMnyxSF1w=
+github.com/moby/swarmkit/v2 v2.1.3/go.mod h1:KhkxT93Hm4wHoNUPJ4JRD384pS7OODFGzJWoDRj9bLE=
 github.com/moby/sys/atomicwriter v0.1.0 h1:kw5D/EqkBwsBFi0ss9v1VG3wIkVhzGvLklJ+w3A14Sw=
 github.com/moby/sys/atomicwriter v0.1.0/go.mod h1:Ul8oqv2ZMNHOceF643P6FKPXeCmYtlQMvpizfsSoaWs=
 github.com/moby/sys/mount v0.3.5 h1:eS3fsZTjHaBihwjp4/+5Z3jxqLXYsbwxqpVSfFv3M00=
