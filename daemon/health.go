@@ -120,6 +120,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 		return nil, fmt.Errorf("timed out starting health check for container %s", cntr.ID)
 	case err := <-execErr:
 		if err != nil {
+			d.unregisterExecCommand(cntr, execConfig)
 			return nil, err
 		}
 	case <-execConfig.Started:
