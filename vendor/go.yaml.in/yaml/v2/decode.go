@@ -295,7 +295,9 @@ func (d *decoder) callUnmarshaler(n *node, u Unmarshaler) (good bool) {
 //
 // If n holds a null value, prepare returns before doing anything.
 func (d *decoder) prepare(n *node, out reflect.Value) (newout reflect.Value, unmarshaled, good bool) {
-	if n.tag == yaml_NULL_TAG || n.kind == scalarNode && n.tag == "" && (n.value == "null" || n.value == "~" || n.value == "" && n.implicit) {
+	if n.tag == yaml_NULL_TAG ||
+		n.kind == scalarNode && n.tag == "" && n.implicit &&
+			(n.value == "null" || n.value == "~" || n.value == "") {
 		return out, false, false
 	}
 	again := true
