@@ -13,7 +13,7 @@ import (
 
 func rewriteMetadata(p string, stat *types.Stat) error {
 	for key, value := range stat.Xattrs {
-		sysx.Setxattr(p, key, value, 0)
+		sysx.LSetxattr(p, key, value, 0)
 	}
 
 	if err := os.Lchown(p, int(stat.Uid), int(stat.Gid)); err != nil {
