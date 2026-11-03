@@ -186,21 +186,13 @@ func ambientCapabilities(hostConfig *containertypes.HostConfig, user specs.User,
 		return nil, nil
 	}
 
-	capAdd, err := caps.NormalizeLegacyCapabilities(hostConfig.CapAdd)
-	if err != nil {
-		return nil, err
-	}
-	if slices.Contains(capAdd, "ALL") {
-		return slices.Clone(allowed), nil
-	}
-
-	capDrop, err := caps.NormalizeLegacyCapabilities(hostConfig.CapDrop)
+	candidates, err := caps.TweakCapabilities(nil, hostConfig.CapAdd, hostConfig.CapDrop, false)
 	if err != nil {
 		return nil, err
 	}
 	var ambient []string
-	for _, cap := range capAdd {
-		if slices.Contains(capDrop, cap) || !slices.Contains(allowed, cap) || slices.Contains(ambient, cap) {
+	for _, cap := range candidates {
+		if !slices.Contains(allowed, cap) || slices.Contains(ambient, cap) {
 			continue
 		}
 		ambient = append(ambient, cap)
