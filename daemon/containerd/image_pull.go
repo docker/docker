@@ -12,6 +12,7 @@ import (
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/diff"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
@@ -225,16 +226,21 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	// TODO(thaJeztah): we may have to pass the snapshotter to use if the pull is part of a "docker run" (container create -> pull image if missing). See https://github.com/moby/moby/issues/45273
 	opts = append(opts, containerd.WithPullSnapshotter(i.snapshotter))
 
+	// Ensure layer unpack syncs filesystem changes to storage to prevent
+	// write-back loss resulting in 0-byte corrupted snapshot files on unexpected power loss.
+	unpackOpts := []containerd.UnpackOpt{
+		containerd.WithUnpackApplyOpts(diff.WithSyncFs(true)),
+	}
+
 	// Fetch missing layer content even when snapshots already exist,
 	// so the pulled image can also be saved or pushed.
 	// Lazy pulls skip this to keep the download savings of remote
 	// snapshotters, at the cost of images that may lack layer blobs.
 	// See https://github.com/moby/moby/issues/49784.
 	if !i.lazyPull(i.snapshotter) {
-		opts = append(opts, containerd.WithUnpackOpts([]containerd.UnpackOpt{
-			containerd.WithUnpackFetchAllContent(),
-		}))
+		unpackOpts = append(unpackOpts, containerd.WithUnpackFetchAllContent())
 	}
+	opts = append(opts, containerd.WithUnpackOpts(unpackOpts))
 
 	// AppendInfoHandlerWrapper will annotate the image with basic information like manifest and layer digests as labels;
 	// this information is used to enable remote snapshotters like nydus and stargz to query a registry.
