@@ -230,6 +230,10 @@ func TestMerge(t *testing.T) {
 			"/test1": {},
 			"/test2": {},
 		},
+		Labels: map[string]string{
+			"com.docker.foo": "bar",
+			"my-label":       "my-value",
+		},
 	}
 
 	configUser := &containertypes.Config{
@@ -243,7 +247,7 @@ func TestMerge(t *testing.T) {
 		},
 	}
 
-	if err := merge(configUser, configImage); err != nil {
+	if err := merge(configUser, configImage, mergeOptions{keepReservedLabels: true}); err != nil {
 		t.Error(err)
 	}
 
@@ -273,24 +277,34 @@ func TestMerge(t *testing.T) {
 		}
 	}
 
+	assert.DeepEqual(t, configUser.Labels, configImage.Labels)
+
 	configImage2 := &containertypes.Config{
 		ExposedPorts: map[network.Port]struct{}{
 			network.MustParsePort("0/tcp"): {},
 		},
+		Labels: map[string]string{
+			"com.docker.foo": "bar",
+			"my-label":       "my-value",
+		},
+	}
+	configUser2 := &containertypes.Config{
+		ExposedPorts: portsUser,
 	}
 
-	if err := merge(configUser, configImage2); err != nil {
+	if err := merge(configUser2, configImage2, mergeOptions{}); err != nil {
 		t.Error(err)
 	}
 
-	if len(configUser.ExposedPorts) != 4 {
+	if len(configUser2.ExposedPorts) != 4 {
 		t.Fatalf("Expected 4 ExposedPorts, 0000, 1111, 2222 and 3333, found %d", len(configUser.ExposedPorts))
 	}
-	for portSpecs := range configUser.ExposedPorts {
+	for portSpecs := range configUser2.ExposedPorts {
 		if portSpecs.Num() != 0 && portSpecs.Num() != 1111 && portSpecs.Num() != 2222 && portSpecs.Num() != 3333 {
 			t.Fatalf("Expected %d or %d or %d or %d, found %d", 0, 1111, 2222, 3333, portSpecs)
 		}
 	}
+	assert.DeepEqual(t, configUser2.Labels, map[string]string{"my-label": "my-value"})
 }
 
 func TestValidateContainerIsolation(t *testing.T) {
