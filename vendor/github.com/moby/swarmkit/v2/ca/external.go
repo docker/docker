@@ -20,7 +20,6 @@ import (
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/moby/swarmkit/v2/log"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context/ctxhttp"
 )
 
 const (
@@ -184,11 +183,17 @@ func (eca *ExternalCA) CrossSignRootCA(ctx context.Context, rca RootCA) ([]byte,
 }
 
 func makeExternalSignRequest(ctx context.Context, client *http.Client, url string, csrJSON []byte) (cert []byte, err error) {
-	resp, err := ctxhttp.Post(ctx, client, url, "application/json", bytes.NewReader(csrJSON))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(csrJSON))
+	if err != nil {
+		return nil, recoverableErr{err: errors.Wrap(err, "unable to create certificate signing request")}
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, recoverableErr{err: errors.Wrap(err, "unable to perform certificate signing request")}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	b := io.LimitReader(resp.Body, CertificateMaxSize)
 	body, err := io.ReadAll(b)
