@@ -98,7 +98,9 @@ func (v *ListAccountRolesOutput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.NextToken != nil {
 		s.WriteString(schemas.ListAccountRolesResponse_nextToken, *v.NextToken)
 	}
-	serializeRoleListType(s, schemas.ListAccountRolesResponse_roleList, v.RoleList)
+	if v.RoleList != nil {
+		serializeRoleListType(s, schemas.ListAccountRolesResponse_roleList, v.RoleList)
+	}
 }
 func (v *ListAccountRolesOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.ListAccountRolesResponse, func(s *smithy.Schema) error {

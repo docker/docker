@@ -222,7 +222,9 @@ func (v *PutDeliverySourceInput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *PutDeliverySourceInput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeDeliverySourceConfiguration(s, schemas.PutDeliverySourceRequest_deliverySourceConfiguration, v.DeliverySourceConfiguration)
+	if v.DeliverySourceConfiguration != nil {
+		serializeDeliverySourceConfiguration(s, schemas.PutDeliverySourceRequest_deliverySourceConfiguration, v.DeliverySourceConfiguration)
+	}
 	if v.LogType != nil {
 		s.WriteString(schemas.PutDeliverySourceRequest_logType, *v.LogType)
 	}
@@ -232,7 +234,9 @@ func (v *PutDeliverySourceInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.ResourceArn != nil {
 		s.WriteString(schemas.PutDeliverySourceRequest_resourceArn, *v.ResourceArn)
 	}
-	serializeTags(s, schemas.PutDeliverySourceRequest_tags, v.Tags)
+	if v.Tags != nil {
+		serializeTags(s, schemas.PutDeliverySourceRequest_tags, v.Tags)
+	}
 }
 
 type PutDeliverySourceOutput struct {

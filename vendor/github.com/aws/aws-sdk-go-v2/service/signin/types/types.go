@@ -259,7 +259,9 @@ func (v *PermissionStatementSummary) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *PermissionStatementSummary) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeConditionBlock(s, schemas.PermissionStatementSummary_condition, v.Condition)
+	if v.Condition != nil {
+		serializeConditionBlock(s, schemas.PermissionStatementSummary_condition, v.Condition)
+	}
 	if v.Sid != nil {
 		s.WriteString(schemas.PermissionStatementSummary_sid, *v.Sid)
 	}
@@ -305,12 +307,18 @@ func (v *PolicyStatement) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *PolicyStatement) SerializeMembers(s smithy.ShapeSerializer) {
-	serializePolicyActions(s, schemas.PolicyStatement_action, v.Action)
-	serializeConditionBlock(s, schemas.PolicyStatement_condition, v.Condition)
+	if v.Action != nil {
+		serializePolicyActions(s, schemas.PolicyStatement_action, v.Action)
+	}
+	if v.Condition != nil {
+		serializeConditionBlock(s, schemas.PolicyStatement_condition, v.Condition)
+	}
 	if v.Effect != nil {
 		s.WriteString(schemas.PolicyStatement_effect, *v.Effect)
 	}
-	serializePrincipal(s, schemas.PolicyStatement_principal, v.Principal)
+	if v.Principal != nil {
+		serializePrincipal(s, schemas.PolicyStatement_principal, v.Principal)
+	}
 	if v.Resource != nil {
 		s.WriteString(schemas.PolicyStatement_resource, *v.Resource)
 	}
@@ -354,7 +362,9 @@ func (v *SigninResourceBasedPolicy) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *SigninResourceBasedPolicy) SerializeMembers(s smithy.ShapeSerializer) {
-	serializePolicyStatements(s, schemas.SigninResourceBasedPolicy_statement, v.Statement)
+	if v.Statement != nil {
+		serializePolicyStatements(s, schemas.SigninResourceBasedPolicy_statement, v.Statement)
+	}
 	if v.Version != nil {
 		s.WriteString(schemas.SigninResourceBasedPolicy_version, *v.Version)
 	}

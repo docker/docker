@@ -66,15 +66,21 @@ func (v *DescribeConfigurationTemplatesInput) Serialize(s smithy.ShapeSerializer
 }
 
 func (v *DescribeConfigurationTemplatesInput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeDeliveryDestinationTypes(s, schemas.DescribeConfigurationTemplatesRequest_deliveryDestinationTypes, v.DeliveryDestinationTypes)
+	if v.DeliveryDestinationTypes != nil {
+		serializeDeliveryDestinationTypes(s, schemas.DescribeConfigurationTemplatesRequest_deliveryDestinationTypes, v.DeliveryDestinationTypes)
+	}
 	if v.Limit != nil {
 		s.WriteInt32(schemas.DescribeConfigurationTemplatesRequest_limit, *v.Limit)
 	}
-	serializeLogTypes(s, schemas.DescribeConfigurationTemplatesRequest_logTypes, v.LogTypes)
+	if v.LogTypes != nil {
+		serializeLogTypes(s, schemas.DescribeConfigurationTemplatesRequest_logTypes, v.LogTypes)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeConfigurationTemplatesRequest_nextToken, *v.NextToken)
 	}
-	serializeResourceTypes(s, schemas.DescribeConfigurationTemplatesRequest_resourceTypes, v.ResourceTypes)
+	if v.ResourceTypes != nil {
+		serializeResourceTypes(s, schemas.DescribeConfigurationTemplatesRequest_resourceTypes, v.ResourceTypes)
+	}
 	if v.Service != nil {
 		s.WriteString(schemas.DescribeConfigurationTemplatesRequest_service, *v.Service)
 	}
@@ -102,7 +108,9 @@ func (v *DescribeConfigurationTemplatesOutput) Serialize(s smithy.ShapeSerialize
 }
 
 func (v *DescribeConfigurationTemplatesOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeConfigurationTemplates(s, schemas.DescribeConfigurationTemplatesResponse_configurationTemplates, v.ConfigurationTemplates)
+	if v.ConfigurationTemplates != nil {
+		serializeConfigurationTemplates(s, schemas.DescribeConfigurationTemplatesResponse_configurationTemplates, v.ConfigurationTemplates)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeConfigurationTemplatesResponse_nextToken, *v.NextToken)
 	}

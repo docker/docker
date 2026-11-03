@@ -56,7 +56,9 @@ func (v *TestMetricFilterInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.FilterPattern != nil {
 		s.WriteString(schemas.TestMetricFilterRequest_filterPattern, *v.FilterPattern)
 	}
-	serializeTestEventMessages(s, schemas.TestMetricFilterRequest_logEventMessages, v.LogEventMessages)
+	if v.LogEventMessages != nil {
+		serializeTestEventMessages(s, schemas.TestMetricFilterRequest_logEventMessages, v.LogEventMessages)
+	}
 }
 
 type TestMetricFilterOutput struct {
@@ -77,7 +79,9 @@ func (v *TestMetricFilterOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *TestMetricFilterOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeMetricFilterMatches(s, schemas.TestMetricFilterResponse_matches, v.Matches)
+	if v.Matches != nil {
+		serializeMetricFilterMatches(s, schemas.TestMetricFilterResponse_matches, v.Matches)
+	}
 }
 func (v *TestMetricFilterOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.TestMetricFilterResponse, func(s *smithy.Schema) error {

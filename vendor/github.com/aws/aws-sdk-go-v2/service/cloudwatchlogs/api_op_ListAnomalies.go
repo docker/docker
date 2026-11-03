@@ -92,7 +92,9 @@ func (v *ListAnomaliesOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *ListAnomaliesOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeAnomalies(s, schemas.ListAnomaliesResponse_anomalies, v.Anomalies)
+	if v.Anomalies != nil {
+		serializeAnomalies(s, schemas.ListAnomaliesResponse_anomalies, v.Anomalies)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.ListAnomaliesResponse_nextToken, *v.NextToken)
 	}

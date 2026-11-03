@@ -130,7 +130,9 @@ func (v *CreateScheduledQueryInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.ExecutionRoleArn != nil {
 		s.WriteString(schemas.CreateScheduledQueryRequest_executionRoleArn, *v.ExecutionRoleArn)
 	}
-	serializeScheduledQueryLogGroupIdentifiers(s, schemas.CreateScheduledQueryRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	if v.LogGroupIdentifiers != nil {
+		serializeScheduledQueryLogGroupIdentifiers(s, schemas.CreateScheduledQueryRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	}
 	if v.Name != nil {
 		s.WriteString(schemas.CreateScheduledQueryRequest_name, *v.Name)
 	}
@@ -155,7 +157,9 @@ func (v *CreateScheduledQueryInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.State != "" {
 		s.WriteString(schemas.CreateScheduledQueryRequest_state, string(v.State))
 	}
-	serializeTags(s, schemas.CreateScheduledQueryRequest_tags, v.Tags)
+	if v.Tags != nil {
+		serializeTags(s, schemas.CreateScheduledQueryRequest_tags, v.Tags)
+	}
 	if v.Timezone != nil {
 		s.WriteString(schemas.CreateScheduledQueryRequest_timezone, *v.Timezone)
 	}

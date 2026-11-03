@@ -157,7 +157,9 @@ func (v *CreateTokenWithIAMInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.RequestedTokenType != nil {
 		s.WriteString(schemas.CreateTokenWithIAMRequest_requestedTokenType, *v.RequestedTokenType)
 	}
-	serializeScopes(s, schemas.CreateTokenWithIAMRequest_scope, v.Scope)
+	if v.Scope != nil {
+		serializeScopes(s, schemas.CreateTokenWithIAMRequest_scope, v.Scope)
+	}
 	if v.SubjectToken != nil {
 		s.WriteString(schemas.CreateTokenWithIAMRequest_subjectToken, *v.SubjectToken)
 	}
@@ -242,7 +244,9 @@ func (v *CreateTokenWithIAMOutput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.RefreshToken != nil {
 		s.WriteString(schemas.CreateTokenWithIAMResponse_refreshToken, *v.RefreshToken)
 	}
-	serializeScopes(s, schemas.CreateTokenWithIAMResponse_scope, v.Scope)
+	if v.Scope != nil {
+		serializeScopes(s, schemas.CreateTokenWithIAMResponse_scope, v.Scope)
+	}
 	if v.TokenType != nil {
 		s.WriteString(schemas.CreateTokenWithIAMResponse_tokenType, *v.TokenType)
 	}

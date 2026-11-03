@@ -123,7 +123,9 @@ func (v *CreateTokenInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.RefreshToken != nil {
 		s.WriteString(schemas.CreateTokenRequest_refreshToken, *v.RefreshToken)
 	}
-	serializeScopes(s, schemas.CreateTokenRequest_scope, v.Scope)
+	if v.Scope != nil {
+		serializeScopes(s, schemas.CreateTokenRequest_scope, v.Scope)
+	}
 }
 
 type CreateTokenOutput struct {

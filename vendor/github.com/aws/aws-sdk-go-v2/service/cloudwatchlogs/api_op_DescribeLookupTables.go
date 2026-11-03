@@ -86,7 +86,9 @@ func (v *DescribeLookupTablesOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeLookupTablesOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeLookupTables(s, schemas.DescribeLookupTablesResponse_lookupTables, v.LookupTables)
+	if v.LookupTables != nil {
+		serializeLookupTables(s, schemas.DescribeLookupTablesResponse_lookupTables, v.LookupTables)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeLookupTablesResponse_nextToken, *v.NextToken)
 	}

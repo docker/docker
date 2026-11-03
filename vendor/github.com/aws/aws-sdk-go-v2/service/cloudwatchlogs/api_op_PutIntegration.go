@@ -71,7 +71,9 @@ func (v *PutIntegrationInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.IntegrationType != "" {
 		s.WriteString(schemas.PutIntegrationRequest_integrationType, string(v.IntegrationType))
 	}
-	serializeResourceConfig(s, schemas.PutIntegrationRequest_resourceConfig, v.ResourceConfig)
+	if v.ResourceConfig != nil {
+		serializeResourceConfig(s, schemas.PutIntegrationRequest_resourceConfig, v.ResourceConfig)
+	}
 }
 
 type PutIntegrationOutput struct {

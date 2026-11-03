@@ -68,7 +68,9 @@ func (v *GetScheduledQueryHistoryInput) SerializeMembers(s smithy.ShapeSerialize
 	if v.EndTime != nil {
 		s.WriteInt64(schemas.GetScheduledQueryHistoryRequest_endTime, *v.EndTime)
 	}
-	serializeExecutionStatusList(s, schemas.GetScheduledQueryHistoryRequest_executionStatuses, v.ExecutionStatuses)
+	if v.ExecutionStatuses != nil {
+		serializeExecutionStatusList(s, schemas.GetScheduledQueryHistoryRequest_executionStatuses, v.ExecutionStatuses)
+	}
 	if v.Identifier != nil {
 		s.WriteString(schemas.GetScheduledQueryHistoryRequest_identifier, *v.Identifier)
 	}
@@ -119,7 +121,9 @@ func (v *GetScheduledQueryHistoryOutput) SerializeMembers(s smithy.ShapeSerializ
 	if v.ScheduledQueryArn != nil {
 		s.WriteString(schemas.GetScheduledQueryHistoryResponse_scheduledQueryArn, *v.ScheduledQueryArn)
 	}
-	serializeTriggerHistoryRecordList(s, schemas.GetScheduledQueryHistoryResponse_triggerHistory, v.TriggerHistory)
+	if v.TriggerHistory != nil {
+		serializeTriggerHistoryRecordList(s, schemas.GetScheduledQueryHistoryResponse_triggerHistory, v.TriggerHistory)
+	}
 }
 func (v *GetScheduledQueryHistoryOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.GetScheduledQueryHistoryResponse, func(s *smithy.Schema) error {

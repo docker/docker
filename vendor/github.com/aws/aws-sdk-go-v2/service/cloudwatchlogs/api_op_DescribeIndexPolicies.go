@@ -60,7 +60,9 @@ func (v *DescribeIndexPoliciesInput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeIndexPoliciesInput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeDescribeIndexPoliciesLogGroupIdentifiers(s, schemas.DescribeIndexPoliciesRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	if v.LogGroupIdentifiers != nil {
+		serializeDescribeIndexPoliciesLogGroupIdentifiers(s, schemas.DescribeIndexPoliciesRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeIndexPoliciesRequest_nextToken, *v.NextToken)
 	}
@@ -87,7 +89,9 @@ func (v *DescribeIndexPoliciesOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeIndexPoliciesOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeIndexPolicies(s, schemas.DescribeIndexPoliciesResponse_indexPolicies, v.IndexPolicies)
+	if v.IndexPolicies != nil {
+		serializeIndexPolicies(s, schemas.DescribeIndexPoliciesResponse_indexPolicies, v.IndexPolicies)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeIndexPoliciesResponse_nextToken, *v.NextToken)
 	}

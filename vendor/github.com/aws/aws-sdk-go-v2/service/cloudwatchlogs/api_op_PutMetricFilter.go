@@ -114,7 +114,9 @@ func (v *PutMetricFilterInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.ApplyOnTransformedLogs != false {
 		s.WriteBool(schemas.PutMetricFilterRequest_applyOnTransformedLogs, v.ApplyOnTransformedLogs)
 	}
-	serializeEmitSystemFields(s, schemas.PutMetricFilterRequest_emitSystemFieldDimensions, v.EmitSystemFieldDimensions)
+	if v.EmitSystemFieldDimensions != nil {
+		serializeEmitSystemFields(s, schemas.PutMetricFilterRequest_emitSystemFieldDimensions, v.EmitSystemFieldDimensions)
+	}
 	if v.FieldSelectionCriteria != nil {
 		s.WriteString(schemas.PutMetricFilterRequest_fieldSelectionCriteria, *v.FieldSelectionCriteria)
 	}
@@ -127,7 +129,9 @@ func (v *PutMetricFilterInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.LogGroupName != nil {
 		s.WriteString(schemas.PutMetricFilterRequest_logGroupName, *v.LogGroupName)
 	}
-	serializeMetricTransformations(s, schemas.PutMetricFilterRequest_metricTransformations, v.MetricTransformations)
+	if v.MetricTransformations != nil {
+		serializeMetricTransformations(s, schemas.PutMetricFilterRequest_metricTransformations, v.MetricTransformations)
+	}
 }
 
 type PutMetricFilterOutput struct {

@@ -67,6 +67,14 @@ type DeleteAccountPolicyInput struct {
 	// This member is required.
 	PolicyType types.PolicyType
 
+	// Specifies whether to preview the impact of deleting the policy without deleting
+	// it. If you specify true , CloudWatch Logs does not delete the policy and returns
+	// the estimated impact in dryRunResult . The default is false .
+	//
+	// Specifying dryRun is valid only when you specify RETENTION_POLICY for policyType
+	// . Only one dry run can be in progress for an account at a time.
+	DryRun bool
+
 	noSmithyDocumentSerde
 }
 
@@ -77,6 +85,9 @@ func (v *DeleteAccountPolicyInput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DeleteAccountPolicyInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DryRun != false {
+		s.WriteBool(schemas.DeleteAccountPolicyRequest_dryRun, v.DryRun)
+	}
 	if v.PolicyName != nil {
 		s.WriteString(schemas.DeleteAccountPolicyRequest_policyName, *v.PolicyName)
 	}
@@ -86,6 +97,11 @@ func (v *DeleteAccountPolicyInput) SerializeMembers(s smithy.ShapeSerializer) {
 }
 
 type DeleteAccountPolicyOutput struct {
+
+	// The estimated impact of deleting the policy. This field is returned only when
+	// the request specifies dryRun as true .
+	DryRunResult *types.DryRunResult
+
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
 
@@ -93,25 +109,33 @@ type DeleteAccountPolicyOutput struct {
 }
 
 func (v *DeleteAccountPolicyOutput) Serialize(s smithy.ShapeSerializer) {
-	s.WriteStruct(nil)
+	s.WriteStruct(schemas.DeleteAccountPolicyResponse)
 	v.SerializeMembers(s)
 	s.CloseStruct()
 }
 
 func (v *DeleteAccountPolicyOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DryRunResult != nil {
+		s.WriteStruct(schemas.DeleteAccountPolicyResponse_dryRunResult)
+		v.DryRunResult.SerializeMembers(s)
+		s.CloseStruct()
+	}
 }
 func (v *DeleteAccountPolicyOutput) Deserialize(d smithy.ShapeDeserializer) error {
-	return smithy.ReadStruct(d, nil, func(s *smithy.Schema) error {
+	return smithy.ReadStruct(d, schemas.DeleteAccountPolicyResponse, func(s *smithy.Schema) error {
 		switch s {
+		case schemas.DeleteAccountPolicyResponse_dryRunResult:
+			v.DryRunResult = &types.DryRunResult{}
+			return v.DryRunResult.Deserialize(d)
 		}
 		return nil
 	})
 }
 func (c *Client) addOperationDeleteAccountPolicyMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteAccountPolicy, schemas.DeleteAccountPolicyRequest, nil)}, middleware.After); err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteAccountPolicy, schemas.DeleteAccountPolicyRequest, schemas.DeleteAccountPolicyResponse)}, middleware.After); err != nil {
 		return err
 	}
-	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteAccountPolicy, schemas.DeleteAccountPolicyRequest, nil), output: &DeleteAccountPolicyOutput{}}, middleware.After); err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteAccountPolicy, schemas.DeleteAccountPolicyRequest, schemas.DeleteAccountPolicyResponse), output: &DeleteAccountPolicyOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

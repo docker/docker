@@ -1,3 +1,7 @@
+# v1.20.13 (2026-10-30)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.20.12 (2026-10-27)
 
 * **Bug Fix**: Fixed the login credential panic when a retrieved token missed required fields

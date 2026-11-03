@@ -97,7 +97,9 @@ func (v *DescribeQueryDefinitionsOutput) SerializeMembers(s smithy.ShapeSerializ
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeQueryDefinitionsResponse_nextToken, *v.NextToken)
 	}
-	serializeQueryDefinitionList(s, schemas.DescribeQueryDefinitionsResponse_queryDefinitions, v.QueryDefinitions)
+	if v.QueryDefinitions != nil {
+		serializeQueryDefinitionList(s, schemas.DescribeQueryDefinitionsResponse_queryDefinitions, v.QueryDefinitions)
+	}
 }
 func (v *DescribeQueryDefinitionsOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.DescribeQueryDefinitionsResponse, func(s *smithy.Schema) error {

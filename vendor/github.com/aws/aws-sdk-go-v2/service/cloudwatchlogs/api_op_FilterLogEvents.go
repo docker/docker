@@ -193,7 +193,9 @@ func (v *FilterLogEventsInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.LogStreamNamePrefix != nil {
 		s.WriteString(schemas.FilterLogEventsRequest_logStreamNamePrefix, *v.LogStreamNamePrefix)
 	}
-	serializeInputLogStreamNames(s, schemas.FilterLogEventsRequest_logStreamNames, v.LogStreamNames)
+	if v.LogStreamNames != nil {
+		serializeInputLogStreamNames(s, schemas.FilterLogEventsRequest_logStreamNames, v.LogStreamNames)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.FilterLogEventsRequest_nextToken, *v.NextToken)
 	}
@@ -239,11 +241,15 @@ func (v *FilterLogEventsOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *FilterLogEventsOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeFilteredLogEvents(s, schemas.FilterLogEventsResponse_events, v.Events)
+	if v.Events != nil {
+		serializeFilteredLogEvents(s, schemas.FilterLogEventsResponse_events, v.Events)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.FilterLogEventsResponse_nextToken, *v.NextToken)
 	}
-	serializeSearchedLogStreams(s, schemas.FilterLogEventsResponse_searchedLogStreams, v.SearchedLogStreams)
+	if v.SearchedLogStreams != nil {
+		serializeSearchedLogStreams(s, schemas.FilterLogEventsResponse_searchedLogStreams, v.SearchedLogStreams)
+	}
 }
 func (v *FilterLogEventsOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.FilterLogEventsResponse, func(s *smithy.Schema) error {

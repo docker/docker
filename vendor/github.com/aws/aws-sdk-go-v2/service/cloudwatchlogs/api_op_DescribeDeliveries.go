@@ -60,7 +60,9 @@ func (v *DescribeDeliveriesInput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeDeliveriesInput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeDeliverySourceNames(s, schemas.DescribeDeliveriesRequest_deliverySourceNames, v.DeliverySourceNames)
+	if v.DeliverySourceNames != nil {
+		serializeDeliverySourceNames(s, schemas.DescribeDeliveriesRequest_deliverySourceNames, v.DeliverySourceNames)
+	}
 	if v.Limit != nil {
 		s.WriteInt32(schemas.DescribeDeliveriesRequest_limit, *v.Limit)
 	}
@@ -91,7 +93,9 @@ func (v *DescribeDeliveriesOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeDeliveriesOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeDeliveries(s, schemas.DescribeDeliveriesResponse_deliveries, v.Deliveries)
+	if v.Deliveries != nil {
+		serializeDeliveries(s, schemas.DescribeDeliveriesResponse_deliveries, v.Deliveries)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeDeliveriesResponse_nextToken, *v.NextToken)
 	}

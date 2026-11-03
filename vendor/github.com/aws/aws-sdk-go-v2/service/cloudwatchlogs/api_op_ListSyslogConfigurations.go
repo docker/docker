@@ -90,7 +90,9 @@ func (v *ListSyslogConfigurationsOutput) SerializeMembers(s smithy.ShapeSerializ
 	if v.NextToken != nil {
 		s.WriteString(schemas.ListSyslogConfigurationsResponse_nextToken, *v.NextToken)
 	}
-	serializeSyslogConfigurations(s, schemas.ListSyslogConfigurationsResponse_syslogConfigurations, v.SyslogConfigurations)
+	if v.SyslogConfigurations != nil {
+		serializeSyslogConfigurations(s, schemas.ListSyslogConfigurationsResponse_syslogConfigurations, v.SyslogConfigurations)
+	}
 }
 func (v *ListSyslogConfigurationsOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.ListSyslogConfigurationsResponse, func(s *smithy.Schema) error {

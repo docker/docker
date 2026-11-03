@@ -93,7 +93,9 @@ func (v *ListScheduledQueriesOutput) SerializeMembers(s smithy.ShapeSerializer) 
 	if v.NextToken != nil {
 		s.WriteString(schemas.ListScheduledQueriesResponse_nextToken, *v.NextToken)
 	}
-	serializeScheduledQuerySummaryList(s, schemas.ListScheduledQueriesResponse_scheduledQueries, v.ScheduledQueries)
+	if v.ScheduledQueries != nil {
+		serializeScheduledQuerySummaryList(s, schemas.ListScheduledQueriesResponse_scheduledQueries, v.ScheduledQueries)
+	}
 }
 func (v *ListScheduledQueriesOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.ListScheduledQueriesResponse, func(s *smithy.Schema) error {
