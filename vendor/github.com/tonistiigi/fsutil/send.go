@@ -99,7 +99,7 @@ func (s *sender) run(ctx context.Context) error {
 			case types.PACKET_ERR:
 				return errors.Errorf("error from receiver: %s", p.Data)
 			case types.PACKET_REQ:
-				if err := s.queue(ctx, p.ID); err != nil {
+				if err := s.queue(p.ID); err != nil {
 					return err
 				}
 			case types.PACKET_FIN:
@@ -120,7 +120,7 @@ func (s *sender) updateProgress(size int, last bool) {
 	}
 }
 
-func (s *sender) queue(ctx context.Context, id uint32) error {
+func (s *sender) queue(id uint32) error {
 	s.mu.Lock()
 	p, ok := s.files[id]
 	if !ok {
@@ -129,12 +129,8 @@ func (s *sender) queue(ctx context.Context, id uint32) error {
 	}
 	delete(s.files, id)
 	s.mu.Unlock()
-	select {
-	case s.sendpipeline <- &sendHandle{id, p}:
-		return nil
-	case <-ctx.Done():
-		return context.Cause(ctx)
-	}
+	s.sendpipeline <- &sendHandle{id, p}
+	return nil
 }
 
 func (s *sender) sendFile(h *sendHandle) error {

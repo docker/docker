@@ -597,9 +597,10 @@ func (gs *gitSourceHandler) resolveMetadata(ctx context.Context, jobCtx solver.J
 			}
 			saveResolved := true
 			defer func() {
-				v := md
-				if retErr != nil || !saveResolved {
-					v = nil
+				// untyped nil, a nil *Metadata would be stored as a value
+				var v any
+				if retErr == nil && saveResolved {
+					v = md
 				}
 				if err := release(v); err != nil {
 					bklog.G(ctx).Warnf("failed to release resolver cache lock for %s: %v", gs.remoteKey(), err)

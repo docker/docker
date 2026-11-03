@@ -64,7 +64,7 @@ require (
 	github.com/miekg/dns v1.1.73
 	github.com/mistifyio/go-zfs/v4 v4.0.0
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.34.1
+	github.com/moby/buildkit v0.34.2
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/extensions v0.0.0-20261020100352-d2819d88bcbe
 	github.com/moby/go-archive v0.3.3
@@ -99,7 +99,7 @@ require (
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	github.com/tonistiigi/fsutil v0.0.0-20261027232937-ca65610c2295
+	github.com/tonistiigi/fsutil v0.0.0-20261103091533-a72de9dcf763
 	github.com/tonistiigi/go-archvariant v1.0.0
 	github.com/vbatts/tar-split v0.12.3
 	github.com/vishvananda/netlink v1.3.1
