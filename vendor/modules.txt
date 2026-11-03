@@ -751,7 +751,7 @@ github.com/mitchellh/hashstructure/v2
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.12.5 => github.com/Mirantis/buildkit v0.12.6-m.3
+# github.com/moby/buildkit v0.12.5 => github.com/Mirantis/buildkit v0.12.6-m.4
 ## explicit; go 1.25.0
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1632,4 +1632,4 @@ tags.cncf.io/container-device-interface/pkg/parser
 ## explicit; go 1.19
 tags.cncf.io/container-device-interface/specs-go
 # github.com/mitchellh/osext => github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
-# github.com/moby/buildkit => github.com/Mirantis/buildkit v0.12.6-m.3
+# github.com/moby/buildkit => github.com/Mirantis/buildkit v0.12.6-m.4

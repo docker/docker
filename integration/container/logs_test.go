@@ -135,6 +135,9 @@ func testLogs(t *testing.T, logDriver string) {
 				container.WithCmd("sh", "-c", "echo -n this is fine; echo -n accidents happen >&2"),
 				container.WithTty(tty),
 				container.WithLogDriver(logDriver),
+				// Logs do not need networking, and Windows HNS endpoint
+				// setup is sensitive to these parallel short-lived starts.
+				container.WithNetworkMode("none"),
 			)
 			defer apiClient.ContainerRemove(ctx, id, containertypes.RemoveOptions{Force: true})
 

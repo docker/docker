@@ -22,7 +22,7 @@ func TestNoNewPrivileges(t *testing.T) {
 	ctx := setupTest(t)
 
 	withFileCapability := `
-		FROM debian:bullseye-slim
+		FROM debian:trixie-slim
 		RUN apt-get update && apt-get install -y libcap2-bin --no-install-recommends
 		RUN setcap CAP_DAC_OVERRIDE=+eip /bin/cat
 		RUN echo "hello" > /txt && chown 0:0 /txt && chmod 700 /txt

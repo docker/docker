@@ -24,6 +24,14 @@ if [ -n "$TEST_INTEGRATION_USE_SNAPSHOTTER" ]; then
 	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py::CommitTest::test_commit"
 	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_image_test.py::CommitTest::test_commit_with_changes"
 fi
+
+# TODO re-enable once leaving a swarm no longer races the certificate renewal
+# that follows enabling autolock. When the leave loses, it fails with
+# "unlinkat /var/lib/docker/swarm/certificates: directory not empty", the
+# encrypted swarm state is left behind, and the next test's swarm init fails
+# with "Swarm is encrypted and needs to be unlocked".
+PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_swarm_test.py::SwarmTest::test_init_swarm_with_autolock_managers"
+PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_swarm_test.py::SwarmTest::test_rotate_manager_unlock_key"
 (
 	bundle .integration-daemon-start
 

@@ -234,5 +234,5 @@ require (
 replace (
 	github.com/distribution/reference v0.6.0 => github.com/distribution/reference v0.5.0
 	github.com/mitchellh/osext => github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
-	github.com/moby/buildkit => github.com/Mirantis/buildkit v0.12.6-m.3
+	github.com/moby/buildkit => github.com/Mirantis/buildkit v0.12.6-m.4
 )

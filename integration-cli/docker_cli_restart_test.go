@@ -29,20 +29,22 @@ func (s *DockerCLIRestartSuite) OnTimeout(c *testing.T) {
 }
 
 func (s *DockerCLIRestartSuite) TestRestartStoppedContainer(c *testing.T) {
-	cli.DockerCmd(c, "run", "--name=test", "busybox", "echo", "foobar")
-	cID := getIDByName(c, "test")
+	cID := cli.DockerCmd(c, "run", "-d", "busybox", "sh", "-c", "echo foobar && exit 0").Stdout()
+	cID = strings.TrimSpace(cID)
 
-	out := cli.DockerCmd(c, "logs", cID).Combined()
-	assert.Equal(c, out, "foobar\n")
+	getLogs := func(t *testing.T) (interface{}, string) {
+		out := cli.DockerCmd(t, "logs", cID).Combined()
+		return out, ""
+	}
 
+	// Wait 10 seconds for the 'echo' to appear in the logs
+	poll.WaitOn(c, pollCheck(c, getLogs, checker.Equals("foobar\n")), poll.WithTimeout(10*time.Second))
+
+	// Make sure the container has stopped before we restart it.
+	cli.WaitExited(c, cID, 20*time.Second)
 	cli.DockerCmd(c, "restart", cID)
 
-	// Wait until the container has stopped
-	err := waitInspect(cID, "{{.State.Running}}", "false", 20*time.Second)
-	assert.NilError(c, err)
-
-	out = cli.DockerCmd(c, "logs", cID).Combined()
-	assert.Equal(c, out, "foobar\nfoobar\n")
+	poll.WaitOn(c, pollCheck(c, getLogs, checker.Equals("foobar\nfoobar\n")), poll.WithTimeout(10*time.Second))
 }
 
 func (s *DockerCLIRestartSuite) TestRestartRunningContainer(c *testing.T) {

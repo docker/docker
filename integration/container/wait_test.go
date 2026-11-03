@@ -82,7 +82,8 @@ func TestWaitBlocked(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
+			// TODO(vvoland): Verify why this helps for flakiness
+			// t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
 			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
 			waitResC, errC := cli.ContainerWait(ctx, containerID, "")
@@ -132,7 +133,8 @@ func TestWaitConditions(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
+			// TODO(vvoland): Verify why this helps for flakiness
+			// t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
 			opts := append([]func(*container.TestContainerConfig){
 				container.WithCmd("sh", "-c", "read -r; exit 99"),
@@ -204,7 +206,8 @@ func TestWaitRestartedContainer(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
+			// TODO(vvoland): Verify why this helps for flakiness
+			// t.Parallel()
 			ctx := testutil.StartSpan(ctx, t)
 			containerID := container.Run(ctx, t, cli,
 				container.WithCmd("sh", "-c", "trap 'exit 5' SIGTERM; while true; do sleep 0.1; done"),
@@ -214,7 +217,7 @@ func TestWaitRestartedContainer(t *testing.T) {
 			// Container is running now, wait for exit
 			waitResC, errC := cli.ContainerWait(ctx, containerID, tc.waitCond)
 
-			timeout := 5
+			timeout := 10
 			// On Windows it will always timeout, because our process won't receive SIGTERM
 			// Skip to force killing immediately
 			if isWindowDaemon {

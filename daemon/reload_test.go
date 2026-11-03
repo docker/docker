@@ -82,6 +82,7 @@ func TestDaemonReloadAllowNondistributableArtifacts(t *testing.T) {
 	}
 
 	registries := []string{
+		"::1/128",
 		"127.0.0.0/8",
 		"10.10.1.11:5000",
 		"10.10.1.33:5000", // This will be added during reload.
@@ -225,6 +226,7 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 	// initialize daemon with existing insecure registries: "127.0.0.0/8", "10.10.1.11:5000", "10.10.1.22:5000"
 	daemon.registryService, err = registry.NewService(registry.ServiceOptions{
 		InsecureRegistries: []string{
+			"::1/128",
 			"127.0.0.0/8",
 			"10.10.1.11:5000",
 			"10.10.1.22:5000", // this will be removed when reloading
@@ -237,6 +239,7 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 	}
 
 	insecureRegistries := []string{
+		"::1/128",             // this will be kept
 		"127.0.0.0/8",         // this will be kept
 		"10.10.1.11:5000",     // this will be kept
 		"10.10.1.33:5000",     // this will be newly added

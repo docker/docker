@@ -2743,8 +2743,8 @@ github.com/Microsoft/hcsshim v0.11.7 h1:vl/nj3Bar/CvJSYo7gIQPyRWc9f3c6IeSNavBTSZ
 github.com/Microsoft/hcsshim v0.11.7/go.mod h1:MV8xMfmECjl5HdO7U/3/hFVnkmSBjAjmA09d4bExKcU=
 github.com/Microsoft/hcsshim/test v0.0.0-20201218223536-d3e5debf77da/go.mod h1:5hlzMzRKMLyo42nCZ9oml8AdTlq/0cvIaBv6tK1RehU=
 github.com/Microsoft/hcsshim/test v0.0.0-20210227013316-43a75bb4edd3/go.mod h1:mw7qgWloBUl75W/gVH3cQszUg1+gUITj7D6NY7ywVnY=
-github.com/Mirantis/buildkit v0.12.6-m.3 h1:Ni13vF9HtPz5IXyWX/kVawKwcsFuecPddSn/lJl+vBg=
-github.com/Mirantis/buildkit v0.12.6-m.3/go.mod h1:XuASjDOdrUynrxpy+dvy22DOq+5BhMt/TrWcSeo5fAM=
+github.com/Mirantis/buildkit v0.12.6-m.4 h1:ORSGKVsU6/Ha6pUSElrSh3OxS3dqaDXu+qKeYPNpJJc=
+github.com/Mirantis/buildkit v0.12.6-m.4/go.mod h1:XuASjDOdrUynrxpy+dvy22DOq+5BhMt/TrWcSeo5fAM=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
 github.com/NYTimes/gziphandler v1.1.1/go.mod h1:n/CVRwUEOgIxrgPvAQhUUr9oeUtvrhMomdKFjzJNB0c=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=

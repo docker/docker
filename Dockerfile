@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 ARG GO_VERSION=1.26.6
-ARG BASE_DEBIAN_DISTRO="bookworm"
+ARG BASE_DEBIAN_DISTRO=trixie
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 ARG XX_VERSION=1.6.1
 
@@ -109,7 +109,7 @@ RUN --mount=from=swagger-src,src=/usr/src/swagger,rw \
     --mount=type=cache,target=/go/pkg/mod \
     --mount=type=tmpfs,target=/go/src/ <<EOT
   set -e
-  xx-go build -o /build/swagger ./cmd/swagger
+  CGO_ENABLED=0 xx-go build -o /build/swagger ./cmd/swagger
   xx-verify /build/swagger
 EOT
 
@@ -185,7 +185,7 @@ FROM base AS gowinres
 ARG GOWINRES_VERSION=v0.3.1
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
+        GOBIN=/build/ GO111MODULE=on CGO_ENABLED=0 go install "github.com/tc-hib/go-winres@${GOWINRES_VERSION}" \
      && /build/go-winres --help
 
 # containerd
@@ -235,7 +235,7 @@ FROM base AS golangci_lint
 ARG GOLANGCI_LINT_VERSION=v2.11.4
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
+        GOBIN=/build/ GO111MODULE=on CGO_ENABLED=0 go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}" \
      && /build/golangci-lint --version
 
 FROM base AS gotestsum
@@ -243,14 +243,14 @@ FROM base AS gotestsum
 ARG GOTESTSUM_VERSION=v1.12.3
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
+        GOBIN=/build/ GO111MODULE=on CGO_ENABLED=0 go install "gotest.tools/gotestsum@${GOTESTSUM_VERSION}" \
      && /build/gotestsum --version
 
 FROM base AS shfmt
 ARG SHFMT_VERSION=v3.6.0
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-        GOBIN=/build/ GO111MODULE=on go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
+        GOBIN=/build/ GO111MODULE=on CGO_ENABLED=0 go install "mvdan.cc/sh/v3/cmd/shfmt@${SHFMT_VERSION}" \
      && /build/shfmt --version
 
 FROM base AS dockercli
@@ -509,7 +509,6 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-dev-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \
             firewalld
-RUN sed -i 's/FirewallBackend=nftables/FirewallBackend=iptables/' /etc/firewalld/firewalld.conf
 
 FROM dev-firewalld-${FIREWALLD} AS dev-base
 RUN groupadd -r docker
@@ -533,6 +532,7 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             apparmor \
             bash-completion \
             bzip2 \
+            e2fsprogs \
             inetutils-ping \
             iproute2 \
             iptables \

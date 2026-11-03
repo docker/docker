@@ -85,6 +85,28 @@ jobs:
       -
         name: Docker info
         run: |
+          $tries = 30
+          Write-Host "Waiting for Docker daemon..."
+          while ($true) {
+            $ErrorActionPreference = "SilentlyContinue"
+            docker version 2>&1 | Out-Null
+            $ok = ($LastExitCode -eq 0)
+            $ErrorActionPreference = "Stop"
+            if ($ok) { break }
+            # Check if Docker service exists and try to start it if stopped
+            $svc = Get-Service docker -ErrorAction SilentlyContinue
+            if ($svc) {
+              if ($svc.Status -ne 'Running') {
+                Write-Host "Docker service status: $($svc.Status) - attempting to start..."
+                Start-Service docker -ErrorAction SilentlyContinue
+              }
+            } else {
+              Write-Host "Docker service not found!"
+            }
+            $tries--
+            if ($tries -le 0) { throw "Docker daemon did not become ready" }
+            Start-Sleep -Seconds 2
+          }
           docker info
       -
         name: Build base image
@@ -165,6 +187,28 @@ jobs:
       -
         name: Docker info
         run: |
+          $tries = 30
+          Write-Host "Waiting for Docker daemon..."
+          while ($true) {
+            $ErrorActionPreference = "SilentlyContinue"
+            docker version 2>&1 | Out-Null
+            $ok = ($LastExitCode -eq 0)
+            $ErrorActionPreference = "Stop"
+            if ($ok) { break }
+            # Check if Docker service exists and try to start it if stopped
+            $svc = Get-Service docker -ErrorAction SilentlyContinue
+            if ($svc) {
+              if ($svc.Status -ne 'Running') {
+                Write-Host "Docker service status: $($svc.Status) - attempting to start..."
+                Start-Service docker -ErrorAction SilentlyContinue
+              }
+            } else {
+              Write-Host "Docker service not found!"
+            }
+            $tries--
+            if ($tries -le 0) { throw "Docker daemon did not become ready" }
+            Start-Sleep -Seconds 2
+          }
           docker info
       -
         name: Build base image

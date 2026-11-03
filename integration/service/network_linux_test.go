@@ -25,7 +25,7 @@ func TestRestoreIngressRulesOnFirewalldReload(t *testing.T) {
 	// Check the published port is accessible.
 	checkHTTP := func(_ poll.LogT) poll.Result {
 		res := icmd.RunCommand("curl", "-v", "-o", "/dev/null", "-w", "%{http_code}\n",
-			"http://"+stdnet.JoinHostPort("localhost", "8080"))
+			"http://"+stdnet.JoinHostPort("127.0.0.1", "8080"))
 		// A "404 Not Found" means the server responded, but it's got nothing to serve.
 		if !strings.Contains(res.Stdout(), "404") {
 			return poll.Continue("404 - not found in: %s, %+v", res.Stdout(), res)
