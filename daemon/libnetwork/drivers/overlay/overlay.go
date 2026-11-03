@@ -14,6 +14,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
+	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 )
 
@@ -69,15 +70,18 @@ type driver struct {
 	vniTbl           map[uint32]string
 }
 
-// Register registers a new instance of the overlay driver, which keeps the
-// network namespaces of its sandboxes in netnsDir.
-func Register(r driverapi.Registerer, netnsDir string) error {
-	d := &driver{
+func newDriver(netnsDir string) *driver {
+	return &driver{
 		networks: networkTable{},
 		secMap:   encrMap{},
 		netnsDir: netnsDir,
 	}
-	return r.RegisterDriver(NetworkType, d, driverapi.Capability{
+}
+
+// Register registers a new instance of the overlay driver, which keeps the
+// network namespaces of its sandboxes in netnsDir.
+func Register(r driverapi.Registerer, netnsDir string) error {
+	return r.RegisterDriver(NetworkType, newDriver(netnsDir), driverapi.Capability{
 		DataScope:         scope.Global,
 		ConnectivityScope: scope.Global,
 	})
@@ -89,6 +93,9 @@ func (d *driver) configure() error {
 		applyOStweaks()
 		if !nftables.Enabled() {
 			d.cleanupNft(context.TODO())
+			iptables.OnReloaded(func() {
+				d.restoreOverlayEncryptionFirewall(context.TODO())
+			})
 		}
 	})
 
