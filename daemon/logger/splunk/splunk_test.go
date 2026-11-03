@@ -1166,6 +1166,51 @@ func TestBufferMaximum(t *testing.T) {
 	}
 }
 
+// Verify that it returns an error when the channel is full, so that the
+// RingLogger can log the error and increment the error metric
+func TestBufferMaximumNonBlocking(t *testing.T) {
+	t.Setenv(envVarStreamChannelSize, "1")
+
+	hec := NewHTTPEventCollectorMock(t)
+	hec.simulateErr(true)
+	go hec.Serve()
+
+	info := logger.Info{
+		Config: map[string]string{
+			splunkURLKey:              hec.URL(),
+			splunkTokenKey:            hec.token,
+			splunkVerifyConnectionKey: "false",
+			mode:                      "non-blocking",
+		},
+		ContainerID:        "containeriid",
+		ContainerName:      "/container_name",
+		ContainerImageID:   "contaimageid",
+		ContainerImageName: "container_image_name",
+	}
+
+	loggerDriver, err := New(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if hec.connectionVerified {
+		t.Fatal("Connection should not be verified")
+	}
+
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("1"), Source: "stdout", Timestamp: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("2"), Source: "stdout", Timestamp: time.Now()}); err == nil {
+		t.Fatal("Expected error when buffer is full")
+	}
+
+	err = hec.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Verify that we are not blocking close when HEC is down for the whole time
 func TestServerAlwaysDown(t *testing.T) {
 	t.Setenv(envVarPostMessagesBatchSize, "2")
