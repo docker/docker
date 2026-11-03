@@ -61,6 +61,10 @@ func WriteTar(ctx context.Context, fs FS, w io.Writer) error {
 			hdr.PAXRecords["SCHILY.xattr."+k] = string(v)
 		}
 
+		// Without a format the tar writer rounds the modification time to the
+		// nearest second. PAX keeps the sub-second part.
+		hdr.Format = tar.FormatPAX
+
 		if err := tw.WriteHeader(hdr); err != nil {
 			return errors.Wrapf(err, "failed to write file header %s", name)
 		}
@@ -70,11 +74,13 @@ func WriteTar(ctx context.Context, fs FS, w io.Writer) error {
 			if err != nil {
 				return err
 			}
-			if _, err := io.Copy(tw, rc); err != nil {
+			_, err = io.Copy(tw, rc)
+			closeErr := rc.Close()
+			if err != nil {
 				return errors.WithStack(err)
 			}
-			if err := rc.Close(); err != nil {
-				return errors.WithStack(err)
+			if closeErr != nil {
+				return errors.WithStack(closeErr)
 			}
 		}
 		return nil

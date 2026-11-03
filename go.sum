@@ -657,8 +657,8 @@ github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399 h1:e/5i7d4oYZ+C
 github.com/titanous/rocacheck v0.0.0-20171023193734-afe73141d399/go.mod h1:LdwHTNJT99C5fTAzDz0ud328OgXz+gierycbcIx2fRs=
 github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323 h1:r0p7fK56l8WPequOaR3i9LBqfPtEdXIQbUTzT55iqT4=
 github.com/tonistiigi/dchapes-mode v0.0.0-20250318174251-73d941a28323/go.mod h1:3Iuxbr0P7D3zUzBMAZB+ois3h/et0shEz0qApgHYGpY=
-github.com/tonistiigi/fsutil v0.0.0-20261103091533-a72de9dcf763 h1:9FmebYajdrHrT3PGvCB821YQ610s1E2IeAErsltsiKY=
-github.com/tonistiigi/fsutil v0.0.0-20261103091533-a72de9dcf763/go.mod h1:oO0lfhK8QAY3alnpiYXcRVjyVx95XGWZE3K2M+AqfcM=
+github.com/tonistiigi/fsutil v0.0.0-20261103125000-e075fd9305eb h1:/703X47pvph093rG6sD1wzLd2d4YdWgiPLRjnkV5qYY=
+github.com/tonistiigi/fsutil v0.0.0-20261103125000-e075fd9305eb/go.mod h1:oO0lfhK8QAY3alnpiYXcRVjyVx95XGWZE3K2M+AqfcM=
 github.com/tonistiigi/go-actions-cache v0.0.0-20260930145529-afe8013b5ac4 h1:RkHGDzvazJu1TzNvesQpnN5RwNxvU3e7O2UdJqjaj2Q=
 github.com/tonistiigi/go-actions-cache v0.0.0-20260930145529-afe8013b5ac4/go.mod h1:PhGlvWoWwfUaY1K5xm8HHjcinBw/rD9FLQTPTxHbxyw=
 github.com/tonistiigi/go-archvariant v1.0.0 h1:5LC1eDWiBNflnTF1prCiX09yfNHIxDC/aukdhCdTyb0=

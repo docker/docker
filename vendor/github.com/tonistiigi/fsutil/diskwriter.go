@@ -230,9 +230,9 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 func (dw *DiskWriter) requestAsyncFileData(p, dest string, fi os.FileInfo, st *types.Stat) {
 	// todo: limit worker threads
 	dw.eg.Go(func() error {
-		if err := dw.processChange(dw.egCtx, ChangeKindAdd, p, fi, &lazyFileWriter{
-			dest: dest,
-		}); err != nil {
+		w := &lazyFileWriter{dest: dest}
+		if err := dw.processChange(dw.egCtx, ChangeKindAdd, p, fi, w); err != nil {
+			w.Close()
 			return err
 		}
 		return chtimes(dest, st.ModTime) // TODO: parent dirs

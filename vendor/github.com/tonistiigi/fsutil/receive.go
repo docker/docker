@@ -423,6 +423,7 @@ func (r *receiver) asyncDataFunc(ctx context.Context, p string, wc io.WriteClose
 	r.pipes[id] = wwc
 	r.muPipes.Unlock()
 	if err := r.conn.SendMsg(&types.Packet{Type: types.PACKET_REQ, ID: id}); err != nil {
+		wwc.abandon()
 		return err
 	}
 	err := wwc.Wait(ctx)
@@ -437,28 +438,61 @@ func (r *receiver) asyncDataFunc(ctx context.Context, p string, wc io.WriteClose
 
 type wrappedWriteCloser struct {
 	io.WriteCloser
-	err  error
-	once sync.Once
-	done chan struct{}
+	mu        sync.Mutex // serializes the receive loop with Wait
+	closed    bool
+	abandoned bool
+	err       error
+	done      chan struct{}
 }
 
 func newWrappedWriteCloser(wc io.WriteCloser) *wrappedWriteCloser {
 	return &wrappedWriteCloser{WriteCloser: wc, done: make(chan struct{})}
 }
 
+func (w *wrappedWriteCloser) Write(dt []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.abandoned {
+		// The request was abandoned and the disk writer owns the
+		// underlying writer again. Drop the data.
+		return len(dt), nil
+	}
+	return w.WriteCloser.Write(dt)
+}
+
 func (w *wrappedWriteCloser) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed || w.abandoned {
+		return w.err
+	}
+	w.closed = true
 	w.err = w.WriteCloser.Close()
-	w.once.Do(func() { close(w.done) })
+	close(w.done)
 	return w.err
 }
 
 func (w *wrappedWriteCloser) Wait(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
 	case <-w.done:
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
 		return w.err
 	}
+	// Cancelled. The receive loop may still get data for this file. Make sure
+	// it does not touch the underlying writer after we return.
+	w.abandoned = true
+	return ctx.Err()
+}
+
+// abandon stops the receive loop from using the underlying writer.
+func (w *wrappedWriteCloser) abandon() {
+	w.mu.Lock()
+	w.abandoned = true
+	w.mu.Unlock()
 }
 
 type stack[T any] struct {
