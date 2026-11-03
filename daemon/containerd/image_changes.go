@@ -63,16 +63,7 @@ func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) (_
 				retErr = errors.Join(retErr, fmt.Errorf("failed to deactivate mounts: %w", err))
 			}
 		}()
-		imageMounts = active.System
-		// Mount Manager performed every mount itself (e.g. a single-mount
-		// view), so the last active mount point is the root of the view.
-		if len(imageMounts) == 0 && len(active.Active) > 0 {
-			imageMounts = []mount.Mount{{
-				Type:    "bind",
-				Source:  active.Active[len(active.Active)-1].MountPoint,
-				Options: []string{"ro", "rbind"},
-			}}
-		}
+		imageMounts = activeViewMounts(active)
 	} else if !cerrdefs.IsNotImplemented(err) {
 		return nil, fmt.Errorf("failed to activate mounts: %w", err)
 	}
@@ -83,4 +74,18 @@ func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) (_
 		return err
 	})
 	return changes, err
+}
+
+// activeViewMounts returns the mounts that expose the root of an activated view.
+func activeViewMounts(active mount.ActivationInfo) []mount.Mount {
+	// Mount Manager performed every mount itself (e.g. a single-mount
+	// view), so the last active mount point is the root of the view.
+	if len(active.System) == 0 && len(active.Active) > 0 {
+		return []mount.Mount{{
+			Type:    "bind",
+			Source:  active.Active[len(active.Active)-1].MountPoint,
+			Options: []string{"ro", "rbind"},
+		}}
+	}
+	return active.System
 }

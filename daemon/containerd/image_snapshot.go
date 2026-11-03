@@ -174,9 +174,10 @@ func (l *rwLayer) Mount(mountLabel string) (string, error) {
 	if active, err := l.mountManager.Activate(ctx, key, mounts, activateOpts...); err == nil {
 		mounts = active.System
 	} else if cerrdefs.IsAlreadyExists(err) {
-		// If creation of task with same identifier, use existing mount rather than forcing
-		// deactivation of the old one. The back reference will prevent racing between
-		// deactivation and re-use, as the container with the same ID would still exist.
+		// Reuse the activation keyed by the container's snapshot when the container is
+		// mounted again (restart, docker cp, export or diff while running). It lives
+		// until that snapshot is removed, when the gc.bref back reference lets
+		// containerd GC deactivate it.
 		active, err = l.mountManager.Info(ctx, key)
 		if err != nil {
 			return "", fmt.Errorf("failed to get info on already active mount: %w", err)

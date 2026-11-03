@@ -159,3 +159,36 @@ func TestChanges(t *testing.T) {
 		})
 	}
 }
+
+func TestActiveViewMounts(t *testing.T) {
+	systemMounts := []mount.Mount{{Type: "overlay", Source: "overlay", Options: []string{"lowerdir=/a:/b"}}}
+
+	tests := []struct {
+		name   string
+		active mount.ActivationInfo
+		want   []mount.Mount
+	}{
+		{
+			name:   "system mounts",
+			active: mount.ActivationInfo{System: systemMounts, Active: []mount.ActiveMount{{MountPoint: "/active/0"}}},
+			want:   systemMounts,
+		},
+		{
+			name: "all mounts active",
+			active: mount.ActivationInfo{Active: []mount.ActiveMount{
+				{MountPoint: "/active/0"},
+				{MountPoint: "/active/1"},
+			}},
+			want: []mount.Mount{{Type: "bind", Source: "/active/1", Options: []string{"ro", "rbind"}}},
+		},
+		{
+			name: "nothing activated",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Check(t, is.DeepEqual(activeViewMounts(tc.active), tc.want))
+		})
+	}
+}

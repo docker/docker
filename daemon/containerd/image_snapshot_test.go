@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/defaults"
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/v2/daemon/snapshotter"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -22,6 +23,9 @@ type fakeMountManager struct {
 	deactivated   []string
 	deactivateCtx context.Context
 	events        *[]string
+	info          mount.ActivationInfo
+	infoErr       error
+	infoNames     []string
 }
 
 func (m *fakeMountManager) Activate(_ context.Context, name string, _ []mount.Mount, _ ...mount.ActivateOpt) (mount.ActivationInfo, error) {
@@ -39,6 +43,11 @@ func (m *fakeMountManager) Deactivate(ctx context.Context, name string) error {
 		*m.events = append(*m.events, "deactivate")
 	}
 	return m.deactivateErr
+}
+
+func (m *fakeMountManager) Info(_ context.Context, name string) (mount.ActivationInfo, error) {
+	m.infoNames = append(m.infoNames, name)
+	return m.info, m.infoErr
 }
 
 func TestSetupInitLayer(t *testing.T) {
@@ -166,6 +175,75 @@ func TestPrepareInitLayerDeactivate(t *testing.T) {
 				assert.NilError(t, err)
 			}
 			assert.Check(t, is.DeepEqual(sn.committed, tc.wantCommitted))
+		})
+	}
+}
+
+type mountsSnapshotter struct {
+	snapshots.Snapshotter
+}
+
+func (s *mountsSnapshotter) Mounts(context.Context, string) ([]mount.Mount, error) {
+	return []mount.Mount{{Type: "overlay", Source: "snapshot"}}, nil
+}
+
+type recordingMounter struct {
+	snapshotter.Mounter
+	mounts []mount.Mount
+}
+
+func (m *recordingMounter) Mount(mounts []mount.Mount, containerID string) (string, error) {
+	m.mounts = mounts
+	return "/root/" + containerID, nil
+}
+
+func TestRWLayerMountAlreadyActive(t *testing.T) {
+	errInfo := errors.New("info failed")
+	systemMounts := []mount.Mount{{Type: "bind", Source: "/active/root", Options: []string{"rbind"}}}
+
+	tests := []struct {
+		name       string
+		infoErr    error
+		wantErr    error
+		wantMounts []mount.Mount
+	}{
+		{
+			name:       "existing activation reused",
+			wantMounts: systemMounts,
+		},
+		{
+			name:    "info fails",
+			infoErr: errInfo,
+			wantErr: errInfo,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mm := &fakeMountManager{
+				activateErr: cerrdefs.ErrAlreadyExists,
+				info:        mount.ActivationInfo{System: systemMounts},
+				infoErr:     tc.infoErr,
+			}
+			mounter := &recordingMounter{}
+			l := &rwLayer{
+				id:              "ctr",
+				snapshotter:     &mountsSnapshotter{},
+				snapshotterName: "erofs",
+				mountManager:    mm,
+				refCountMounter: mounter,
+			}
+
+			root, err := l.Mount("")
+			assert.Check(t, is.DeepEqual(mm.infoNames, []string{"moby-erofs-sn-ctr"}))
+			if tc.wantErr != nil {
+				assert.Check(t, is.ErrorIs(err, tc.wantErr))
+				assert.Check(t, is.Len(mounter.mounts, 0))
+				return
+			}
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(root, "/root/ctr"))
+			assert.Check(t, is.DeepEqual(mounter.mounts, tc.wantMounts))
 		})
 	}
 }
