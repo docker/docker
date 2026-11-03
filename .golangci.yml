@@ -38,6 +38,7 @@ linters:
     - misspell                  # Detects commonly misspelled English words in comments.
     - nakedret                  # Detects uses of naked returns.
     - nilnesserr                # Detects returning nil errors. It combines the features of nilness and nilerr,
+    - nolintlint                # Reports ill-formed or insufficient nolint directives.
     - nosprintfhostport         # Detects misuse of Sprintf to construct a host with port in a URL.
     - perfsprint                # Detects if fmt.Sprintf can be replaced with a faster alternative.
     - reassign                  # Detects reassigning a top-level variable in another package.
