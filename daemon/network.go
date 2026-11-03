@@ -109,37 +109,6 @@ func (daemon *Daemon) GetNetworkByID(id string) (*libnetwork.Network, error) {
 	return c.NetworkByID(id)
 }
 
-// GetNetworkByName function returns a network for a given network name.
-// If no network name is given, the default network is returned.
-func (daemon *Daemon) GetNetworkByName(name string) (*libnetwork.Network, error) {
-	c := daemon.netController
-	if c == nil {
-		return nil, libnetwork.ErrNoSuchNetwork(name)
-	}
-	if name == "" {
-		name = c.Config().DefaultNetwork
-	}
-	return c.NetworkByName(name)
-}
-
-// GetNetworksByIDPrefix returns a list of networks whose ID partially matches zero or more networks
-func (daemon *Daemon) GetNetworksByIDPrefix(partialID string) []*libnetwork.Network {
-	c := daemon.netController
-	if c == nil {
-		return nil
-	}
-	list := []*libnetwork.Network{}
-	l := func(nw *libnetwork.Network) bool {
-		if strings.HasPrefix(nw.ID(), partialID) {
-			list = append(list, nw)
-		}
-		return false
-	}
-	c.WalkNetworks(l)
-
-	return list
-}
-
 // getAllNetworks returns a list containing all networks
 func (daemon *Daemon) getAllNetworks() []*libnetwork.Network {
 	c := daemon.netController
