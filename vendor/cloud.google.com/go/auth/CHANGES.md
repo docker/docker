@@ -1,5 +1,12 @@
 # Changes
 
+## [0.24.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.24.0...auth/v0.24.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **auth:** Return empty tls.Certificate on secureconnect helper failure ([#20632](https://github.com/googleapis/google-cloud-go/issues/20632)) ([1cdb61a](https://github.com/googleapis/google-cloud-go/commit/1cdb61a25ffb7ac5d0c859191d485621c4f7aed7)), refs [#20593](https://github.com/googleapis/google-cloud-go/issues/20593)
+
 ## [0.24.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.23.3...auth/v0.24.0) (2026-09-23)
 
 
