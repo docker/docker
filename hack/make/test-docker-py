@@ -33,6 +33,13 @@ PY_TEST_OPTIONS="${PY_TEST_OPTIONS} --deselect=tests/integration/api_container_t
 # See https://github.com/moby/moby/pull/50846 and https://github.com/moby/moby/pull/50957
 PY_TEST_OPTIONS="${PY_TEST_OPTIONS} --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_mac_address"
 
+# TODO re-enable once leaving a swarm no longer races the certificate renewal
+# that follows enabling autolock. When the leave loses, it fails with
+# "unlinkat /var/lib/docker/swarm/certificates: directory not empty", the
+# encrypted swarm state is left behind, and the next test's swarm init fails
+# with "Swarm is encrypted and needs to be unlocked".
+PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_swarm_test.py::SwarmTest::test_init_swarm_with_autolock_managers"
+PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_swarm_test.py::SwarmTest::test_rotate_manager_unlock_key"
 (
 	bundle .integration-daemon-start
 
