@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,7 +11,6 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
-	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -161,70 +159,4 @@ func (s *DockerAPISuite) TestLogsAPIUntilFutureFollow(c *testing.T) {
 			c.Fatal("timeout waiting for logs to exit")
 		}
 	}
-}
-
-func (s *DockerAPISuite) TestLogsAPIUntil(c *testing.T) {
-	const name = "logsuntil"
-	cli.DockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; sleep 1; done")
-
-	apiClient, err := client.New(client.FromEnv)
-	if err != nil {
-		c.Fatal(err)
-	}
-
-	extractBody := func(t *testing.T, cfg client.ContainerLogsOptions) []string {
-		reader, err := apiClient.ContainerLogs(testutil.GetContext(t), name, cfg)
-		assert.NilError(t, err)
-
-		actualStdout := new(bytes.Buffer)
-		actualStderr := io.Discard
-		_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
-		assert.NilError(t, err)
-
-		return strings.Split(actualStdout.String(), "\n")
-	}
-
-	// Get timestamp of second log line
-	allLogs := extractBody(c, client.ContainerLogsOptions{Timestamps: true, ShowStdout: true})
-	assert.Assert(c, len(allLogs) >= 3)
-
-	t, err := time.Parse(time.RFC3339Nano, strings.Split(allLogs[1], " ")[0])
-	assert.NilError(c, err)
-	until := t.Format(time.RFC3339Nano)
-
-	// Get logs until the timestamp of second line, i.e. first two lines
-	logs := extractBody(c, client.ContainerLogsOptions{Timestamps: true, ShowStdout: true, Until: until})
-
-	// Ensure log lines after cut-off are excluded
-	logsString := strings.Join(logs, "\n")
-	assert.Assert(c, !strings.Contains(logsString, "log3"), "unexpected log message returned, until=%v", until)
-}
-
-func (s *DockerAPISuite) TestLogsAPIUntilDefaultValue(c *testing.T) {
-	const name = "logsuntildefaultval"
-	cli.DockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; done")
-
-	apiClient, err := client.New(client.FromEnv)
-	if err != nil {
-		c.Fatal(err)
-	}
-
-	extractBody := func(t *testing.T, cfg client.ContainerLogsOptions) []string {
-		reader, err := apiClient.ContainerLogs(testutil.GetContext(t), name, cfg)
-		assert.NilError(t, err)
-
-		actualStdout := new(bytes.Buffer)
-		actualStderr := io.Discard
-		_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
-		assert.NilError(t, err)
-
-		return strings.Split(actualStdout.String(), "\n")
-	}
-
-	// Get timestamp of second log line
-	allLogs := extractBody(c, client.ContainerLogsOptions{Timestamps: true, ShowStdout: true})
-
-	// Test with default value specified and parameter omitted
-	defaultLogs := extractBody(c, client.ContainerLogsOptions{Timestamps: true, ShowStdout: true, Until: "0"})
-	assert.DeepEqual(c, defaultLogs, allLogs)
 }

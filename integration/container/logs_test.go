@@ -180,6 +180,67 @@ func testLogs(t *testing.T, logDriver string) {
 	}
 }
 
+// TestLogsUntil verifies that the "until" option of the container logs API
+// excludes log entries that are newer than the given time, and that an
+// "until" value of "0" returns all logs, the same as omitting the option.
+func TestLogsUntil(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	// Sleep before the last line so that it is logged clearly later than
+	// the other lines.
+	id := container.Run(ctx, t, apiClient,
+		container.WithCmd("sh", "-c", "echo log1; echo log2; sleep 1; echo log3"),
+		container.WithNetworkMode("none"),
+	)
+
+	pollTimeout := 10 * time.Second
+	if testEnv.DaemonInfo.OSType == "windows" {
+		pollTimeout = StopContainerWindowsPollTimeout
+	}
+	poll.WaitOn(t, container.IsStopped(ctx, apiClient, id), poll.WithTimeout(pollTimeout))
+
+	readLogs := func(t *testing.T, until string) []string {
+		t.Helper()
+		logs, err := apiClient.ContainerLogs(ctx, id, client.ContainerLogsOptions{
+			ShowStdout: true,
+			Timestamps: true,
+			Until:      until,
+		})
+		assert.NilError(t, err)
+		defer logs.Close()
+
+		var stdout bytes.Buffer
+		_, err = stdcopy.StdCopy(&stdout, io.Discard, logs)
+		assert.NilError(t, err)
+		return strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	}
+
+	// entryTime returns the timestamp that prefixes a log entry.
+	entryTime := func(t *testing.T, entry string) time.Time {
+		t.Helper()
+		ts, _, _ := strings.Cut(entry, " ")
+		tm, err := time.Parse(time.RFC3339Nano, ts)
+		assert.NilError(t, err)
+		return tm
+	}
+
+	allLogs := readLogs(t, "")
+	assert.Assert(t, is.Len(allLogs, 3))
+
+	t.Run("until before last entry", func(t *testing.T) {
+		second, last := entryTime(t, allLogs[1]), entryTime(t, allLogs[2])
+		assert.Assert(t, second.Before(last))
+		until := second.Add(last.Sub(second) / 2).Format(time.RFC3339Nano)
+
+		assert.Check(t, is.DeepEqual(readLogs(t, until), allLogs[:2]))
+	})
+
+	t.Run("until zero", func(t *testing.T) {
+		assert.Check(t, is.DeepEqual(readLogs(t, "0"), allLogs))
+	})
+}
+
 // This hack strips the escape codes that appear in the Windows TTY output and don't have
 // any effect on the text content.
 // This doesn't handle all escape sequences, only ones that were encountered during testing.
