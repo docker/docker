@@ -23,6 +23,7 @@ import (
 	slsa02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
 	slsa1 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1"
 	"github.com/moby/buildkit/util/attestation"
+	"github.com/moby/moby/api/types/auxprogress"
 	"github.com/moby/moby/api/types/events"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/v2/daemon/internal/distribution"
@@ -256,6 +257,10 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	opts = append(opts, containerd.WithDownloadLimiter(downloadLimiter))
 	img, err := i.client.Pull(ctx, ref.String(), opts...)
 	if err != nil {
+		ociErrs, legacyErr := extractOCIErrors(ctx, err)
+		if len(ociErrs) > 0 {
+			emitAuxOCIErrors(ctx, ociErrs, out)
+		}
 		if errors.Is(err, docker.ErrInvalidAuthorization) {
 			// Match error returned by containerd.
 			// https://github.com/containerd/containerd/blob/v2.1.1/core/remotes/docker/authorizer.go#L201-L203
@@ -273,7 +278,10 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 				return errdefs.NotFound(fmt.Errorf("no matching manifest for %s in the manifest list entries: %w", platformStr, err))
 			}
 		}
-		return translateRegistryError(ctx, err)
+		if legacyErr != nil {
+			return legacyErr
+		}
+		return convertOCIErrors(ociErrs, err)
 	}
 
 	logger := log.G(ctx).WithFields(log.Fields{
@@ -538,4 +546,38 @@ func writeStatus(out progress.Output, requestedTag string, newerDownloaded bool)
 
 func isModelMediaType(mediaType string) bool {
 	return strings.HasPrefix(strings.ToLower(mediaType), "application/vnd.docker.ai.")
+}
+
+// emitAuxOCIErrors converts OCI registry errors to progress aux messages and sends them.
+func emitAuxOCIErrors(ctx context.Context, ociErrs docker.Errors, out progress.Output) {
+	aux := auxprogress.OCIRegistryErrors{
+		Errors: make([]auxprogress.OCIRegistryError, len(ociErrs)),
+	}
+	for i, oerr := range ociErrs {
+		var derr docker.Error
+		var errCode docker.ErrorCode
+		if errors.As(oerr, &derr) {
+			aux.Errors[i] = auxprogress.OCIRegistryError{
+				Code:    derr.Code.Descriptor().Value,
+				Message: derr.Message,
+				Detail:  derr.Detail,
+			}
+		} else if errors.As(oerr, &errCode) {
+			aux.Errors[i] = auxprogress.OCIRegistryError{
+				Code:    errCode.String(),
+				Message: errCode.Message(),
+				Detail:  nil,
+			}
+		} else {
+			log.G(ctx).WithField("type", fmt.Sprintf("%T", oerr)).Errorf("can't emit aux for unexpected oci error: %s", oerr.Error())
+			continue
+		}
+
+		log.G(ctx).WithFields(log.Fields{
+			"code":    aux.Errors[i].Code,
+			"message": aux.Errors[i].Message,
+			"detail":  aux.Errors[i].Detail,
+		}).Warn("encountered registry error")
+	}
+	progress.Aux(out, &aux)
 }
