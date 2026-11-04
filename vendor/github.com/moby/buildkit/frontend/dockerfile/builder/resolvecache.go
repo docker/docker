@@ -26,8 +26,14 @@ type resolveResult struct {
 
 var _ client.Client = &withResolveCache{}
 
+func newWithResolveCache(c client.Client) *withResolveCache {
+	return &withResolveCache{
+		Client: c,
+		g:      flightcontrol.CachedGroup[*resolveResult]{CacheError: true},
+	}
+}
+
 func (c *withResolveCache) ResolveImageConfig(ctx context.Context, ref string, opt sourceresolver.Opt) (string, digest.Digest, []byte, error) {
-	c.g.CacheError = true
 	optHash, err := hashstructure.Hash(opt, nil)
 	if err != nil {
 		return "", "", nil, err

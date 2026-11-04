@@ -58,6 +58,7 @@ const (
 	keyDockerfileLintArg    = "build-arg:BUILDKIT_DOCKERFILE_CHECK"
 	keyContextKeepGitDirArg = "build-arg:BUILDKIT_CONTEXT_KEEP_GIT_DIR"
 	keyGitAdviceArg         = "build-arg:BUILDKIT_GIT_ADVICE"
+	keyGitDebugCommandsArg  = "build-arg:BUILDKIT_GIT_DEBUG_COMMANDS"
 )
 
 type Config struct {
@@ -70,6 +71,7 @@ type Config struct {
 	Labels           map[string]string
 	NetworkMode      pb.NetMode
 	GitAdvice        bool
+	GitDebugCommands bool
 	ShmSize          int64
 	Target           string
 	Ulimits          []*pb.Ulimit
@@ -317,6 +319,12 @@ func (bc *Client) init() error {
 		bc.GitAdvice, err = strconv.ParseBool(v)
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse %s", keyGitAdviceArg)
+		}
+	}
+	if v := opts[keyGitDebugCommandsArg]; v != "" {
+		bc.GitDebugCommands, err = strconv.ParseBool(v)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse %s", keyGitDebugCommandsArg)
 		}
 	}
 

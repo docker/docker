@@ -37,10 +37,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/containerd/stargz-snapshotter/estargz/errorutil"
 	"github.com/klauspost/compress/zstd"
 	digest "github.com/opencontainers/go-digest"
-	"golang.org/x/sync/errgroup"
 )
 
 type GzipHelperFunc func(io.Reader) (io.ReadCloser, error)
@@ -53,6 +51,7 @@ type options struct {
 	compression            Compression
 	ctx                    context.Context
 	minChunkSize           int
+	parallelism            int
 	gzipHelperFunc         GzipHelperFunc
 }
 
@@ -127,6 +126,20 @@ func WithContext(ctx context.Context) Option {
 func WithMinChunkSize(minChunkSize int) Option {
 	return func(o *options) error {
 		o.minChunkSize = minChunkSize
+		return nil
+	}
+}
+
+// WithParallelism option specifies the number of workers used to build the
+// layer. The tar is sliced into this many parts that are compressed
+// concurrently, so the value also fixes the resulting chunk boundaries: pinning
+// it makes builds reproducible across machines regardless of their CPU count.
+// Zero (the default) selects runtime.GOMAXPROCS(0); a value of 1 forces a fully
+// sequential build. This has no effect together with WithMinChunkSize, which is
+// always built with a single worker.
+func WithParallelism(workers int) Option {
+	return func(o *options) error {
+		o.parallelism = workers
 		return nil
 	}
 }
@@ -225,25 +238,32 @@ func Build(tarBlob *io.SectionReader, opt ...Option) (_ *Blob, rErr error) {
 	if err != nil {
 		return nil, err
 	}
+	// The worker count slices the tar and so fixes the chunk boundaries; an
+	// explicit value is honored verbatim, which keeps builds reproducible across
+	// machines. Zero falls back to GOMAXPROCS.
+	workers := opts.parallelism
+	if workers <= 0 {
+		workers = runtime.GOMAXPROCS(0)
+	}
 	var tarParts [][]*entry
 	if opts.minChunkSize > 0 {
 		// Each entry needs to know the size of the current gzip stream so they
 		// cannot be processed in parallel.
 		tarParts = [][]*entry{entries}
 	} else {
-		tarParts = divideEntries(entries, runtime.GOMAXPROCS(0))
+		tarParts = divideEntries(entries, workers)
 	}
 	writers := make([]*Writer, len(tarParts))
 	payloads := make([]*os.File, len(tarParts))
-	var mu sync.Mutex
-	var eg errgroup.Group
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(tarParts)) // buffered to avoid goroutine leaks
 	for i, parts := range tarParts {
-		i, parts := i, parts
 		// builds verifiable stargz sub-blobs
-		eg.Go(func() error {
+		wg.Go(func() {
 			esgzFile, err := layerFiles.TempFile("", "esgzdata")
 			if err != nil {
-				return err
+				errCh <- err
+				return
 			}
 			sw := NewWriterWithCompressor(esgzFile, opts.compression)
 			sw.ChunkSize = opts.chunkSize
@@ -255,18 +275,20 @@ func Build(tarBlob *io.SectionReader, opt ...Option) (_ *Blob, rErr error) {
 				sw.needsOpenGzEntries[f] = struct{}{}
 			}
 			if err := sw.AppendTar(readerFromEntries(parts...)); err != nil {
-				return err
+				errCh <- err
+				return
 			}
-			mu.Lock()
 			writers[i] = sw
 			payloads[i] = esgzFile
-			mu.Unlock()
-			return nil
 		})
 	}
-	if err := eg.Wait(); err != nil {
-		rErr = err
-		return nil, err
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		if err != nil {
+			return nil, err
+		}
 	}
 	tocAndFooter, tocDgst, err := closeWithCombine(writers...)
 	if err != nil {
@@ -656,7 +678,7 @@ func (tf *tempFiles) cleanupAll() error {
 		}
 	}
 	tf.files = nil
-	return errorutil.Aggregate(allErr)
+	return errors.Join(allErr...)
 }
 
 func newCountReadSeeker(r io.ReaderAt) (*countReadSeeker, error) {

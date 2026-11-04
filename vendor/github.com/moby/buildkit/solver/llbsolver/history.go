@@ -137,11 +137,7 @@ func (s *Solver) recordBuildHistory(ctx context.Context, id string, req frontend
 			if err != nil {
 				return nil, nil, err
 			}
-			pr, err := pc.Predicate(ctx)
-			if err != nil {
-				return nil, nil, err
-			}
-			dt, err := json.MarshalIndent(pr, "", "  ")
+			dt, err := pc.PredicateJSON(ctx)
 			if err != nil {
 				return nil, nil, err
 			}

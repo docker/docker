@@ -36,7 +36,7 @@ func withAncestorCacheOpts(ctx context.Context, start *state) context.Context {
 		}
 		values := make(map[any]any)
 		walkAncestors(ctx, start, func(st *state) bool {
-			if st.clientVertex.Error != "" {
+			if st.vertexFailed() {
 				// don't use values from cancelled or otherwise error'd vertexes
 				return false
 			}

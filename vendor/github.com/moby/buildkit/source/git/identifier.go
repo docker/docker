@@ -29,6 +29,7 @@ type GitIdentifier struct {
 	SkipSubmodules   bool
 	MTime            string // "checkout" (default) or "commit"
 	Advice           bool
+	DebugCommands    bool
 	FetchByCommit    bool
 
 	// Bundle, when non-empty, instructs the git source to fetch commits from a

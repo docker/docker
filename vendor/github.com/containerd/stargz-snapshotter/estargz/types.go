@@ -246,7 +246,7 @@ func (fi fileInfo) Name() string       { return path.Base(fi.e.Name) }
 func (fi fileInfo) IsDir() bool        { return fi.e.Type == "dir" }
 func (fi fileInfo) Size() int64        { return fi.e.Size }
 func (fi fileInfo) ModTime() time.Time { return fi.e.ModTime() }
-func (fi fileInfo) Sys() interface{}   { return fi.e }
+func (fi fileInfo) Sys() any           { return fi.e }
 func (fi fileInfo) Mode() (m os.FileMode) {
 	// TOCEntry.Mode is tar.Header.Mode so we can understand the these bits using `tar` pkg.
 	m = (&tar.Header{Mode: fi.e.Mode}).FileInfo().Mode() &

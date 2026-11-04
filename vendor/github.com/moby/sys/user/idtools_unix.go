@@ -10,7 +10,12 @@ import (
 	"syscall"
 )
 
-func mkdirAs(path string, mode os.FileMode, uid, gid int, mkAll, onlyNew bool) error {
+func mkdirAs(path string, mode os.FileMode, uid, gid int, mkAll bool, opts ...MkdirOpt) error {
+	var options mkdirOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
+
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return err
@@ -21,7 +26,7 @@ func mkdirAs(path string, mode os.FileMode, uid, gid int, mkAll, onlyNew bool) e
 		if !stat.IsDir() {
 			return &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
 		}
-		if onlyNew {
+		if options.onlyNew {
 			return nil
 		}
 

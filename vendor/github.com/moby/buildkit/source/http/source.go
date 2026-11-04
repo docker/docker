@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"mime"
 	"net/http"
 	"net/url"
@@ -31,6 +32,7 @@ import (
 	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/cachedigest"
 	"github.com/moby/buildkit/util/pgpsign"
+	"github.com/moby/buildkit/util/resolver/retryhandler"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/buildkit/util/urlutil"
 	"github.com/moby/buildkit/version"
@@ -213,6 +215,45 @@ func (hs *Source) Resolve(ctx context.Context, id source.Identifier, sm *session
 
 func (hs *httpSourceHandler) client(g session.Group) *http.Client {
 	return &http.Client{Transport: newTransport(hs.transport, hs.sm, g)}
+}
+
+// doRequest retries transient network failures and HTTP 429/503 responses with
+// jittered exponential backoff, honoring Retry-After as a minimum delay.
+// Requests have no body and are safe to replay. Failures reading a successful
+// response body and other HTTP statuses are left to the caller.
+func doRequest(ctx context.Context, client *http.Client, req *http.Request) (*http.Response, error) {
+	return retryhandler.WithRetry(ctx, nil, func(ctx context.Context) (*http.Response, error) {
+		resp, err := client.Do(req.Clone(ctx))
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode != http.StatusTooManyRequests && resp.StatusCode != http.StatusServiceUnavailable {
+			return resp, nil
+		}
+		// Do not drain an error body: it may stall independently of the headers.
+		resp.Body.Close()
+		return nil, &retryhandler.RetryAfterError{
+			Err:   errors.Errorf("invalid response status %d", resp.StatusCode),
+			Delay: retryAfterDelay(resp.Header.Get("Retry-After")),
+		}
+	})
+}
+
+// retryAfterDelay parses either delay-seconds or an HTTP-date. Invalid and past
+// values fall back to the normal backoff. Saturate large values to avoid overflow.
+func retryAfterDelay(value string) time.Duration {
+	value = strings.TrimSpace(value)
+	seconds, err := strconv.ParseUint(value, 10, 64)
+	if err == nil || errors.Is(err, strconv.ErrRange) {
+		if seconds > uint64(math.MaxInt64/int64(time.Second)) {
+			return time.Duration(math.MaxInt64)
+		}
+		return time.Duration(seconds) * time.Second
+	}
+	if date, err := http.ParseTime(value); err == nil {
+		return max(time.Until(date), 0)
+	}
+	return 0
 }
 
 // urlHash is internal hash the etag is stored by that doesn't leak outside
@@ -408,6 +449,7 @@ func (hs *httpSourceHandler) resolveMetadataRef(ctx context.Context, jobCtx solv
 		// we need to add accept-encoding header manually because stdlib only adds it to GET requests
 		// some servers will return different etags if Accept-Encoding header is different
 		req.Header.Set("Accept-Encoding", "gzip")
+		// Best-effort: on any error we fall through to the GET below, which is retried.
 		resp, err := client.Do(req)
 		if err == nil {
 			if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotModified {
@@ -454,7 +496,7 @@ func (hs *httpSourceHandler) resolveMetadataRef(ctx context.Context, jobCtx solv
 		req.Header.Del("Accept-Encoding")
 	}
 
-	resp, err := client.Do(req)
+	resp, err := doRequest(ctx, client, req)
 	if err != nil {
 		return nil, err
 	}
@@ -889,7 +931,7 @@ func (hs *httpSourceHandler) Snapshot(ctx context.Context, jobCtx solver.JobCont
 
 	client := hs.client(g)
 
-	resp, err := client.Do(req)
+	resp, err := doRequest(ctx, client, req)
 	if err != nil {
 		return nil, err
 	}

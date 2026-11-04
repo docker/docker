@@ -49,13 +49,14 @@ type puller struct {
 	ResolverType
 	store sourceresolver.ResolveImageConfigOptStore
 
-	g                flightcontrol.Group[struct{}]
-	cacheKeyErr      error
-	cacheKeyDone     bool
-	releaseTmpLeases func(context.Context) error
-	descHandlers     cache.DescHandlers
-	manifest         *pull.PulledManifests
-	manifestKey      string
+	g                   flightcontrol.Group[struct{}]
+	cacheKeyErr         error
+	cacheKeyDone        bool
+	releaseTmpLeases    func(context.Context) error
+	descHandlers        cache.DescHandlers
+	manifest            *pull.PulledManifests
+	manifestKey         string
+	platformManifestKey string
 	*pull.Puller
 }
 
@@ -132,8 +133,8 @@ func (p *puller) CacheKey(ctx context.Context, jobCtx solver.JobContext, index i
 			return struct{}{}, err
 		}
 
-		if p.checksum != "" && p.manifest.MainManifestDesc.Digest != p.checksum {
-			return struct{}{}, errors.Errorf("image digest %s for %s does not match expected checksum %s", p.manifest.MainManifestDesc.Digest, p.Ref, p.checksum)
+		if p.checksum != "" && p.manifest.RootManifestDesc.Digest != p.checksum {
+			return struct{}{}, errors.Errorf("image digest %s for %s does not match expected checksum %s", p.manifest.RootManifestDesc.Digest, p.Ref, p.checksum)
 		}
 
 		if ll := p.layerLimit; ll != nil {
@@ -172,12 +173,17 @@ func (p *puller) CacheKey(ctx context.Context, jobCtx solver.JobContext, index i
 			}
 		}
 
-		desc := p.manifest.MainManifestDesc
+		desc := p.manifest.RootManifestDesc
 		k, err := mainManifestKey(desc, p.Platform, p.layerLimit)
 		if err != nil {
 			return struct{}{}, err
 		}
 		p.manifestKey = k.String()
+		k, err = mainManifestKey(p.manifest.ImageManifestDesc, p.Platform, p.layerLimit)
+		if err != nil {
+			return struct{}{}, err
+		}
+		p.platformManifestKey = k.String()
 		// Do not use RootFS DiffIDs from the image config as an alternate
 		// cache key. They are verified only when layers are applied, and a
 		// failed malicious pull must not poison another image source.
@@ -193,7 +199,14 @@ func (p *puller) CacheKey(ctx context.Context, jobCtx solver.JobContext, index i
 		cacheOpts[cache.DescHandlerKey(dgst)] = descHandler
 	}
 
-	return p.manifestKey, p.manifest.MainManifestDesc.Digest.String(), cacheOpts, true, nil
+	// Keep the index key for existing caches, but also match the selected
+	// manifest so changes to attestations or other platforms do not invalidate
+	// this source. Both keys identify verified manifest content, not DiffIDs
+	// advertised by an unverified image config.
+	if index == 0 {
+		return p.manifestKey, p.manifest.RootManifestDesc.Digest.String(), cacheOpts, p.manifestKey == p.platformManifestKey, nil
+	}
+	return p.platformManifestKey, p.manifest.RootManifestDesc.Digest.String(), cacheOpts, true, nil
 }
 
 func (p *puller) Snapshot(ctx context.Context, jobCtx solver.JobContext) (ir cache.ImmutableRef, err error) {

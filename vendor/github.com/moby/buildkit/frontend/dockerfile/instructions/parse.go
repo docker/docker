@@ -36,6 +36,31 @@ var (
 	parseRunPostHooks []func(*RunCommand, parseRequest) error
 )
 
+var (
+	unsetEnabled = false
+	resetEnabled = false
+)
+
+// ResetAll is the FROM --reset value that resets all ResetKeys.
+const ResetAll = "all"
+
+// ResetKeys are the base image config fields that can be reset with
+// FROM --reset. Each field is named after the command that sets it.
+var ResetKeys = []string{
+	command.Cmd,
+	command.Entrypoint,
+	command.Env,
+	command.Expose,
+	command.Healthcheck,
+	command.Label,
+	command.Onbuild,
+	command.Shell,
+	command.StopSignal,
+	command.User,
+	command.Volume,
+	command.Workdir,
+}
+
 func nodeArgs(node *parser.Node) []string {
 	result := []string{}
 	for ; node.Next != nil; node = node.Next {
@@ -230,9 +255,47 @@ func parseKvps(args []string, cmdName string) (KeyValuePairs, error) {
 	return res, nil
 }
 
+// addUnsetFlag adds the --unset flag if it is enabled in this build.
+func addUnsetFlag(req parseRequest) *Flag {
+	if !unsetEnabled {
+		return nil
+	}
+	return req.flags.AddBool("unset", false)
+}
+
+// parseUnsetKeys returns the keys for the --unset form of a command.
+func parseUnsetKeys(args []string, cmdName string) (KeyValuePairs, error) {
+	if len(args) == 0 {
+		return nil, errAtLeastOneArgument(cmdName + " --unset")
+	}
+	var res KeyValuePairs
+	for _, name := range args {
+		if name == "" {
+			return nil, errBlankCommandNames(cmdName)
+		}
+		if strings.Contains(name, "=") {
+			return nil, errors.Errorf("%s --unset does not accept values: %s", cmdName, name)
+		}
+		res = append(res, KeyValuePair{Key: name})
+	}
+	return res, nil
+}
+
 func parseEnv(req parseRequest) (*EnvCommand, error) {
+	flUnset := addUnsetFlag(req)
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
+	}
+	if flUnset != nil && flUnset.Value == "true" {
+		envs, err := parseUnsetKeys(req.args, "ENV")
+		if err != nil {
+			return nil, err
+		}
+		return &EnvCommand{
+			Env:             envs,
+			Unset:           true,
+			withNameAndCode: newWithNameAndCode(req),
+		}, nil
 	}
 	envs, err := parseKvps(req.args, "ENV")
 	if err != nil {
@@ -259,8 +322,20 @@ func parseMaintainer(req parseRequest) (*MaintainerCommand, error) {
 }
 
 func parseLabel(req parseRequest) (*LabelCommand, error) {
+	flUnset := addUnsetFlag(req)
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
+	}
+	if flUnset != nil && flUnset.Value == "true" {
+		labels, err := parseUnsetKeys(req.args, "LABEL")
+		if err != nil {
+			return nil, err
+		}
+		return &LabelCommand{
+			Labels:          labels,
+			Unset:           true,
+			withNameAndCode: newWithNameAndCode(req),
+		}, nil
 	}
 
 	labels, err := parseKvps(req.args, "LABEL")
@@ -399,8 +474,20 @@ func parseFrom(req parseRequest) (*Stage, error) {
 	}
 
 	flPlatform := req.flags.AddString("platform", "")
+	var flReset *Flag
+	if resetEnabled {
+		flReset = req.flags.AddStrings("reset")
+	}
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
+	}
+
+	var reset []string
+	if flReset != nil {
+		reset, err = parseResetKeys(flReset.StringValues)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	code := strings.TrimSpace(req.original)
@@ -411,10 +498,33 @@ func parseFrom(req parseRequest) (*Stage, error) {
 		SourceCode: code,
 		Commands:   []Command{},
 		Platform:   flPlatform.Value,
+		Reset:      reset,
 		Location:   req.location,
 		Comments:   req.comments,
 		DocComment: getDocComment(req.comments, stageName),
 	}, nil
+}
+
+// parseResetKeys returns the sorted list of fields for FROM --reset values.
+func parseResetKeys(values []string) ([]string, error) {
+	var keys []string
+	for _, v := range values {
+		for k := range strings.SplitSeq(v, ",") {
+			switch {
+			case k == ResetAll:
+				keys = append(keys, ResetKeys...)
+			case slices.Contains(ResetKeys, k):
+				keys = append(keys, k)
+			case strings.ToLower(k) == ResetAll || slices.Contains(ResetKeys, strings.ToLower(k)):
+				return nil, errors.Errorf("invalid FROM --reset value: %q (did you mean %s?)", k, strings.ToLower(k))
+			default:
+				err := errors.Errorf("invalid FROM --reset value: %q", k)
+				return nil, suggest.WrapError(err, k, append([]string{ResetAll}, ResetKeys...), true)
+			}
+		}
+	}
+	slices.Sort(keys)
+	return slices.Compact(keys), nil
 }
 
 var validStageName = regexp.MustCompile("^[a-z][a-z0-9-_.]*$")
@@ -714,11 +824,13 @@ func parseVolume(req parseRequest) (*VolumeCommand, error) {
 		return nil, errAtLeastOneArgument("VOLUME")
 	}
 
+	flUnset := addUnsetFlag(req)
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
 
 	cmd := &VolumeCommand{
+		Unset:           flUnset != nil && flUnset.Value == "true",
 		withNameAndCode: newWithNameAndCode(req),
 	}
 
@@ -736,6 +848,9 @@ func parseStopSignal(req parseRequest) (*StopSignalCommand, error) {
 	if len(req.args) != 1 {
 		return nil, errExactlyOneArgument("STOPSIGNAL")
 	}
+	if err := req.flags.Parse(); err != nil {
+		return nil, err
+	}
 	sig := req.args[0]
 
 	cmd := &StopSignalCommand{
@@ -748,6 +863,10 @@ func parseStopSignal(req parseRequest) (*StopSignalCommand, error) {
 func parseArg(req parseRequest) (*ArgCommand, error) {
 	if len(req.args) < 1 {
 		return nil, errAtLeastOneArgument("ARG")
+	}
+
+	if err := req.flags.Parse(); err != nil {
+		return nil, err
 	}
 
 	pairs := make([]KeyValuePairOptional, len(req.args))

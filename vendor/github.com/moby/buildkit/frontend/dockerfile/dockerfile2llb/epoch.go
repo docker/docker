@@ -98,7 +98,7 @@ func resolveSourceDateEpochState(ctx context.Context, value string, opt ConvertO
 			args = &updated
 		}
 
-		sourceState, err := sourceDateEpochStageSource(stages[i], opt.BuildArgs, args, shlex, opt.GitAdvice)
+		sourceState, err := sourceDateEpochStageSource(stages[i], opt.BuildArgs, args, shlex, opt.GitAdvice, opt.GitDebugCommands)
 		if err != nil {
 			return nil, sourceDateEpochStateOpt{}, parser.WithLocation(err, stages[i].Location)
 		}
@@ -110,7 +110,7 @@ func resolveSourceDateEpochState(ctx context.Context, value string, opt ConvertO
 	return nil, sourceDateEpochStateOpt{}, errors.Errorf("invalid SOURCE_DATE_EPOCH: %s", value)
 }
 
-func sourceDateEpochStageSource(stage instructions.Stage, buildArgs map[string]string, globalArgs *llb.EnvList, shlex *shell.Lex, gitAdvice bool) (*llb.State, error) {
+func sourceDateEpochStageSource(stage instructions.Stage, buildArgs map[string]string, globalArgs *llb.EnvList, shlex *shell.Lex, gitAdvice, gitDebugCommands bool) (*llb.State, error) {
 	stageBaseName, _, err := shlex.ProcessWord(stage.BaseName, globalArgs)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to process source stage base name %q", stage.BaseName)
@@ -133,7 +133,7 @@ func sourceDateEpochStageSource(stage instructions.Stage, buildArgs map[string]s
 			if sourceState != nil {
 				return nil, errors.New("SOURCE_DATE_EPOCH stage must contain exactly one remote ADD")
 			}
-			sourceState, err = sourceDateEpochAddSource(c, env, shlex, gitAdvice)
+			sourceState, err = sourceDateEpochAddSource(c, env, shlex, gitAdvice, gitDebugCommands)
 			if err != nil {
 				return nil, err
 			}
@@ -167,7 +167,7 @@ func applySourceDateEpochStageArgs(args []instructions.KeyValuePairOptional, env
 	return env, nil
 }
 
-func sourceDateEpochAddSource(cmd *instructions.AddCommand, env *llb.EnvList, shlex *shell.Lex, gitAdvice bool) (*llb.State, error) {
+func sourceDateEpochAddSource(cmd *instructions.AddCommand, env *llb.EnvList, shlex *shell.Lex, gitAdvice, gitDebugCommands bool) (*llb.State, error) {
 	if len(cmd.SourceContents) != 0 || len(cmd.SourcePaths) != 1 {
 		return nil, errors.New("SOURCE_DATE_EPOCH stage must contain exactly one remote ADD source")
 	}
@@ -203,6 +203,9 @@ func sourceDateEpochAddSource(cmd *instructions.AddCommand, env *llb.EnvList, sh
 		}
 		if gitAdvice {
 			gitOptions = append(gitOptions, llb.GitAdvice(true))
+		}
+		if gitDebugCommands {
+			gitOptions = append(gitOptions, llb.GitDebugCommands(true))
 		}
 		if cmd.KeepGitDir != nil && *cmd.KeepGitDir {
 			gitOptions = append(gitOptions, llb.KeepGitDir())

@@ -153,7 +153,7 @@ func (pw *sender[Payload, Value]) Finalize(v Value, err error) {
 	pw.status.Value = v
 	pw.status.Err = err
 	pw.status.Completed = true
-	if errors.Is(err, context.Canceled) && pw.req.Canceled {
+	if errors.Is(err, context.Canceled) && pw.Request().Canceled {
 		pw.status.Canceled = true
 	}
 	pw.sendChannel.Send(pw.status)

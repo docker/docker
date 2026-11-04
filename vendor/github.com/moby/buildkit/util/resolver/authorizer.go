@@ -147,6 +147,13 @@ func (a *dockerAuthorizer) Authorize(ctx context.Context, req *http.Request) err
 
 	authHeader, err := ah.authorize(ctx, a.sm, a.session)
 	if err != nil {
+		// containerd attaches a streaming request body (the pipe of a blob
+		// upload) before authorizing, and does not close it if authorization
+		// fails. Nothing would then unblock the writer feeding the pipe, and
+		// the registry concurrency slot held by it would never be released.
+		if req.Body != nil {
+			req.Body.Close()
+		}
 		return err
 	}
 

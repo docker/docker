@@ -477,6 +477,9 @@ func Git(url, fragment string, opts ...GitOption) State {
 		attrs[pb.AttrGitSkipSubmodules] = "true"
 		addCap(&gi.Constraints, pb.CapSourceGitSkipSubmodules)
 	}
+	if gi.DebugCommands {
+		attrs[pb.AttrGitDebugCommands] = "true"
+	}
 
 	if gi.MTime != "" {
 		attrs[pb.AttrGitMTime] = gi.MTime
@@ -536,6 +539,7 @@ type GitInfo struct {
 	SkipSubmodules     bool
 	MTime              string
 	Advice             bool
+	DebugCommands      bool
 	Bundle             string
 	BundleOCISessionID string
 	BundleOCIStoreID   string
@@ -580,6 +584,14 @@ func GitMTime(v string) GitOption {
 func GitAdvice(enabled bool) GitOption {
 	return gitOptionFunc(func(gi *GitInfo) {
 		gi.Advice = enabled
+	})
+}
+
+// GitDebugCommands controls whether executed Git commands are logged while
+// resolving this git source.
+func GitDebugCommands(enabled bool) GitOption {
+	return gitOptionFunc(func(gi *GitInfo) {
+		gi.DebugCommands = enabled
 	})
 }
 

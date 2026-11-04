@@ -41,7 +41,7 @@ func dispatchExpose(d *dispatchState, c *instructions.ExposeCommand, opt *dispat
 		d.image.Config.ExposedPorts[p] = struct{}{}
 	}
 
-	return commitToHistory(&d.image, fmt.Sprintf("EXPOSE %v", psp), false, nil, d.epoch)
+	return commitToHistory(&d.image, fmt.Sprintf("EXPOSE %s", strings.Join(psp, " ")), false, nil, d.epoch)
 }
 
 type portSpecs struct {

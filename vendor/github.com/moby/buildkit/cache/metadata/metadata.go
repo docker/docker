@@ -190,6 +190,40 @@ func (s *Store) Clear(id string) error {
 	}))
 }
 
+func (s *Store) ClearOrphans() (int, error) {
+	var n int
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		external := tx.Bucket([]byte(externalBucket))
+		if external == nil {
+			return nil
+		}
+		var records *bolt.Cursor
+		if main := tx.Bucket([]byte(mainBucket)); main != nil {
+			records = main.Cursor()
+		}
+		var orphans [][]byte
+		if err := external.ForEach(func(k, _ []byte) error {
+			if records != nil {
+				if id, v := records.Seek(k); bytes.Equal(id, k) && v == nil {
+					return nil
+				}
+			}
+			orphans = append(orphans, append([]byte(nil), k...))
+			return nil
+		}); err != nil {
+			return err
+		}
+		for _, id := range orphans {
+			if err := external.DeleteBucket(id); err != nil {
+				return err
+			}
+		}
+		n = len(orphans)
+		return nil
+	})
+	return n, errors.WithStack(err)
+}
+
 func (s *Store) Update(id string, fn func(b *bolt.Bucket) error) error {
 	return errors.WithStack(s.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(mainBucket))
@@ -330,6 +364,10 @@ func (s *StorageItem) GetExternal(k string) ([]byte, error) {
 
 func (s *StorageItem) SetExternal(k string, dt []byte) error {
 	return errors.WithStack(s.storage.db.Update(func(tx *bolt.Tx) error {
+		main := tx.Bucket([]byte(mainBucket))
+		if main == nil || main.Bucket([]byte(s.id)) == nil {
+			return errors.Wrapf(errNotFound, "record %s", s.id)
+		}
 		b, err := tx.CreateBucketIfNotExists([]byte(externalBucket))
 		if err != nil {
 			return errors.WithStack(err)

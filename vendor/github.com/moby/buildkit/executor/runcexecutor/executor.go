@@ -40,6 +40,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const runcStartTimeout = 15 * time.Second
+
 type Opt struct {
 	// root directory
 	Root              string
@@ -748,7 +750,7 @@ func (p *procHandle) WaitForReady(ctx context.Context) error {
 // callback is non-nil it will be called after receiving the pid.
 func (p *procHandle) WaitForStart(ctx context.Context, startedCh <-chan int, started func()) error {
 	ctx, cancel := context.WithCancelCause(ctx)
-	ctx, _ = context.WithTimeoutCause(ctx, 10*time.Second, errors.WithStack(context.DeadlineExceeded)) //nolint:govet
+	ctx, _ = context.WithTimeoutCause(ctx, runcStartTimeout, errors.WithStack(context.DeadlineExceeded)) //nolint:govet
 	defer func() { cancel(errors.WithStack(context.Canceled)) }()
 	select {
 	case <-ctx.Done():
