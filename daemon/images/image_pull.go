@@ -84,6 +84,10 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	// Before the lease is cancelled, any content we want to keep should have it's own lease applied.
 	ctx, done, err := tempLease(ctx, i.leases)
 	if err != nil {
+		// The progress writer is already running and blocks on progressChan
+		// until it is closed; close it here so the goroutine does not leak.
+		close(progressChan)
+		<-writesDone
 		return err
 	}
 	defer done(ctx)
