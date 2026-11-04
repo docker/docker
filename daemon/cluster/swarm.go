@@ -104,6 +104,19 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		return "", err
 	}
 
+	if !req.ForceNewCluster {
+		// A normal init creates a brand-new cluster. If c.nr is nil, the
+		// daemon is not tracking a swarm, but late swarmkit writes from a
+		// previous autolocked manager can leave encrypted credentials under
+		// stateDir after Leave has cleared it. Discard orphaned state here so
+		// init cannot load a stale encrypted key and report the new swarm as
+		// locked. ForceNewCluster is excluded because it deliberately reuses
+		// on-disk state to recover a cluster that lost quorum.
+		if err := clearPersistentState(c.stateDir); err != nil {
+			return "", err
+		}
+	}
+
 	nr, err := c.newNodeRunner(nodeStartConfig{
 		forceNewCluster:    req.ForceNewCluster,
 		autolock:           req.AutoLockManagers,
