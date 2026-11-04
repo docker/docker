@@ -19,11 +19,13 @@ func cleanupNetworkNamespace(t testing.TB, d *Daemon) {
 	// daemon instance and has no chance of getting
 	// cleaned up when a new daemon is instantiated with a
 	// new exec root.
-	filepath.WalkDir(filepath.Join(d.execRoot, "netns"), func(path string, _ os.DirEntry, _ error) error {
+	_ = filepath.WalkDir(filepath.Join(d.execRoot, "netns"), func(path string, _ os.DirEntry, _ error) error {
 		if err := unix.Unmount(path, unix.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) && !errors.Is(err, unix.ENOENT) {
 			t.Logf("[%s] unmount of %s failed: %v", d.id, path, err)
 		}
-		os.Remove(path)
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			t.Logf("[%s] error removing network namespace %s: %v", d.id, path, err)
+		}
 		return nil
 	})
 }

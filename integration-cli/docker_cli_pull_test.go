@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os/exec"
 	"regexp"
 	"strings"
 	"testing"
@@ -29,11 +30,11 @@ func (s *DockerCLIPullSuite) OnTimeout(t *testing.T) {
 // prints all expected output.
 func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	out, err := s.CmdWithError("pull", "hello-world")
+	out, err := s.CmdWithError(c, "pull", "hello-world")
 	if err != nil && strings.Contains(err.Error(), "toomanyrequests") {
 		c.Skipf("XFAIL: %s", err.Error())
 	}
-	assert.NilError(c, err)
+	assert.NilError(c, err, out)
 	defer deleteImages("hello-world")
 
 	assert.Assert(c, strings.Contains(out, "Using default tag: latest"), "expected the 'latest' tag to be automatically assumed")
@@ -129,7 +130,7 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *test
 // TestPullScratchNotAllowed verifies that pulling 'scratch' is rejected.
 func (s *DockerHubPullSuite) TestPullScratchNotAllowed(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
-	out, err := s.CmdWithError("pull", "scratch")
+	out, err := s.CmdWithError(c, "pull", "scratch")
 	assert.ErrorContains(c, err, "", "expected pull of scratch to fail")
 	assert.Assert(c, is.Contains(out, "'scratch' is a reserved name"))
 	assert.Assert(c, !strings.Contains(out, "Pulling repository scratch"))
@@ -141,7 +142,7 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *testing.T) {
 	// See https://github.com/moby/moby/issues/46632
 	skip.If(c, testEnv.UsingSnapshotter, "The image dockercore/engine-pull-all-test-fixture is a hand-made image that contains an error in the manifest, the size is reported as 424 but its real size is 524, containerd fails to pull it because it checks that the sizes reported are right")
 	testRequires(c, DaemonIsLinux)
-	_, err := s.CmdWithError("pull", "dockercore/engine-pull-all-test-fixture")
+	_, err := s.CmdWithError(c, "pull", "dockercore/engine-pull-all-test-fixture")
 	if err != nil && strings.Contains(err.Error(), "toomanyrequests") {
 		c.Skipf("XFAIL: %s", err.Error())
 	}
@@ -191,23 +192,32 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	const imgRepo = "hello-world:latest"
 
-	pullCmd := s.MakeCmd("pull", imgRepo)
+	ctx, cancel := context.WithCancel(c.Context())
+	pullCmd := exec.CommandContext(ctx, dockerBinary, "--host", s.d.Sock(), "pull", imgRepo)
 	stdout, err := pullCmd.StdoutPipe()
+	assert.NilError(c, err)
+	stderr, err := pullCmd.StderrPipe()
 	assert.NilError(c, err)
 	err = pullCmd.Start()
 	assert.NilError(c, err)
-	go pullCmd.Wait()
+
+	// Make sure the pull command is gone before the daemon is torn down
+	c.Cleanup(func() {
+		cancel()
+		_ = stdout.Close()
+		_ = stderr.Close()
+		_ = pullCmd.Wait()
+	})
 
 	// Cancel as soon as we get some output.
 	buf := make([]byte, 10)
-	_, err = stdout.Read(buf)
-	assert.NilError(c, err)
+	_, _ = stdout.Read(buf)
 
 	err = pullCmd.Process.Kill()
 	assert.NilError(c, err)
 
 	time.Sleep(2 * time.Second)
-	_, err = s.CmdWithError("inspect", imgRepo)
+	_, err = s.CmdWithError(c, "inspect", imgRepo)
 	assert.ErrorContains(c, err, "", "image was pulled after client disconnected")
 }
 

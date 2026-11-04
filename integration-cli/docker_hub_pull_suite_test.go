@@ -33,6 +33,7 @@ func newDockerHubPullSuite() *DockerHubPullSuite {
 // SetUpSuite starts the suite daemon.
 func (s *DockerHubPullSuite) SetUpSuite(ctx context.Context, t *testing.T) {
 	testRequires(t, DaemonIsLinux, testEnv.IsLocalDaemon)
+	t.Logf("SETTING UP TEST")
 	s.d = daemon.New(t, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 	s.d.Start(t)
 }
@@ -51,10 +52,12 @@ func (s *DockerHubPullSuite) SetUpTest(ctx context.Context, t *testing.T) {
 
 // TearDownTest removes all images from the suite daemon.
 func (s *DockerHubPullSuite) TearDownTest(ctx context.Context, t *testing.T) {
-	out := s.Cmd(t, "images", "-aq")
-	images := strings.Split(out, "\n")
-	images = append([]string{"rmi", "-f"}, images...)
-	s.d.Cmd(images...)
+	// TODO(thaJeztah): this may be redundant if the daemon is already calling `Cleanup()`
+	if out, _ := s.CmdWithError(t, "images", "-aq"); out != "" {
+		images := strings.Split(out, "\n")
+		images = append([]string{"rmi", "-f"}, images...)
+		_, _ = s.d.Cmd(images...)
+	}
 	s.ds.TearDownTest(ctx, t)
 }
 
@@ -62,22 +65,17 @@ func (s *DockerHubPullSuite) TearDownTest(ctx context.Context, t *testing.T) {
 // output. The function fails the test when the command returns an error.
 func (s *DockerHubPullSuite) Cmd(t *testing.T, name string, arg ...string) string {
 	t.Helper()
-	out, err := s.CmdWithError(name, arg...)
-	assert.Assert(t, err == nil, "%q failed with errors: %s, %v", strings.Join(arg, " "), out, err)
-	return out
+	args := append([]string{"--host", s.d.Sock(), name}, arg...)
+	out, err := exec.CommandContext(t.Context(), dockerBinary, args...).CombinedOutput()
+	assert.Assert(t, err == nil, "%q failed with errors: %s %s, %v", dockerBinary, strings.Join(args, " "), string(out), err)
+	return string(out)
 }
 
 // CmdWithError executes a command against the suite daemon and returns the
 // combined output as well as any error.
-func (s *DockerHubPullSuite) CmdWithError(name string, arg ...string) (string, error) {
-	c := s.MakeCmd(name, arg...)
-	b, err := c.CombinedOutput()
-	return string(b), err
-}
-
-// MakeCmd returns an exec.Cmd command to run against the suite daemon.
-func (s *DockerHubPullSuite) MakeCmd(name string, arg ...string) *exec.Cmd {
-	args := []string{"--host", s.d.Sock(), name}
-	args = append(args, arg...)
-	return exec.Command(dockerBinary, args...)
+func (s *DockerHubPullSuite) CmdWithError(t *testing.T, name string, arg ...string) (string, error) {
+	t.Helper()
+	args := append([]string{"--host", s.d.Sock(), name}, arg...)
+	out, err := exec.CommandContext(t.Context(), dockerBinary, args...).CombinedOutput()
+	return string(out), err
 }

@@ -36,6 +36,7 @@ func Run(ctx context.Context, t *testing.T, suite any) {
 	}()
 
 	methodFinder := reflect.TypeOf(suite)
+	ts := t
 	for index := 0; index < methodFinder.NumMethod(); index++ {
 		method := methodFinder.Method(index)
 		if !methodFilter(method.Name, method.Type) {
@@ -58,11 +59,12 @@ func Run(ctx context.Context, t *testing.T, suite any) {
 			}
 
 			if setupTestSuite, ok := getSetupTestSuite(suite); ok {
-				setupTestSuite.SetUpTest(ctx, t)
+				setupTestSuite.SetUpTest(ctx, ts)
 			}
 			defer func() {
 				if tearDownTestSuite, ok := getTearDownTestSuite(suite); ok {
-					tearDownTestSuite.TearDownTest(ctx, t)
+					t.Logf("TEARDOWN TEST SUITE")
+					tearDownTestSuite.TearDownTest(ctx, ts)
 				}
 			}()
 
