@@ -21,16 +21,34 @@ func deviceCgroup(d *specs.LinuxDevice, permissions string) specs.LinuxDeviceCgr
 	}
 }
 
+// devRoot is the canonical path for device files on Linux.
+const devRoot = "/dev"
+
+// isDevicePath reports whether the given (already-cleaned, absolute) path is
+// within the device filesystem root.
+func isDevicePath(path string) bool {
+	return path == devRoot || strings.HasPrefix(path, devRoot+"/")
+}
+
+func resolvedDevicePath(path string) string {
+	path = filepath.Clean(path)
+	if !filepath.IsAbs(path) {
+		return path
+	}
+	// EvalSymlinks resolves the full symlink chain without opening the file.
+	// We only use the result if it lands under /dev, which prevents
+	// user-controlled symlinks from redirecting to arbitrary host paths
+	// (e.g. /etc/passwd) while still supporting directories like
+	// /dev/disk/by-uuid whose entries are symlinks into /dev.
+	if resolved, err := filepath.EvalSymlinks(path); err == nil && isDevicePath(resolved) {
+		return resolved
+	}
+	return path
+}
+
 // DevicesFromPath computes a list of devices and device permissions from paths (pathOnHost and pathInContainer) and cgroup permissions.
 func DevicesFromPath(pathOnHost, pathInContainer, cgroupPermissions string) (devs []specs.LinuxDevice, devPermissions []specs.LinuxDeviceCgroup, _ error) {
-	resolvedPathOnHost := pathOnHost
-
-	// check if it is a symbolic link
-	if src, e := os.Lstat(pathOnHost); e == nil && src.Mode()&os.ModeSymlink == os.ModeSymlink {
-		if linkedPathOnHost, e := filepath.EvalSymlinks(pathOnHost); e == nil {
-			resolvedPathOnHost = linkedPathOnHost
-		}
-	}
+	resolvedPathOnHost := resolvedDevicePath(pathOnHost)
 
 	device, err := coci.DeviceFromPath(resolvedPathOnHost)
 	// if there was no error, return the device
@@ -47,7 +65,7 @@ func DevicesFromPath(pathOnHost, pathInContainer, cgroupPermissions string) (dev
 			// mount the internal devices recursively
 			// TODO check if additional errors should be handled or logged
 			_ = filepath.WalkDir(resolvedPathOnHost, func(dpath string, f os.DirEntry, _ error) error {
-				childDevice, e := coci.DeviceFromPath(dpath)
+				childDevice, e := coci.DeviceFromPath(resolvedDevicePath(dpath))
 				if e != nil {
 					// ignore the device
 					return nil
