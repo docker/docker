@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"io"
 	"log"
 	"net"
 	"sync"
+	"syscall"
+	"time"
 )
 
 // TCPProxy is a proxy for TCP connections. It implements the Proxy interface to
@@ -25,11 +28,25 @@ func NewTCPProxy(listener *net.TCPListener, backendAddr *net.TCPAddr) (*TCPProxy
 }
 
 func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
-	backend, err := net.DialTCP("tcp", nil, proxy.backendAddr)
-	if err != nil {
-		log.Printf("Can't forward traffic to backend tcp/%v: %s\n", proxy.backendAddr, err)
-		client.Close()
-		return
+	var backend *net.TCPConn
+	for {
+		var err error
+		backend, err = net.DialTCP("tcp", nil, proxy.backendAddr)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, syscall.ECONNREFUSED) {
+			log.Printf("Can't forward traffic to backend tcp/%v: %s\n", proxy.backendAddr, err)
+			client.Close()
+			return
+		}
+		// Backend not ready yet (container application not listening); retry.
+		select {
+		case <-quit:
+			client.Close()
+			return
+		case <-time.After(10 * time.Millisecond):
+		}
 	}
 
 	var wg sync.WaitGroup
