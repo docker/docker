@@ -360,12 +360,15 @@ func (c *containerAdapter) create(ctx context.Context) error {
 
 // checkMounts ensures that the provided mounts won't have any host-specific
 // problems at start up. For example, we disallow bind mounts without an
-// existing path, which slightly different from the container API.
+// existing path unless creation was explicitly requested.
 func (c *containerAdapter) checkMounts() error {
 	spec := c.container.spec()
 	for _, mount := range spec.Mounts {
 		switch mount.Type {
 		case api.MountTypeBind:
+			if mount.BindOptions != nil && mount.BindOptions.CreateMountpoint {
+				continue
+			}
 			if _, err := os.Stat(mount.Source); os.IsNotExist(err) {
 				return fmt.Errorf("invalid bind mount source, source path not found: %s", mount.Source)
 			}

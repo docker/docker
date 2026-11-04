@@ -1,6 +1,7 @@
 package container
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -126,5 +127,24 @@ func TestWaitNodeAttachment(t *testing.T) {
 		}
 	default:
 		t.Fatalf("waitNodeAttachments did not exit yet, but should have")
+	}
+}
+
+func TestCheckBindMountCreation(t *testing.T) {
+	for _, create := range []bool{false, true} {
+		t.Run(map[bool]string{false: "missing source", true: "create source"}[create], func(t *testing.T) {
+			source := filepath.Join(t.TempDir(), "missing")
+			task := &api.Task{Spec: api.TaskSpec{Runtime: &api.TaskSpec_Container{
+				Container: &api.ContainerSpec{Mounts: []api.Mount{{
+					Type: api.MountTypeBind, Source: source, Target: "/target",
+					BindOptions: &api.Mount_BindOptions{CreateMountpoint: create},
+				}}},
+			}}}
+			adapter := &containerAdapter{container: &containerConfig{task: task}}
+			err := adapter.checkMounts()
+			if (err == nil) != create {
+				t.Fatalf("CreateMountpoint=%v: checkMounts() = %v", create, err)
+			}
+		})
 	}
 }

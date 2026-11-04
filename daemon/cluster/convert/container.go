@@ -408,6 +408,15 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 				}
 				mount.BindOptions.NonRecursive = m.BindOptions.NonRecursive
 			}
+
+			if m.BindOptions.CreateMountpoint || m.BindOptions.ReadOnlyNonRecursive || m.BindOptions.ReadOnlyForceRecursive {
+				if mount.BindOptions == nil {
+					mount.BindOptions = &swarmapi.Mount_BindOptions{}
+				}
+				mount.BindOptions.CreateMountpoint = m.BindOptions.CreateMountpoint
+				mount.BindOptions.ReadOnlyNonRecursive = m.BindOptions.ReadOnlyNonRecursive
+				mount.BindOptions.ReadOnlyForceRecursive = m.BindOptions.ReadOnlyForceRecursive
+			}
 		}
 
 		if m.VolumeOptions != nil {
