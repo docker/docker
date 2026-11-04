@@ -2,19 +2,11 @@
 
 package snapshotter
 
-import (
-	"github.com/containerd/containerd/v2/core/mount"
-	"github.com/moby/sys/mountinfo"
-	"golang.org/x/sys/unix"
-)
+import "github.com/moby/sys/mountinfo"
 
 // isMounted parses /proc/mountinfo to check whether the specified path
 // is mounted.
 func isMounted(path string) bool {
 	m, _ := mountinfo.Mounted(path)
 	return m
-}
-
-func unmount(target string) error {
-	return mount.Unmount(target, unix.MNT_DETACH)
 }
