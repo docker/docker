@@ -138,6 +138,11 @@ type FirewallCleaner interface {
 	// DelPorts removes firewall rules associated with the specified port bindings.
 	// It should be called by the new Firewaller when adding new port mappings.
 	DelPorts(ctx context.Context, nc NetworkConfig, pbs []types.PortBinding)
+	// Done deletes rules that could only be deleted after the calls to
+	// DelNetwork, DelEndpoint and DelPorts for restored networks and
+	// endpoints. It should be called by the new Firewaller once they have
+	// been restored.
+	Done(ctx context.Context)
 	// DelLink removes firewall rules associated with a legacy link.
 	// It should be called by the new Firewaller when adding a new legacy link.
 	// (Excluded from the interface at present, it's not required by any current

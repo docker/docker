@@ -106,7 +106,9 @@ func TestCleanupOldIngressChains(t *testing.T) {
 
 // TestCleanerPerBridgeRules checks that the cleaner's DelNetwork deletes the
 // per-bridge rules that daemons older than 28.0.1 left in filter-FORWARD, for
-// internal and non-internal networks.
+// internal and non-internal networks. Then, that Done removes the filter
+// table's DOCKER chain, which NewCleaner can't remove while filter-FORWARD
+// has per-bridge jumps to it.
 func TestCleanerPerBridgeRules(t *testing.T) {
 	skip.If(t, iptables.UsingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
 
@@ -148,6 +150,12 @@ func TestCleanerPerBridgeRules(t *testing.T) {
 		out, err := iptables.GetIptable(version).Raw("-S", "FORWARD")
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(string(out), "-P FORWARD ACCEPT\n"), "version:%s", version)
+	}
+
+	fc.Done(t.Context())
+	for _, version := range versions {
+		iptable := iptables.GetIptable(version)
+		assert.Check(t, !iptable.ExistChain(dockerChain, iptables.Filter), "version:%s", version)
 	}
 }
 
