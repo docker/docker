@@ -49,12 +49,6 @@ func (c *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 		return execCommandError{}
 	}
 
-	version := httputils.VersionFromContext(ctx)
-	if versions.LessThan(version, "1.42") {
-		// Not supported by API versions before 1.42
-		execConfig.ConsoleSize = nil
-	}
-
 	// Register an instance of Exec in container.
 	id, err := c.backend.ContainerExecCreate(vars["name"], execConfig)
 	if err != nil {
@@ -88,18 +82,9 @@ func (c *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		return err
 	}
 
-	if options.ConsoleSize != nil {
-		version := httputils.VersionFromContext(ctx)
-
-		// Not supported before 1.42
-		if versions.LessThan(version, "1.42") {
-			options.ConsoleSize = nil
-		}
-
+	if !options.Tty {
 		// No console without tty
-		if !options.Tty {
-			options.ConsoleSize = nil
-		}
+		options.ConsoleSize = nil
 	}
 
 	if !options.Detach {

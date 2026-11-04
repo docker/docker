@@ -486,12 +486,6 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	var sharedSize bool
-	if versions.GreaterThanOrEqualTo(version, "1.42") {
-		// NOTE: Support for the "shared-size" parameter was added in API 1.42.
-		sharedSize = httputils.BoolValue(r, "shared-size")
-	}
-
 	var manifests bool
 	if versions.GreaterThanOrEqualTo(version, "1.47") {
 		manifests = httputils.BoolValue(r, "manifests")
@@ -508,7 +502,7 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 	images, err := ir.backend.Images(ctx, imagebackend.ListOptions{
 		All:        httputils.BoolValue(r, "all"),
 		Filters:    imageFilters,
-		SharedSize: sharedSize,
+		SharedSize: httputils.BoolValue(r, "shared-size"),
 		Manifests:  manifests,
 		Identity:   identity,
 	})
@@ -516,32 +510,20 @@ func (ir *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	useNone := versions.LessThan(version, "1.43")
+	addVirtualSize := versions.LessThan(version, "1.44")
 	noDescriptor := versions.LessThan(version, "1.48")
 	noContainers := versions.LessThan(version, "1.51")
-	for i := range images {
-		if useNone {
-			if len(images[i].RepoTags) == 0 && len(images[i].RepoDigests) == 0 {
-				images[i].RepoTags = append(images[i].RepoTags, "<none>:<none>")
-				images[i].RepoDigests = append(images[i].RepoDigests, "<none>@<none>")
+	if noDescriptor || noContainers {
+		for i := range images {
+			if noDescriptor {
+				images[i].Descriptor = nil
 			}
-		} else {
-			if images[i].RepoTags == nil {
-				images[i].RepoTags = []string{}
+			if noContainers {
+				images[i].Containers = -1
 			}
-			if images[i].RepoDigests == nil {
-				images[i].RepoDigests = []string{}
-			}
-		}
-		if noDescriptor {
-			images[i].Descriptor = nil
-		}
-		if noContainers {
-			images[i].Containers = -1
 		}
 	}
-
-	if versions.LessThan(version, "1.44") {
+	if addVirtualSize {
 		wrapped := make([]*compat.Wrapper, len(images))
 		for i := range images {
 			wrapped[i] = compat.Wrap(&images[i], compat.WithExtraFields(map[string]any{

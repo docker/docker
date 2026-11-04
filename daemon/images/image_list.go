@@ -272,6 +272,12 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 
 	summaries := make([]imagetypes.Summary, 0, len(summaryMap))
 	for _, summary := range summaryMap {
+		if summary.RepoTags == nil {
+			summary.RepoTags = []string{}
+		}
+		if summary.RepoDigests == nil {
+			summary.RepoDigests = []string{}
+		}
 		summaries = append(summaries, *summary)
 	}
 	sort.Sort(sort.Reverse(byCreated(summaries)))

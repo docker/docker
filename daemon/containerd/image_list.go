@@ -168,6 +168,12 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 			if !opts.Manifests && !opts.Identity {
 				image.Manifests = nil
 			}
+			if image.RepoTags == nil {
+				image.RepoTags = []string{}
+			}
+			if image.RepoDigests == nil {
+				image.RepoDigests = []string{}
+			}
 			resultsMut.Lock()
 			summaries = append(summaries, *image)
 
