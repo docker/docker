@@ -72,6 +72,27 @@ func TestLogContainerEventWithAttributes(t *testing.T) {
 	})
 }
 
+func TestExecEventAttributes(t *testing.T) {
+	execConfig := &container.ExecConfig{
+		ID:       "exec_id",
+		ExecType: "healthcheck",
+	}
+
+	attrs := execEventAttributes(execConfig)
+	if got := attrs["execType"]; got != "healthcheck" {
+		t.Fatalf("expected execType=healthcheck, got %q", got)
+	}
+	if got := attrs["execID"]; got != "exec_id" {
+		t.Fatalf("expected execID=exec_id, got %q", got)
+	}
+
+	userExec := &container.ExecConfig{ID: "user_exec_id"}
+	userAttrs := execEventAttributes(userExec)
+	if got := userAttrs["execType"]; got != "exec" {
+		t.Fatalf("expected default execType=exec, got %q", got)
+	}
+}
+
 func validateTestAttributes(t *testing.T, l chan any, expectedAttributesToTest map[string]string) {
 	select {
 	case ev := <-l:

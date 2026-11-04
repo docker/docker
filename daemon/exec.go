@@ -24,6 +24,20 @@ import (
 	"github.com/pkg/errors"
 )
 
+func execEventAttributes(execConfig *container.ExecConfig) map[string]string {
+	attrs := map[string]string{}
+	if execConfig == nil {
+		return attrs
+	}
+	attrs["execID"] = execConfig.ID
+	if execConfig.ExecType == "" {
+		attrs["execType"] = "exec"
+	} else {
+		attrs["execType"] = execConfig.ExecType
+	}
+	return attrs
+}
+
 func (daemon *Daemon) registerExecCommand(container *container.Container, config *container.ExecConfig) {
 	// Storing execs in container in order to kill them gracefully whenever the container is stopped or removed.
 	container.ExecCommands.Add(config.ID, config)
@@ -149,9 +163,7 @@ func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.E
 	}
 
 	daemon.registerExecCommand(cntr, execConfig)
-	daemon.LogContainerEventWithAttributes(cntr, events.Action(string(events.ActionExecCreate)+": "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " ")), map[string]string{
-		"execID": execConfig.ID,
-	})
+	daemon.LogContainerEventWithAttributes(cntr, events.Action(string(events.ActionExecCreate)+": "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " ")), execEventAttributes(execConfig))
 
 	return execConfig.ID, nil
 }
@@ -184,9 +196,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	ec.Unlock()
 
 	log.G(ctx).Debugf("starting exec command %s in container %s", ec.ID, ec.Container.ID)
-	daemon.LogContainerEventWithAttributes(ec.Container, events.Action(string(events.ActionExecStart)+": "+ec.Entrypoint+" "+strings.Join(ec.Args, " ")), map[string]string{
-		"execID": ec.ID,
-	})
+	daemon.LogContainerEventWithAttributes(ec.Container, events.Action(string(events.ActionExecStart)+": "+ec.Entrypoint+" "+strings.Join(ec.Args, " ")), execEventAttributes(ec))
 
 	defer func() {
 		if retErr != nil {

@@ -219,7 +219,11 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		}
 
 		exitCode := 127
+		var execID string
+		var execType string
 		if execConfig := c.ExecCommands.Get(ei.ProcessID); execConfig != nil {
+			execID = execConfig.ID
+			execType = execConfig.ExecType
 			ec := int(ei.ExitCode)
 			execConfig.Lock()
 			defer execConfig.Unlock()
@@ -263,10 +267,15 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 				}()
 			}
 		}
-		daemon.LogContainerEventWithAttributes(c, events.ActionExecDie, map[string]string{
-			"execID":   ei.ProcessID,
+		if execType == "" {
+			execType = "exec"
+		}
+		attrs := map[string]string{
+			"execID":   execID,
+			"execType": execType,
 			"exitCode": strconv.Itoa(exitCode),
-		})
+		}
+		daemon.LogContainerEventWithAttributes(c, events.ActionExecDie, attrs)
 		return nil
 	case libcontainerdtypes.EventStart:
 		c.Lock()

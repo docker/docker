@@ -38,6 +38,7 @@ type ExecConfig struct {
 	Env          []string
 	Process      types.Process
 	ConsoleSize  *[2]uint
+	ExecType     string
 }
 
 // NewExecConfig initializes the a new exec configuration
@@ -47,6 +48,7 @@ func NewExecConfig(c *Container) *ExecConfig {
 		Container:    c,
 		StreamConfig: stream.NewConfig(),
 		Started:      make(chan struct{}),
+		ExecType:     "exec",
 	}
 }
 
