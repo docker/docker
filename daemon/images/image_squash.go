@@ -10,11 +10,28 @@ import (
 	"github.com/pkg/errors"
 )
 
+// squashCacheKey is used to deduplicate squash operations within a daemon session.
+type squashCacheKey struct {
+	imageID  string
+	parentID string
+}
+
 // SquashImage creates a new image with the diff of the specified image and the specified parent.
 // This new image contains only the layers from it's parent + 1 extra layer which contains the diff of all the layers in between.
 // The existing image(s) is not destroyed.
 // If no parent is specified, a new image with the diff of all the specified image's layers merged into a new layer that has no parents.
 func (i *ImageService) SquashImage(id, parent string) (string, error) {
+	// Avoid repeating expensive layer work when nothing has changed.
+	cacheKey := squashCacheKey{imageID: id, parentID: parent}
+	if v, ok := i.squashCache.Load(cacheKey); ok {
+		cachedID := v.(image.ID)
+		if _, err := i.imageStore.Get(cachedID); err == nil {
+			return string(cachedID), nil
+		}
+		// Cached image was removed; evict and recompute.
+		i.squashCache.Delete(cacheKey)
+	}
+
 	var (
 		img *image.Image
 		err error
@@ -90,5 +107,7 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "error creating new image after squash")
 	}
+
+	i.squashCache.Store(cacheKey, newImgID)
 	return string(newImgID), nil
 }

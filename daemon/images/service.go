@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"sync/atomic"
 
 	"github.com/containerd/containerd/v2/core/content"
@@ -85,6 +86,7 @@ type ImageService struct {
 	leases                    leases.Manager
 	content                   content.Store
 	contentNamespace          string
+	squashCache               sync.Map // squashCacheKey → image.ID
 }
 
 // DistributionServices provides daemon image storage services
