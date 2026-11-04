@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -46,6 +47,92 @@ func TestRingLogger(t *testing.T) {
 	case msg := <-mockLog.c:
 		t.Fatalf("expected no more messages in the queue, got: %q", string(msg.Line))
 	default:
+	}
+}
+
+type blockingMockLogger struct {
+	closeOnce      sync.Once
+	closed         chan struct{}
+	closeCnt       int
+	mu             sync.Mutex
+	startedLog     chan struct{}
+	startedLogOnce sync.Once
+}
+
+func newBlockingMockLogger() *blockingMockLogger {
+	return &blockingMockLogger{
+		closed:     make(chan struct{}),
+		startedLog: make(chan struct{}),
+	}
+}
+
+func (l *blockingMockLogger) Log(msg *Message) error {
+	// Signal that Log has been entered and is blocking
+	l.startedLogOnce.Do(func() {
+		close(l.startedLog)
+	})
+
+	select {
+	case <-l.closed: // block until Close is called
+		return errors.New("logger closed")
+	case <-time.After(5 * time.Second):
+		// fallback to avoid infinite hangs in bad tests
+		return errors.New("timeout")
+	}
+}
+
+func (l *blockingMockLogger) Name() string {
+	return "blockingMock"
+}
+
+func (l *blockingMockLogger) Close() error {
+	l.mu.Lock()
+	l.closeCnt++
+	l.mu.Unlock()
+	l.closeOnce.Do(func() {
+		close(l.closed)
+	})
+	return nil
+}
+
+func TestRingLoggerCloseTimeout(t *testing.T) {
+	origTimeout := ringLoggerTimeout
+	ringLoggerTimeout = 50 * time.Millisecond
+	defer func() { ringLoggerTimeout = origTimeout }()
+
+	mockLog := newBlockingMockLogger()
+	ring := newRingLogger(mockLog, Info{}, 1)
+
+	// Add a message to trigger the block in Log()
+	ring.Log(&Message{Line: []byte("1")})
+
+	// Wait for run() to actually enter Log() and block
+	<-mockLog.startedLog
+
+	// Now that run() is solidly blocked, trigger Close.
+	// This will hit the timeout, forcefully close the underlying driver,
+	// which unblocks Log(), allowing run() to exit naturally.
+	done := make(chan struct{})
+	go func() {
+		ring.Close()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// ring.Close() cannot complete through its normal shutdown path because
+		// run() is blocked inside Log(). The only code path that can unblock Log()
+		// before run() exits is the timeout path, which force-closes the underlying
+		// logger. Therefore, successful completion of this test demonstrates that
+		// the timeout path executed.
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout waiting for ring.Close()")
+	}
+
+	mockLog.mu.Lock()
+	defer mockLog.mu.Unlock()
+	if mockLog.closeCnt != 1 {
+		t.Fatalf("expected Close to be called exactly once, got %d", mockLog.closeCnt)
 	}
 }
 

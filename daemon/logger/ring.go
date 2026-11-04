@@ -5,7 +5,12 @@ import (
 	"errors"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"github.com/containerd/log"
 )
+
+var ringLoggerTimeout = 15 * time.Second
 
 const (
 	defaultRingMaxSize = 1e6 // 1MB
@@ -19,6 +24,8 @@ type ringLogger struct {
 	logInfo   Info
 	closeFlag atomic.Bool
 	wg        sync.WaitGroup
+	closeOnce sync.Once
+	closedErr error
 }
 
 var (
@@ -92,11 +99,46 @@ func (r *ringLogger) setClosed() {
 	r.closeFlag.Store(true)
 }
 
+// closeUnderlying closes the underlying logger exactly once and caches the error.
+func (r *ringLogger) closeUnderlying() error {
+	r.closeOnce.Do(func() {
+		r.closedErr = r.l.Close()
+	})
+	return r.closedErr
+}
+
 // Close closes the logger
 func (r *ringLogger) Close() error {
 	r.setClosed()
 	r.buffer.Close()
-	r.wg.Wait()
+
+	done := make(chan struct{})
+	go func() {
+		r.wg.Wait()
+		close(done)
+	}()
+
+	// Wait for run() to exit so that we fulfill the io.Closer contract.
+	// We use a 15-second timeout (ample time for normal flush operations to complete)
+	// to forcefully close the underlying driver to interrupt blocked Log() calls.
+	//
+	// Note: We MUST wait for run() to exit to prevent use-after-return bugs
+	// where run() continues accessing ringLogger state. Therefore, if the
+	// underlying driver's Close() method does NOT unblock its Log() method
+	// (e.g., uninterruptible kernel I/O, or lock inversion), ringLogger.Close()
+	// will still hang indefinitely. This timeout is a targeted mitigation for
+	// drivers that support interruptible Close() semantics (such as awslogs).
+	timer := time.NewTimer(ringLoggerTimeout)
+	defer timer.Stop()
+
+	select {
+	case <-done:
+	case <-timer.C:
+		log.G(context.TODO()).WithField("logger", r.l.Name()).Warn("ringlogger: timed out waiting for logger flush; forcing underlying logger close (works only for drivers whose Close interrupts Log)")
+		go r.closeUnderlying()
+		<-done
+	}
+
 	// empty out the queue
 	var logErr bool
 	for _, msg := range r.buffer.Drain() {
@@ -113,7 +155,7 @@ func (r *ringLogger) Close() error {
 			logErr = true
 		}
 	}
-	return r.l.Close()
+	return r.closeUnderlying()
 }
 
 // run consumes messages from the ring buffer and forwards them to the underling
