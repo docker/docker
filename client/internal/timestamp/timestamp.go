@@ -25,7 +25,11 @@ const (
 // as the given reference time minus the amount of the duration.
 func GetTimestamp(value string, reference time.Time) (string, error) {
 	if d, err := time.ParseDuration(value); value != "0" && err == nil {
-		return strconv.FormatInt(reference.Add(-d).Unix(), 10), nil
+		t := reference.Add(-d)
+		if t.Nanosecond() == 0 {
+			return strconv.FormatInt(t.Unix(), 10), nil
+		}
+		return fmt.Sprintf("%d.%09d", t.Unix(), t.Nanosecond()), nil
 	}
 
 	var format string

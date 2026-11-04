@@ -1,13 +1,12 @@
 package timestamp
 
 import (
-	"strconv"
 	"testing"
 	"time"
 )
 
 func TestGetTimestamp(t *testing.T) {
-	now := time.Now().In(time.UTC)
+	now := time.Date(2020, 1, 2, 3, 4, 5, 123456789, time.UTC)
 	cases := []struct {
 		in, expected string
 		expectedErr  bool
@@ -45,9 +44,9 @@ func TestGetTimestamp(t *testing.T) {
 		{"1136073600", "1136073600", false},
 		{"1136073600.000000001", "1136073600.000000001", false},
 		// Durations
-		{"1m", strconv.FormatInt(now.Add(-1*time.Minute).Unix(), 10), false},
-		{"1.5h", strconv.FormatInt(now.Add(-90*time.Minute).Unix(), 10), false},
-		{"1h30m", strconv.FormatInt(now.Add(-90*time.Minute).Unix(), 10), false},
+		{"1m", "1577934185.123456789", false},
+		{"1.5h", "1577928845.123456789", false},
+		{"1h30m", "1577928845.123456789", false},
 
 		{"invalid", "", true},
 		{"", "", true},
