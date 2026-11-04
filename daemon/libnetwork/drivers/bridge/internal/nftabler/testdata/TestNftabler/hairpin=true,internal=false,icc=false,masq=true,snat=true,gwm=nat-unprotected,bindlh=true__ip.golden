@@ -47,6 +47,7 @@ table ip docker-bridges {
 
 	chain raw-PREROUTING {
 		type filter hook prerouting priority raw; policy accept;
+		ip daddr 192.168.0.0/24 iifname != { "lo", "br-dummy" } counter packets 0 bytes 0 drop comment "SUBNET DROP EXTERNAL"
 		iifname != "lo" ip daddr 127.0.0.1 tcp dport 8080 counter packets 0 bytes 0 drop comment "DROP REMOTE LOOPBACK"
 	}
 

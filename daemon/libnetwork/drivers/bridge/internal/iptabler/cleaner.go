@@ -74,10 +74,12 @@ func (ic iptablesCleaner) DelNetwork(ctx context.Context, nc firewaller.NetworkC
 	if ic.config.IPv4 && nc.Config4.Prefix.IsValid() {
 		_ = deleteLegacyFilterRules(iptables.IPv4, nc.IfName)
 		_ = n.setupNonInternalNetworkRules(ctx, iptables.IPv4, nc.Config4, false)
+		_ = n.setSubnetProtection(ctx, iptables.IPv4, nc.Config4, false)
 	}
 	if ic.config.IPv6 && nc.Config6.Prefix.IsValid() {
 		_ = deleteLegacyFilterRules(iptables.IPv6, nc.IfName)
 		_ = n.setupNonInternalNetworkRules(ctx, iptables.IPv6, nc.Config6, false)
+		_ = n.setSubnetProtection(ctx, iptables.IPv6, nc.Config6, false)
 	}
 }
 
@@ -87,10 +89,10 @@ func (ic iptablesCleaner) DelEndpoint(ctx context.Context, nc firewaller.Network
 		ipt:    &Iptabler{config: ic.config},
 	}
 	if n.ipt.config.IPv4 && epIPv4.IsValid() {
-		_ = n.filterDirectAccess(ctx, iptables.IPv4, n.config.Config4, epIPv4, false)
+		_ = n.deleteLegacyDirectAccess(ctx, iptables.IPv4, n.config.Config4, epIPv4)
 	}
 	if n.ipt.config.IPv6 && epIPv6.IsValid() {
-		_ = n.filterDirectAccess(ctx, iptables.IPv6, n.config.Config6, epIPv6, false)
+		_ = n.deleteLegacyDirectAccess(ctx, iptables.IPv6, n.config.Config6, epIPv6)
 	}
 }
 

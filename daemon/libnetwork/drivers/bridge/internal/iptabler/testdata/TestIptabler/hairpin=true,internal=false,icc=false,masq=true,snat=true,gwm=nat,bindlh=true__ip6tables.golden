@@ -1,7 +1,8 @@
 *raw
 :PREROUTING ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
--A PREROUTING -d fd49:efd7:54aa::1/128 ! -i br-dummy -j DROP
+-A PREROUTING -d fd49:efd7:54aa::/64 -i lo -j ACCEPT
+-A PREROUTING -d fd49:efd7:54aa::/64 ! -i br-dummy -j DROP
 COMMIT
 *filter
 :INPUT ACCEPT [0:0]

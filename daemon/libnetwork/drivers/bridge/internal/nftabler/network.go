@@ -208,6 +208,24 @@ func (n *network) configure(ctx context.Context, table *nftables.Table, conf fir
 			})
 		}
 
+		// Drop packets destined to any IP in the bridge subnet from interfaces
+		// other than the bridge, loopback, or any trusted host interfaces. This
+		// protects containers on unpublished ports and the host's gateway address
+		// from external hosts that have a direct route to the bridge subnet.
+		if conf.Prefix.IsValid() && !n.fw.config.AllowDirectRouting {
+			family := string(table.Family())
+			ifNames := strings.Join(append([]string{n.config.IfName, "lo"}, n.config.TrustedHostInterfaces...), ", ")
+			tm.Create(nftables.Rule{
+				Chain: rawPreroutingChain,
+				Group: initialRuleGroup,
+				Rule: []string{
+					family, "daddr", conf.Prefix.String(),
+					"iifname != {", ifNames, `}`,
+					`counter drop comment "SUBNET DROP EXTERNAL"`,
+				},
+			})
+		}
+
 		// ICMP
 		if conf.Routed {
 			rule := "ip protocol icmp"

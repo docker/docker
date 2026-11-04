@@ -97,6 +97,13 @@ func (n *network) setupIPTables(ctx context.Context, ipVersion iptables.IPVersio
 			return n.setupNonInternalNetworkRules(ctx, ipVersion, config, false)
 		})
 
+		if err := n.setSubnetProtection(ctx, ipVersion, config, true); err != nil {
+			return fmt.Errorf("Failed to setup subnet protection: %w", err)
+		}
+		n.registerCleanFunc(func() error {
+			return n.setSubnetProtection(ctx, ipVersion, config, false)
+		})
+
 		if err := deleteLegacyFilterRules(ipVersion, n.config.IfName); err != nil {
 			return fmt.Errorf("failed to delete legacy rules in filter-FORWARD: %w", err)
 		}
@@ -401,6 +408,47 @@ func (n *network) setupNonInternalNetworkRules(ctx context.Context, ipVer iptabl
 	}
 
 	return nil
+}
+
+// setSubnetProtection drops packets addressed directly to any IP in the bridge
+// subnet from interfaces other than the bridge or loopback. This prevents external
+// hosts that have a route to the bridge subnet from accessing containers on
+// unpublished ports, or services on the host bound to the gateway address.
+//
+// It is a no-op if:
+//   - gateway mode is "nat-unprotected" or "routed" (direct access is intentional).
+//   - direct routing is enabled at the daemon level.
+//   - "raw" rules are disabled.
+func (n *network) setSubnetProtection(ctx context.Context, ipv iptables.IPVersion, config firewaller.NetworkConfigFam, enable bool) error {
+	if config.Unprotected || config.Routed || !config.Prefix.IsValid() {
+		return nil
+	}
+	if n.ipt.config.AllowDirectRouting || rawRulesDisabled(ctx) {
+		enable = false
+	}
+	subnet := config.Prefix.String()
+	// Accept loopback traffic to the subnet. This is needed for host-local access
+	// to the gateway IP, which is assigned to the bridge and reachable via lo.
+	loAccept := iptables.Rule{IPVer: ipv, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
+		"-d", subnet, "-i", "lo", "-j", "ACCEPT",
+	}}
+	if err := appendOrDelChainRule(loAccept, "SUBNET PROTECTION - ACCEPT LO", enable); err != nil {
+		return err
+	}
+	// Accept traffic from trusted interfaces (e.g. flannel.1 in VXLAN setups).
+	for _, ifName := range n.config.TrustedHostInterfaces {
+		accept := iptables.Rule{IPVer: ipv, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
+			"-d", subnet, "-i", ifName, "-j", "ACCEPT",
+		}}
+		if err := appendOrDelChainRule(accept, "SUBNET PROTECTION - ACCEPT TRUSTED", enable); err != nil {
+			return err
+		}
+	}
+	// Drop traffic from any other non-bridge interface to the subnet.
+	extDrop := iptables.Rule{IPVer: ipv, Table: iptables.Raw, Chain: "PREROUTING", Args: []string{
+		"-d", subnet, "!", "-i", n.config.IfName, "-j", "DROP",
+	}}
+	return appendOrDelChainRule(extDrop, "SUBNET PROTECTION - DROP", enable)
 }
 
 func setIcc(ctx context.Context, version iptables.IPVersion, bridgeIface string, iccEnable, internal, insert bool) error {

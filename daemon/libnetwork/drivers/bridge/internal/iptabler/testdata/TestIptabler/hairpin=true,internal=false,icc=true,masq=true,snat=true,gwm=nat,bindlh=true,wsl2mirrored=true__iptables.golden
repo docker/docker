@@ -1,7 +1,8 @@
 *raw
 :PREROUTING ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
--A PREROUTING -d 192.168.0.2/32 ! -i br-dummy -j DROP
+-A PREROUTING -d 192.168.0.0/24 -i lo -j ACCEPT
+-A PREROUTING -d 192.168.0.0/24 ! -i br-dummy -j DROP
 -A PREROUTING -d 127.0.0.1/32 -i loopback0 -p tcp -m tcp --dport 8080 -j ACCEPT
 -A PREROUTING -d 127.0.0.1/32 ! -i lo -p tcp -m tcp --dport 8080 -j DROP
 COMMIT
