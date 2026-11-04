@@ -123,20 +123,22 @@ func TestHealthCheckProcessKilled(t *testing.T) {
 
 func TestHealthStartInterval(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "The shell commands used in the test healthcheck do not work on Windows")
+
 	ctx := setupTest(t)
+	t.Parallel()
+
 	apiClient := testEnv.APIClient()
 
-	// Note: Windows is much slower than linux so this use longer intervals/timeouts
 	id := container.Run(ctx, t, apiClient, func(c *container.TestContainerConfig) {
 		c.Config.Healthcheck = &containertypes.HealthConfig{
 			Test:          []string{"CMD-SHELL", `count="$(cat /tmp/health)"; if [ -z "${count}" ]; then let count=0; fi; let count=${count}+1; echo -n ${count} | tee /tmp/health; if [ ${count} -lt 3 ]; then exit 1; fi`},
-			Interval:      30 * time.Second,
-			StartInterval: time.Second,
-			StartPeriod:   30 * time.Second,
+			Interval:      5 * time.Second,
+			StartInterval: 200 * time.Millisecond,
+			StartPeriod:   5 * time.Second,
 		}
 	})
 
-	ctxPoll, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctxPoll, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	dl, _ := ctxPoll.Deadline()
@@ -160,7 +162,7 @@ func TestHealthStartInterval(t *testing.T) {
 	}, poll.WithTimeout(time.Until(dl)))
 	cancel()
 
-	ctxPoll, cancel = context.WithTimeout(ctx, 2*time.Minute)
+	ctxPoll, cancel = context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	dl, _ = ctxPoll.Deadline()
 

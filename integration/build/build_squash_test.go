@@ -22,6 +22,7 @@ import (
 func TestBuildSquashParent(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.UsingSnapshotter(), "squash is not implemented for containerd image store")
+	t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)
 

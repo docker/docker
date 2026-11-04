@@ -258,6 +258,8 @@ func TestCopyToContainerCopyUIDGID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
+
 			cID := container.Run(ctx, t, apiClient, container.WithImage(imageID), container.WithUser(tc.user))
 			defer container.Remove(ctx, t, apiClient, cID, client.ContainerRemoveOptions{Force: true})
 

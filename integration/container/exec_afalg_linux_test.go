@@ -90,6 +90,8 @@ func TestExecSocketDenied(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
 	ctx := setupTest(t)
+	t.Parallel()
+
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient, container.WithImage("debian:trixie-slim"), container.WithCmd("sleep", "infinity"))

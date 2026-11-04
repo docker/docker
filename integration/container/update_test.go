@@ -15,6 +15,8 @@ import (
 
 func TestUpdateRestartPolicy(t *testing.T) {
 	ctx := setupTest(t)
+	t.Parallel()
+
 	apiClient := testEnv.APIClient()
 
 	cID := container.Run(ctx, t, apiClient, container.WithCmd("sh", "-c", "sleep 1 && false"), func(c *container.TestContainerConfig) {

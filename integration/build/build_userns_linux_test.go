@@ -33,6 +33,7 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !testEnv.IsUserNamespaceInKernel())
 	skip.If(t, testEnv.IsRootless())
+	t.Parallel()
 
 	ctx := testutil.StartSpan(baseContext, t)
 

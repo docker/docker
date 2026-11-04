@@ -398,6 +398,8 @@ func TestExecUser(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
+
 			cID := container.Run(ctx, t, apiClient, append(ctrOpts, tc.ctrOpts...)...)
 			result, err := container.Exec(ctx, apiClient, cID, []string{"id"}, withUser(tc.user))
 			if tc.expectedErr != "" {

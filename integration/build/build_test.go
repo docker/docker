@@ -589,14 +589,15 @@ func TestBuildPreserveOwnership(t *testing.T) {
 	dockerfile, err := os.ReadFile("testdata/Dockerfile." + t.Name())
 	assert.NilError(t, err)
 
-	source := fakecontext.New(t, "", fakecontext.WithDockerfile(string(dockerfile)))
-	defer source.Close()
-
 	apiClient := testEnv.APIClient()
 
 	for _, target := range []string{"copy_from", "copy_from_chowned"} {
 		t.Run(target, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := testutil.StartSpan(ctx, t)
+			source := fakecontext.New(t, "", fakecontext.WithDockerfile(string(dockerfile)))
+			defer source.Close()
 
 			build.Do(ctx, t, apiClient, source, client.ImageBuildOptions{
 				Remove:      true,
