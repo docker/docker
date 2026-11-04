@@ -36,6 +36,14 @@ on:
 env:
   GO_VERSION: "1.26.10"
 
+  # CodeQL AutoBuild runs "docker bake binary", which produces a static
+  # binary, and CodeQL has trouble with cgo; ideally, we'd run CodeQL
+  # analysis inside our "make shell" environment, but that would require
+  # an image to be pushed.
+  #
+  # Let's try if making it just analyze the "static build" files works.
+  CGO_ENABLED: "0"
+  GOFLAGS: "-tags=netgo,osusergo,static_build,nri_no_wasm"
 jobs:
   codeql:
     if: github.repository == 'moby/moby'
