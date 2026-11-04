@@ -186,16 +186,11 @@ func Init(home string, options []string, idMap user.IdentityMapping) (graphdrive
 
 	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, idMap)
 
-	if backingFs == "xfs" {
-		// Try to enable project quota support over xfs.
-		if d.quotaCtl, err = quota.NewControl(home); err == nil {
-			projectQuotaSupported = true
-		} else if opts.quota.Size > 0 {
-			return nil, fmt.Errorf("Storage option overlay2.size not supported. Filesystem does not support Project Quota: %v", err)
-		}
+	// Try to enable project quota support when fs project quota enabled.
+	if d.quotaCtl, err = quota.NewControl(home); err == nil {
+		projectQuotaSupported = true
 	} else if opts.quota.Size > 0 {
-		// if xfs is not the backing fs then error out if the storage-opt overlay2.size is used.
-		return nil, fmt.Errorf("Storage Option overlay2.size only supported for backingFS XFS. Found %v", backingFs)
+		return nil, fmt.Errorf("Storage option overlay2.size not supported. Filesystem does not support Project Quota: %v", err)
 	}
 
 	// figure out whether "index=off" option is recognized by the kernel
