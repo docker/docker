@@ -339,10 +339,17 @@ func newNameRebaser(oldBase, newBase string) func(string) string {
 
 	return func(name string) string {
 		suffix, ok := strings.CutPrefix(name, oldBase)
-		if !ok || suffix != "" && !strings.HasPrefix(suffix, "/") {
+		if ok && (suffix == "" || strings.HasPrefix(suffix, "/")) {
+			if newBase == "" {
+				return strings.TrimLeft(suffix, "/")
+			}
+			return newBase + suffix
+		}
+		name = strings.TrimLeft(name, "/")
+		if newBase == "" {
 			return name
 		}
-		return newBase + suffix
+		return newBase + "/" + name
 	}
 }
 
