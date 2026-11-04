@@ -144,9 +144,16 @@ func TestExecResize(t *testing.T) {
 			Width:  40,
 		})
 		if runtime.GOOS == "windows" && err != nil {
-			// FIXME(thaJeztah): temporarily allowing test to fail on Windows: see https://github.com/moby/moby/issues/50402
+			// FIXME(thaJeztah): this test is flaky on Windows+containerd because
+			// ExecStart(Detach=true) does not provide a stdin pipe for the exec
+			// process. On Windows, ConPTY (the Windows Pseudo Console) requires a
+			// valid non-NULL stdin handle; without it, the HCS process exits
+			// immediately with STATUS_CONTROL_C_EXIT (0xC000013A), causing
+			// ResizePty to fail with NotFound. This is a known hcsshim issue:
+			// https://github.com/microsoft/hcsshim/issues/2831
+			// See also: https://github.com/moby/moby/issues/50402
 			t.Log("XFAIL:", err)
-			t.Skip("XFAIL: flaky test on Windows: see https://github.com/moby/moby/issues/50402")
+			t.Skip("XFAIL: flaky on Windows+containerd: see https://github.com/microsoft/hcsshim/issues/2831")
 			return
 		}
 		assert.NilError(t, err)
