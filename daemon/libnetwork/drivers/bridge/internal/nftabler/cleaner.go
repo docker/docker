@@ -37,3 +37,12 @@ func tryCleanup(ctx context.Context, family nftables.Family, label string) {
 func (nft *Nftabler) SetFirewallCleaner(fc firewaller.FirewallCleaner) {
 	nft.cleaner = fc
 }
+
+// FinishCleanup tells the FirewallCleaner, if there is one, that networks and
+// endpoints have been restored. Then, it drops the FirewallCleaner.
+func (nft *Nftabler) FinishCleanup(ctx context.Context) {
+	if nft.cleaner != nil {
+		nft.cleaner.Done(ctx)
+		nft.cleaner = nil
+	}
+}

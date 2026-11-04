@@ -41,10 +41,10 @@ func (d *driver) initStore() error {
 		return err
 	}
 
-	// If there's a firewall cleaner, it's done its job by cleaning up rules
-	// belonging to the restored networks. So, drop it.
+	// If there's a firewall cleaner, it's cleaned up rules belonging to the
+	// restored networks. Let it finish, then drop it.
 	if nft, ok := d.firewaller.(*nftabler.Nftabler); ok {
-		nft.SetFirewallCleaner(nil)
+		nft.FinishCleanup(context.TODO())
 	}
 
 	return nil

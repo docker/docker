@@ -89,6 +89,10 @@ func (n *network) setupIPTables(ctx context.Context, ipVersion iptables.IPVersio
 		n.registerCleanFunc(func() error {
 			return setupInternalNetworkRules(ctx, n.config.IfName, config.Prefix, n.config.ICC, false)
 		})
+
+		if err := deleteLegacyFilterRules(ipVersion, n.config.IfName); err != nil {
+			return fmt.Errorf("failed to delete legacy rules in filter-FORWARD: %w", err)
+		}
 	} else {
 		if err := n.setupNonInternalNetworkRules(ctx, ipVersion, config, true); err != nil {
 			return fmt.Errorf("Failed to Setup IP tables: %w", err)
@@ -219,43 +223,27 @@ func addNATJumpRules(ipVer iptables.IPVersion, hairpinMode, enable bool) error {
 	return nil
 }
 
-// deleteLegacyFilterRules removes the legacy per-bridge rules from the filter-FORWARD
-// chain. This is required for users upgrading the Engine to v28.0.
+// deleteLegacyFilterRules removes the per-bridge rules that daemons older than
+// 28.0.1 added to the filter-FORWARD chain. The rules that replaced them are in
+// Docker's own chains.
 // TODO(aker): drop this function once Mirantis latest LTS is v28.0 (or higher).
 func deleteLegacyFilterRules(ipVer iptables.IPVersion, bridgeName string) error {
-	iptable := iptables.GetIptable(ipVer)
-	// Delete legacy per-bridge jump to the DOCKER chain from the FORWARD chain, if it exists.
-	// These rules have been replaced by an ipset-matching rule.
-	link := []string{
-		"-o", bridgeName,
-		"-j", dockerChain,
-	}
-	if iptable.Exists(iptables.Filter, "FORWARD", link...) {
-		del := append([]string{string(iptables.Delete), "FORWARD"}, link...)
-		if output, err := iptable.Raw(del...); err != nil {
-			return err
-		} else if len(output) != 0 {
-			return fmt.Errorf("could not delete linking rule from %s-%s: %s", iptables.Filter, dockerChain, output)
+	for _, args := range [][]string{
+		// Replaced by an ipset-matching rule in 28.0.0.
+		{"-o", bridgeName, "-j", dockerChain},
+		{"-o", bridgeName, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"},
+		// Outgoing packets, without and with ICC.
+		{"-i", bridgeName, "!", "-o", bridgeName, "-j", "ACCEPT"},
+		{"-i", bridgeName, "-j", "ACCEPT"},
+		// ICC.
+		{"-i", bridgeName, "-o", bridgeName, "-j", "ACCEPT"},
+		{"-i", bridgeName, "-o", bridgeName, "-j", "DROP"},
+	} {
+		rule := iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: "FORWARD", Args: args}
+		if err := rule.Delete(); err != nil {
+			return fmt.Errorf("deleting legacy rule %q: %w", rule, err)
 		}
 	}
-
-	// Delete legacy per-bridge related/established rule if it exists. These rules
-	// have been replaced by an ipset-matching rule.
-	establish := []string{
-		"-o", bridgeName,
-		"-m", "conntrack",
-		"--ctstate", "RELATED,ESTABLISHED",
-		"-j", "ACCEPT",
-	}
-	if iptable.Exists(iptables.Filter, "FORWARD", establish...) {
-		del := append([]string{string(iptables.Delete), "FORWARD"}, establish...)
-		if output, err := iptable.Raw(del...); err != nil {
-			return err
-		} else if len(output) != 0 {
-			return fmt.Errorf("could not delete establish rule from %s-%s: %s", iptables.Filter, dockerChain, output)
-		}
-	}
-
 	return nil
 }
 
@@ -371,12 +359,6 @@ func (n *network) setupNonInternalNetworkRules(ctx context.Context, ipVer iptabl
 		"!", "-o", n.config.IfName,
 		"-j", "ACCEPT",
 	}}
-	// If there's a version of outRuleNoICC in the FORWARD chain, created by moby 28.0.0 or older, delete it.
-	if enable {
-		if err := outRuleNoICC.WithChain("FORWARD").Delete(); err != nil {
-			return fmt.Errorf("deleting FORWARD chain outRuleNoICC: %w", err)
-		}
-	}
 	if n.config.ICC {
 		// Accept outgoing traffic to anywhere, including other containers on this bridge.
 		outRuleICC := iptables.Rule{IPVer: ipVer, Table: iptables.Filter, Chain: dockerForwardChain, Args: []string{
@@ -385,12 +367,6 @@ func (n *network) setupNonInternalNetworkRules(ctx context.Context, ipVer iptabl
 		}}
 		if err := appendOrDelChainRule(outRuleICC, "ACCEPT OUTGOING", enable); err != nil {
 			return err
-		}
-		// If there's a version of outRuleICC in the FORWARD chain, created by moby 28.0.0 or older, delete it.
-		if enable {
-			if err := outRuleICC.WithChain("FORWARD").Delete(); err != nil {
-				return fmt.Errorf("deleting FORWARD chain outRuleICC: %w", err)
-			}
 		}
 	} else {
 		// Accept outgoing traffic to anywhere, apart from other containers on this bridge.
@@ -430,16 +406,6 @@ func setIcc(ctx context.Context, version iptables.IPVersion, bridgeIface string,
 	} else {
 		if err := dropRule.Delete(); err != nil {
 			log.G(ctx).WithError(err).Warn("Failed to delete ICC drop rule")
-		}
-	}
-
-	// Delete rules that may have been inserted into the FORWARD chain by moby 28.0.0 or older.
-	if insert {
-		if err := acceptRule.WithChain("FORWARD").Delete(); err != nil {
-			return fmt.Errorf("deleting FORWARD chain accept rule: %w", err)
-		}
-		if err := dropRule.WithChain("FORWARD").Delete(); err != nil {
-			return fmt.Errorf("deleting FORWARD chain drop rule: %w", err)
 		}
 	}
 	return nil
