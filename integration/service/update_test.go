@@ -362,6 +362,36 @@ func TestServiceUpdatePidsLimit(t *testing.T) {
 	assert.NilError(t, err)
 }
 
+// TestServiceUpdateWithName verifies that a service can be updated by
+// referencing it by name instead of by ID.
+func TestServiceUpdateWithName(t *testing.T) {
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
+	defer d.Stop(t)
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	serviceName := "TestService_" + t.Name()
+	serviceID := swarm.CreateService(ctx, t, d, swarm.ServiceWithName(serviceName), swarm.ServiceWithReplicas(2))
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 2), swarm.ServicePoll)
+
+	service := getService(ctx, t, apiClient, serviceID)
+	swarm.ServiceWithReplicas(5)(&service.Spec)
+	_, err := apiClient.ServiceUpdate(ctx, serviceName, client.ServiceUpdateOptions{
+		Version: service.Version,
+		Spec:    service.Spec,
+	})
+	assert.NilError(t, err)
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 5), swarm.ServicePoll)
+
+	service = getService(ctx, t, apiClient, serviceID)
+	assert.Check(t, is.Equal(*service.Spec.Mode.Replicated.Replicas, uint64(5)))
+
+	_, err = apiClient.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
+	assert.NilError(t, err)
+}
+
 func getServiceTaskContainer(ctx context.Context, t *testing.T, cli client.APIClient, serviceID string) container.InspectResponse {
 	t.Helper()
 	taskList, err := cli.TaskList(ctx, client.TaskListOptions{

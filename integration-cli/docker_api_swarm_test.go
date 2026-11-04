@@ -860,28 +860,6 @@ func (s *DockerSwarmSuite) TestAPISwarmRestartCluster(c *testing.T) {
 	checkClusterHealth(c, nodes, mCount, wCount)
 }
 
-func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateWithName(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	d := s.AddDaemon(ctx, c, true, true)
-
-	instances := 2
-	id := d.CreateService(ctx, c, simpleTestService, setInstances(instances))
-	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount(ctx), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
-
-	service := d.GetService(ctx, c, id)
-	instances = 5
-
-	setInstances(instances)(service)
-	cli := d.NewClientT(c)
-	defer cli.Close()
-	_, err := cli.ServiceUpdate(ctx, service.Spec.Name, client.ServiceUpdateOptions{
-		Version: service.Version,
-		Spec:    service.Spec,
-	})
-	assert.NilError(c, err)
-	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount(ctx), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
-}
-
 // Unlocking an unlocked swarm results in an error
 func (s *DockerSwarmSuite) TestAPISwarmUnlockNotLocked(c *testing.T) {
 	ctx := testutil.GetContext(c)
