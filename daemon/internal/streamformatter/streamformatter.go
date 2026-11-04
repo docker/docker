@@ -36,10 +36,23 @@ func FormatError(err error) []byte {
 	if !ok {
 		jsonError = &jsonstream.Error{Message: err.Error()}
 	}
-	if b, err := json.Marshal(compat.Wrap(&jsonstream.Message{Error: jsonError}, compat.WithExtraFields(map[string]any{"error": jsonError.Error()}))); err == nil {
-		return appendNewline(b)
+
+	// The "error" field was deprecated in favor of "errorDetail" in
+	// https://github.com/moby/moby/commit/3043c2641990d94298c6377b7ef14709263a4709.
+	//
+	// Continue to produce both fields because integrations such as docker-py
+	// still depend on the deprecated field:
+	// https://github.com/docker/docker-py/blob/7.2.0/docker/models/images.py#L301-L304
+	//
+	// FIXME(thaJeztah): remove use of the deprecated "error" field once docker-py has been updated.
+	b, err := json.Marshal(compat.Wrap(
+		&jsonstream.Message{Error: jsonError},
+		compat.WithExtraFields(map[string]any{"error": jsonError.Error()}),
+	))
+	if err != nil {
+		return []byte(`{"error":"failed to marshal error response","errorDetail":{"code":500,"message":"failed to marshal error response"}}` + streamNewline)
 	}
-	return []byte(`{"error":"format error"}` + streamNewline)
+	return appendNewline(b)
 }
 
 func (sf *jsonProgressFormatter) formatStatus(id, format string, a ...any) []byte {
