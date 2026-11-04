@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime"
 
 	"github.com/containerd/log"
 	"github.com/moby/buildkit/util/apicaps"
@@ -105,7 +106,14 @@ func NewDaemonRunner(stdout, stderr io.Writer) (Runner, error) {
 		return nil, err
 	}
 
-	initLogging(stdout, stderr)
+	if runtime.GOOS == "windows" {
+		// Maybe there is a historic reason why on non-Windows, stderr is used
+		// for output. However, on Windows it makes no sense and there is no need.
+		log.L.Logger.SetOutput(stdout)
+		initLogging()
+	} else {
+		log.L.Logger.SetOutput(stderr)
+	}
 
 	cmd, err := newDaemonCommand()
 	if err != nil {

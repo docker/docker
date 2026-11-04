@@ -2,7 +2,6 @@ package command
 
 import (
 	"context"
-	"io"
 
 	"github.com/Microsoft/go-winio/pkg/etwlogrus"
 	"github.com/containerd/log"
@@ -30,11 +29,7 @@ func runDaemon(ctx context.Context, cli *daemonCLI) error {
 	return err
 }
 
-func initLogging(stdout, _ io.Writer) {
-	// Maybe there is a historic reason why on non-Windows, stderr is used
-	// for output. However, on Windows it makes no sense and there is no need.
-	log.L.Logger.SetOutput(stdout)
-
+func initLogging() {
 	// Provider ID: {6996f090-c5de-5082-a81e-5841acc3a635}
 	// Hook isn't closed explicitly, as it will exist until process exit.
 	// GUID is generated based on name - see Microsoft/go-winio/tools/etw-provider-gen.
