@@ -53,13 +53,15 @@ import (
 // If prune is true, ancestor images are attempted to be deleted quietly,
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
-//
-// TODO(thaJeztah): image delete should send prometheus counters; see https://github.com/moby/moby/issues/45268
 func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options imagebackend.RemoveOptions) (response []imagetypes.DeleteResponse, retErr error) {
 	start := time.Now()
 	defer func() {
+		metrics.ImageDeletesCounter.Inc()
 		if retErr == nil {
 			metrics.ImageActions.WithValues("delete").UpdateSince(start)
+		} else {
+			reason := metrics.CategorizeErrorReason(retErr)
+			metrics.ImageDeletesFailedCounter.WithValues(reason).Inc()
 		}
 	}()
 

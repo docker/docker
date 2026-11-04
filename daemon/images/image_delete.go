@@ -63,9 +63,18 @@ const (
 // If options.PruneChildren is true, ancestor images are attempted to be deleted quietly,
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
-func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options imagebackend.RemoveOptions) ([]imagetypes.DeleteResponse, error) {
+func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options imagebackend.RemoveOptions) (records []imagetypes.DeleteResponse, retErr error) {
 	start := time.Now()
-	records := []imagetypes.DeleteResponse{}
+	defer func() {
+		metrics.ImageDeletesCounter.Inc()
+		if retErr == nil {
+			metrics.ImageActions.WithValues("delete").UpdateSince(start)
+		} else {
+			reason := metrics.CategorizeErrorReason(retErr)
+			metrics.ImageDeletesFailedCounter.WithValues(reason).Inc()
+		}
+	}()
+	records = []imagetypes.DeleteResponse{}
 
 	var platform *ocispec.Platform
 	switch len(options.Platforms) {
@@ -197,8 +206,6 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, options
 	if err := i.imageDeleteHelper(imgID, &records, force, prune, removedRepositoryRef); err != nil {
 		return nil, err
 	}
-
-	metrics.ImageActions.WithValues("delete").UpdateSince(start)
 
 	return records, nil
 }

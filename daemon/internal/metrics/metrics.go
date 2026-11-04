@@ -1,8 +1,10 @@
 package metrics
 
 import (
+	"errors"
 	"sync"
 
+	cerrdefs "github.com/containerd/errdefs"
 	gometrics "github.com/docker/go-metrics"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -41,6 +43,11 @@ var (
 	HealthChecksFailedCounter = metricsNS.NewCounter("health_checks_failed", "The total number of failed health checks")
 	// HealthCheckStartDuration tracks the time taken to prepare health checks
 	HealthCheckStartDuration = metricsNS.NewTimer("health_check_start_duration", "The number of seconds it takes to prepare to run health checks")
+
+	// ImageDeletesCounter tracks the total number of image deletion attempts
+	ImageDeletesCounter = metricsNS.NewCounter("image_deletes", "The total number of image deletion attempts")
+	// ImageDeletesFailedCounter tracks the number of failed image deletions
+	ImageDeletesFailedCounter = metricsNS.NewLabeledCounter("image_deletes_failed", "The total number of failed image deletions", "reason")
 
 	// StateCtr tracks container states
 	StateCtr = newStateCounter(metricsNS, metricsNS.NewDesc("container_states", "The count of containers in various states", gometrics.Unit("containers"), "state"))
@@ -132,4 +139,47 @@ func (ctr *StateCounter) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(ctr.desc, prometheus.GaugeValue, float64(running), "running")
 	ch <- prometheus.MustNewConstMetric(ctr.desc, prometheus.GaugeValue, float64(paused), "paused")
 	ch <- prometheus.MustNewConstMetric(ctr.desc, prometheus.GaugeValue, float64(stopped), "stopped")
+}
+
+// CategorizeErrorReason categorizes an error into a reason string for metrics reporting.
+// It supports both containerd errdefs and moby errdefs error types.
+func CategorizeErrorReason(err error) string {
+	if err == nil {
+		return "unknown"
+	}
+
+	// Check containerd errdefs
+	if cerrdefs.IsNotFound(err) {
+		return "not_found"
+	}
+	if cerrdefs.IsConflict(err) {
+		return "conflict"
+	}
+	if cerrdefs.IsUnauthorized(err) || cerrdefs.IsPermissionDenied(err) {
+		return "permission_denied"
+	}
+	if cerrdefs.IsInvalidArgument(err) {
+		return "invalid_argument"
+	}
+
+	// Check moby errdefs using interface checks
+	var notFound interface{ NotFound() }
+	if errors.As(err, &notFound) {
+		return "not_found"
+	}
+	var conflict interface{ Conflict() }
+	if errors.As(err, &conflict) {
+		return "conflict"
+	}
+	var unauthorized interface{ Unauthorized() }
+	var forbidden interface{ Forbidden() }
+	if errors.As(err, &unauthorized) || errors.As(err, &forbidden) {
+		return "permission_denied"
+	}
+	var invalidParam interface{ InvalidParameter() }
+	if errors.As(err, &invalidParam) {
+		return "invalid_argument"
+	}
+
+	return "unknown"
 }
