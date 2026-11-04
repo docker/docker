@@ -10,7 +10,7 @@ ARG XX_VERSION=1.10.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
 # renovate: datasource=github-tags depName=docker/cli versioning=semver
-ARG DOCKERCLI_VERSION=v29.9.2
+ARG DOCKERCLI_VERSION=v29.9.3
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
 
 # cli version used for integration-cli tests
