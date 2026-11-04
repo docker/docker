@@ -24,6 +24,8 @@ func FromError(err error) int {
 
 	// Note that the below functions are already checking the error causal chain for matches.
 	// Only check errors from the errdefs package, no new error type checking may be added
+	//
+	// TODO(thaJeztah): rewrite using github.com/containerd/errdefs/pkg/errhttp.ToHTTP after providing a utility to detect if a match was found.
 	switch {
 	case cerrdefs.IsNotFound(rerr):
 		return http.StatusNotFound
@@ -33,6 +35,10 @@ func FromError(err error) int {
 		return http.StatusConflict
 	case cerrdefs.IsUnauthorized(rerr):
 		return http.StatusUnauthorized
+	case cerrdefs.IsFailedPrecondition(rerr):
+		return http.StatusPreconditionFailed
+	case cerrdefs.IsResourceExhausted(rerr):
+		return http.StatusTooManyRequests
 	case cerrdefs.IsUnavailable(rerr):
 		return http.StatusServiceUnavailable
 	case cerrdefs.IsPermissionDenied(rerr):
