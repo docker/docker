@@ -73,13 +73,10 @@ func NewCancelReadCloser(ctx context.Context, in io.ReadCloser) io.ReadCloser {
 		in.Close()
 	}()
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				p.closeWithError(ctx.Err())
-			case <-doneCtx.Done():
-				return
-			}
+		select {
+		case <-ctx.Done():
+			p.closeWithError(ctx.Err())
+		case <-doneCtx.Done():
 		}
 	}()
 
