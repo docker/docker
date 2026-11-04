@@ -174,6 +174,11 @@ func TestFilter(t *testing.T) {
 			results: []string{network.NetworkHost, network.NetworkBridge, network.NetworkNone},
 		},
 		{
+			subtest: "type=builtin,type=custom",
+			filter:  filters.NewArgs(filters.Arg("type", "builtin"), filters.Arg("type", "custom")),
+			results: []string{network.NetworkHost, network.NetworkBridge, network.NetworkNone, "myoverlay", "mydrivernet", "mykvnet", "networkwithcontainer", "networkwithservice", "idoverlap"},
+		},
+		{
 			subtest: "type=invalid",
 			filter:  filters.NewArgs(filters.Arg("type", "invalid")),
 			err:     "invalid value for filter 'type': must be 'builtin' or 'custom'",
