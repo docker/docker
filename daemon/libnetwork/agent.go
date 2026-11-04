@@ -349,6 +349,8 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	cancelList = append(cancelList, cancel)
 	nodeCh, cancel := nDB.Watch(networkdb.NodeTable, "")
 	cancelList = append(cancelList, cancel)
+	gatewayCh, cancel := nDB.Watch(ingressGatewayTable, "")
+	cancelList = append(cancelList, cancel)
 
 	c.mu.Lock()
 	c.agent = &nwAgent{
@@ -363,6 +365,7 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 
 	go c.handleTableEvents(ch, func(ev events.Event) { handleEpTableEvent(c, ev) })
 	go c.handleTableEvents(nodeCh, c.handleNodeTableEvent)
+	go c.handleTableEvents(gatewayCh, c.handleIngressGatewayTableEvent)
 
 	keys, tags := c.getKeys(subsysIPSec)
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
@@ -378,6 +381,10 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	})
 
 	c.WalkNetworks(joinCluster)
+	c.WalkNetworks(func(n *Network) bool {
+		n.restoreIngressSourceIPRouting()
+		return false
+	})
 
 	return nil
 }
@@ -629,7 +636,7 @@ func (ep *Endpoint) addDriverInfoToCluster() error {
 			return err
 		}
 	}
-	return nil
+	return ep.addIngressGatewayInfoToCluster()
 }
 
 func (ep *Endpoint) deleteDriverInfoFromCluster() error {
@@ -643,6 +650,9 @@ func (ep *Endpoint) deleteDriverInfoFromCluster() error {
 	}
 
 	nwID := n.ID()
+	if err := ep.deleteIngressGatewayInfoFromCluster(); err != nil {
+		log.G(context.TODO()).WithError(err).Warn("Failed to remove ingress gateway information")
+	}
 	for _, te := range ep.joinInfo.driverTableEntries {
 		if err := agent.networkDB.DeleteEntry(te.tableName, nwID, te.key); err != nil {
 			return err

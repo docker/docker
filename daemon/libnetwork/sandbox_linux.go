@@ -16,6 +16,9 @@ import (
 type containerConfigOS struct{} //nolint:nolintlint,unused // only populated on windows
 
 func releaseOSSboxResources(ns *osl.Namespace, ep *Endpoint) {
+	if err := clearIngressSourceIPRouting(ns, ep); err != nil {
+		log.G(context.TODO()).WithError(err).Warn("Failed to remove ingress return routing")
+	}
 	for _, i := range ns.Interfaces() {
 		// Only remove the interfaces owned by this endpoint from the sandbox.
 		if ep.hasInterface(i.SrcName()) {
@@ -28,7 +31,7 @@ func releaseOSSboxResources(ns *osl.Namespace, ep *Endpoint) {
 	ep.mu.Lock()
 	joinInfo := ep.joinInfo
 	vip := ep.virtualIP
-	lbModeIsDSR := ep.network.loadBalancerMode == loadBalancerModeDSR
+	lbModeIsDSR := ep.network.loadBalancerMode == loadBalancerModeDSR || ep.network.loadBalancerMode == loadBalancerModeSourceIP
 	ep.mu.Unlock()
 
 	if len(vip) > 0 && lbModeIsDSR {
@@ -363,7 +366,7 @@ func (sb *Sandbox) populateNetworkResourcesOS(ctx context.Context, ep *Endpoint)
 	ep.mu.Lock()
 	joinInfo := ep.joinInfo
 	i := ep.iface
-	lbModeIsDSR := ep.network.loadBalancerMode == loadBalancerModeDSR
+	lbModeIsDSR := ep.network.loadBalancerMode == loadBalancerModeDSR || ep.network.loadBalancerMode == loadBalancerModeSourceIP
 	ep.mu.Unlock()
 
 	if ep.needResolver() {
@@ -460,6 +463,9 @@ func (sb *Sandbox) populateNetworkResourcesOS(ctx context.Context, ep *Endpoint)
 	// loadbalancers are populated all the network state is in
 	// place in the sandbox.
 	sb.populateLoadBalancers(ep)
+	if err := sb.configureIngressSourceIPRouting(ep); err != nil {
+		return fmt.Errorf("configuring ingress return routing: %w", err)
+	}
 
 	// Only update the store if we did not come here as part of
 	// sandbox delete. If we came here as part of delete then do

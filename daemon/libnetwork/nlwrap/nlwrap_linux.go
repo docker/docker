@@ -278,6 +278,15 @@ func LinkSubscribeWithOptions(ch chan<- netlink.LinkUpdate, done <-chan struct{}
 	return err
 }
 
+// NeighList calls nlh.Handle.NeighList, retrying if necessary.
+func (nlh Handle) NeighList(linkIndex, family int) (neighbors []netlink.Neigh, err error) {
+	retryOnIntr(func() error {
+		neighbors, err = nlh.Handle.NeighList(linkIndex, family) //nolint:forbidigo
+		return err
+	})
+	return neighbors, discardErrDumpInterrupted(err)
+}
+
 // RouteList calls nlh.Handle.RouteList, retrying if necessary.
 func (nlh Handle) RouteList(link netlink.Link, family int) (routes []netlink.Route, err error) {
 	retryOnIntr(func() error {
@@ -285,6 +294,24 @@ func (nlh Handle) RouteList(link netlink.Link, family int) (routes []netlink.Rou
 		return err
 	})
 	return routes, discardErrDumpInterrupted(err)
+}
+
+// RouteListFiltered calls nlh.Handle.RouteListFiltered, retrying if necessary.
+func (nlh Handle) RouteListFiltered(family int, filter *netlink.Route, filterMask uint64) (routes []netlink.Route, err error) {
+	retryOnIntr(func() error {
+		routes, err = nlh.Handle.RouteListFiltered(family, filter, filterMask) //nolint:forbidigo
+		return err
+	})
+	return routes, discardErrDumpInterrupted(err)
+}
+
+// RuleList calls nlh.Handle.RuleList, retrying if necessary.
+func (nlh Handle) RuleList(family int) (rules []netlink.Rule, err error) {
+	retryOnIntr(func() error {
+		rules, err = nlh.Handle.RuleList(family) //nolint:forbidigo
+		return err
+	})
+	return rules, discardErrDumpInterrupted(err)
 }
 
 // XfrmPolicyList calls nlh.Handle.XfrmPolicyList, retrying if necessary.

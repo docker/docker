@@ -620,6 +620,9 @@ func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, i
 			nw.ipamRelease()
 		}
 	}()
+	if err := nw.validateIngressSourceIPPool(); err != nil {
+		return nil, err
+	}
 
 	// Note from thaJeztah to future code visitors, or "future self".
 	//
