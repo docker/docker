@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -170,18 +169,22 @@ func TestNewAWSLogsClientLogFormatHeaderHandler(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.logFormat, func(t *testing.T) {
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				logFormatHeaderVal := r.Header.Get("x-amzn-logs-format")
-				assert.Check(t, is.Equal(tc.expectedHeaderValue, logFormatHeaderVal))
-				fmt.Fprintln(w, "{}")
-			}))
-			defer ts.Close()
+			var logFormatHeaderVal string
+			httpClient := smithyhttp.ClientDoFunc(func(r *http.Request) (*http.Response, error) {
+				logFormatHeaderVal = r.Header.Get("x-amzn-logs-format")
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+					Body:       io.NopCloser(strings.NewReader("{}")),
+					Request:    r,
+				}, nil
+			})
 
 			info := logger.Info{
 				Config: map[string]string{
 					regionKey:    "us-east-1",
 					logFormatKey: tc.logFormat,
-					endpointKey:  ts.URL,
+					endpointKey:  "http://cloudwatchlogs.test",
 				},
 			}
 
@@ -190,29 +193,35 @@ func TestNewAWSLogsClientLogFormatHeaderHandler(t *testing.T) {
 				config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
 					Value: aws.Credentials{AccessKeyID: "AKID", SecretAccessKey: "SECRET", SessionToken: "SESSION"},
 				}),
+				config.WithHTTPClient(httpClient),
 			)
 			assert.NilError(t, err)
 
 			_, err = client.CreateLogGroup(t.Context(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
 			assert.NilError(t, err)
+			assert.Check(t, is.Equal(tc.expectedHeaderValue, logFormatHeaderVal))
 		})
 	}
 }
 
 func TestNewAWSLogsClientAWSLogsEndpoint(t *testing.T) {
-	called := atomic.Value{} // for go1.19 and later, can use atomic.Bool
-	called.Store(false)
+	const endpoint = "http://cloudwatchlogs.test:6789"
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		called.Store(true)
-		fmt.Fprintln(w, "{}")
-	}))
-	defer ts.Close()
+	var requestedEndpoint string
+	httpClient := smithyhttp.ClientDoFunc(func(r *http.Request) (*http.Response, error) {
+		requestedEndpoint = r.URL.Scheme + "://" + r.URL.Host
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("{}")),
+			Request:    r,
+		}, nil
+	})
 
 	info := logger.Info{
 		Config: map[string]string{
 			regionKey:   "us-east-1",
-			endpointKey: ts.URL,
+			endpointKey: endpoint,
 		},
 	}
 
@@ -221,14 +230,15 @@ func TestNewAWSLogsClientAWSLogsEndpoint(t *testing.T) {
 		config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
 			Value: aws.Credentials{AccessKeyID: "AKID", SecretAccessKey: "SECRET", SessionToken: "SESSION"},
 		}),
+		config.WithHTTPClient(httpClient),
 	)
 	assert.NilError(t, err)
 
 	_, err = client.CreateLogGroup(t.Context(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
 	assert.NilError(t, err)
 
-	// make sure the endpoint was actually hit
-	assert.Check(t, called.Load().(bool))
+	// make sure the request was sent to the configured endpoint
+	assert.Check(t, is.Equal(requestedEndpoint, endpoint))
 }
 
 func TestNewAWSLogsClientRegionDetect(t *testing.T) {
