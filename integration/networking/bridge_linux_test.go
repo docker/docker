@@ -22,14 +22,12 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/iptables"
 	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
-	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/integration/internal/network"
 	"github.com/moby/moby/v2/integration/internal/testutils/networking"
 	n "github.com/moby/moby/v2/integration/network"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
-	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
@@ -2290,12 +2288,10 @@ func TestPublishAllWithNilPortBindings(t *testing.T) {
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
-	imgWithExpose := container.WithImage(build.Do(ctx, t, c,
-		fakecontext.New(t, "", fakecontext.WithDockerfile("FROM busybox\nEXPOSE 80/tcp\n")), client.ImageBuildOptions{}))
-
-	_ = container.Run(ctx, t, c,
-		container.WithAutoRemove,
+	ctrID := container.Create(ctx, t, c,
+		container.WithImage("busybox:latest"),
+		container.WithExposedPorts("80/tcp"),
 		container.WithPublishAllPorts(true),
-		imgWithExpose,
 	)
+	container.Remove(ctx, t, c, ctrID, client.ContainerRemoveOptions{Force: true})
 }
