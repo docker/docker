@@ -1,0 +1,48 @@
+#!/usr/sbin/nft -f
+# Host ingress for published ports.
+#
+# Overlay VIP traffic never hits this table. Traffic addressed to published
+# ports is NAT'd into the ingress network for load balancing onto backend
+# services.
+
+table ip moby-ingress {
+	define gwbr_ifname = "gwbr0"
+	define gwbr_subnet = 172.18.0.0/16
+	define gwbr_dnat_ip = 172.18.0.2
+
+	# Ports in this set are forwarded to the service mesh.
+	set published-port {
+		type inet_proto . inet_service
+	}
+
+	chain prerouting {
+		type nat hook prerouting priority dstnat; policy accept;
+		fib daddr type local meta l4proto { tcp, udp } \
+			meta l4proto . th dport @published-port \
+			counter dnat to $gwbr_dnat_ip
+	}
+
+	chain output {
+		type nat hook output priority -100; policy accept;
+		fib daddr type local meta l4proto { tcp, udp } \
+			meta l4proto . th dport @published-port \
+			counter dnat to $gwbr_dnat_ip
+	}
+
+	chain postrouting {
+		type nat hook postrouting priority srcnat; policy accept;
+		# Published-port ingress (NAT + DSR): LOCAL OUTPUT and remote PREROUTING.
+		meta l4proto . th dport @published-port oifname $gwbr_ifname fib saddr type local counter masquerade
+		meta l4proto . th dport @published-port iifname != $gwbr_ifname oifname $gwbr_ifname \
+			ip daddr $gwbr_subnet counter masquerade
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+		ct state established,related counter accept
+		meta l4proto . th dport @published-port counter accept
+		ip daddr $gwbr_subnet meta l4proto . th dport @published-port counter accept
+		ct state established,related meta l4proto . th sport @published-port counter accept
+		ct state established,related ip saddr $gwbr_subnet meta l4proto . th sport @published-port counter accept
+	}
+}

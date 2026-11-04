@@ -1,0 +1,99 @@
+#!/usr/sbin/nft -f
+# LB sandbox: O(1) static NAT (ip) + DSR (netdev) rulesets.
+# Backend selection is weighted random.
+#
+# NAT flows are persisted using conntrack.
+# DSR flows are persisted using nftables maps that are updated in the
+# packet path (one-sided connection tracking).
+
+table ip moby-lb-nat {
+	# Map of VIP . weight interval : backend IP
+	map nat-service-vip {
+		typeof ip daddr . numgen random mod 1024 : ip daddr
+		counter
+		flags interval
+	}
+
+	# Map of publish port . weight interval : backend IP
+	map nat-publish-port {
+		typeof meta l4proto . th dport . numgen random mod 1024 : ip daddr
+		counter
+		flags interval
+	}
+
+	chain prerouting {
+		type nat hook prerouting priority dstnat; policy accept;
+
+		# NAT hooks only evaluate dnat on ct state new; established flows replay via conntrack.
+		# Inter-container communication inside the overlay: DNAT VIP to backends.
+		dnat to ip daddr . numgen random mod 1024 map @nat-service-vip
+		# Host ingress (eth1): DNAT published ports to backends.
+		dnat to meta l4proto . th dport . numgen random mod 1024 map @nat-publish-port
+	}
+
+	chain postrouting {
+		type nat hook postrouting priority srcnat; policy accept;
+		ct status dnat counter masquerade
+	}
+}
+
+table netdev moby-lb-dsr {
+	set virtual-service {
+		typeof ip daddr . meta l4proto . th dport
+	}
+
+	# Map of VIP . interval : real-server-mac
+	# The relative size of the intervals of each map entry determines the
+	# weight of the real-server in load balancing selection.
+	map real-server {
+		typeof ip daddr . numgen random mod 1024 : ether daddr
+		flags interval
+	}
+
+	# Sticky overlay DSR sessions (4-tuple → backend MAC).
+	# Split by L4 protocol as nftables 1.0.6 crashes when attempting to
+	# compile a ruleset that contains a map update on a 5-tuple key.
+	map dsr-persist-tcp {
+		typeof ip saddr . th sport . ip daddr . th dport : ether daddr
+		flags dynamic
+		size 65535
+		timeout 60s
+	}
+
+	map dsr-persist-udp {
+		typeof ip saddr . th sport . ip daddr . th dport : ether daddr
+		flags dynamic
+		size 65535
+		timeout 60s
+	}
+
+	chain ingress {
+		type filter hook ingress device eth0 priority 0; policy accept;
+
+		ip daddr . meta l4proto . th dport @virtual-service counter goto dsr-fwd
+	}
+
+	chain dsr-fwd {
+		ether saddr set ether daddr
+		# Established session: reuse MAC from persist map.
+		meta l4proto tcp ether daddr set ip saddr . th sport . ip daddr . th dport map @dsr-persist-tcp counter goto dsr-fwd-persist-tcp
+		meta l4proto udp ether daddr set ip saddr . th sport . ip daddr . th dport map @dsr-persist-udp counter goto dsr-fwd-persist-udp
+		# New session: random bucket lookup, record choice in persist map.
+		meta l4proto tcp ether daddr set ip daddr . numgen random mod 1024 map @real-server counter goto dsr-fwd-persist-tcp
+		meta l4proto udp ether daddr set ip daddr . numgen random mod 1024 map @real-server counter goto dsr-fwd-persist-udp
+		# The service is defined but the packet does not correspond to
+		# an established session and no backends are available for a new
+		# session.
+		counter drop
+	}
+
+	chain dsr-fwd-persist-tcp {
+		# Teardown: drop sticky entry so the 4-tuple can be reassigned immediately.
+		tcp flags fin,rst update @dsr-persist-tcp { ip saddr . th sport . ip daddr . th dport : ether daddr timeout 0s } counter fwd to eth0
+		update @dsr-persist-tcp { ip saddr . th sport . ip daddr . th dport : ether daddr } counter fwd to eth0
+	}
+
+	chain dsr-fwd-persist-udp {
+		update @dsr-persist-udp { ip saddr . th sport . ip daddr . th dport : ether daddr } counter fwd to eth0
+	}
+}

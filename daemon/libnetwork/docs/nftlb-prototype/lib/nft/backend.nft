@@ -1,0 +1,41 @@
+#!/usr/sbin/nft -f
+# Backend task sandbox: O(1) redirect + filter ruleset.
+# publishPort != targetPort: local port remap via redirect (TCP and UDP).
+
+# Required parameters: -D ingress_eip=<ingress network endpoint IP>
+
+table ip moby-task-ingress {
+	# Map of publishPort -> targetPort.
+	# Packets with a destination address of $ingress_eip and a destination
+	# port in this map are redirected to the target port.
+	map remap-ports {
+		type inet_proto . inet_service : inet_service
+	}
+
+	# Set of targetPort for published ports on the service.
+	# Packets with destination/source IP $ingress_eip are only allowed
+	# when the destination/source port, respectively, is in this set.
+	set allowed-ports {
+		type inet_proto . inet_service
+	}
+
+	chain prerouting {
+		type nat hook prerouting priority dstnat; policy accept;
+		ip daddr $ingress_eip meta l4proto { tcp, udp, sctp } \
+			counter redirect to meta l4proto . th dport map @remap-ports
+	}
+
+	chain input {
+		type filter hook input priority filter; policy accept;
+		ip daddr != $ingress_eip counter accept
+		meta l4proto . th dport @allowed-ports counter accept
+		counter reject
+	}
+
+	chain output {
+		type filter hook output priority filter; policy accept;
+		ip saddr != $ingress_eip counter accept
+		meta l4proto . th sport @allowed-ports counter accept
+		counter reject
+	}
+}
