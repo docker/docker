@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -19,16 +20,29 @@ func TestFormatStatus(t *testing.T) {
 }
 
 func TestFormatError(t *testing.T) {
-	res := FormatError(errors.New("Error for formatter"))
-	expected := `{"error":"Error for formatter","errorDetail":{"message":"Error for formatter"}}` + "\r\n"
-	assert.Check(t, is.Equal(expected, string(res)))
-}
+	tests := []struct {
+		name     string
+		err      error
+		expected string
+	}{
+		{
+			name:     "regular error",
+			err:      errors.New("something bad happened"),
+			expected: `{"error":"something bad happened","errorDetail":{"message":"something bad happened"}}`,
+		},
+		{
+			name:     "JSON error",
+			err:      &jsonstream.Error{Code: http.StatusBadRequest, Message: "JSON error"},
+			expected: `{"error":"JSON error","errorDetail":{"code":400,"message":"JSON error"}}`,
+		},
+	}
 
-func TestFormatJSONError(t *testing.T) {
-	err := &jsonstream.Error{Code: 50, Message: "Json error"}
-	res := FormatError(err)
-	expected := `{"error":"Json error","errorDetail":{"code":50,"message":"Json error"}}` + streamNewline
-	assert.Check(t, is.Equal(expected, string(res)))
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res := FormatError(tc.err)
+			assert.Check(t, is.Equal(tc.expected+streamNewline, string(res)))
+		})
+	}
 }
 
 func TestJsonProgressFormatterFormatProgress(t *testing.T) {
