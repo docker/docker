@@ -219,6 +219,11 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 // This will create a directory such as d123456789 in the folder specified by
 // $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
+// Cleanup of the daemon's storage is registered via [testing.TB.Cleanup]:
+// overlay mounts, Raft state and heavy storage subdirectories are removed when
+// the test ends, preserving logs for artifact collection.
+// The daemon must still be stopped explicitly (e.g. with [Daemon.Stop]) before
+// the test returns; the registered cleanup only handles directory removal.
 func New(t testing.TB, ops ...Option) *Daemon {
 	t.Helper()
 	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
@@ -246,6 +251,15 @@ func New(t testing.TB, ops ...Option) *Daemon {
 	if d.rootlessUser != nil && d.dockerdBinary != defaultDockerdBinary {
 		t.Skipf("DOCKER_ROOTLESS doesn't support specifying non-default dockerd binary path %q", d.dockerdBinary)
 	}
+
+	// Cleanup runs after all defers in the test function, so an explicit
+	// defer d.Stop(t) in the test fires first and leaves Cleanup to handle
+	// only directory removal. For tests that forget to stop, Stop here is a
+	// no-op if already stopped, or a safety net if not.
+	t.Cleanup(func() {
+		d.Stop(t)
+		d.Cleanup(t)
+	})
 
 	return d
 }
