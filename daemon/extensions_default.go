@@ -43,7 +43,7 @@ func (daemon *Daemon) daemonExtensions() []extensions.Extension {
 	return []extensions.Extension{
 		extensionconfig.New(&cfg),
 		newMonolithExtension(daemon),
-		extensionapi.New("unix://" + extensionAPISocket(&cfg)),
+		extensionapi.New(daemon.extensionAPIEndpoint),
 	}
 }
 

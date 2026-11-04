@@ -13,8 +13,9 @@ import (
 	daemonapiv0 "github.com/moby/moby/v2/extpoints/daemonapi/v0"
 )
 
-// New declares a provider for the API endpoint the daemon serves at host.
-func New(host string) extensions.Extension {
+// New declares a provider for the API endpoint returned by host.
+// host is called each time an extension resolves the endpoint.
+func New(host func(context.Context) (string, error)) extensions.Extension {
 	return extensions.New(extensions.Declaration{
 		ID: "org.mobyproject.daemon.api.v0",
 		Providers: []extensions.Provider{
@@ -24,9 +25,13 @@ func New(host string) extensions.Extension {
 }
 
 type endpoint struct {
-	host string
+	host func(context.Context) (string, error)
 }
 
-func (e endpoint) Get(context.Context, *daemonapiv0.GetRequest) (*daemonapiv0.GetResponse, error) {
-	return &daemonapiv0.GetResponse{Host: e.host}, nil
+func (e endpoint) Get(ctx context.Context, _ *daemonapiv0.GetRequest) (*daemonapiv0.GetResponse, error) {
+	host, err := e.host(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &daemonapiv0.GetResponse{Host: host}, nil
 }

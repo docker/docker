@@ -38,6 +38,7 @@ import (
 	networktypes "github.com/moby/moby/api/types/network"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/daemon/internal/apisocket"
 	"github.com/moby/moby/v2/daemon/internal/nri"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
@@ -136,6 +137,7 @@ type Daemon struct {
 	nri               *nri.NRI
 	pluginManager     *plugin.Manager
 	extensionHost     *host.Host
+	apiSockets        *apisocket.Manager
 	linkIndex         *linkIndex
 	containerdClient  *containerd.Client
 	containerd        libcontainerdtypes.Client
@@ -933,6 +935,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d := &Daemon{
 		PluginStore: pluginStore,
 		startupDone: make(chan struct{}),
+		apiSockets:  apisocket.NewManager(),
 	}
 	cfgStore := &configStore{
 		Config:   *config,
@@ -1555,6 +1558,11 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 		if err := daemon.extensionHost.Shutdown(ctx); err != nil {
 			log.G(ctx).WithError(err).Error("failed to shut down extensions")
 		}
+	}
+	// Close the API sockets only after extensions have shut down, so they can
+	// still use the API while shutting down.
+	if err := daemon.apiSockets.Close(); err != nil {
+		log.G(ctx).WithError(err).Error("failed to close API sockets")
 	}
 
 	// Keep mounts and networking running on daemon shutdown if

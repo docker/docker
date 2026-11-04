@@ -44,12 +44,12 @@ func (e *extension) Declaration() extensions.Declaration {
 		Dependencies: []extensions.Dependency{
 			daemonapiv0.Point.Dependency(),
 		},
-		Init: func(ctx context.Context, _ extensions.Config, resolver extensions.Resolver) error {
+		Init: func(_ context.Context, _ extensions.Config, resolver extensions.Resolver) error {
 			provider, err := daemonapiv0.Point.Single(resolver)
 			if err != nil {
 				return err
 			}
-			api, err := daemonapiv0.NewClient(ctx, provider)
+			api, err := daemonapiv0.NewClient(provider)
 			if err != nil {
 				return err
 			}

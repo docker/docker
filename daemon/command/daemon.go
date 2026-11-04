@@ -360,16 +360,10 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 	if err != nil {
 		return err
 	}
-	// Serve the API to extensions on a private socket.
-	extLs, err := d.ExtensionAPIListener()
-	if err != nil {
-		return err
-	}
-	if extLs != nil {
-		lss = append(lss, extLs)
-	}
 	httpServer.Protocols = &p
-	httpServer.Handler = newHTTPHandler(ctx, gs, extProxy, apiServer.CreateMux(ctx, routers...))
+	handler := newHTTPHandler(ctx, gs, extProxy, apiServer.CreateMux(ctx, routers...))
+	httpServer.Handler = handler
+	d.StartAPISockets(handler)
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
