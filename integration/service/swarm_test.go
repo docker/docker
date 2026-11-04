@@ -1,12 +1,15 @@
 package service
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 
+	types "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/swarm"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
 )
@@ -33,4 +36,26 @@ func TestSwarmCAHash(t *testing.T) {
 		RemoteAddrs: []string{d1.SwarmListenAddr()},
 	})
 	assert.ErrorContains(t, err, "remote CA does not match fingerprint")
+}
+
+func TestSwarmInvalidAddress(t *testing.T) {
+	ctx := setupTest(t)
+	d := daemon.New(t)
+	d.Start(t)
+	defer d.Stop(t)
+
+	req := types.InitRequest{
+		ListenAddr: "",
+	}
+	res, _, err := request.Post(ctx, "/swarm/init", request.Host(d.Sock()), request.JSONBody(req))
+	assert.NilError(t, err)
+	assert.Equal(t, res.StatusCode, http.StatusBadRequest)
+
+	req2 := types.JoinRequest{
+		ListenAddr:  "0.0.0.0:2377",
+		RemoteAddrs: []string{""},
+	}
+	res, _, err = request.Post(ctx, "/swarm/join", request.Host(d.Sock()), request.JSONBody(req2))
+	assert.NilError(t, err)
+	assert.Equal(t, res.StatusCode, http.StatusBadRequest)
 }

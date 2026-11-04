@@ -539,25 +539,6 @@ loop0:
 	}
 }
 
-func (s *DockerSwarmSuite) TestAPISwarmInvalidAddress(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	d := s.AddDaemon(ctx, c, false, false)
-	req := swarm.InitRequest{
-		ListenAddr: "",
-	}
-	res, _, err := request.Post(testutil.GetContext(c), "/swarm/init", request.Host(d.Sock()), request.JSONBody(req))
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-
-	req2 := swarm.JoinRequest{
-		ListenAddr:  "0.0.0.0:2377",
-		RemoteAddrs: []string{""},
-	}
-	res, _, err = request.Post(testutil.GetContext(c), "/swarm/join", request.Host(d.Sock()), request.JSONBody(req2))
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-}
-
 func (s *DockerSwarmSuite) TestAPISwarmForceNewCluster(c *testing.T) {
 	ctx := testutil.GetContext(c)
 	d1 := s.AddDaemon(ctx, c, true, true)
