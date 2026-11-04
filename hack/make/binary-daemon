@@ -15,7 +15,12 @@ copy_binaries() {
 	fi
 	echo "Copying nested executables into $dir"
 	for file in containerd containerd-shim-runc-v2 ctr runc docker-init rootlesskit dockerd-rootless.sh dockerd-rootless-setuptool.sh; do
-		cp -f "$(command -v "$file")" "$dir/"
+		bin_path=$(command -v "$file" 2>/dev/null || true)
+		if [ -z "$bin_path" ]; then
+			echo "Skipping $file: not found in PATH" >&2
+			continue
+		fi
+		cp -f "$bin_path" "$dir/"
 	done
 }
 
