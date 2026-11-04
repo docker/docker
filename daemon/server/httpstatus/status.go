@@ -117,14 +117,13 @@ func statusCodeFromGRPCError(err error) int {
 func statusCodeFromDistributionError(err error) int {
 	switch errs := err.(type) {
 	case errcode.Errors:
-		if len(errs) < 1 {
-			return http.StatusInternalServerError
-		}
-		if _, ok := errs[0].(errcode.ErrorCoder); ok {
+		if len(errs) > 0 {
 			return statusCodeFromDistributionError(errs[0])
 		}
+		return http.StatusInternalServerError
 	case errcode.ErrorCoder:
 		return errs.ErrorCode().Descriptor().HTTPStatusCode
+	default:
+		return http.StatusInternalServerError
 	}
-	return http.StatusInternalServerError
 }
