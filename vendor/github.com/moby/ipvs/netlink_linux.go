@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"os/exec"
 	"strings"
@@ -12,11 +13,11 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
-	"unsafe"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 )
 
 // For Quick Reference IPVS related netlink message is described at the end of this file.
@@ -26,35 +27,48 @@ var (
 	ipvsOnce   sync.Once
 )
 
+// genlMsgHdrLen is the serialized size of genlMsgHdr. Keep this explicit
+// rather than deriving it with unsafe.Sizeof so the wire format does not
+// depend on the Go struct representation.
+const genlMsgHdrLen = 4
+
 type genlMsgHdr struct {
 	cmd      uint8
 	version  uint8
 	reserved uint16
 }
 
+// ipvsFlagsLen is the serialized size of ipvsFlags. Keep this explicit
+// rather than deriving it with unsafe.Sizeof so the wire format does not
+// depend on the Go struct representation.
+const ipvsFlagsLen = 8
+
 type ipvsFlags struct {
 	flags uint32
 	mask  uint32
 }
 
-func deserializeGenlMsg(b []byte) (hdr *genlMsgHdr) {
-	return (*genlMsgHdr)(unsafe.Pointer(&b[0:unsafe.Sizeof(*hdr)][0]))
-}
-
 func (hdr *genlMsgHdr) Serialize() []byte {
-	return (*(*[unsafe.Sizeof(*hdr)]byte)(unsafe.Pointer(hdr)))[:]
+	b := make([]byte, genlMsgHdrLen)
+	b[0] = hdr.cmd
+	b[1] = hdr.version
+	native.PutUint16(b[2:], hdr.reserved)
+	return b
 }
 
-func (hdr *genlMsgHdr) Len() int {
-	return int(unsafe.Sizeof(*hdr))
+func (*genlMsgHdr) Len() int {
+	return genlMsgHdrLen
 }
 
 func (f *ipvsFlags) Serialize() []byte {
-	return (*(*[unsafe.Sizeof(*f)]byte)(unsafe.Pointer(f)))[:]
+	b := make([]byte, ipvsFlagsLen)
+	native.PutUint32(b[0:], f.flags)
+	native.PutUint32(b[4:], f.mask)
+	return b
 }
 
-func (f *ipvsFlags) Len() int {
-	return int(unsafe.Sizeof(*f))
+func (*ipvsFlags) Len() int {
+	return ipvsFlagsLen
 }
 
 func setup() {
@@ -72,58 +86,60 @@ func setup() {
 }
 
 func fillService(s *Service) nl.NetlinkRequestData {
-	cmdAttr := nl.NewRtAttr(ipvsCmdAttrService, nil)
-	nl.NewRtAttrChild(cmdAttr, ipvsSvcAttrAddressFamily, nl.Uint16Attr(s.AddressFamily))
+	cmdAttr := nl.NewRtAttr(int(ipvsCmdAttrService), nil)
+	cmdAttr.AddRtAttr(int(ipvsSvcAttrAddressFamily), nl.Uint16Attr(s.AddressFamily))
 	if s.FWMark != 0 {
-		nl.NewRtAttrChild(cmdAttr, ipvsSvcAttrFWMark, nl.Uint32Attr(s.FWMark))
+		cmdAttr.AddRtAttr(int(ipvsSvcAttrFWMark), nl.Uint32Attr(s.FWMark))
 	} else {
-		nl.NewRtAttrChild(cmdAttr, ipvsSvcAttrProtocol, nl.Uint16Attr(s.Protocol))
-		nl.NewRtAttrChild(cmdAttr, ipvsSvcAttrAddress, rawIPData(s.Address))
+		cmdAttr.AddRtAttr(int(ipvsSvcAttrProtocol), nl.Uint16Attr(s.Protocol))
+		cmdAttr.AddRtAttr(int(ipvsSvcAttrAddress), rawIPData(s.Address))
 
 		// Port needs to be in network byte order.
-		portBuf := new(bytes.Buffer)
-		binary.Write(portBuf, binary.BigEndian, s.Port)
-		nl.NewRtAttrChild(cmdAttr, ipvsSvcAttrPort, portBuf.Bytes())
+		var portBuf bytes.Buffer
+		_ = binary.Write(&portBuf, binary.BigEndian, s.Port)
+		cmdAttr.AddRtAttr(int(ipvsSvcAttrPort), portBuf.Bytes())
 	}
 
-	nl.NewRtAttrChild(cmdAttr, ipvsSvcAttrSchedName, nl.ZeroTerminated(s.SchedName))
+	cmdAttr.AddRtAttr(int(ipvsSvcAttrSchedName), nl.ZeroTerminated(s.SchedName))
 	if s.PEName != "" {
-		nl.NewRtAttrChild(cmdAttr, ipvsSvcAttrPEName, nl.ZeroTerminated(s.PEName))
+		cmdAttr.AddRtAttr(int(ipvsSvcAttrPEName), nl.ZeroTerminated(s.PEName))
 	}
 	f := &ipvsFlags{
 		flags: s.Flags,
 		mask:  0xFFFFFFFF,
 	}
-	nl.NewRtAttrChild(cmdAttr, ipvsSvcAttrFlags, f.Serialize())
-	nl.NewRtAttrChild(cmdAttr, ipvsSvcAttrTimeout, nl.Uint32Attr(s.Timeout))
-	nl.NewRtAttrChild(cmdAttr, ipvsSvcAttrNetmask, nl.Uint32Attr(s.Netmask))
+	cmdAttr.AddRtAttr(int(ipvsSvcAttrFlags), f.Serialize())
+	cmdAttr.AddRtAttr(int(ipvsSvcAttrTimeout), nl.Uint32Attr(s.Timeout))
+	cmdAttr.AddRtAttr(int(ipvsSvcAttrNetmask), nl.Uint32Attr(s.Netmask))
 	return cmdAttr
 }
 
-func fillDestination(d *Destination) nl.NetlinkRequestData {
-	cmdAttr := nl.NewRtAttr(ipvsCmdAttrDest, nil)
+func fillDestination(d *Destination) (nl.NetlinkRequestData, error) {
+	if d.Weight < 0 || d.Weight > math.MaxInt32 {
+		return nil, fmt.Errorf("destination weight out of range: %d", d.Weight)
+	}
+	cmdAttr := nl.NewRtAttr(int(ipvsCmdAttrDest), nil)
 
-	nl.NewRtAttrChild(cmdAttr, ipvsDestAttrAddress, rawIPData(d.Address))
+	cmdAttr.AddRtAttr(int(ipvsDestAttrAddress), rawIPData(d.Address))
 	// Port needs to be in network byte order.
-	portBuf := new(bytes.Buffer)
-	binary.Write(portBuf, binary.BigEndian, d.Port)
-	nl.NewRtAttrChild(cmdAttr, ipvsDestAttrPort, portBuf.Bytes())
+	var portBuf bytes.Buffer
+	_ = binary.Write(&portBuf, binary.BigEndian, d.Port)
+	cmdAttr.AddRtAttr(int(ipvsDestAttrPort), portBuf.Bytes())
+	cmdAttr.AddRtAttr(int(ipvsDestAttrForwardingMethod), nl.Uint32Attr(d.ConnectionFlags&ConnFwdMask))
+	cmdAttr.AddRtAttr(int(ipvsDestAttrWeight), nl.Uint32Attr(uint32(d.Weight)))
+	cmdAttr.AddRtAttr(int(ipvsDestAttrUpperThreshold), nl.Uint32Attr(d.UpperThreshold))
+	cmdAttr.AddRtAttr(int(ipvsDestAttrLowerThreshold), nl.Uint32Attr(d.LowerThreshold))
 
-	nl.NewRtAttrChild(cmdAttr, ipvsDestAttrForwardingMethod, nl.Uint32Attr(d.ConnectionFlags&ConnectionFlagFwdMask))
-	nl.NewRtAttrChild(cmdAttr, ipvsDestAttrWeight, nl.Uint32Attr(uint32(d.Weight)))
-	nl.NewRtAttrChild(cmdAttr, ipvsDestAttrUpperThreshold, nl.Uint32Attr(d.UpperThreshold))
-	nl.NewRtAttrChild(cmdAttr, ipvsDestAttrLowerThreshold, nl.Uint32Attr(d.LowerThreshold))
-
-	return cmdAttr
+	return cmdAttr, nil
 }
 
-func (i *Handle) doCmdwithResponse(s *Service, d *Destination, cmd uint8) ([][]byte, error) {
+func (i *Handle) doCmdwithResponse(s *Service, d *Destination, cmd ipvsCmd) ([][]byte, error) {
 	req := newIPVSRequest(cmd)
 	req.Seq = atomic.AddUint32(&i.seq, 1)
 
 	if s == nil {
-		req.Flags |= syscall.NLM_F_DUMP                    // Flag to dump all messages
-		req.AddData(nl.NewRtAttr(ipvsCmdAttrService, nil)) // Add a dummy attribute
+		req.Flags |= syscall.NLM_F_DUMP                         // Flag to dump all messages
+		req.AddData(nl.NewRtAttr(int(ipvsCmdAttrService), nil)) // Add a dummy attribute
 	} else {
 		req.AddData(fillService(s))
 	}
@@ -133,10 +149,14 @@ func (i *Handle) doCmdwithResponse(s *Service, d *Destination, cmd uint8) ([][]b
 			req.Flags |= syscall.NLM_F_DUMP
 		}
 	} else {
-		req.AddData(fillDestination(d))
+		attr, err := fillDestination(d)
+		if err != nil {
+			return nil, err
+		}
+		req.AddData(attr)
 	}
 
-	res, err := execute(i.sock, req, 0)
+	res, err := execute(i.sock, req)
 	if err != nil {
 		return [][]byte{}, err
 	}
@@ -144,7 +164,7 @@ func (i *Handle) doCmdwithResponse(s *Service, d *Destination, cmd uint8) ([][]b
 	return res, nil
 }
 
-func (i *Handle) doCmd(s *Service, d *Destination, cmd uint8) error {
+func (i *Handle) doCmd(s *Service, d *Destination, cmd ipvsCmd) error {
 	_, err := i.doCmdwithResponse(s, d, cmd)
 
 	return err
@@ -160,39 +180,45 @@ func getIPVSFamily() (int, error) {
 	req := newGenlRequest(genlCtrlID, genlCtrlCmdGetFamily)
 	req.AddData(nl.NewRtAttr(genlCtrlAttrFamilyName, nl.ZeroTerminated("IPVS")))
 
-	msgs, err := execute(sock, req, 0)
+	msgs, err := execute(sock, req)
 	if err != nil {
 		return 0, err
 	}
 
 	for _, m := range msgs {
-		hdr := deserializeGenlMsg(m)
-		attrs, err := nl.ParseRouteAttr(m[hdr.Len():])
+		if len(m) < genlMsgHdrLen {
+			return 0, errors.New("invalid generic netlink response: message too short")
+		}
+
+		attrs, err := nl.ParseRouteAttr(m[genlMsgHdrLen:])
 		if err != nil {
 			return 0, err
 		}
 
 		for _, attr := range attrs {
-			switch int(attr.Attr.Type) {
-			case genlCtrlAttrFamilyID:
-				return int(native.Uint16(attr.Value[0:2])), nil
+			if int(attr.Attr.Type) != genlCtrlAttrFamilyID {
+				continue
 			}
+			if len(attr.Value) < 2 {
+				return 0, errors.New("invalid generic netlink response: family ID too short")
+			}
+			return int(native.Uint16(attr.Value[:2])), nil
 		}
 	}
 
-	return 0, fmt.Errorf("no family id in the netlink response")
+	return 0, errors.New("no family id in the netlink response")
 }
 
 func rawIPData(ip net.IP) []byte {
 	family := nl.GetIPFamily(ip)
-	if family == nl.FAMILY_V4 {
+	if family == unix.AF_INET {
 		return ip.To4()
 	}
 	return ip
 }
 
-func newIPVSRequest(cmd uint8) *nl.NetlinkRequest {
-	return newGenlRequest(ipvsFamily, cmd)
+func newIPVSRequest(cmd ipvsCmd) *nl.NetlinkRequest {
+	return newGenlRequest(ipvsFamily, uint8(cmd))
 }
 
 func newGenlRequest(familyID int, cmd uint8) *nl.NetlinkRequest {
@@ -201,7 +227,7 @@ func newGenlRequest(familyID int, cmd uint8) *nl.NetlinkRequest {
 	return req
 }
 
-func execute(s *nl.NetlinkSocket, req *nl.NetlinkRequest, resType uint16) ([][]byte, error) {
+func execute(s *nl.NetlinkSocket, req *nl.NetlinkRequest) ([][]byte, error) {
 	if err := s.Send(req); err != nil {
 		return nil, err
 	}
@@ -218,7 +244,7 @@ done:
 		msgs, _, err := s.Receive()
 		if err != nil {
 			if s.GetFd() == -1 {
-				return nil, fmt.Errorf("Socket got closed on receive")
+				return nil, errors.New("socket got closed on receive")
 			}
 			if err == syscall.EAGAIN {
 				// timeout fired
@@ -231,20 +257,20 @@ done:
 				continue
 			}
 			if m.Header.Pid != pid {
-				return nil, fmt.Errorf("Wrong pid %d, expected %d", m.Header.Pid, pid)
+				return nil, fmt.Errorf("wrong pid %d, expected %d", m.Header.Pid, pid)
 			}
 			if m.Header.Type == syscall.NLMSG_DONE {
 				break done
 			}
 			if m.Header.Type == syscall.NLMSG_ERROR {
-				error := int32(native.Uint32(m.Data[0:4]))
-				if error == 0 {
+				if len(m.Data) < 4 {
+					return nil, errors.New("invalid netlink error response: message too short")
+				}
+				errno := native.Uint32(m.Data[:4])
+				if errno == 0 {
 					break done
 				}
-				return nil, syscall.Errno(-error)
-			}
-			if resType != 0 && m.Header.Type != resType {
-				continue
+				return nil, syscall.Errno(-errno)
 			}
 			res = append(res, m.Data)
 			if m.Header.Flags&syscall.NLM_F_MULTI == 0 {
@@ -256,18 +282,20 @@ done:
 }
 
 func parseIP(ip []byte, family uint16) (net.IP, error) {
-	var resIP net.IP
-
 	switch family {
 	case syscall.AF_INET:
-		resIP = (net.IP)(ip[:4])
+		if len(ip) < net.IPv4len {
+			return nil, fmt.Errorf("invalid IPv4 address: %d bytes", len(ip))
+		}
+		return ip[:net.IPv4len], nil
 	case syscall.AF_INET6:
-		resIP = (net.IP)(ip[:16])
+		if len(ip) < net.IPv6len {
+			return nil, fmt.Errorf("invalid IPv6 address: %d bytes", len(ip))
+		}
+		return ip[:net.IPv6len], nil
 	default:
-		return nil, fmt.Errorf("parseIP Error ip=%v", ip)
-
+		return nil, fmt.Errorf("unsupported address family: %d", family)
 	}
-	return resIP, nil
 }
 
 // parseStats
@@ -280,8 +308,9 @@ func assembleStats(msg []byte) (SvcStats, error) {
 	}
 
 	for _, attr := range attrs {
-		attrType := int(attr.Attr.Type)
-		switch attrType {
+		switch ipvsStats(attr.Attr.Type) {
+		case ipvsStatsUnspec:
+			// unspecified
 		case ipvsStatsConns:
 			s.Connections = native.Uint32(attr.Value)
 		case ipvsStatsPktsIn:
@@ -313,11 +342,9 @@ func assembleService(attrs []syscall.NetlinkRouteAttr) (*Service, error) {
 	var addressBytes []byte
 
 	for _, attr := range attrs {
-
-		attrType := int(attr.Attr.Type)
-
-		switch attrType {
-
+		switch ipvsSvcAttr(attr.Attr.Type) {
+		case ipvsSvcAttrUnspec:
+			// unspecified
 		case ipvsSvcAttrAddressFamily:
 			s.AddressFamily = native.Uint16(attr.Value)
 		case ipvsSvcAttrProtocol:
@@ -336,6 +363,8 @@ func assembleService(attrs []syscall.NetlinkRouteAttr) (*Service, error) {
 			s.Timeout = native.Uint32(attr.Value)
 		case ipvsSvcAttrNetmask:
 			s.Netmask = native.Uint32(attr.Value)
+		case ipvsSvcAttrPEName:
+			s.PEName = nl.BytesToString(attr.Value)
 		case ipvsSvcAttrStats:
 			stats, err := assembleStats(attr.Value)
 			if err != nil {
@@ -343,7 +372,6 @@ func assembleService(attrs []syscall.NetlinkRouteAttr) (*Service, error) {
 			}
 			s.Stats = stats
 		}
-
 	}
 
 	// parse Address after parse AddressFamily incase of parseIP error
@@ -363,13 +391,15 @@ func (i *Handle) parseService(msg []byte) (*Service, error) {
 	var s *Service
 
 	// Remove General header for this message and parse the NetLink message
-	hdr := deserializeGenlMsg(msg)
-	NetLinkAttrs, err := nl.ParseRouteAttr(msg[hdr.Len():])
+	if len(msg) < genlMsgHdrLen {
+		return nil, errors.New("invalid generic netlink response: message too short")
+	}
+	NetLinkAttrs, err := nl.ParseRouteAttr(msg[genlMsgHdrLen:])
 	if err != nil {
 		return nil, err
 	}
 	if len(NetLinkAttrs) == 0 {
-		return nil, fmt.Errorf("error no valid netlink message found while parsing service record")
+		return nil, errors.New("error no valid netlink message found while parsing service record")
 	}
 
 	// Now Parse and get IPVS related attributes messages packed in this message.
@@ -408,10 +438,10 @@ func (i *Handle) doGetServicesCmd(svc *Service) ([]*Service, error) {
 }
 
 // doCmdWithoutAttr a simple wrapper of netlink socket execute command
-func (i *Handle) doCmdWithoutAttr(cmd uint8) ([][]byte, error) {
+func (i *Handle) doCmdWithoutAttr(cmd ipvsCmd) ([][]byte, error) {
 	req := newIPVSRequest(cmd)
 	req.Seq = atomic.AddUint32(&i.seq, 1)
-	return execute(i.sock, req, 0)
+	return execute(i.sock, req)
 }
 
 func assembleDestination(attrs []syscall.NetlinkRouteAttr) (*Destination, error) {
@@ -419,11 +449,9 @@ func assembleDestination(attrs []syscall.NetlinkRouteAttr) (*Destination, error)
 	var addressBytes []byte
 
 	for _, attr := range attrs {
-
-		attrType := int(attr.Attr.Type)
-
-		switch attrType {
-
+		switch ipvsDestAttr(attr.Attr.Type) {
+		case ipvsDestAttrUnspec:
+			// unspecified
 		case ipvsDestAttrAddressFamily:
 			d.AddressFamily = native.Uint16(attr.Value)
 		case ipvsDestAttrAddress:
@@ -433,7 +461,7 @@ func assembleDestination(attrs []syscall.NetlinkRouteAttr) (*Destination, error)
 		case ipvsDestAttrForwardingMethod:
 			d.ConnectionFlags = native.Uint32(attr.Value)
 		case ipvsDestAttrWeight:
-			d.Weight = int(native.Uint16(attr.Value))
+			d.Weight = int(native.Uint32(attr.Value))
 		case ipvsDestAttrUpperThreshold:
 			d.UpperThreshold = native.Uint32(attr.Value)
 		case ipvsDestAttrLowerThreshold:
@@ -442,6 +470,8 @@ func assembleDestination(attrs []syscall.NetlinkRouteAttr) (*Destination, error)
 			d.ActiveConnections = int(native.Uint32(attr.Value))
 		case ipvsDestAttrInactiveConnections:
 			d.InactiveConnections = int(native.Uint32(attr.Value))
+		case ipvsDestAttrPersistentConnections:
+			d.PersistentConnections = int(native.Uint32(attr.Value))
 		case ipvsDestAttrStats:
 			stats, err := assembleStats(attr.Value)
 			if err != nil {
@@ -515,13 +545,15 @@ func (i *Handle) parseDestination(msg []byte) (*Destination, error) {
 	var dst *Destination
 
 	// Remove General header for this message
-	hdr := deserializeGenlMsg(msg)
-	NetLinkAttrs, err := nl.ParseRouteAttr(msg[hdr.Len():])
+	if len(msg) < genlMsgHdrLen {
+		return nil, errors.New("invalid generic netlink response: message too short")
+	}
+	NetLinkAttrs, err := nl.ParseRouteAttr(msg[genlMsgHdrLen:])
 	if err != nil {
 		return nil, err
 	}
 	if len(NetLinkAttrs) == 0 {
-		return nil, fmt.Errorf("error no valid netlink message found while parsing destination record")
+		return nil, errors.New("error no valid netlink message found while parsing destination record")
 	}
 
 	// Now Parse and get IPVS related attributes messages packed in this message.
@@ -563,21 +595,26 @@ func (i *Handle) parseConfig(msg []byte) (*Config, error) {
 	var c Config
 
 	// Remove General header for this message
-	hdr := deserializeGenlMsg(msg)
-	attrs, err := nl.ParseRouteAttr(msg[hdr.Len():])
+	if len(msg) < genlMsgHdrLen {
+		return nil, errors.New("invalid generic netlink response: message too short")
+	}
+	attrs, err := nl.ParseRouteAttr(msg[genlMsgHdrLen:])
 	if err != nil {
 		return nil, err
 	}
 
 	for _, attr := range attrs {
-		attrType := int(attr.Attr.Type)
-		switch attrType {
+		switch ipvsCmdAttr(attr.Attr.Type) {
+		case ipvsCmdAttrUnspec:
+			// unspecified
 		case ipvsCmdAttrTimeoutTCP:
 			c.TimeoutTCP = time.Duration(native.Uint32(attr.Value)) * time.Second
 		case ipvsCmdAttrTimeoutTCPFin:
 			c.TimeoutTCPFin = time.Duration(native.Uint32(attr.Value)) * time.Second
 		case ipvsCmdAttrTimeoutUDP:
 			c.TimeoutUDP = time.Duration(native.Uint32(attr.Value)) * time.Second
+		case ipvsCmdAttrService, ipvsCmdAttrDest, ipvsCmdAttrDaemon:
+			// not implemented
 		}
 	}
 
@@ -603,11 +640,11 @@ func (i *Handle) doSetConfigCmd(c *Config) error {
 	req := newIPVSRequest(ipvsCmdSetConfig)
 	req.Seq = atomic.AddUint32(&i.seq, 1)
 
-	req.AddData(nl.NewRtAttr(ipvsCmdAttrTimeoutTCP, nl.Uint32Attr(uint32(c.TimeoutTCP.Seconds()))))
-	req.AddData(nl.NewRtAttr(ipvsCmdAttrTimeoutTCPFin, nl.Uint32Attr(uint32(c.TimeoutTCPFin.Seconds()))))
-	req.AddData(nl.NewRtAttr(ipvsCmdAttrTimeoutUDP, nl.Uint32Attr(uint32(c.TimeoutUDP.Seconds()))))
+	req.AddData(nl.NewRtAttr(int(ipvsCmdAttrTimeoutTCP), nl.Uint32Attr(uint32(c.TimeoutTCP.Seconds()))))
+	req.AddData(nl.NewRtAttr(int(ipvsCmdAttrTimeoutTCPFin), nl.Uint32Attr(uint32(c.TimeoutTCPFin.Seconds()))))
+	req.AddData(nl.NewRtAttr(int(ipvsCmdAttrTimeoutUDP), nl.Uint32Attr(uint32(c.TimeoutUDP.Seconds()))))
 
-	_, err := execute(i.sock, req, 0)
+	_, err := execute(i.sock, req)
 
 	return err
 }

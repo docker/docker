@@ -50,16 +50,17 @@ type SvcStats struct {
 // Destination defines an IPVS destination (real server) in its
 // entirety.
 type Destination struct {
-	Address             net.IP
-	Port                uint16
-	Weight              int
-	ConnectionFlags     uint32
-	AddressFamily       uint16
-	UpperThreshold      uint32
-	LowerThreshold      uint32
-	ActiveConnections   int
-	InactiveConnections int
-	Stats               DstStats
+	Address               net.IP
+	Port                  uint16
+	Weight                int
+	ConnectionFlags       uint32
+	AddressFamily         uint16
+	UpperThreshold        uint32
+	LowerThreshold        uint32
+	ActiveConnections     int
+	InactiveConnections   int
+	PersistentConnections int
+	Stats                 DstStats
 }
 
 // DstStats defines IPVS destination (real server) statistics
@@ -186,7 +187,7 @@ func (i *Handle) GetService(s *Service) (*Service, error) {
 
 	// We are looking for exactly one service otherwise error out
 	if len(res) != 1 {
-		return nil, fmt.Errorf("Expected only one service obtained=%d", len(res))
+		return nil, fmt.Errorf("expected only one service obtained=%d", len(res))
 	}
 
 	return res[0], nil

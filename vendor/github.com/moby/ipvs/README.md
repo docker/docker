@@ -1,6 +1,8 @@
 # ipvs - networking for containers
 
-![Test](https://github.com/moby/ipvs/workflows/Test/badge.svg) [![GoDoc](https://godoc.org/github.com/moby/ipvs?status.svg)](https://godoc.org/github.com/moby/ipvs) [![Go Report Card](https://goreportcard.com/badge/github.com/moby/ipvs)](https://goreportcard.com/report/github.com/moby/ipvs)
+![Test](https://github.com/moby/ipvs/workflows/Test/badge.svg)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/moby/ipvs)](https://pkg.go.dev/github.com/moby/ipvs)
+[![GitHub License](https://img.shields.io/github/license/moby/ipvs)](LICENSE)
 
 ipvs provides a native Go implementation for communicating with IPVS kernel module using a netlink socket.
 

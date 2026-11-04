@@ -477,8 +477,8 @@ github.com/moby/extensions v0.0.0-20261020100352-d2819d88bcbe h1:wHRo58MA+vgX2sX
 github.com/moby/extensions v0.0.0-20261020100352-d2819d88bcbe/go.mod h1:5OTGReLaEAAQ0XoeIQzL6Ep+J3kwlFVTRSP86RwVoso=
 github.com/moby/go-archive v0.3.3 h1:OxxR9paxsluYi+zDUEXTTaIxtkK3viymW+Ka7vRhhME=
 github.com/moby/go-archive v0.3.3/go.mod h1:Npdv43fFqlhZW7Xo8fbm3ZMYFvAGNviUPqX21VERbcE=
-github.com/moby/ipvs v1.1.0 h1:ONN4pGaZQgAx+1Scz5RvWV4Q7Gb+mvfRh3NsPS+1XQQ=
-github.com/moby/ipvs v1.1.0/go.mod h1:4VJMWuf098bsUMmZEiD4Tjk/O7mOn3l1PTD3s4OoYAs=
+github.com/moby/ipvs v1.1.1-0.20261013144753-b2c39ffcfc6f h1:4R2BHuxbv0JZSUz9RrnrP700co0xFpVdbnhSzaw2Avo=
+github.com/moby/ipvs v1.1.1-0.20261013144753-b2c39ffcfc6f/go.mod h1:CFGc/b437BW4j7ao9ccK9mYtlSAiSMSdZkEGgYDVC64=
 github.com/moby/locker v1.0.1 h1:fOXqR41zeveg4fFODix+1Ch4mj/gT0NE1XJbp/epuBg=
 github.com/moby/locker v1.0.1/go.mod h1:S7SDdo5zpBK84bzzVlKr2V0hz+7x9hWbYC/kq7oQppc=
 github.com/moby/patternmatcher v0.6.1 h1:qlhtafmr6kgMIJjKJMDmMWq7WLkKIo23hsrpR3x084U=

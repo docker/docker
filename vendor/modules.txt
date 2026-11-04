@@ -1305,8 +1305,8 @@ github.com/moby/go-archive/internal/archiveoptions
 github.com/moby/go-archive/internal/mounttree
 github.com/moby/go-archive/internal/unshare
 github.com/moby/go-archive/tarheader
-# github.com/moby/ipvs v1.1.0
-## explicit; go 1.17
+# github.com/moby/ipvs v1.1.1-0.20261013144753-b2c39ffcfc6f
+## explicit; go 1.23
 github.com/moby/ipvs
 # github.com/moby/locker v1.0.1
 ## explicit; go 1.13

@@ -1,8 +1,37 @@
+version: "2"
+
+issues:
+  # Disable maximum issues count per one linter.
+  max-issues-per-linter: 0
+  # Disable maximum count of issues with the same text.
+  max-same-issues: 0
+
 linters:
-  disable-all: true
   enable:
-    - gofmt
+    - copyloopvar
+    - exhaustive
+    - gosec
     - govet
     - ineffassign
     - misspell
+    - perfsprint
     - revive
+    - unconvert
+    - unparam
+  exclusions:
+    presets:
+      - comments
+      - std-error-handling
+  settings:
+    staticcheck:
+      # Enable all options, with some exceptions.
+      # For defaults, see https://golangci-lint.run/usage/linters/#staticcheck
+      checks:
+        - all
+        - -QF1008     # Omit embedded fields from selector expression; https://staticcheck.dev/docs/checks/#QF1008
+        - -ST1003     # Poorly chosen identifier; https://staticcheck.dev/docs/checks/#ST1003
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports

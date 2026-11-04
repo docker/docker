@@ -68,7 +68,7 @@ require (
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/extensions v0.0.0-20261020100352-d2819d88bcbe
 	github.com/moby/go-archive v0.3.3
-	github.com/moby/ipvs v1.1.0
+	github.com/moby/ipvs v1.1.1-0.20261013144753-b2c39ffcfc6f
 	github.com/moby/locker v1.0.1
 	github.com/moby/moby/api v1.56.1
 	github.com/moby/moby/client v0.6.2
