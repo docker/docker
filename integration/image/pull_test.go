@@ -285,8 +285,10 @@ func TestImagePullNonExisting(t *testing.T) {
 				rdr.Close()
 			}
 
-			expectedMsg := fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", "asdfasdf")
-			assert.Check(t, is.ErrorContains(err, expectedMsg))
+			legacyMsg := fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", "asdfasdf")
+			modernMsg := fmt.Sprintf("failed to resolve reference %q", "docker.io/library/asdfasdf:latest")
+			errMsg := err.Error()
+			assert.Check(t, strings.Contains(errMsg, legacyMsg) || strings.Contains(errMsg, modernMsg))
 			assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
 			if all {
 				// pull -a on a nonexistent registry should fall back as well
