@@ -173,6 +173,48 @@ func TestStatsNetworkStats(t *testing.T) {
 	}, poll.WithDelay(100*time.Millisecond), poll.WithTimeout(2*time.Second))
 }
 
+func TestStatsNoStreamGetCPU(t *testing.T) {
+	skip.If(t, testEnv.RuntimeIsWindowsContainerd(), "FIXME: Broken on Windows + containerd combination")
+	skip.If(t, testEnv.IsRootless() && testEnv.DaemonInfo.CgroupVersion == "1", "Rootless Mode does not support cgroups v1 stats")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient)
+
+	var res client.ContainerStatsResult
+
+	res, err := apiClient.ContainerStats(ctx, cID, client.ContainerStatsOptions{Stream: false})
+	assert.NilError(t, err)
+	defer res.Body.Close()
+
+	var v containertypes.StatsResponse
+	dec := json.NewDecoder(res.Body)
+	assert.NilError(t, dec.Decode(&v))
+
+	cpuPercent := 0.0
+
+	if testEnv.DaemonInfo.OSType != "windows" {
+		cpuDelta := float64(v.CPUStats.CPUUsage.TotalUsage - v.PreCPUStats.CPUUsage.TotalUsage)
+		systemDelta := float64(v.CPUStats.SystemUsage - v.PreCPUStats.SystemUsage)
+		cpuPercent = (cpuDelta / systemDelta) * float64(v.CPUStats.OnlineCPUs) * 100
+	} else {
+		// Windows measures CPU time in 100-nanosecond intervals
+		// Max number of 100ns intervals between previous time read and now
+		possIntervals := uint64(v.Read.Sub(v.PreRead).Nanoseconds()) // Start with number of ns intervals
+		possIntervals /= 100                                         // Convert to number of 100ns intervals
+		possIntervals *= uint64(v.NumProcs)                          // Multiply by number of processors
+
+		// Intervals used
+		intervalsUsed := v.CPUStats.CPUUsage.TotalUsage - v.PreCPUStats.CPUUsage.TotalUsage
+		if possIntervals > 0 {
+			cpuPercent = float64(intervalsUsed) / float64(possIntervals) * 100.0
+		}
+	}
+
+	assert.Assert(t, cpuPercent != 0.0, "Docker stats with no-stream get cpu usage failed: was %v", cpuPercent)
+}
+
 func getNetworkStats(ctx context.Context, t *testing.T, apiClient client.APIClient, id string) map[string]containertypes.NetworkStats {
 	res, err := apiClient.ContainerStats(ctx, id, client.ContainerStatsOptions{Stream: false})
 	assert.NilError(t, err)
