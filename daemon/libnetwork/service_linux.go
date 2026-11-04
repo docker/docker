@@ -43,10 +43,16 @@ type osLoadBalancer struct {
 
 // Populate all loadbalancers on the network that the passed endpoint
 // belongs to, into this sandbox.
-func (sb *Sandbox) populateLoadBalancers(ep *Endpoint) {
+//
+// On the ingress network that means the rules that redirect published ports to
+// target ports and filter everything else addressed to the endpoint. Without
+// them the task can't serve its published ports, and other endpoints on the
+// ingress network can reach any port it listens on. So a failure is returned,
+// to fail the join, rather than leaving the task running without them.
+func (sb *Sandbox) populateLoadBalancers(ep *Endpoint) error {
 	// This is an interface less endpoint. Nothing to do.
 	if ep.Iface() == nil {
-		return
+		return nil
 	}
 
 	n := ep.getNetwork()
@@ -54,9 +60,10 @@ func (sb *Sandbox) populateLoadBalancers(ep *Endpoint) {
 
 	if n.ingress {
 		if err := sb.addRedirectRules(eIP, ep.ingressPorts); err != nil {
-			log.G(context.TODO()).Errorf("Failed to add redirect rules for ep %s (%.7s): %v", ep.Name(), ep.ID(), err)
+			return fmt.Errorf("failed to add ingress redirect rules for endpoint %s (%.7s): %w", ep.Name(), ep.ID(), err)
 		}
 	}
+	return nil
 }
 
 func (n *Network) findLBEndpointSandbox() (*Endpoint, *Sandbox, error) {
