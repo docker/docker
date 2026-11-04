@@ -24,6 +24,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/containerd/containerd/api/services/introspection/v1"
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/defaults"
 	cerrdefs "github.com/containerd/errdefs"
@@ -1324,13 +1325,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		if resp == nil || len(resp.Plugins) == 0 {
 			return nil, fmt.Errorf("failed to get containerd plugins response: %w", cerrdefs.ErrUnavailable)
 		}
-		availableDrivers := map[string]struct{}{}
+		availableDrivers := map[string]*introspection.Plugin{}
 		for _, p := range resp.Plugins {
 			if p == nil || p.Type != "io.containerd.snapshotter.v1" {
 				continue
 			}
 			if p.InitErr == nil {
-				availableDrivers[p.ID] = struct{}{}
+				availableDrivers[p.ID] = p
 			} else if (p.ID == driverName) || (driverName == "" && p.ID == defaults.DefaultSnapshotter) {
 				log.G(ctx).WithField("message", p.InitErr.Message).Warn("Preferred snapshotter not available in containerd")
 			}
@@ -1365,6 +1366,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			Containers:             d.containers,
 			Snapshotter:            driverName,
 			IdentityCacheBackend:   identityCacheBackend,
+			RootDir:                availableDrivers[driverName].Exports["root"],
 			RegistryHosts:          d.RegistryHosts,
 			Registry:               d.registryService,
 			EventsService:          d.EventsService,

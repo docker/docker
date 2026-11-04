@@ -19,6 +19,7 @@ import (
 	daemonevents "github.com/moby/moby/v2/daemon/events"
 	dimages "github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/distribution"
+	"github.com/moby/moby/v2/daemon/internal/quota"
 	"github.com/moby/moby/v2/daemon/snapshotter"
 	"github.com/moby/moby/v2/errdefs"
 	policyverifier "github.com/moby/policy-helpers"
@@ -57,6 +58,7 @@ type ImageService struct {
 
 	// defaultPlatformOverride is used in tests to override the host platform.
 	defaultPlatformOverride *ocispec.Platform
+	quotaCtl                *quota.Control
 }
 
 func newTransferLimiter(maxConcurrent int) *semaphore.Weighted {
@@ -71,6 +73,7 @@ type ImageServiceConfig struct {
 	Containers             container.Store
 	Snapshotter            string
 	IdentityCacheBackend   identitycache.Backend
+	RootDir	 			   string
 	RegistryHosts          docker.RegistryHosts
 	Registry               distribution.RegistryResolver
 	EventsService          *daemonevents.Events
@@ -94,6 +97,10 @@ func NewService(config ImageServiceConfig) *ImageService {
 	log.G(context.TODO()).Debugf("Max Concurrent Downloads: %d", config.MaxConcurrentDownloads)
 	log.G(context.TODO()).Debugf("Max Concurrent Uploads: %d", config.MaxConcurrentUploads)
 
+	var quotaCtl *quota.Control
+	if config.RootDir != "" {
+		quotaCtl, _ = quota.NewControl(config.RootDir)
+	}
 	service := &ImageService{
 		client:  config.Client,
 		images:  config.Client.ImageService(),
@@ -119,6 +126,7 @@ func NewService(config ImageServiceConfig) *ImageService {
 				return identitycache.NewNopBackend()
 			}(),
 		},
+		quotaCtl:        quotaCtl,
 	}
 	service.setTransferLimits(config.MaxConcurrentDownloads, config.MaxConcurrentUploads)
 	service.startImageIdentityCacheRefresh()
