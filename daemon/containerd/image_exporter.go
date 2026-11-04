@@ -171,6 +171,12 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 			if _, ok := ref.(reference.Digested); ok {
 				specificDigestResolved = true
 			}
+		} else if resolveErr != nil {
+			// Both reference parsing and image resolution failed,
+			// so the name is not a valid image reference. Return
+			// the format error so the API gives a 400 instead of
+			// a misleading "not found" response.
+			return errdefs.InvalidParameter(refErr)
 		}
 
 		if resolveErr != nil || !specificDigestResolved {
@@ -189,7 +195,7 @@ func (i *ImageService) ExportImage(ctx context.Context, names []string, platform
 			return resolveErr
 		}
 		if refErr != nil {
-			return refErr
+			return errdefs.InvalidParameter(refErr)
 		}
 
 		// If user exports a specific digest, it shouldn't have a tag.

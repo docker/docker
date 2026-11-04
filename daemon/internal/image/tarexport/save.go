@@ -115,7 +115,7 @@ func (l *tarexporter) parseNames(ctx context.Context, names []string) (desc map[
 				}
 				continue
 			}
-			return nil, errors.Errorf("invalid reference: %v", name)
+			return nil, errdefs.InvalidParameter(errors.Errorf("invalid reference: %v", name))
 		}
 
 		if reference.FamiliarName(namedRef) == string(digest.Canonical) {
