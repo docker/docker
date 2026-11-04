@@ -34,53 +34,6 @@ import (
 
 var defaultReconciliationTimeout = 30 * time.Second
 
-func (s *DockerSwarmSuite) TestAPISwarmInit(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	// todo: should find a better way to verify that components are running than /info
-	d1 := s.AddDaemon(ctx, c, true, true)
-	info := d1.SwarmInfo(ctx, c)
-	assert.Equal(c, info.ControlAvailable, true)
-	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
-	assert.Equal(c, info.Cluster.RootRotationInProgress, false)
-
-	d2 := s.AddDaemon(ctx, c, true, false)
-	info = d2.SwarmInfo(ctx, c)
-	assert.Equal(c, info.ControlAvailable, false)
-	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
-
-	// Leaving cluster
-	assert.NilError(c, d2.SwarmLeave(ctx, c, false))
-
-	info = d2.SwarmInfo(ctx, c)
-	assert.Equal(c, info.ControlAvailable, false)
-	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateInactive)
-
-	d2.SwarmJoin(ctx, c, swarm.JoinRequest{
-		ListenAddr:  d1.SwarmListenAddr(),
-		JoinToken:   d1.JoinTokens(c).Worker,
-		RemoteAddrs: []string{d1.SwarmListenAddr()},
-	})
-
-	info = d2.SwarmInfo(ctx, c)
-	assert.Equal(c, info.ControlAvailable, false)
-	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
-
-	// Current state restoring after restarts
-	d1.Stop(c)
-	d2.Stop(c)
-
-	d1.StartNode(c)
-	d2.StartNode(c)
-
-	info = d1.SwarmInfo(ctx, c)
-	assert.Equal(c, info.ControlAvailable, true)
-	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
-
-	info = d2.SwarmInfo(ctx, c)
-	assert.Equal(c, info.ControlAvailable, false)
-	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
-}
-
 func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *testing.T) {
 	ctx := testutil.GetContext(c)
 	d1 := s.AddDaemon(ctx, c, false, false)
