@@ -104,6 +104,12 @@ func DefaultLinuxSpec() specs.Spec {
 				Source:      "shm",
 				Options:     []string{"nosuid", "noexec", "nodev", "mode=1777"},
 			},
+			{
+				Destination: "/run",
+				Type:        "tmpfs",
+				Source:      "tmpfs",
+				Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
+			},
 		},
 		Linux: &specs.Linux{
 			MaskedPaths: defaultLinuxMaskedPaths(),

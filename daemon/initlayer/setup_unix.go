@@ -24,6 +24,7 @@ func Setup(initLayerFs string, uid int, gid int) error {
 		"/dev/pts":         "dir",
 		"/dev/shm":         "dir",
 		"/proc":            "dir",
+		"/run":             "dir",
 		"/sys":             "dir",
 		"/.dockerenv":      "file",
 		"/etc/resolv.conf": "file",
