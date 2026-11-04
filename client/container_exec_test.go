@@ -45,21 +45,29 @@ func TestExecCreateConnectionError(t *testing.T) {
 
 func TestExecCreate(t *testing.T) {
 	const expectedURL = "/containers/container_id/exec"
+
+	expectedReq := container.ExecCreateRequest{
+		User:         "user",
+		Privileged:   true,
+		Tty:          true,
+		ConsoleSize:  &[2]uint{100, 200},
+		AttachStdin:  true,
+		AttachStderr: true,
+		AttachStdout: true,
+		DetachKeys:   "ctrl-p,ctrl-q",
+		Env:          []string{"FOO=bar"},
+		WorkingDir:   "/app",
+		Cmd:          []string{"sh", "-c", "echo hello"},
+	}
+
+	var actualReq container.ExecCreateRequest
 	client, err := New(
 		WithMockClient(func(req *http.Request) (*http.Response, error) {
 			if err := assertRequest(req, http.MethodPost, expectedURL); err != nil {
 				return nil, err
 			}
-			// FIXME validate the content is the given ExecConfig ?
-			if err := req.ParseForm(); err != nil {
+			if err := json.NewDecoder(req.Body).Decode(&actualReq); err != nil {
 				return nil, err
-			}
-			execConfig := &container.ExecCreateRequest{}
-			if err := json.NewDecoder(req.Body).Decode(execConfig); err != nil {
-				return nil, err
-			}
-			if execConfig.User != "user" {
-				return nil, fmt.Errorf("expected an execConfig with User == 'user', got %v", execConfig)
 			}
 			return mockJSONResponse(http.StatusOK, nil, container.ExecCreateResponse{
 				ID: "exec_id",
@@ -69,10 +77,21 @@ func TestExecCreate(t *testing.T) {
 	assert.NilError(t, err)
 
 	res, err := client.ExecCreate(t.Context(), "container_id", ExecCreateOptions{
-		User: "user",
+		User:         "user",
+		Privileged:   true,
+		TTY:          true,
+		ConsoleSize:  ConsoleSize{Height: 100, Width: 200},
+		AttachStdin:  true,
+		AttachStderr: true,
+		AttachStdout: true,
+		DetachKeys:   "ctrl-p,ctrl-q",
+		Env:          []string{"FOO=bar"},
+		WorkingDir:   "/app",
+		Cmd:          []string{"sh", "-c", "echo hello"},
 	})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(res.ID, "exec_id"))
+	assert.Check(t, is.DeepEqual(actualReq, expectedReq))
 }
 
 func TestExecStartError(t *testing.T) {
