@@ -2056,8 +2056,8 @@ func (n *Network) ResolveService(ctx context.Context, name string) ([]*net.SRV, 
 	return srv, ip
 }
 
-func (n *Network) NdotsSet() bool {
-	return false
+func (n *Network) Ndots() int {
+	return 0
 }
 
 // config-only network is looked up by name

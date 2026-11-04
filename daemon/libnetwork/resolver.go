@@ -43,8 +43,9 @@ type DNSBackend interface {
 	// ExecFunc allows a function to be executed in the context of the backend
 	// on behalf of the resolver.
 	ExecFunc(f func()) error
-	// NdotsSet queries the backends ndots dns option settings
-	NdotsSet() bool
+	// Ndots returns the ndots value from the backend's DNS options, or 0 if
+	// the option is not set.
+	Ndots() int
 	// HandleQueryResp passes the name & IP from a response to the backend. backend
 	// can use it to maintain any required state about the resolution
 	HandleQueryResp(name string, ip net.IP)
@@ -463,7 +464,7 @@ func (r *Resolver) serveDNS(w dns.ResponseWriter, query *dns.Msg) {
 	// in the root domain don't forward it out. We will return
 	// failure and let the client retry with the search domain
 	// attached.
-	if (queryType == dns.TypeA || queryType == dns.TypeAAAA) && r.backend.NdotsSet() &&
+	if (queryType == dns.TypeA || queryType == dns.TypeAAAA) && r.backend.Ndots() > 0 &&
 		!strings.Contains(strings.TrimSuffix(queryName, "."), ".") {
 		resp = createRespMsg(query)
 	} else {
