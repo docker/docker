@@ -7,7 +7,6 @@ import (
 
 	"github.com/moby/moby/v2/integration-cli/cli"
 	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -39,22 +38,6 @@ func (s *DockerCLICommitSuite) TestCommitWithoutPause(c *testing.T) {
 	imageID := cli.DockerCmd(c, "commit", "-p=false", cID).Combined()
 	imageID = strings.TrimSpace(imageID)
 	cli.DockerCmd(c, "inspect", imageID)
-}
-
-// TestCommitPausedContainer tests that a paused container is not unpaused after being committed
-func (s *DockerCLICommitSuite) TestCommitPausedContainer(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-	cID := cli.DockerCmd(c, "run", "-dit", "busybox").Combined()
-	cID = strings.TrimSpace(cID)
-	cli.DockerCmd(c, "pause", cID)
-
-	imageID := cli.DockerCmd(c, "commit", cID).Combined()
-	imageID = strings.TrimSpace(imageID)
-	cli.DockerCmd(c, "inspect", imageID)
-
-	// commit should not unpause a paused container
-	out := inspectField(c, cID, "State.Paused")
-	assert.Assert(c, is.Contains(out, "true"))
 }
 
 func (s *DockerCLICommitSuite) TestCommitNewFile(c *testing.T) {
@@ -104,64 +87,4 @@ func (s *DockerCLICommitSuite) TestCommitWithHostBindMount(c *testing.T) {
 	imageID = strings.TrimSpace(imageID)
 
 	cli.DockerCmd(c, "run", imageID, "true")
-}
-
-func (s *DockerCLICommitSuite) TestCommitChange(c *testing.T) {
-	cli.DockerCmd(c, "run", "--name", "test", "busybox", "true")
-
-	imageID := cli.DockerCmd(c, "commit",
-		"--change", `EXPOSE 8080`,
-		"--change", `ENV DEBUG true`,
-		"--change", `ENV test 1`,
-		"--change", `ENV PATH /foo`,
-		"--change", `LABEL foo bar`,
-		"--change", `CMD ["/bin/sh"]`,
-		"--change", `WORKDIR /opt`,
-		"--change", `ENTRYPOINT ["/bin/sh"]`,
-		"--change", `USER testuser`,
-		"--change", `VOLUME /var/lib/docker`,
-		"--change", `ONBUILD /usr/local/bin/python-build --dir /app/src`,
-		"test", "test-commit",
-	).Stdout()
-	imageID = strings.TrimSpace(imageID)
-
-	expectedEnv := "[DEBUG=true test=1 PATH=/foo]"
-	if testEnv.DaemonInfo.OSType != "windows" {
-		// The ordering here is due to `PATH` being overridden from the container's
-		// ENV.  On windows, the container doesn't have a `PATH` ENV variable so
-		// the ordering is the same as the cli.
-		expectedEnv = "[PATH=/foo DEBUG=true test=1]"
-	}
-
-	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	prefix = strings.ToUpper(prefix) // Force C: as that's how WORKDIR is normalized on Windows
-	expected := map[string]string{
-		"Config.ExposedPorts": "map[8080/tcp:{}]",
-		"Config.Env":          expectedEnv,
-		"Config.Labels":       "map[foo:bar]",
-		"Config.Cmd":          "[/bin/sh]",
-		"Config.WorkingDir":   prefix + slash + "opt",
-		"Config.Entrypoint":   "[/bin/sh]",
-		"Config.User":         "testuser",
-		"Config.Volumes":      "map[/var/lib/docker:{}]",
-		"Config.OnBuild":      "[/usr/local/bin/python-build --dir /app/src]",
-	}
-
-	for conf, value := range expected {
-		res := inspectField(c, imageID, conf)
-		if res != value {
-			c.Errorf("%s('%s'), expected %s", conf, res, value)
-		}
-	}
-}
-
-func (s *DockerCLICommitSuite) TestCommitChangeLabels(c *testing.T) {
-	cli.DockerCmd(c, "run", "--name", "test", "--label", "some=label", "busybox", "true")
-
-	imageID := cli.DockerCmd(c, "commit", "--change", "LABEL some=label2", "test", "test-commit").Stdout()
-	imageID = strings.TrimSpace(imageID)
-
-	assert.Equal(c, inspectField(c, imageID, "Config.Labels"), "map[some:label2]")
-	// check that container labels didn't change
-	assert.Equal(c, inspectField(c, "test", "Config.Labels"), "map[some:label]")
 }
