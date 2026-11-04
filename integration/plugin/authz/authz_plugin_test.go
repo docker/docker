@@ -35,10 +35,7 @@ const (
 	serverVersionAPI    = "/version"
 )
 
-var (
-	alwaysAllowed = []string{"/_ping", "/info"}
-	ctrl          *authorizationController
-)
+var alwaysAllowed = []string{"/_ping", "/info"}
 
 type authorizationController struct {
 	reqRes          authorization.Response // reqRes holds the plugin response to the initial client request
@@ -50,9 +47,20 @@ type authorizationController struct {
 	resUser         string
 }
 
+func (ac *authorizationController) Reset() {
+	ac.resRes = authorization.Response{}
+	ac.resRes = authorization.Response{}
+	ac.versionReqCount = 0
+	ac.versionResCount = 0
+	ac.reqUser = ""
+	ac.resUser = ""
+	ac.requestsURIs = []string{}
+}
+
 func setupTestV1(t *testing.T) context.Context {
 	ctx := setupTest(t)
 
+	// reset fields between tests
 	ctrl = &authorizationController{}
 
 	err := os.MkdirAll("/etc/docker/plugins", 0o755)
@@ -65,7 +73,6 @@ func setupTestV1(t *testing.T) context.Context {
 	t.Cleanup(func() {
 		err := os.RemoveAll("/etc/docker/plugins")
 		assert.NilError(t, err)
-		ctrl = nil
 	})
 	return ctx
 }

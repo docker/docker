@@ -29,6 +29,7 @@ var (
 	testEnv     *environment.Execution
 	d           *daemon.Daemon
 	server      *httptest.Server
+	ctrl        *authorizationController
 	baseContext context.Context
 )
 
@@ -89,7 +90,7 @@ func setupTest(t *testing.T) context.Context {
 func setupSuite() {
 	mux := http.NewServeMux()
 	server = httptest.NewServer(otelhttp.NewHandler(mux, ""))
-
+	ctrl = &authorizationController{}
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		b, err := json.Marshal(plugins.Manifest{Implements: []string{authorization.AuthZApiImplements}})
 		if err != nil {
@@ -133,7 +134,7 @@ func setupSuite() {
 		}
 
 		ctrl.reqUser = authReq.User
-		w.Write(b)
+		_, _ = w.Write(b)
 	})
 
 	mux.HandleFunc("/AuthZPlugin.AuthZRes", func(w http.ResponseWriter, r *http.Request) {
@@ -180,13 +181,12 @@ func teardownSuite() {
 }
 
 // assertAuthHeaders validates authentication headers are removed
-func assertAuthHeaders(headers map[string]string) error {
+func assertAuthHeaders(headers map[string]string) {
 	for k := range headers {
 		if strings.Contains(strings.ToLower(k), "auth") || strings.Contains(strings.ToLower(k), "x-registry") {
 			panic(fmt.Sprintf("Found authentication headers in request '%v'", headers))
 		}
 	}
-	return nil
 }
 
 // assertBody asserts that body is removed for non text/json requests
