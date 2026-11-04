@@ -80,6 +80,8 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 	// Annotations
 	swarm.Spec.Annotations = annotationsFromGRPC(c.Spec.Annotations)
 
+	swarm.Spec.TaskDefaults.LogDriver = driverFromGRPC(c.Spec.TaskDefaults.LogDriver)
+
 	return swarm
 }
 
@@ -147,6 +149,11 @@ func MergeSwarmSpecToGRPC(s types.Spec, spec swarmapi.ClusterSpec) (swarmapi.Clu
 	}
 
 	spec.EncryptionConfig.AutoLockManagers = s.EncryptionConfig.AutoLockManagers
+
+
+	if s.TaskDefaults.LogDriver != nil {
+		spec.TaskDefaults.LogDriver = driverToGRPC(s.TaskDefaults.LogDriver)
+	}
 
 	return spec, nil
 }
