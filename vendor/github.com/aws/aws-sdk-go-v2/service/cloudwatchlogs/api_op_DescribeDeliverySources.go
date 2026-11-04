@@ -56,7 +56,9 @@ func (v *DescribeDeliverySourcesInput) SerializeMembers(s smithy.ShapeSerializer
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeDeliverySourcesRequest_nextToken, *v.NextToken)
 	}
-	serializeFilterResourceArns(s, schemas.DescribeDeliverySourcesRequest_resourceArns, v.ResourceArns)
+	if v.ResourceArns != nil {
+		serializeFilterResourceArns(s, schemas.DescribeDeliverySourcesRequest_resourceArns, v.ResourceArns)
+	}
 }
 
 type DescribeDeliverySourcesOutput struct {
@@ -81,7 +83,9 @@ func (v *DescribeDeliverySourcesOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeDeliverySourcesOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeDeliverySources(s, schemas.DescribeDeliverySourcesResponse_deliverySources, v.DeliverySources)
+	if v.DeliverySources != nil {
+		serializeDeliverySources(s, schemas.DescribeDeliverySourcesResponse_deliverySources, v.DeliverySources)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeDeliverySourcesResponse_nextToken, *v.NextToken)
 	}

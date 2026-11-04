@@ -94,7 +94,9 @@ func (v *DescribeImportTasksOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeImportTasksOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeImportList(s, schemas.DescribeImportTasksResponse_imports, v.Imports)
+	if v.Imports != nil {
+		serializeImportList(s, schemas.DescribeImportTasksResponse_imports, v.Imports)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeImportTasksResponse_nextToken, *v.NextToken)
 	}

@@ -1,3 +1,8 @@
+# v1.91.0 (2026-10-30)
+
+* **Feature**: Adds support for account-level retention policies in Amazon CloudWatch Logs. Customers can now use PutAccountPolicy with the new RETENTION POLICY type to set default log retention across all log groups in an account. Includes dry-run mode to preview the impact of policy changes before applying them.
+* **Bug Fix**: Fix malformed JSON when serializing nil lists or maps in union members, map values, and list elements.
+
 # v1.90.3 (2026-10-27)
 
 * **Dependency Update**: Update to smithy-go v1.28.7.

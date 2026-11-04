@@ -55,7 +55,9 @@ func (v *DescribeImportTaskBatchesInput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeImportTaskBatchesInput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeImportStatusList(s, schemas.DescribeImportTaskBatchesRequest_batchImportStatus, v.BatchImportStatus)
+	if v.BatchImportStatus != nil {
+		serializeImportStatusList(s, schemas.DescribeImportTaskBatchesRequest_batchImportStatus, v.BatchImportStatus)
+	}
 	if v.ImportId != nil {
 		s.WriteString(schemas.DescribeImportTaskBatchesRequest_importId, *v.ImportId)
 	}
@@ -95,7 +97,9 @@ func (v *DescribeImportTaskBatchesOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeImportTaskBatchesOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeImportBatchList(s, schemas.DescribeImportTaskBatchesResponse_importBatches, v.ImportBatches)
+	if v.ImportBatches != nil {
+		serializeImportBatchList(s, schemas.DescribeImportTaskBatchesResponse_importBatches, v.ImportBatches)
+	}
 	if v.ImportId != nil {
 		s.WriteString(schemas.DescribeImportTaskBatchesResponse_importId, *v.ImportId)
 	}

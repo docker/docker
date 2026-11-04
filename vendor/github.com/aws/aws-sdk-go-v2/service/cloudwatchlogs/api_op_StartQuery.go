@@ -163,11 +163,15 @@ func (v *StartQueryInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.Limit != nil {
 		s.WriteInt32(schemas.StartQueryRequest_limit, *v.Limit)
 	}
-	serializeLogGroupIdentifiers(s, schemas.StartQueryRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	if v.LogGroupIdentifiers != nil {
+		serializeLogGroupIdentifiers(s, schemas.StartQueryRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	}
 	if v.LogGroupName != nil {
 		s.WriteString(schemas.StartQueryRequest_logGroupName, *v.LogGroupName)
 	}
-	serializeLogGroupNames(s, schemas.StartQueryRequest_logGroupNames, v.LogGroupNames)
+	if v.LogGroupNames != nil {
+		serializeLogGroupNames(s, schemas.StartQueryRequest_logGroupNames, v.LogGroupNames)
+	}
 	if v.QueryLanguage != "" {
 		s.WriteString(schemas.StartQueryRequest_queryLanguage, string(v.QueryLanguage))
 	}

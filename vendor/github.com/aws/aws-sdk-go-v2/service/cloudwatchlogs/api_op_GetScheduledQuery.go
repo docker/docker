@@ -152,7 +152,9 @@ func (v *GetScheduledQueryOutput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.LastUpdatedTime != nil {
 		s.WriteInt64(schemas.GetScheduledQueryResponse_lastUpdatedTime, *v.LastUpdatedTime)
 	}
-	serializeScheduledQueryLogGroupIdentifiers(s, schemas.GetScheduledQueryResponse_logGroupIdentifiers, v.LogGroupIdentifiers)
+	if v.LogGroupIdentifiers != nil {
+		serializeScheduledQueryLogGroupIdentifiers(s, schemas.GetScheduledQueryResponse_logGroupIdentifiers, v.LogGroupIdentifiers)
+	}
 	if v.Name != nil {
 		s.WriteString(schemas.GetScheduledQueryResponse_name, *v.Name)
 	}

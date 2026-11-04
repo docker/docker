@@ -95,7 +95,9 @@ func (v *DescribeSubscriptionFiltersOutput) SerializeMembers(s smithy.ShapeSeria
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeSubscriptionFiltersResponse_nextToken, *v.NextToken)
 	}
-	serializeSubscriptionFilters(s, schemas.DescribeSubscriptionFiltersResponse_subscriptionFilters, v.SubscriptionFilters)
+	if v.SubscriptionFilters != nil {
+		serializeSubscriptionFilters(s, schemas.DescribeSubscriptionFiltersResponse_subscriptionFilters, v.SubscriptionFilters)
+	}
 }
 func (v *DescribeSubscriptionFiltersOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.DescribeSubscriptionFiltersResponse, func(s *smithy.Schema) error {

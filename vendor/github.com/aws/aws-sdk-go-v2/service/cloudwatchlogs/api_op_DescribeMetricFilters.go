@@ -107,7 +107,9 @@ func (v *DescribeMetricFiltersOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeMetricFiltersOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeMetricFilters(s, schemas.DescribeMetricFiltersResponse_metricFilters, v.MetricFilters)
+	if v.MetricFilters != nil {
+		serializeMetricFilters(s, schemas.DescribeMetricFiltersResponse_metricFilters, v.MetricFilters)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeMetricFiltersResponse_nextToken, *v.NextToken)
 	}

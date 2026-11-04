@@ -77,7 +77,9 @@ func (v *GetLogFieldsOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *GetLogFieldsOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeLogFieldsList(s, schemas.GetLogFieldsResponse_logFields, v.LogFields)
+	if v.LogFields != nil {
+		serializeLogFieldsList(s, schemas.GetLogFieldsResponse_logFields, v.LogFields)
+	}
 }
 func (v *GetLogFieldsOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.GetLogFieldsResponse, func(s *smithy.Schema) error {

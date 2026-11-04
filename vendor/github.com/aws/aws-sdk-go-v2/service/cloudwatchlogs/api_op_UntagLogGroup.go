@@ -65,7 +65,9 @@ func (v *UntagLogGroupInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.LogGroupName != nil {
 		s.WriteString(schemas.UntagLogGroupRequest_logGroupName, *v.LogGroupName)
 	}
-	serializeTagList(s, schemas.UntagLogGroupRequest_tags, v.Tags)
+	if v.Tags != nil {
+		serializeTagList(s, schemas.UntagLogGroupRequest_tags, v.Tags)
+	}
 }
 
 type UntagLogGroupOutput struct {

@@ -52,8 +52,12 @@ func (v *TestTransformerInput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *TestTransformerInput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeTestEventMessages(s, schemas.TestTransformerRequest_logEventMessages, v.LogEventMessages)
-	serializeProcessors(s, schemas.TestTransformerRequest_transformerConfig, v.TransformerConfig)
+	if v.LogEventMessages != nil {
+		serializeTestEventMessages(s, schemas.TestTransformerRequest_logEventMessages, v.LogEventMessages)
+	}
+	if v.TransformerConfig != nil {
+		serializeProcessors(s, schemas.TestTransformerRequest_transformerConfig, v.TransformerConfig)
+	}
 }
 
 type TestTransformerOutput struct {
@@ -75,7 +79,9 @@ func (v *TestTransformerOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *TestTransformerOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeTransformedLogs(s, schemas.TestTransformerResponse_transformedLogs, v.TransformedLogs)
+	if v.TransformedLogs != nil {
+		serializeTransformedLogs(s, schemas.TestTransformerResponse_transformedLogs, v.TransformedLogs)
+	}
 }
 func (v *TestTransformerOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.TestTransformerResponse, func(s *smithy.Schema) error {

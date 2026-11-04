@@ -83,7 +83,9 @@ func (v *GetLogRecordOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *GetLogRecordOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeLogRecord(s, schemas.GetLogRecordResponse_logRecord, v.LogRecord)
+	if v.LogRecord != nil {
+		serializeLogRecord(s, schemas.GetLogRecordResponse_logRecord, v.LogRecord)
+	}
 }
 func (v *GetLogRecordOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.GetLogRecordResponse, func(s *smithy.Schema) error {

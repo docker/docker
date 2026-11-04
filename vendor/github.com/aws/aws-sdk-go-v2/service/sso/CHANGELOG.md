@@ -1,3 +1,7 @@
+# v1.39.1 (2026-10-30)
+
+* **Bug Fix**: Fix malformed JSON when serializing nil lists or maps in union members, map values, and list elements.
+
 # v1.39.0 (2026-10-27)
 
 * **Feature**: Enable schema-based (de)serialization for this service.

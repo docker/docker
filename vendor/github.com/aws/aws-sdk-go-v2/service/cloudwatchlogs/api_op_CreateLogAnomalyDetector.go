@@ -130,8 +130,12 @@ func (v *CreateLogAnomalyDetectorInput) SerializeMembers(s smithy.ShapeSerialize
 	if v.KmsKeyId != nil {
 		s.WriteString(schemas.CreateLogAnomalyDetectorRequest_kmsKeyId, *v.KmsKeyId)
 	}
-	serializeLogGroupArnList(s, schemas.CreateLogAnomalyDetectorRequest_logGroupArnList, v.LogGroupArnList)
-	serializeTags(s, schemas.CreateLogAnomalyDetectorRequest_tags, v.Tags)
+	if v.LogGroupArnList != nil {
+		serializeLogGroupArnList(s, schemas.CreateLogAnomalyDetectorRequest_logGroupArnList, v.LogGroupArnList)
+	}
+	if v.Tags != nil {
+		serializeTags(s, schemas.CreateLogAnomalyDetectorRequest_tags, v.Tags)
+	}
 }
 
 type CreateLogAnomalyDetectorOutput struct {

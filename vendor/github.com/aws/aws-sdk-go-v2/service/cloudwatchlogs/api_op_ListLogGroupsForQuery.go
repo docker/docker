@@ -92,7 +92,9 @@ func (v *ListLogGroupsForQueryOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *ListLogGroupsForQueryOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeLogGroupIdentifiers(s, schemas.ListLogGroupsForQueryResponse_logGroupIdentifiers, v.LogGroupIdentifiers)
+	if v.LogGroupIdentifiers != nil {
+		serializeLogGroupIdentifiers(s, schemas.ListLogGroupsForQueryResponse_logGroupIdentifiers, v.LogGroupIdentifiers)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.ListLogGroupsForQueryResponse_nextToken, *v.NextToken)
 	}

@@ -86,7 +86,9 @@ func (v *ListResourcePermissionStatementsOutput) SerializeMembers(s smithy.Shape
 	if v.NextToken != nil {
 		s.WriteString(schemas.ListResourcePermissionStatementsOutput_nextToken, *v.NextToken)
 	}
-	serializePermissionStatementSummaries(s, schemas.ListResourcePermissionStatementsOutput_permissionStatements, v.PermissionStatements)
+	if v.PermissionStatements != nil {
+		serializePermissionStatementSummaries(s, schemas.ListResourcePermissionStatementsOutput_permissionStatements, v.PermissionStatements)
+	}
 }
 func (v *ListResourcePermissionStatementsOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.ListResourcePermissionStatementsOutput, func(s *smithy.Schema) error {

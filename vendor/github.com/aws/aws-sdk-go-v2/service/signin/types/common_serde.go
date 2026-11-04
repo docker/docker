@@ -7,9 +7,6 @@ import (
 )
 
 func serializeConditionValues(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -18,9 +15,6 @@ func serializeConditionValues(s smithy.ShapeSerializer, schema *smithy.Schema, v
 }
 
 func serializePermissionStatementSummaries(s smithy.ShapeSerializer, schema *smithy.Schema, v []PermissionStatementSummary) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -31,9 +25,6 @@ func serializePermissionStatementSummaries(s smithy.ShapeSerializer, schema *smi
 }
 
 func serializePolicyActions(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -42,9 +33,6 @@ func serializePolicyActions(s smithy.ShapeSerializer, schema *smithy.Schema, v [
 }
 
 func serializePolicyStatements(s smithy.ShapeSerializer, schema *smithy.Schema, v []PolicyStatement) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -141,9 +129,6 @@ func deserializePolicyStatements(d smithy.ShapeDeserializer, s *smithy.Schema, v
 }
 
 func serializeCondition(s smithy.ShapeSerializer, schema *smithy.Schema, v map[string][]string) {
-	if v == nil {
-		return
-	}
 	s.WriteMap(schema)
 	for k, vv := range v {
 		s.WriteKey(schema.MapKey(), k)
@@ -153,9 +138,6 @@ func serializeCondition(s smithy.ShapeSerializer, schema *smithy.Schema, v map[s
 }
 
 func serializeConditionBlock(s smithy.ShapeSerializer, schema *smithy.Schema, v map[string]map[string][]string) {
-	if v == nil {
-		return
-	}
 	s.WriteMap(schema)
 	for k, vv := range v {
 		s.WriteKey(schema.MapKey(), k)
@@ -165,9 +147,6 @@ func serializeConditionBlock(s smithy.ShapeSerializer, schema *smithy.Schema, v 
 }
 
 func serializePrincipal(s smithy.ShapeSerializer, schema *smithy.Schema, v map[string]string) {
-	if v == nil {
-		return
-	}
 	s.WriteMap(schema)
 	for k, vv := range v {
 		s.WriteKey(schema.MapKey(), k)

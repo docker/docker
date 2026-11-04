@@ -90,12 +90,18 @@ func (v *RegisterClientInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.EntitledApplicationArn != nil {
 		s.WriteString(schemas.RegisterClientRequest_entitledApplicationArn, *v.EntitledApplicationArn)
 	}
-	serializeGrantTypes(s, schemas.RegisterClientRequest_grantTypes, v.GrantTypes)
+	if v.GrantTypes != nil {
+		serializeGrantTypes(s, schemas.RegisterClientRequest_grantTypes, v.GrantTypes)
+	}
 	if v.IssuerUrl != nil {
 		s.WriteString(schemas.RegisterClientRequest_issuerUrl, *v.IssuerUrl)
 	}
-	serializeRedirectUris(s, schemas.RegisterClientRequest_redirectUris, v.RedirectUris)
-	serializeScopes(s, schemas.RegisterClientRequest_scopes, v.Scopes)
+	if v.RedirectUris != nil {
+		serializeRedirectUris(s, schemas.RegisterClientRequest_redirectUris, v.RedirectUris)
+	}
+	if v.Scopes != nil {
+		serializeScopes(s, schemas.RegisterClientRequest_scopes, v.Scopes)
+	}
 }
 
 type RegisterClientOutput struct {

@@ -161,7 +161,9 @@ func (v *PutSubscriptionFilterInput) SerializeMembers(s smithy.ShapeSerializer) 
 	if v.Distribution != "" {
 		s.WriteString(schemas.PutSubscriptionFilterRequest_distribution, string(v.Distribution))
 	}
-	serializeEmitSystemFields(s, schemas.PutSubscriptionFilterRequest_emitSystemFields, v.EmitSystemFields)
+	if v.EmitSystemFields != nil {
+		serializeEmitSystemFields(s, schemas.PutSubscriptionFilterRequest_emitSystemFields, v.EmitSystemFields)
+	}
 	if v.FieldSelectionCriteria != nil {
 		s.WriteString(schemas.PutSubscriptionFilterRequest_fieldSelectionCriteria, *v.FieldSelectionCriteria)
 	}

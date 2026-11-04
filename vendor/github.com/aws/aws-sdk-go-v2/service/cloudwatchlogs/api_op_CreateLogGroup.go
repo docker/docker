@@ -135,7 +135,9 @@ func (v *CreateLogGroupInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.LogGroupName != nil {
 		s.WriteString(schemas.CreateLogGroupRequest_logGroupName, *v.LogGroupName)
 	}
-	serializeTags(s, schemas.CreateLogGroupRequest_tags, v.Tags)
+	if v.Tags != nil {
+		serializeTags(s, schemas.CreateLogGroupRequest_tags, v.Tags)
+	}
 }
 
 type CreateLogGroupOutput struct {

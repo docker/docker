@@ -113,13 +113,17 @@ func (v *CreateDeliveryInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.FieldDelimiter != nil {
 		s.WriteString(schemas.CreateDeliveryRequest_fieldDelimiter, *v.FieldDelimiter)
 	}
-	serializeRecordFields(s, schemas.CreateDeliveryRequest_recordFields, v.RecordFields)
+	if v.RecordFields != nil {
+		serializeRecordFields(s, schemas.CreateDeliveryRequest_recordFields, v.RecordFields)
+	}
 	if v.S3DeliveryConfiguration != nil {
 		s.WriteStruct(schemas.CreateDeliveryRequest_s3DeliveryConfiguration)
 		v.S3DeliveryConfiguration.SerializeMembers(s)
 		s.CloseStruct()
 	}
-	serializeTags(s, schemas.CreateDeliveryRequest_tags, v.Tags)
+	if v.Tags != nil {
+		serializeTags(s, schemas.CreateDeliveryRequest_tags, v.Tags)
+	}
 }
 
 type CreateDeliveryOutput struct {

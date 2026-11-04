@@ -110,7 +110,9 @@ func (v *PutLogEventsInput) SerializeMembers(s smithy.ShapeSerializer) {
 		v.Entity.SerializeMembers(s)
 		s.CloseStruct()
 	}
-	serializeInputLogEvents(s, schemas.PutLogEventsRequest_logEvents, v.LogEvents)
+	if v.LogEvents != nil {
+		serializeInputLogEvents(s, schemas.PutLogEventsRequest_logEvents, v.LogEvents)
+	}
 	if v.LogGroupName != nil {
 		s.WriteString(schemas.PutLogEventsRequest_logGroupName, *v.LogGroupName)
 	}

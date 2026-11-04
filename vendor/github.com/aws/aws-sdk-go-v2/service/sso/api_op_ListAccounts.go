@@ -91,7 +91,9 @@ func (v *ListAccountsOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *ListAccountsOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeAccountListType(s, schemas.ListAccountsResponse_accountList, v.AccountList)
+	if v.AccountList != nil {
+		serializeAccountListType(s, schemas.ListAccountsResponse_accountList, v.AccountList)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.ListAccountsResponse_nextToken, *v.NextToken)
 	}

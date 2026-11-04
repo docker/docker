@@ -1459,6 +1459,32 @@ var Distribution_Random *smithy.Schema
 
 var Distribution_ByLogStream *smithy.Schema
 
+var _DryRun = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.cloudwatchlogs",
+	Name:      "DryRun",
+}, smithy.ShapeTypeBoolean, 0)
+
+var _DryRunCount = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.cloudwatchlogs",
+	Name:      "DryRunCount",
+}, smithy.ShapeTypeInteger, 0)
+
+var DryRunResult = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.cloudwatchlogs",
+	Name:      "DryRunResult",
+}, smithy.ShapeTypeStructure, 6)
+var DryRunResult_totalMatchedLogGroups *smithy.Schema
+
+var DryRunResult_increasedRetentionLogGroupCount *smithy.Schema
+
+var DryRunResult_decreasedRetentionLogGroupCount *smithy.Schema
+
+var DryRunResult_unchangedRetentionLogGroupCount *smithy.Schema
+
+var DryRunResult_failedAnalysisCount *smithy.Schema
+
+var DryRunResult_topLogGroupsImpacted *smithy.Schema
+
 var _DynamicTokenPosition = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
 	Name:      "DynamicTokenPosition",
@@ -2399,7 +2425,7 @@ var LogFieldType_fields *smithy.Schema
 var LogGroup = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
 	Name:      "LogGroup",
-}, smithy.ShapeTypeStructure, 13)
+}, smithy.ShapeTypeStructure, 14)
 var LogGroup_logGroupName *smithy.Schema
 
 var LogGroup_creationTime *smithy.Schema
@@ -2425,6 +2451,8 @@ var LogGroup_logGroupArn *smithy.Schema
 var LogGroup_deletionProtectionEnabled *smithy.Schema
 
 var LogGroup_bearerTokenAuthenticationEnabled *smithy.Schema
+
+var LogGroup_retentionPolicyName *smithy.Schema
 
 var _LogGroupArn = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
@@ -2476,6 +2504,24 @@ var _LogGroupIdentifiers = smithy.NewSchema(smithy.ShapeID{
 	Name:      "LogGroupIdentifiers",
 }, smithy.ShapeTypeList, 1)
 var _LogGroupIdentifiers_member *smithy.Schema
+
+var LogGroupImpact = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.cloudwatchlogs",
+	Name:      "LogGroupImpact",
+}, smithy.ShapeTypeStructure, 4)
+var LogGroupImpact_logGroupName *smithy.Schema
+
+var LogGroupImpact_currentRetention *smithy.Schema
+
+var LogGroupImpact_proposedRetention *smithy.Schema
+
+var LogGroupImpact_storedBytes *smithy.Schema
+
+var _LogGroupImpacts = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.cloudwatchlogs",
+	Name:      "LogGroupImpacts",
+}, smithy.ShapeTypeList, 1)
+var _LogGroupImpacts_member *smithy.Schema
 
 var _LogGroupName = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
@@ -3148,7 +3194,7 @@ var PolicyScope_RESOURCE *smithy.Schema
 var PolicyType = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
 	Name:      "PolicyType",
-}, smithy.ShapeTypeEnum, 5)
+}, smithy.ShapeTypeEnum, 6)
 var PolicyType_DATA_PROTECTION_POLICY *smithy.Schema
 
 var PolicyType_SUBSCRIPTION_FILTER_POLICY *smithy.Schema
@@ -3158,6 +3204,8 @@ var PolicyType_FIELD_INDEX_POLICY *smithy.Schema
 var PolicyType_TRANSFORMER_POLICY *smithy.Schema
 
 var PolicyType_METRIC_EXTRACTION_POLICY *smithy.Schema
+
+var PolicyType_RETENTION_POLICY *smithy.Schema
 
 var _Priority = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
@@ -3553,6 +3601,11 @@ var _ResultRows = smithy.NewSchema(smithy.ShapeID{
 	Name:      "ResultRows",
 }, smithy.ShapeTypeList, 1)
 var _ResultRows_member *smithy.Schema
+
+var _RetentionValue = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.cloudwatchlogs",
+	Name:      "RetentionValue",
+}, smithy.ShapeTypeString, 0)
 
 var _RoleArn = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
@@ -4603,10 +4656,18 @@ var CreateScheduledQueryResponse_state *smithy.Schema
 var DeleteAccountPolicyRequest = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
 	Name:      "DeleteAccountPolicyRequest",
-}, smithy.ShapeTypeStructure, 2)
+}, smithy.ShapeTypeStructure, 3)
 var DeleteAccountPolicyRequest_policyName *smithy.Schema
 
 var DeleteAccountPolicyRequest_policyType *smithy.Schema
+
+var DeleteAccountPolicyRequest_dryRun *smithy.Schema
+
+var DeleteAccountPolicyResponse = smithy.NewSchema(smithy.ShapeID{
+	Namespace: "com.amazonaws.cloudwatchlogs",
+	Name:      "DeleteAccountPolicyResponse",
+}, smithy.ShapeTypeStructure, 1)
+var DeleteAccountPolicyResponse_dryRunResult *smithy.Schema
 
 var DeleteDataProtectionPolicyRequest = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
@@ -5789,7 +5850,7 @@ var ListTagsLogGroupResponse_tags *smithy.Schema
 var PutAccountPolicyRequest = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
 	Name:      "PutAccountPolicyRequest",
-}, smithy.ShapeTypeStructure, 5)
+}, smithy.ShapeTypeStructure, 6)
 var PutAccountPolicyRequest_policyName *smithy.Schema
 
 var PutAccountPolicyRequest_policyDocument *smithy.Schema
@@ -5800,11 +5861,15 @@ var PutAccountPolicyRequest_scope *smithy.Schema
 
 var PutAccountPolicyRequest_selectionCriteria *smithy.Schema
 
+var PutAccountPolicyRequest_dryRun *smithy.Schema
+
 var PutAccountPolicyResponse = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
 	Name:      "PutAccountPolicyResponse",
-}, smithy.ShapeTypeStructure, 1)
+}, smithy.ShapeTypeStructure, 2)
 var PutAccountPolicyResponse_accountPolicy *smithy.Schema
+
+var PutAccountPolicyResponse_dryRunResult *smithy.Schema
 
 var PutBearerTokenAuthenticationRequest = smithy.NewSchema(smithy.ShapeID{
 	Namespace: "com.amazonaws.cloudwatchlogs",
@@ -6380,6 +6445,8 @@ func init() {
 
 	PolicyType_METRIC_EXTRACTION_POLICY = PolicyType.AddMember("METRIC_EXTRACTION_POLICY", smithyprelude.Unit)
 
+	PolicyType_RETENTION_POLICY = PolicyType.AddMember("RETENTION_POLICY", smithyprelude.Unit)
+
 	Scope_ALL = Scope.AddMember("ALL", smithyprelude.Unit)
 
 	AccountPolicy_policyName = AccountPolicy.AddMember("policyName", _PolicyName)
@@ -6842,6 +6909,28 @@ func init() {
 
 	Distribution_ByLogStream = Distribution.AddMember("ByLogStream", smithyprelude.Unit)
 
+	LogGroupImpact_logGroupName = LogGroupImpact.AddMember("logGroupName", _LogGroupName)
+
+	LogGroupImpact_currentRetention = LogGroupImpact.AddMember("currentRetention", _RetentionValue)
+
+	LogGroupImpact_proposedRetention = LogGroupImpact.AddMember("proposedRetention", _RetentionValue)
+
+	LogGroupImpact_storedBytes = LogGroupImpact.AddMember("storedBytes", _StoredBytes)
+
+	_LogGroupImpacts_member = _LogGroupImpacts.AddMember("member", LogGroupImpact)
+
+	DryRunResult_totalMatchedLogGroups = DryRunResult.AddMember("totalMatchedLogGroups", _DryRunCount)
+
+	DryRunResult_increasedRetentionLogGroupCount = DryRunResult.AddMember("increasedRetentionLogGroupCount", _DryRunCount)
+
+	DryRunResult_decreasedRetentionLogGroupCount = DryRunResult.AddMember("decreasedRetentionLogGroupCount", _DryRunCount)
+
+	DryRunResult_unchangedRetentionLogGroupCount = DryRunResult.AddMember("unchangedRetentionLogGroupCount", _DryRunCount)
+
+	DryRunResult_failedAnalysisCount = DryRunResult.AddMember("failedAnalysisCount", _DryRunCount)
+
+	DryRunResult_topLogGroupsImpacted = DryRunResult.AddMember("topLogGroupsImpacted", _LogGroupImpacts)
+
 	_EmitSystemFields_member = _EmitSystemFields.AddMember("member", _SystemField)
 
 	_EntityKeyAttributes_key = _EntityKeyAttributes.AddMember("key", _EntityKeyAttributesKey)
@@ -7255,6 +7344,8 @@ func init() {
 	LogGroup_deletionProtectionEnabled = LogGroup.AddMember("deletionProtectionEnabled", _DeletionProtectionEnabled)
 
 	LogGroup_bearerTokenAuthenticationEnabled = LogGroup.AddMember("bearerTokenAuthenticationEnabled", _BearerTokenAuthenticationEnabled)
+
+	LogGroup_retentionPolicyName = LogGroup.AddMember("retentionPolicyName", _PolicyName)
 
 	LogGroupField_name = LogGroupField.AddMember("name", _Field)
 
@@ -8072,6 +8163,10 @@ func init() {
 
 	DeleteAccountPolicyRequest_policyType = DeleteAccountPolicyRequest.AddMember("policyType", PolicyType)
 
+	DeleteAccountPolicyRequest_dryRun = DeleteAccountPolicyRequest.AddMember("dryRun", _DryRun)
+
+	DeleteAccountPolicyResponse_dryRunResult = DeleteAccountPolicyResponse.AddMember("dryRunResult", DryRunResult)
+
 	DeleteDataProtectionPolicyRequest_logGroupIdentifier = DeleteDataProtectionPolicyRequest.AddMember("logGroupIdentifier", _LogGroupIdentifier)
 
 	DeleteDeliveryDestinationRequest_name = DeleteDeliveryDestinationRequest.AddMember("name", _DeliveryDestinationName)
@@ -8756,7 +8851,11 @@ func init() {
 
 	PutAccountPolicyRequest_selectionCriteria = PutAccountPolicyRequest.AddMember("selectionCriteria", _SelectionCriteria)
 
+	PutAccountPolicyRequest_dryRun = PutAccountPolicyRequest.AddMember("dryRun", _DryRun)
+
 	PutAccountPolicyResponse_accountPolicy = PutAccountPolicyResponse.AddMember("accountPolicy", AccountPolicy)
+
+	PutAccountPolicyResponse_dryRunResult = PutAccountPolicyResponse.AddMember("dryRunResult", DryRunResult)
 
 	PutBearerTokenAuthenticationRequest_logGroupIdentifier = PutBearerTokenAuthenticationRequest.AddMember("logGroupIdentifier", _LogGroupIdentifier)
 

@@ -7,9 +7,6 @@ import (
 )
 
 func serializeAccountListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []AccountInfo) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -20,9 +17,6 @@ func serializeAccountListType(s smithy.ShapeSerializer, schema *smithy.Schema, v
 }
 
 func serializeRoleListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []RoleInfo) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
