@@ -1,0 +1,98 @@
+name: Report validate-milestone status
+
+on: # zizmor: ignore[dangerous-triggers] this workflow only reads repository data through the API and never executes PR code
+  workflow_run:
+    workflows: [validate-milestone]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  report-status:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Report milestone validation status
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            if (!run.head_repository?.owner?.login || !run.head_branch) {
+              core.notice('Workflow run has no head repository; no status published.');
+              return;
+            }
+
+            const response = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${run.head_repository.owner.login}:${run.head_branch}`,
+              per_page: 100,
+            });
+            const pull = response.data.find(candidate =>
+              candidate.head.sha === run.head_sha &&
+              candidate.head.repo?.full_name === run.head_repository.full_name &&
+              candidate.base.repo.full_name === context.payload.repository.full_name
+            );
+
+            if (!pull) {
+              core.notice('No open pull request has the workflow run head SHA; no status published.');
+              return;
+            }
+
+            let state = 'success';
+            let description = 'Milestone matches the next Docker version';
+
+            if (run.conclusion !== 'success') {
+              state = 'failure';
+              description = `Milestone validation did not succeed (${run.conclusion ?? 'unknown'})`;
+
+              try {
+                const files = await github.paginate(github.rest.pulls.listFiles, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pull.number,
+                });
+                const touchesVersions = files.some(
+                  file => file.filename === 'releases/versions.yaml'
+                );
+                const ref = touchesVersions ? pull.head.sha : pull.base.ref;
+                const response = await github.rest.repos.getContent({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  path: 'releases/versions.yaml',
+                  ref,
+                });
+                if (!Array.isArray(response.data)) {
+                  const content = Buffer.from(
+                    response.data.content,
+                    response.data.encoding
+                  ).toString('utf8');
+                  const line = content.split('\n').find(value => value.includes('next:'));
+                  const expected = line
+                    ?.trim()
+                    .replace('next: ', '')
+                    .replaceAll('"', '');
+                  if (pull.milestone?.title && expected && pull.milestone.title !== expected) {
+                    state = 'error';
+                    description = 'Intentional block: milestone is not next; no action needed';
+                  }
+                }
+              } catch (error) {
+                core.warning(`Could not classify milestone validation failure: ${error.message}`);
+              }
+            }
+
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: pull.head.sha,
+              state,
+              context: 'validate/milestone',
+              description,
+              target_url:
+                `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${run.id}`,
+            });
