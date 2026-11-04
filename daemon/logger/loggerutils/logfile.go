@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -18,7 +19,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/pkg/pools"
-	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -166,13 +166,13 @@ func (w *LogFile) WriteLogEntry(timestamp time.Time, marshalled []byte) error {
 	// Are we due for a rotation?
 	if w.capacity != -1 && w.pos.size >= w.capacity {
 		if err := w.rotate(); err != nil {
-			return errors.Wrap(err, "error rotating log file")
+			return fmt.Errorf("error rotating log file: %w", err)
 		}
 	}
 
 	n, err := w.f.Write(marshalled)
 	if err != nil {
-		return errors.Wrap(err, "error writing log entry")
+		return fmt.Errorf("error writing log entry: %w", err)
 	}
 	w.pos.size += int64(n)
 	w.lastTimestamp = timestamp
@@ -208,7 +208,7 @@ func (w *LogFile) rotate() (retErr error) {
 	if err := w.f.Close(); err != nil {
 		// if there was an error during a prior rotate, the file could already be closed
 		if !errors.Is(err, fs.ErrClosed) {
-			return errors.Wrap(err, "error closing file")
+			return fmt.Errorf("error closing file: %w", err)
 		}
 	}
 
@@ -280,7 +280,7 @@ func rotate(name string, maxFiles int, compress bool) error {
 	lastFile := fmt.Sprintf("%s.%d%s", name, maxFiles-1, extension)
 	err := unlink(lastFile)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return errors.Wrap(err, "error removing oldest log file")
+		return fmt.Errorf("error removing oldest log file: %w", err)
 	}
 
 	for i := maxFiles - 1; i > 1; i-- {
@@ -303,21 +303,21 @@ func compressFile(fileName string, lastTimestamp time.Time) (retErr error) {
 			log.G(context.TODO()).WithField("file", fileName).WithError(err).Debug("Could not open log file to compress")
 			return nil
 		}
-		return errors.Wrap(err, "failed to open log file")
+		return fmt.Errorf("failed to open log file: %w", err)
 	}
 	defer func() {
 		file.Close()
 		if retErr == nil {
 			err := unlink(fileName)
 			if err != nil && !errors.Is(err, fs.ErrNotExist) {
-				retErr = errors.Wrap(err, "failed to remove source log file")
+				retErr = fmt.Errorf("failed to remove source log file: %w", err)
 			}
 		}
 	}()
 
 	outFile, err := openFile(fileName+".gz", os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0o640)
 	if err != nil {
-		return errors.Wrap(err, "failed to open or create gzip log file")
+		return fmt.Errorf("failed to open or create gzip log file: %w", err)
 	}
 	defer func() {
 		outFile.Close()
@@ -342,7 +342,7 @@ func compressFile(fileName string, lastTimestamp time.Time) (retErr error) {
 
 	_, err = pools.Copy(compressWriter, file)
 	if err != nil {
-		return errors.Wrapf(err, "error compressing log file %s", fileName)
+		return fmt.Errorf("error compressing log file %s: %w", fileName, err)
 	}
 
 	return nil
@@ -415,7 +415,7 @@ func (w *LogFile) tailFiles(ctx context.Context, config logger.ReadConfig, watch
 
 	if err != nil {
 		// TODO: Should we allow this to continue (as in set `cont=true`) and not error out the log stream?
-		err = errors.Wrap(err, "error opening rotated log files")
+		err = fmt.Errorf("error opening rotated log files: %w", err)
 		span.SetStatus(err)
 		watcher.Err <- err
 		return false
@@ -540,7 +540,7 @@ func (o *simpleFileOpener) ReaderAt(context.Context) (sizeReaderAtCloser, error)
 	if o.sz == 0 {
 		stat, err := o.f.Stat()
 		if err != nil {
-			return nil, errors.Wrap(err, "error stating file")
+			return nil, fmt.Errorf("error stating file: %w", err)
 		}
 		o.sz = stat.Size()
 	}
@@ -676,13 +676,13 @@ func (w *LogFile) openRotatedFile(ctx context.Context, i int, config logger.Read
 	}
 
 	if !errors.Is(err, fs.ErrNotExist) {
-		return nil, errors.Wrap(err, "error opening rotated log file")
+		return nil, fmt.Errorf("error opening rotated log file: %w", err)
 	}
 
 	f, err = open(fmt.Sprintf("%s.%d.gz", w.f.Name(), i))
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
-			return nil, errors.Wrap(err, "error opening file for decompression")
+			return nil, fmt.Errorf("error opening file for decompression: %w", err)
 		}
 		return &emptyFileOpener{}, nil
 	}
@@ -741,7 +741,7 @@ func getTailFiles(ctx context.Context, files []fileOpener, nLines int, getTailRe
 
 	for i := len(files) - 1; i >= 0 && nLines > 0; i-- {
 		if err := ctx.Err(); err != nil {
-			return nil, errors.Wrap(err, "stopping parsing files to tail due to error")
+			return nil, fmt.Errorf("stopping parsing files to tail due to error: %w", err)
 		}
 
 		fo := files[i]

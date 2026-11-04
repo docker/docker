@@ -1,11 +1,11 @@
 package local
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/docker/go-units"
-	"github.com/pkg/errors"
 )
 
 // CreateConfig is used to configure new instances of driver

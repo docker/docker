@@ -1,11 +1,11 @@
 package cache
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/local"
-	"github.com/pkg/errors"
 )
 
 func init() {
@@ -20,7 +20,7 @@ func validateLogCacheOpts(cfg map[string]string) error {
 	if v := cfg[cacheDisabledKey]; v != "" {
 		_, err := strconv.ParseBool(v)
 		if err != nil {
-			return errors.Errorf("invalid value for option %s: %s", cacheDisabledKey, cfg[cacheDisabledKey])
+			return fmt.Errorf("invalid value for option %s: %s", cacheDisabledKey, cfg[cacheDisabledKey])
 		}
 	}
 	return nil

@@ -1,9 +1,8 @@
 package jsonlog
 
 import (
+	"errors"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 const jsonFormat = `"` + time.RFC3339Nano + `"`

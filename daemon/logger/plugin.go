@@ -11,7 +11,6 @@ import (
 	"github.com/moby/moby/v2/errdefs"
 	"github.com/moby/moby/v2/pkg/plugingetter"
 	"github.com/moby/moby/v2/pkg/plugins"
-	"github.com/pkg/errors"
 )
 
 var pluginGetter plugingetter.PluginGetter
@@ -52,17 +51,17 @@ func makePluginClient(p plugingetter.CompatPlugin) (logPlugin, error) {
 	}
 	pa, ok := p.(plugingetter.PluginAddr)
 	if !ok {
-		return nil, errdefs.System(errors.Errorf("got unknown plugin type %T", p))
+		return nil, errdefs.System(fmt.Errorf("got unknown plugin type %T", p))
 	}
 
 	if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {
-		return nil, errors.Errorf("plugin protocol not supported: %s", p)
+		return nil, fmt.Errorf("plugin protocol not supported: %s", p)
 	}
 
 	addr := pa.Addr()
 	c, err := plugins.NewClientWithTimeout(addr.Network()+"://"+addr.String(), nil, pa.Timeout())
 	if err != nil {
-		return nil, errors.Wrap(err, "error making plugin client")
+		return nil, fmt.Errorf("error making plugin client: %w", err)
 	}
 	return &logPluginProxy{c}, nil
 }
@@ -104,7 +103,7 @@ func makePluginCreator(name string, l logPlugin, scopePath func(s string) string
 		a.enc = logdriver.NewLogEntryEncoder(a.stream)
 
 		if err := l.StartLogging(filepath.Join(unscopedPath, id), logCtx); err != nil {
-			return nil, errors.Wrapf(err, "error creating logger")
+			return nil, fmt.Errorf("error creating logger: %w", err)
 		}
 
 		if caps.ReadLogs {

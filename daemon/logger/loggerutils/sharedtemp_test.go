@@ -1,6 +1,7 @@
 package loggerutils
 
 import (
+	"errors"
 	"io"
 	"io/fs"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -155,7 +155,7 @@ func TestSharedTempFileConverter(t *testing.T) {
 		createFile(t, name, "hi there")
 		src, err := open(name)
 		assert.NilError(t, err)
-		defer src.Close()
+		defer func() { _ = src.Close() }()
 
 		fakeErr := errors.New("fake error")
 		var start sync.WaitGroup

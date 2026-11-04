@@ -6,6 +6,7 @@ package jsonfilelog
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -14,13 +15,12 @@ import (
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/jsonfilelog/jsonlog"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
-	"github.com/pkg/errors"
 )
 
 // Name is the name of the file that the jsonlogger logs to.
 const Name = "json-file"
 
-// Every buffer will have to store the same constant json structure with the message
+// Every buffer will have to store the same constant JSON structure with the message
 // len(`{"log":"","stream:"stdout","time":"2000-01-01T00:00:00.000000000Z"}\n`) = 68.
 // So let's start with a buffer bigger than this.
 const initialBufSize = 256
@@ -136,13 +136,13 @@ func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffe
 		RawAttrs: extra,
 	}).MarshalJSONBuf(buf)
 	if err != nil {
-		return errors.Wrap(err, "error writing log message to buffer")
+		return fmt.Errorf("error writing log message to buffer: %w", err)
 	}
 	err = buf.WriteByte('\n')
-	return errors.Wrap(err, "error finalizing log buffer")
+	return fmt.Errorf("error finalizing log buffer: %w", err)
 }
 
-// ValidateLogOpt looks for json specific log options max-file & max-size.
+// ValidateLogOpt looks for JSON-specific log options max-file & max-size.
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {

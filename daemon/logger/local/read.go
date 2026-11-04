@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 // maxMsgLen is the maximum size of the logger.Message after serialization.
@@ -25,7 +25,7 @@ func (d *driver) ReadLogs(ctx context.Context, config logger.ReadConfig) *logger
 func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (loggerutils.SizeReaderAt, int, error) {
 	size := r.Size()
 	if req < 0 {
-		return nil, 0, errdefs.InvalidParameter(errors.Errorf("invalid number of lines to tail: %d", req))
+		return nil, 0, errdefs.InvalidParameter(fmt.Errorf("invalid number of lines to tail: %d", req))
 	}
 
 	if size < (encodeBinaryLen*2)+1 {
@@ -47,7 +47,7 @@ func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (lo
 
 		n, err := r.ReadAt(buf, offset-encodeBinaryLen64)
 		if err != nil && !errors.Is(err, io.EOF) {
-			return nil, 0, errors.Wrap(err, "error reading log message footer")
+			return nil, 0, fmt.Errorf("error reading log message footer: %w", err)
 		}
 
 		if n != encodeBinaryLen {
@@ -58,7 +58,7 @@ func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (lo
 
 		n, err = r.ReadAt(buf, offset-encodeBinaryLen64-encodeBinaryLen64-int64(msgLen))
 		if err != nil && !errors.Is(err, io.EOF) {
-			return nil, 0, errors.Wrap(err, "error reading log message header")
+			return nil, 0, fmt.Errorf("error reading log message header: %w", err)
 		}
 
 		if n != encodeBinaryLen {
@@ -182,7 +182,7 @@ func decodeFunc(rdr io.Reader) loggerutils.Decoder {
 func (d *decoder) decodeSizeHeader() (int, error) {
 	err := d.readRecord(encodeBinaryLen)
 	if err != nil {
-		return 0, errors.Wrap(err, "could not read a size header")
+		return 0, fmt.Errorf("could not read a size header: %w", err)
 	}
 
 	msgLen := int(binary.BigEndian.Uint32(d.buf[:encodeBinaryLen]))
@@ -193,12 +193,12 @@ func (d *decoder) decodeLogEntry() (*logger.Message, error) {
 	msgLen := d.nextMsgLen
 	err := d.readRecord(msgLen + encodeBinaryLen)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not read a log entry (size=%d+%d)", msgLen, encodeBinaryLen)
+		return nil, fmt.Errorf("could not read a log entry (size=%d+%d): %w", msgLen, encodeBinaryLen, err)
 	}
 	d.nextMsgLen = 0
 
 	if err := d.proto.Unmarshal(d.buf[:msgLen]); err != nil {
-		return nil, errors.Wrapf(err, "error unmarshalling log entry (size=%d)", msgLen)
+		return nil, fmt.Errorf("error unmarshalling log entry (size=%d): %w", msgLen, err)
 	}
 
 	msg := protoToMessage(d.proto)

@@ -2,13 +2,13 @@ package loggerutils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/logger"
-	"github.com/pkg/errors"
 )
 
 type follow struct {

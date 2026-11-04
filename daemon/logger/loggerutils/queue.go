@@ -2,10 +2,10 @@ package loggerutils
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/moby/moby/v2/daemon/logger"
-	"github.com/pkg/errors"
 )
 
 // MessageQueue is a queue for log messages.

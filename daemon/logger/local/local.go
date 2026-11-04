@@ -3,6 +3,8 @@ package local
 import (
 	"cmp"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"io"
 	"math/bits"
 	"slices"
@@ -14,7 +16,6 @@ import (
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
 	"github.com/moby/moby/v2/daemon/server/backend"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -53,7 +54,7 @@ var LogOptKeys = map[string]bool{
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		if !LogOptKeys[key] {
-			return errors.Errorf("unknown log opt '%s' for log driver %s", key, Name)
+			return fmt.Errorf("unknown log opt '%s' for log driver %s", key, Name)
 		}
 	}
 	return nil
@@ -137,7 +138,7 @@ func marshal(m *logger.Message, attrs []*logdriver.LogAttr, buffer *[]byte) erro
 	binary.BigEndian.PutUint32(buf[:encodeBinaryLen], uint32(protoSize))
 	n, err := proto.MarshalTo(buf[encodeBinaryLen:writeLen])
 	if err != nil {
-		return errors.Wrap(err, "error marshaling log entry")
+		return fmt.Errorf("error marshaling log entry: %w", err)
 	}
 	if n+(encodeBinaryLen*2) != writeLen {
 		return io.ErrShortWrite
@@ -161,7 +162,7 @@ func (d *driver) Log(msg *logger.Message) (err error) {
 	defer buffersPool.Put(buf)
 
 	if err := marshal(msg, d.extra, buf); err != nil {
-		return errors.Wrap(err, "error marshalling logger.Message")
+		return fmt.Errorf("error marshalling logger.Message: %w", err)
 	}
 	return d.logfile.WriteLogEntry(msg.Timestamp, *buf)
 }

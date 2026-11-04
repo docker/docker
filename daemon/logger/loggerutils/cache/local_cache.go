@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/containerd/log"
@@ -9,7 +10,6 @@ import (
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/local"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -36,7 +36,7 @@ func WithLocalCache(l logger.Logger, info logger.Info) (logger.Logger, error) {
 
 	cacher, err := initLogger(info)
 	if err != nil {
-		return nil, errors.Wrap(err, "error initializing local log cache driver")
+		return nil, fmt.Errorf("error initializing local log cache driver: %w", err)
 	}
 
 	if container.LogMode(info.Config["mode"]) == container.LogModeUnset || container.LogMode(info.Config["mode"]) == container.LogModeNonBlock {
@@ -109,7 +109,7 @@ func ShouldUseCache(cfg map[string]string) bool {
 	}
 	b, err := strconv.ParseBool(cfg[cacheDisabledKey])
 	if err != nil {
-		// This shouldn't happen since the values are validated before hand.
+		// This shouldn't happen since the values are validated beforehand.
 		return false
 	}
 	return !b

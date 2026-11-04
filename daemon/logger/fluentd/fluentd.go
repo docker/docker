@@ -4,6 +4,8 @@ package fluentd
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"maps"
 	"math"
 	"net/url"
@@ -17,7 +19,6 @@ import (
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/loggerutils"
 	"github.com/moby/moby/v2/errdefs"
-	"github.com/pkg/errors"
 )
 
 type fluentd struct {
@@ -160,7 +161,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case readTimeoutKey:
 			// Accepted
 		default:
-			return errors.Errorf("unknown log opt '%s' for fluentd log driver", key)
+			return fmt.Errorf("unknown log opt '%s' for fluentd log driver", key)
 		}
 	}
 
@@ -173,7 +174,7 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 
 	loc, err := parseAddress(cfg[addressKey])
 	if err != nil {
-		return config, errors.Wrapf(err, "invalid fluentd-address (%s)", cfg[addressKey])
+		return config, fmt.Errorf("invalid fluentd-address (%s): %w", cfg[addressKey], err)
 	}
 
 	bufferLimit := defaultBufferLimit
@@ -220,11 +221,11 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 	if cfg[asyncReconnectIntervalKey] != "" {
 		interval, err := time.ParseDuration(cfg[asyncReconnectIntervalKey])
 		if err != nil {
-			return config, errors.Wrapf(err, "invalid value for %s", asyncReconnectIntervalKey)
+			return config, fmt.Errorf("invalid value for %s: %w", asyncReconnectIntervalKey, err)
 		}
 		if interval != 0 {
 			if interval < minReconnectInterval || interval > maxReconnectInterval {
-				return config, errors.Errorf("invalid value for %s: value (%q) must be between %s and %s",
+				return config, fmt.Errorf("invalid value for %s: value (%q) must be between %s and %s",
 					asyncReconnectIntervalKey, interval, minReconnectInterval, maxReconnectInterval)
 			}
 			asyncReconnectInterval = int(interval.Milliseconds())
@@ -248,9 +249,9 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 	writeTimeout := time.Duration(0)
 	if cfg[writeTimeoutKey] != "" {
 		if d, err := time.ParseDuration(cfg[writeTimeoutKey]); err != nil {
-			return config, errors.Wrapf(err, "invalid value for %s: value must be a duration", writeTimeoutKey)
+			return config, fmt.Errorf("invalid value for %s: value must be a duration: %w", writeTimeoutKey, err)
 		} else if d < 0 {
-			return config, errors.Errorf("invalid value for %s: value must be a duration that is non-negative", writeTimeoutKey)
+			return config, fmt.Errorf("invalid value for %s: value must be a duration that is non-negative", writeTimeoutKey)
 		} else {
 			writeTimeout = d
 		}
@@ -259,9 +260,9 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 	readTimeout := time.Duration(0)
 	if cfg[readTimeoutKey] != "" {
 		if d, err := time.ParseDuration(cfg[readTimeoutKey]); err != nil {
-			return config, errors.Wrapf(err, "invalid value for %s: value must be a duration", readTimeoutKey)
+			return config, fmt.Errorf("invalid value for %s: value must be a duration: %w", readTimeoutKey, err)
 		} else if d < 0 {
-			return config, errors.Errorf("invalid value for %s: value must be a duration that is non-negative", readTimeoutKey)
+			return config, fmt.Errorf("invalid value for %s: value must be a duration that is non-negative", readTimeoutKey)
 		} else {
 			readTimeout = d
 		}
@@ -315,7 +316,7 @@ func parseAddress(address string) (*location, error) {
 	case "tcp", "tls":
 		// continue processing below
 	default:
-		return nil, errors.Errorf("unsupported scheme: '%s'", addr.Scheme)
+		return nil, fmt.Errorf("unsupported scheme: '%s'", addr.Scheme)
 	}
 
 	if addr.Path != "" {
@@ -332,7 +333,7 @@ func parseAddress(address string) (*location, error) {
 		// Port numbers are 16 bit: https://www.ietf.org/rfc/rfc793.html#section-3.1
 		portNum, err := strconv.ParseUint(p, 10, 16)
 		if err != nil {
-			return nil, errors.Wrap(err, "invalid port")
+			return nil, fmt.Errorf("invalid port: %w", err)
 		}
 		port = int(portNum)
 	}

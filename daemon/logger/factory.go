@@ -8,7 +8,6 @@ import (
 	"github.com/docker/go-units"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/pkg/plugingetter"
-	"github.com/pkg/errors"
 )
 
 // Creator builds a logging driver instance with given context.
@@ -94,7 +93,7 @@ func (lf *logdriverFactory) get(name string) (Creator, error) {
 	}
 
 	c, err := getPlugin(name, plugingetter.Acquire)
-	return c, errors.Wrapf(err, "logger: no log driver named '%s' is registered", name)
+	return c, fmt.Errorf("logger: no log driver named '%s' is registered: %w", name, err)
 }
 
 func (lf *logdriverFactory) getLogOptValidator(name string) LogOptValidator {
@@ -147,7 +146,7 @@ func ValidateLogOpts(name string, cfg map[string]string) error {
 			return fmt.Errorf("logger: max-buffer-size option is only supported with 'mode=%s'", containertypes.LogModeNonBlock)
 		}
 		if _, err := units.RAMInBytes(s); err != nil {
-			return errors.Wrap(err, "error parsing option max-buffer-size")
+			return fmt.Errorf("error parsing option max-buffer-size: %w", err)
 		}
 	}
 

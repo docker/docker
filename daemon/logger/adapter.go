@@ -2,6 +2,8 @@ package logger
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,7 +13,6 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/logger/internal/logdriver"
 	"github.com/moby/moby/v2/pkg/plugingetter"
-	"github.com/pkg/errors"
 )
 
 // pluginAdapter takes a plugin and implements the Logger interface for logger
@@ -82,7 +83,7 @@ func (a *pluginAdapter) Close() error {
 
 	// may be nil, especially for unit tests
 	if pluginGetter != nil {
-		pluginGetter.Get(a.Name(), extName, plugingetter.Release)
+		_, _ = pluginGetter.Get(a.Name(), extName, plugingetter.Release)
 	}
 	return nil
 }
@@ -98,10 +99,10 @@ func (a *pluginAdapterWithRead) ReadLogs(ctx context.Context, config ReadConfig)
 		defer close(watcher.Msg)
 		stream, err := a.plugin.ReadLogs(a.logInfo, config)
 		if err != nil {
-			watcher.Err <- errors.Wrap(err, "error getting log reader")
+			watcher.Err <- fmt.Errorf("error getting log reader: %w", err)
 			return
 		}
-		defer stream.Close()
+		defer func() { _ = stream.Close() }()
 
 		dec := logdriver.NewLogEntryDecoder(stream)
 		for {
@@ -114,7 +115,7 @@ func (a *pluginAdapterWithRead) ReadLogs(ctx context.Context, config ReadConfig)
 				if errors.Is(err, io.EOF) {
 					return
 				}
-				watcher.Err <- errors.Wrap(err, "error decoding log message")
+				watcher.Err <- fmt.Errorf("error decoding log message: %w", err)
 				return
 			}
 
