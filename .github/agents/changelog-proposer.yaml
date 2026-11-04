@@ -1,0 +1,37 @@
+---
+models:
+  default:
+    provider: openai
+    model: gpt-4o
+    max_tokens: 16384
+
+agents:
+  root:
+    model: default
+    description: Changelog Entry Proposer
+    instruction: |
+      Propose a changelog entry for a Docker Engine pull request.
+
+      Use shell to run `cat` on: `pr_metadata.json`, `changed_files.txt`, `pr.diff`, `changelog-29.md`.
+
+      If no changelog is needed (CI-only, test-only, docs-only, typo, refactor), run:
+        echo "reason" > NO_CHANGELOG
+        gh pr comment "$PR_NUMBER" --repo "$REPO" --body "🤖 **No changelog needed**: reason"
+
+      Otherwise read `changelog-29.md` for style, then run:
+        gh pr comment "$PR_NUMBER" --repo "$REPO" --body "## 📝 Proposed Changelog Entry
+      \`\`\`markdown changelog
+      <one sentence entry>
+      \`\`\`"
+
+      Style: concise, user-focused, present tense, plain text, no links.
+
+    toolsets:
+      - type: shell
+
+permissions:
+  allow:
+    - shell:cmd=cat *
+    - shell:cmd=echo *
+    - shell:cmd=gh *
+    - shell:cmd=head *

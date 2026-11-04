@@ -1,0 +1,87 @@
+name: Changelog Proposer
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  check-changelog:
+    if: github.event.label.name == 'impact/changelog'
+    runs-on: ubuntu-latest
+    outputs:
+      exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - name: Check if changelog already exists
+        id: check
+        env:
+          PR_BODY: |
+            ${{ github.event.pull_request.body }}
+        run: |
+          block=$(echo -n "$PR_BODY" | tr -d '\r' | awk '/^```markdown changelog$/{flag=1;next}/^```$/{flag=0}flag')
+          desc=$(echo "$block" | awk NF)
+          if [ -n "$desc" ]; then
+            echo "Changelog already present in PR body, skipping."
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+  propose-changelog:
+    needs: check-changelog
+    if: needs.check-changelog.outputs.exists != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      models: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Prepare PR data
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          PR_URL="https://github.com/${{ github.repository }}/pull/${PR_NUMBER}"
+          gh pr view "$PR_URL" --json title,body,author,baseRefName,headRefName,files > pr_metadata.json
+          gh pr view "$PR_URL" --json files -q '.files[].path' > changed_files.txt
+          gh pr diff "$PR_URL" > pr.diff
+          curl -fsSL https://raw.githubusercontent.com/docker/docs/main/content/manuals/engine/release-notes/29.md -o changelog-29.md
+          curl -fsSL https://raw.githubusercontent.com/docker/docs/main/content/manuals/engine/release-notes/28.md -o changelog-28.md
+
+      - name: Run changelog proposer
+        id: agent
+        uses: docker/cagent-action@d98096f432f2aea5091c811852c4da804e60623a # v1.4.1
+        env:
+          OPENAI_BASE_URL: https://models.inference.ai.azure.com
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: "${{ github.event.pull_request.number }}"
+          REPO: ${{ github.repository }}
+        with:
+          agent: .github/agents/changelog-proposer.yaml
+          prompt: "Propose a changelog entry for PR #${{ github.event.pull_request.number }} in ${{ github.repository }}. All data files are in the working directory."
+          openai-api-key: ${{ github.token }}
+          github-token: ${{ github.token }}
+          timeout: "300"
+          debug: true
+
+      - name: Print agent output
+        if: always() && steps.agent.outputs.output-file
+        run: cat "${{ steps.agent.outputs.output-file }}"
+
+      - name: Remove label if no changelog needed
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -f NO_CHANGELOG ]; then
+            echo "Agent determined no changelog is needed: $(cat NO_CHANGELOG)"
+            gh pr edit "$PR_NUMBER" --repo "${{ github.repository }}" --remove-label "impact/changelog"
+          fi
