@@ -539,3 +539,4 @@ func TestComputeSharedSizeIncludesSharedContentBlobs(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(sharedSize, int64(120)))
 }
+

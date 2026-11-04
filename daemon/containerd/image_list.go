@@ -80,7 +80,7 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 		return nil, err
 	}
 
-	imgs, err := i.images.List(ctx)
+	imgs, err := i.images.List(ctx, filters.BuildCtrdImageFilters(opts.Filters, imageNameDanglingPrefix)...)
 	if err != nil {
 		return nil, err
 	}
@@ -587,7 +587,10 @@ type imageFilterFunc func(image c8dimages.Image) bool
 // setupFilters constructs an imageFilterFunc from the given imageFilters.
 //
 // filterFunc is a function that checks whether given image matches the filters.
-// TODO(thaJeztah): reimplement filters using containerd filters if possible: see https://github.com/moby/moby/issues/43845
+// Push-downable filters (reference, dangling=true) are handled by [buildCtrdFilters]
+// and pre-applied on the containerd store. The remaining filters here act as the
+// authoritative Go-side pass.
+// TODO(thaJeztah): push down remaining filters where possible: see https://github.com/moby/moby/issues/43845
 func (i *ImageService) setupFilters(ctx context.Context, imageFilters filters.Args) (filterFunc imageFilterFunc, outErr error) {
 	var fltrs []imageFilterFunc
 	err := imageFilters.WalkValues("before", func(value string) error {
