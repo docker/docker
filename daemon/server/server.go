@@ -78,6 +78,9 @@ func (s *Server) makeHTTPHandler(route router.Route) http.Handler {
 			vars = make(map[string]string)
 		}
 
+		// Close the body when the context is done
+		context.AfterFunc(ctx, func() { r.Body.Close() })
+
 		if err := handlerFunc(ctx, w, r, vars); err != nil {
 			if r.Context().Err() != nil {
 				// Request is canceled, and client likely went away. Don't attempt
