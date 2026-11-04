@@ -224,6 +224,7 @@ func (noopDNSBackend) ResolveName(_ context.Context, name string, ipType types.I
 func (noopDNSBackend) ExecFunc(f func()) error { f(); return nil }
 
 func (noopDNSBackend) NdotsSet() bool { return false }
+func (noopDNSBackend) Ndots() int     { return 0 }
 
 func (noopDNSBackend) HandleQueryResp(name string, ip net.IP) {}
 

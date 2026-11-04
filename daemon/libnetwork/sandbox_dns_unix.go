@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/containerd/log"
@@ -314,7 +315,12 @@ func (sb *Sandbox) rebuildDNS() error {
 	}
 
 	// Work out whether ndots has been set from host config or overrides.
-	_, sb.ndotsSet = rc.Option("ndots")
+	if val, set := rc.Option("ndots"); set {
+		sb.ndotsSet = true
+		if n, err := strconv.Atoi(val); err == nil {
+			sb.ndots = n
+		}
+	}
 	// Swap nameservers for the internal one, and make sure the required options are set.
 	var extNameServers []resolvconf.ExtDNSEntry
 	extNameServers, err = rc.TransformForIntNS(intNS, sb.resolver.ResolverOptions())

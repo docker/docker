@@ -51,6 +51,7 @@ type Sandbox struct {
 	inDelete        bool
 	ingress         bool
 	ndotsSet        bool
+	ndots           int
 	oslTypes        []osl.SandboxType // slice of properties of this sandbox
 	loadBalancerNID string            // NID that this SB is a load balancer for
 	mu              sync.Mutex
@@ -668,4 +669,8 @@ func (ep *Endpoint) Less(epj *Endpoint) bool {
 
 func (sb *Sandbox) NdotsSet() bool {
 	return sb.ndotsSet
+}
+
+func (sb *Sandbox) Ndots() int {
+	return sb.ndots
 }
