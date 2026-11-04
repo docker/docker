@@ -171,6 +171,13 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 	if ctr.ProcessLabel != "" {
 		selinux.ReleaseLabel(ctr.ProcessLabel)
 	}
+	// Notify waiters that the container has been removed before deleting it
+	// from the in-memory registry. This closes a race where a ContainerWait
+	// call arriving after containers.Delete but before SetRemoved would get a
+	// 404 from GetContainer and return exit code 125 instead of the container's
+	// actual exit code.
+	ctr.State.SetRemoved()
+	metrics.StateCtr.Delete(ctr.ID)
 	daemon.containers.Delete(ctr.ID)
 	daemon.containersReplica.Delete(ctr)
 	if err := daemon.removeMountPoints(ctr, config.RemoveVolume); err != nil {
@@ -179,8 +186,6 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 	for _, name := range linkNames {
 		daemon.releaseName(name)
 	}
-	ctr.State.SetRemoved()
-	metrics.StateCtr.Delete(ctr.ID)
 
 	daemon.LogContainerEvent(ctr, events.ActionDestroy)
 	return nil
