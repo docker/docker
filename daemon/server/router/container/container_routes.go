@@ -1145,17 +1145,24 @@ func (c *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		}
 
 		// set raw mode
-		conn.Write([]byte{})
+		if _, err := conn.Write([]byte{}); err != nil {
+			conn.Close()
+			return nil, nil, nil, err
+		}
 
 		if upgrade {
 			if multiplexed && versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.42") {
 				contentType = types.MediaTypeMultiplexedStream
 			}
-			// FIXME(thaJeztah): we should not ignore errors here; see https://github.com/moby/moby/pull/48359#discussion_r1725562802
-			fmt.Fprintf(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: %v\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n", contentType)
+			if _, err := fmt.Fprintf(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: %v\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n", contentType); err != nil {
+				conn.Close()
+				return nil, nil, nil, err
+			}
 		} else {
-			// FIXME(thaJeztah): we should not ignore errors here; see https://github.com/moby/moby/pull/48359#discussion_r1725562802
-			fmt.Fprint(conn, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+			if _, err := fmt.Fprint(conn, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n"); err != nil {
+				conn.Close()
+				return nil, nil, nil, err
+			}
 		}
 
 		go notifyClosed(ctx, conn, cancel)
