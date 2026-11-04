@@ -261,11 +261,11 @@ func (daemon *Daemon) loadContainers(ctx context.Context) (map[string]map[string
 		}
 
 		id := v.Name()
+		if err := sem.Acquire(context.WithoutCancel(ctx), 1); err != nil {
+			return nil, errors.Wrap(err, "failed to start container load task")
+		}
 		group.Go(func() {
-			if err := sem.Acquire(ctx, 1); err != nil {
-				// ctx is done.
-				return
-			}
+
 			defer sem.Release(1)
 
 			c, err := daemon.load(id)
@@ -322,10 +322,14 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	removeContainers := make(map[string]*container.Container)
 	restartContainers := make(map[*container.Container]chan struct{})
 	activeSandboxes := make(map[string]any)
+	failedRegistrations := make(map[string]struct{})
 
 	for _, c := range containers {
+		if err := sem.Acquire(context.WithoutCancel(ctx), 1); err != nil {
+			return errors.Wrap(err, "failed to start container registration task")
+		}
 		group.Go(func() {
-			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
+
 			defer sem.Release(1)
 
 			logger := log.G(ctx).WithField("container", c.ID)
@@ -346,24 +350,29 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			if err := daemon.registerName(c); err != nil {
 				logger.WithError(err).Errorf("failed to register container name: %s", c.Name)
 				mapLock.Lock()
-				delete(containers, c.ID)
+				failedRegistrations[c.ID] = struct{}{}
 				mapLock.Unlock()
 				return
 			}
 			if err := daemon.register(ctx, c); err != nil {
 				logger.WithError(err).Error("failed to register container")
 				mapLock.Lock()
-				delete(containers, c.ID)
+				failedRegistrations[c.ID] = struct{}{}
 				mapLock.Unlock()
 				return
 			}
 		})
 	}
 	group.Wait()
+	for id := range failedRegistrations {
+		delete(containers, id)
+	}
 
 	for _, c := range containers {
+		if err := sem.Acquire(context.WithoutCancel(ctx), 1); err != nil {
+			return errors.Wrap(err, "failed to start container finalization task")
+		}
 		group.Go(func() {
-			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
 			defer sem.Release(1)
 
 			baseLogger := log.G(ctx).WithField("container", c.ID)
@@ -642,8 +651,10 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 
 	// Now that all the containers are registered, register the links
 	for _, c := range containers {
+		if err := sem.Acquire(context.Background(), 1); err != nil {
+			return errors.Wrap(err, "failed to start container link registration task")
+		}
 		group.Go(func() {
-			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
 			defer sem.Release(1)
 
 			if err := daemon.registerLinks(c); err != nil {
@@ -654,8 +665,10 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	group.Wait()
 
 	for c, notifyChan := range restartContainers {
+		if err := sem.Acquire(context.WithoutCancel(ctx), 1); err != nil {
+			return errors.Wrap(err, "failed to start container restart task")
+		}
 		group.Go(func() {
-			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
 			defer sem.Release(1)
 
 			logger := log.G(ctx).WithField("container", c.ID)
@@ -689,20 +702,22 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	}
 	group.Wait()
 
-	for cid, c := range removeContainers {
+	for id, c := range removeContainers {
+		if err := sem.Acquire(context.Background(), 1); err != nil {
+			return errors.Wrap(err, "failed to start container removal task")
+		}
 		group.Go(func() {
-			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
 			defer sem.Release(1)
 
 			if c.State.IsDead() {
 				if err := daemon.cleanupContainer(c, backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
-					log.G(ctx).WithField("container", cid).WithError(err).Error("failed to remove dead container")
+					log.G(ctx).WithField("container", id).WithError(err).Error("failed to remove dead container")
 				}
 				return
 			}
 
-			if err := daemon.containerRm(&cfg.Config, cid, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
-				log.G(ctx).WithField("container", cid).WithError(err).Error("failed to remove container")
+			if err := daemon.containerRm(&cfg.Config, id, &backend.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+				log.G(ctx).WithField("container", id).WithError(err).Error("failed to remove container")
 			}
 		})
 	}
@@ -725,8 +740,10 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 			continue
 		}
 
+		if err := sem.Acquire(context.Background(), 1); err != nil {
+			return errors.Wrap(err, "failed to start mountpoint preparation task")
+		}
 		group.Go(func() {
-			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
 			defer sem.Release(1)
 
 			if err := daemon.prepareMountPoints(c); err != nil {
@@ -772,10 +789,11 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 		// swarm endpoint now that the cluster is
 		// initialized.
 		if cfg.AutoRestart && c.ShouldRestart() && c.NetworkSettings.HasSwarmEndpoint && c.HasBeenStartedBefore {
+			if err := sem.Acquire(ctx, 1); err != nil {
+				log.G(ctx).WithField("container", c.ID).WithError(err).Error("failed to start swarm container restart task")
+				break
+			}
 			group.Go(func() {
-				if err := sem.Acquire(ctx, 1); err != nil {
-					return
-				}
 				defer sem.Release(1)
 
 				if err := daemon.containerStart(ctx, cfg, c, "", "", true); err != nil {
