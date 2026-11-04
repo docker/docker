@@ -105,6 +105,23 @@ func (s *VolumesService) Get(ctx context.Context, name string, getOpts ...opts.G
 	if cfg.ResolveStatus {
 		vol.Status = v.Status()
 	}
+
+	if cfg.ResolveSize {
+		if vol.Mountpoint == "" {
+			vol.Mountpoint = v.Path()
+		}
+		sz, err := directory.Size(ctx, vol.Mountpoint)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				log.G(ctx).WithFields(log.Fields{
+					"error":  err,
+					"volume": v.Name(),
+				}).Warn("Failed to determine size of volume")
+			}
+			sz = -1
+		}
+		vol.UsageData = &volumetypes.UsageData{Size: sz, RefCount: int64(s.vs.CountReferences(v))}
+	}
 	return &vol, nil
 }
 

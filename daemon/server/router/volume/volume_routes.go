@@ -66,7 +66,7 @@ func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWrite
 	// we prefer to get volumes locally before attempting to get them from the
 	// cluster. Local volumes can only be looked up by name, but cluster
 	// volumes can also be looked up by ID.
-	vol, err := v.backend.Get(ctx, vars["name"], opts.WithGetResolveStatus)
+	vol, err := v.backend.Get(ctx, vars["name"], opts.WithGetResolveStatus, opts.WithGetResolveSize)
 
 	// if the volume is not found in the regular volume backend, and the client
 	// is using an API version greater than 1.42 (when cluster volumes were

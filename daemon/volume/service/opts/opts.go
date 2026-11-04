@@ -52,6 +52,7 @@ type GetConfig struct {
 	Driver        string
 	Reference     string
 	ResolveStatus bool
+	ResolveSize   bool
 }
 
 // GetOption is passed to the service `Get` add extra details on the get request
@@ -79,6 +80,12 @@ func WithGetReference(ref string) GetOption {
 // This can cause significant overhead in the volume lookup.
 func WithGetResolveStatus(cfg *GetConfig) {
 	cfg.ResolveStatus = true
+}
+
+// WithGetResolveSize indicates to `Get` to also calculate the volume size.
+// This can cause significant overhead in the volume lookup.
+func WithGetResolveSize(cfg *GetConfig) {
+	cfg.ResolveSize = true
 }
 
 // RemoveConfig is used by `RemoveOption` to store config options for remove
