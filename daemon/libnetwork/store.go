@@ -56,6 +56,8 @@ func (c *Controller) getNetworksFromStore(ctx context.Context) []*Network { // F
 }
 
 func (n *Network) getEndpointFromStore(eid string) (*Endpoint, error) {
+	n.ctrlr.endpointStoreMu.RLock()
+	defer n.ctrlr.endpointStoreMu.RUnlock()
 	ep := &Endpoint{id: eid, network: n}
 	err := n.ctrlr.store.GetObject(ep)
 	if err != nil {
@@ -68,6 +70,8 @@ func (n *Network) getEndpointFromStore(eid string) (*Endpoint, error) {
 func (n *Network) getEndpointsFromStore() ([]*Endpoint, error) {
 	var epl []*Endpoint
 
+	n.ctrlr.endpointStoreMu.RLock()
+	defer n.ctrlr.endpointStoreMu.RUnlock()
 	kvol, err := n.getController().store.List(&Endpoint{network: n})
 	if err != nil {
 		if !errors.Is(err, datastore.ErrKeyNotFound) {

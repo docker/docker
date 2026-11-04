@@ -135,6 +135,12 @@ type Controller struct {
 	endpoints map[string]*Endpoint
 	// endpointsMu protects the endpoints map.
 	endpointsMu sync.Mutex
+	// endpointStoreMu makes a store access and the matching change to the
+	// endpoints map one step, so an endpoint read from the store just before
+	// it's deleted can't be cached after the delete. Reads and writes hold it
+	// shared, deleteStoredEndpoint holds it exclusively. Take it before the
+	// store's and the map's own locks.
+	endpointStoreMu sync.RWMutex
 
 	// FIXME(thaJeztah): defOsSbox is always nil on non-Linux: move these fields to Linux-only files.
 	defOsSboxOnce sync.Once

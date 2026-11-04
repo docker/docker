@@ -11,6 +11,8 @@ import (
 //
 // This method is thread-safe.
 func (c *Controller) storeEndpoint(ctx context.Context, ep *Endpoint) error {
+	c.endpointStoreMu.RLock()
+	defer c.endpointStoreMu.RUnlock()
 	if err := c.updateToStore(ctx, ep); err != nil {
 		return err
 	}
@@ -23,6 +25,8 @@ func (c *Controller) storeEndpoint(ctx context.Context, ep *Endpoint) error {
 //
 // This method is thread-safe.
 func (c *Controller) deleteStoredEndpoint(ep *Endpoint) error {
+	c.endpointStoreMu.Lock()
+	defer c.endpointStoreMu.Unlock()
 	if err := c.deleteFromStore(ep); err != nil {
 		return err
 	}

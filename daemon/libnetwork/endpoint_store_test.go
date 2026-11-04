@@ -1,8 +1,10 @@
 package libnetwork
 
 import (
+	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -44,4 +46,38 @@ func TestEndpointStore(t *testing.T) {
 	// Store the second endpoint again
 	err = c.storeEndpoint(t.Context(), ep2)
 	assert.NilError(t, err)
+}
+
+// An endpoint read from the store just before its deletion must not end up in
+// the cache after it: Network.delete would see an active endpoint forever.
+func TestEndpointStoreDeleteRacingRead(t *testing.T) {
+	c, err := New(t.Context())
+	assert.NilError(t, err)
+	nw := &Network{id: "testNetwork", ctrlr: c}
+
+	stop := make(chan struct{})
+	var readers sync.WaitGroup
+	for range 4 {
+		readers.Go(func() {
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+					_, err := nw.getEndpointsFromStore()
+					assert.Check(t, err)
+				}
+			}
+		})
+	}
+
+	for i := range 2000 {
+		ep := &Endpoint{network: nw, id: fmt.Sprintf("testEndpoint%d", i)}
+		assert.NilError(t, c.storeEndpoint(t.Context(), ep))
+		assert.NilError(t, c.deleteStoredEndpoint(ep))
+	}
+	close(stop)
+	readers.Wait()
+
+	assert.Check(t, is.Len(c.findEndpoints(filterEndpointByNetworkId("testNetwork")), 0))
 }
