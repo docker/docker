@@ -1,0 +1,159 @@
+---
+name: Bump Docker version
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+permissions: {}
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  open-version-bump-pr:
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        base_branch:
+          - master
+          - docker-29.x
+    steps:
+      - name: Set Docker version
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          if [[ "$TAG_NAME" =~ ^docker-v(29\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "version=${BASH_REMATCH[1]}" >>"$GITHUB_ENV"
+          else
+            echo "Skipping non-release 29.x Docker tag '$TAG_NAME'"
+            echo "skip=true" >>"$GITHUB_ENV"
+          fi
+
+      - name: Checkout release automation
+        if: env.skip != 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          ref: master
+
+      - name: Determine release branch
+        if: env.skip != 'true'
+        env:
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          tag_commit=$(git rev-parse "refs/tags/$TAG_NAME^{commit}")
+          master_contains=false
+          release_contains=false
+
+          if git merge-base --is-ancestor "$tag_commit" origin/master; then
+            master_contains=true
+          fi
+          if git merge-base --is-ancestor "$tag_commit" origin/docker-29.x; then
+            release_contains=true
+          fi
+
+          case "$master_contains:$release_contains" in
+            true:false)
+              source_branch=master
+              ;;
+            false:true)
+              source_branch=docker-29.x
+              ;;
+            true:true)
+              # Master release tags are later synced into docker-29.x.
+              # Release-branch tags are not merged back into master.
+              source_branch=master
+              ;;
+            *)
+              echo "::error::$TAG_NAME is not reachable from master or docker-29.x"
+              exit 1
+              ;;
+          esac
+
+          echo "source_branch=$source_branch" >>"$GITHUB_ENV"
+          echo "$TAG_NAME was created from $source_branch"
+
+      - name: Preserve version bump script
+        if: env.skip != 'true'
+        run: cp releases/bump-version.sh "$RUNNER_TEMP/bump-version.sh"
+
+      - name: Checkout target branch
+        if: env.skip != 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ matrix.base_branch }}
+
+      - name: Bump Docker version
+        if: env.skip != 'true'
+        env:
+          BASE_BRANCH: ${{ matrix.base_branch }}
+        run: |
+          if [ "$BASE_BRANCH" = "$source_branch" ]; then
+            if [ "$BASE_BRANCH" = master ]; then
+              "$RUNNER_TEMP/bump-version.sh" docker next-minor "$version"
+            else
+              "$RUNNER_TEMP/bump-version.sh" docker next "$version"
+            fi
+          elif [ "$source_branch" = master ]; then
+            "$RUNNER_TEMP/bump-version.sh" docker next "$version"
+          fi
+          "$RUNNER_TEMP/bump-version.sh" docker last "$version"
+
+      - name: Open version bump PR
+        if: env.skip != 'true'
+        env:
+          BASE_BRANCH: ${{ matrix.base_branch }}
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.event.release.tag_name }}
+        run: |
+          if git diff --quiet -- releases/versions.yaml; then
+            echo "Skipping $BASE_BRANCH because version is unchanged"
+            exit 0
+          fi
+
+          branch="bump-docker-version-${version}-${BASE_BRANCH}"
+          milestone=$(yq -er '.docker.next' releases/versions.yaml)
+          title='releases: Bump Docker version'
+          if [ "$BASE_BRANCH" != master ]; then
+            title="[$BASE_BRANCH] $title"
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$branch"
+          git add releases/versions.yaml
+          git commit --signoff -m 'releases: Bump Docker version'
+
+          remote_sha=$(git ls-remote --heads origin "$branch")
+          remote_sha=$(awk '{ print $1 }' <<<"$remote_sha")
+          if [ -n "$remote_sha" ]; then
+            git push \
+              --force-with-lease="refs/heads/$branch:$remote_sha" \
+              origin "$branch"
+          else
+            git push origin "$branch"
+          fi
+
+          if gh pr view "$branch" --json number >/dev/null 2>&1; then
+            gh pr edit "$branch" \
+              --title "$title" \
+              --body "Automated Docker version bump after $TAG_NAME." \
+              --milestone "$milestone"
+            echo "PR for $branch already exists"
+            exit 0
+          fi
+
+          gh pr create \
+            --base "$BASE_BRANCH" \
+            --head "$branch" \
+            --title "$title" \
+            --body "Automated Docker version bump after $TAG_NAME." \
+            --milestone "$milestone"
