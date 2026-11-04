@@ -1,3 +1,12 @@
+# Release (2026-11-03)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.28.8
+  * **Bug Fix**: Preserve the exact value of numbers in JSON codec instead of automatically parsing to float64.
+
 # Release (2026-10-27)
 
 ## General Highlights

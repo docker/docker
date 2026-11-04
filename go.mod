@@ -24,7 +24,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.13
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.5
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.91.0
-	github.com/aws/smithy-go v1.28.7
+	github.com/aws/smithy-go v1.28.8
 	github.com/cloudflare/cfssl v1.6.5
 	github.com/containerd/cgroups/v3 v3.1.3
 	github.com/containerd/containerd/api v1.12.0
