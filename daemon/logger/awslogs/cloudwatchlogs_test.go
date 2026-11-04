@@ -1037,6 +1037,139 @@ func TestCollectBatchClose(t *testing.T) {
 	assert.Equal(t, logline, *(argument.LogEvents[0].Message))
 }
 
+// TestCollectBatchLogDoesNotBlockBeforeStreamCreated verifies that messages are
+// consumed while the log stream is still being created.
+//
+// In non-blocking mode the log stream is created by a goroutine that retries
+// indefinitely, so a log group that does not exist keeps creation pending
+// forever. If nothing drained the message queue in the meantime, Log would
+// block once the queue filled up, which deadlocked container exit.
+func TestCollectBatchLogDoesNotBlockBeforeStreamCreated(t *testing.T) {
+	stream := &logStream{
+		client:        &mockClient{},
+		logGroupName:  groupName,
+		logStreamName: streamName,
+		sequenceToken: aws.String(sequenceToken),
+		messages:      loggerutils.NewMessageQueue(1),
+	}
+
+	// Never closed: the log stream is never created.
+	created := make(chan bool)
+	go stream.collectBatch(created)
+	defer stream.Close()
+
+	logged := make(chan struct{})
+	go func() {
+		defer close(logged)
+		// More messages than the queue can hold.
+		for range 100 {
+			stream.Log(&logger.Message{
+				Line:      []byte(logline),
+				Timestamp: time.Time{},
+			})
+		}
+	}()
+
+	select {
+	case <-logged:
+	case <-time.After(30 * time.Second):
+		t.Fatal("Log blocked while the log stream was still being created")
+	}
+}
+
+// TestCollectBatchCloseBeforeStreamCreated verifies that closing the driver
+// stops batching even if the log stream was never created. Otherwise the
+// goroutine outlives the container it logs for.
+func TestCollectBatchCloseBeforeStreamCreated(t *testing.T) {
+	stream := &logStream{
+		client:        &mockClient{},
+		logGroupName:  groupName,
+		logStreamName: streamName,
+		sequenceToken: aws.String(sequenceToken),
+		messages:      loggerutils.NewMessageQueue(1),
+	}
+
+	// Never closed: the log stream is never created.
+	created := make(chan bool)
+	collectDone := make(chan struct{})
+	go func() {
+		defer close(collectDone)
+		stream.collectBatch(created)
+	}()
+
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Time{},
+	})
+	stream.Close()
+
+	select {
+	case <-collectDone:
+	case <-time.After(30 * time.Second):
+		t.Fatal("collectBatch did not return after the driver was closed")
+	}
+}
+
+// TestCollectBatchStreamCreatedLate verifies that batching resumes normally
+// once the log stream is created, after messages have been discarded while
+// creation was pending.
+func TestCollectBatchStreamCreatedLate(t *testing.T) {
+	mockClient := &mockClient{}
+	stream := &logStream{
+		client:        mockClient,
+		logGroupName:  groupName,
+		logStreamName: streamName,
+		sequenceToken: aws.String(sequenceToken),
+		messages:      loggerutils.NewMessageQueue(0),
+	}
+	var calls []*cloudwatchlogs.PutLogEventsInput
+	called := make(chan struct{}, 50)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		called <- struct{}{}
+		return &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		}, nil
+	}
+	ticks := make(chan time.Time)
+	newTicker = func(_ time.Duration) *time.Ticker {
+		return &time.Ticker{
+			C: ticks,
+		}
+	}
+
+	created := make(chan bool)
+	go stream.collectBatch(created)
+
+	// The queue is unbuffered, so this returns once the message has been
+	// received, which can only be the goroutine discarding it while the log
+	// stream does not exist yet.
+	stream.Log(&logger.Message{
+		Line:      []byte("dropped while the log stream did not exist"),
+		Timestamp: time.Time{},
+	})
+
+	close(created)
+
+	// The batch is empty, so this tick publishes nothing. It only blocks until
+	// collectBatch has observed that the log stream was created and reached its
+	// main loop, so that the message below is batched instead of discarded.
+	ticks <- time.Time{}
+
+	stream.Log(&logger.Message{
+		Line:      []byte(logline),
+		Timestamp: time.Time{},
+	})
+	ticks <- time.Time{}
+
+	<-called
+	stream.Close()
+
+	assert.Assert(t, is.Len(calls, 1))
+	assert.Assert(t, is.Len(calls[0].LogEvents, 1))
+	assert.Equal(t, logline, aws.ToString(calls[0].LogEvents[0].Message))
+}
+
 func TestEffectiveLen(t *testing.T) {
 	tests := []struct {
 		str            string

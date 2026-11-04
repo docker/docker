@@ -171,26 +171,36 @@ func New(info logger.Info) (logger.Logger, error) {
 
 	creationDone := make(chan bool)
 	if logNonBlocking {
-		const maxBackoff = 32
+		const maxBackoff = 32 * time.Second
 		go func() {
-			backoff := 1
+			defer close(creationDone)
+
+			backoff := 1 * time.Second
 			// We're done when the logger is closed
 			for !containerStream.closed.Load() {
-				if err := containerStream.create(); err == nil {
-					break
+				err := containerStream.create()
+				if err == nil {
+					return
 				}
 
-				time.Sleep(time.Duration(backoff) * time.Second)
-				if backoff < maxBackoff {
-					backoff *= 2
-				}
 				log.G(context.TODO()).WithFields(log.Fields{
 					"error":          err,
 					"container-id":   info.ContainerID,
 					"container-name": info.ContainerName,
-				}).Error("Error while trying to initialize awslogs. Retrying in: ", backoff, " seconds")
+				}).Error("Error while trying to initialize awslogs. Retrying in: ", backoff)
+
+				select {
+				case <-time.After(backoff):
+				case <-containerStream.messages.Done():
+					// The logger was closed while waiting to retry. Stop here
+					// instead of keeping this goroutine (and the container's
+					// logger) alive for the remainder of the backoff.
+					return
+				}
+				if backoff < maxBackoff {
+					backoff *= 2
+				}
 			}
-			close(creationDone)
 		}()
 	} else {
 		if err = containerStream.create(); err != nil {
@@ -669,8 +679,13 @@ var newTicker = func(freq time.Duration) *time.Ticker {
 // Logs, the processEvents method is called.  If a multiline pattern is not
 // configured, log events are submitted to the processEvents method immediately.
 func (l *logStream) collectBatch(created chan bool) {
+	chLogs := l.messages.Receiver()
+
 	// Wait for the logstream/group to be created
-	<-created
+	if !l.waitCreated(created, chLogs) {
+		return
+	}
+
 	flushInterval := l.forceFlushInterval
 	if flushInterval <= 0 {
 		flushInterval = defaultForceFlushInterval
@@ -680,7 +695,6 @@ func (l *logStream) collectBatch(created chan bool) {
 	var eventBufferTimestamp int64
 	batch := newEventBatch()
 
-	chLogs := l.messages.Receiver()
 	for {
 		select {
 		case t := <-ticker.C:
@@ -727,6 +741,51 @@ func (l *logStream) collectBatch(created chan bool) {
 				l.processEvent(batch, line, msg.Timestamp.UnixNano()/int64(time.Millisecond))
 				logger.PutMessage(msg)
 			}
+		}
+	}
+}
+
+// waitCreated waits for the log stream to be created, discarding any messages
+// received in the meantime. It reports whether the log stream was created; a
+// false return means the driver was closed first and no batching should be
+// performed.
+//
+// Messages must keep being consumed while the log stream is being created. The
+// message queue is bounded and [logStream.Log] blocks once it is full, so a log
+// stream that takes a long time to create -- or that can never be created, such
+// as a log stream in a log group that does not exist, which is retried
+// indefinitely in non-blocking mode -- would otherwise block the caller
+// forever. That in turn blocks container exit, because the ring logger used for
+// non-blocking mode waits for its forwarding goroutine to return before closing
+// this driver, and closing this driver is what would unblock that goroutine.
+//
+// The messages are discarded because there is nowhere to put them until the log
+// stream exists, and buffering them is what fills the queue to begin with. This
+// also drops messages logged during the short window in which a log stream is
+// created successfully, which is a deliberate trade: this only applies to
+// non-blocking mode, which is lossy by definition, and the alternative is to
+// keep blocking the container.
+func (l *logStream) waitCreated(created <-chan bool, chLogs <-chan *logger.Message) bool {
+	for {
+		// Check whether the log stream exists before receiving a message, so
+		// that messages are only discarded for as long as there is nowhere to
+		// put them. A message that arrives at the same time as the log stream
+		// is created may still be discarded, which is acceptable: this only
+		// happens in non-blocking mode, which is lossy by definition.
+		select {
+		case <-created:
+			return true
+		default:
+		}
+
+		select {
+		case <-created:
+			return true
+		case msg, more := <-chLogs:
+			if !more {
+				return false
+			}
+			logger.PutMessage(msg)
 		}
 	}
 }

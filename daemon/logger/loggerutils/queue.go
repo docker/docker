@@ -143,6 +143,21 @@ func (q *MessageQueue) Close() {
 	close(q.closeWait)
 }
 
+// Done returns a channel that is closed when [MessageQueue.Close] is called.
+//
+// Unlike the channel returned by [MessageQueue.Receiver], which stays open
+// until the queue has been drained, this channel is closed as soon as the queue
+// starts closing. It can be used to interrupt work that should not outlive the
+// queue.
+func (q *MessageQueue) Done() <-chan struct{} {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	q.init()
+
+	return q.closed
+}
+
 // Receiver returns a channel that can be used to dequeue messages
 // The channel will be closed when the message queue is closed but may have
 // messages buffered.
