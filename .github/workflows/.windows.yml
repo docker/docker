@@ -32,7 +32,7 @@ env:
   GO_VERSION: "1.26.10"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
-  WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
+  WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/nanoserver
   WINDOWS_BASE_TAG_2022: ltsc2022
   WINDOWS_BASE_TAG_2025: ltsc2025
   TEST_IMAGE_NAME: moby:test
