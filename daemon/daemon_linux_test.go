@@ -111,33 +111,44 @@ func TestCleanupMounts(t *testing.T) {
 	}
 
 	t.Run("aufs", func(t *testing.T) {
-		expected := "/var/lib/docker/containers/d045dc441d2e2e1d5b3e328d47e5943811a40819fb47497c5f5a5df2d6d13c37/shm"
+		const expected = "/var/lib/docker/containers/d045dc441d2e2e1d5b3e328d47e5943811a40819fb47497c5f5a5df2d6d13c37/shm"
 		var unmounted int
-		unmount := func(target string) error {
+		err := d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixture), "", func(target string) error {
 			if target == expected {
 				unmounted++
 			}
 			return nil
-		}
-
-		err := d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixture), "", unmount)
+		})
 		assert.NilError(t, err)
 		assert.Equal(t, unmounted, 1, "Expected to unmount the shm (and the shm only)")
 	})
 
 	t.Run("overlay2", func(t *testing.T) {
-		expected := "/var/lib/docker/containers/404a7f860e600bfc144f7b5d9140d80bf3072fbb97659f98bc47039fd73d2695/mounts/shm"
+		const expected = "/var/lib/docker/containers/404a7f860e600bfc144f7b5d9140d80bf3072fbb97659f98bc47039fd73d2695/mounts/shm"
 		var unmounted int
-		unmount := func(target string) error {
+		err := d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixtureOverlay2), "", func(target string) error {
 			if target == expected {
 				unmounted++
 			}
 			return nil
-		}
-
-		err := d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixtureOverlay2), "", unmount)
+		})
 		assert.NilError(t, err)
 		assert.Equal(t, unmounted, 1, "Expected to unmount the shm (and the shm only)")
+	})
+
+	// Verify escaped mountpoint characters are decoded before matching and unmounting.
+	t.Run("escaped mountpoint", func(t *testing.T) {
+		const expected = "/var/lib/docker data/containers/404a7f860e600bfc144f7b5d9140d80bf3072fbb97659f98bc47039fd73d2695/mounts/shm"
+		const mountInfo = `123 456 0:42 / /var/lib/docker\040data/containers/404a7f860e600bfc144f7b5d9140d80bf3072fbb97659f98bc47039fd73d2695/mounts/shm rw,relatime - tmpfs tmpfs rw` //nolint:dupword
+
+		var unmounted string
+		d2 := &Daemon{root: "/var/lib/docker data"}
+		err := d2.cleanupMountsFromReaderByID(strings.NewReader(mountInfo), "", func(target string) error {
+			unmounted = target
+			return nil
+		})
+		assert.NilError(t, err)
+		assert.Equal(t, unmounted, expected)
 	})
 }
 
@@ -146,16 +157,15 @@ func TestCleanupMountsByID(t *testing.T) {
 		root: "/var/lib/docker/",
 	}
 	t.Run("overlay2", func(t *testing.T) {
-		expected := "/var/lib/docker/overlay2/3a4b807fcb98c208573f368c5654a6568545a7f92404a07d0045eb5c85acaf67/merged"
+		const mntID = "3a4b807fcb98c208573f368c5654a6568545a7f92404a07d0045eb5c85acaf67"
+		const expected = "/var/lib/docker/overlay2/3a4b807fcb98c208573f368c5654a6568545a7f92404a07d0045eb5c85acaf67/merged"
 		var unmounted int
-		unmount := func(target string) error {
+		err := d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixtureOverlay2), mntID, func(target string) error {
 			if target == expected {
 				unmounted++
 			}
 			return nil
-		}
-
-		err := d.cleanupMountsFromReaderByID(strings.NewReader(mountsFixtureOverlay2), "3a4b807fcb98c208573f368c5654a6568545a7f92404a07d0045eb5c85acaf67", unmount)
+		})
 		assert.NilError(t, err)
 		assert.Equal(t, unmounted, 1, "Expected to unmount the root (and that only)")
 	})
@@ -165,15 +175,14 @@ func TestNotCleanupMounts(t *testing.T) {
 	d := &Daemon{
 		repository: "",
 	}
-	var unmounted bool
-	unmount := func(target string) error {
-		unmounted = true
+	var unmounted int
+	const mountInfo = `234 232 0:59 / /dev/shm rw,nosuid,nodev,noexec,relatime - tmpfs shm rw,size=65536k`
+	err := d.cleanupMountsFromReaderByID(strings.NewReader(mountInfo), "", func(target string) error {
+		unmounted++
 		return nil
-	}
-	mountInfo := `234 232 0:59 / /dev/shm rw,nosuid,nodev,noexec,relatime - tmpfs shm rw,size=65536k`
-	err := d.cleanupMountsFromReaderByID(strings.NewReader(mountInfo), "", unmount)
+	})
 	assert.NilError(t, err)
-	assert.Equal(t, unmounted, false, "Expected not to clean up /dev/shm")
+	assert.Equal(t, unmounted, 0, "Expected not to clean up /dev/shm")
 }
 
 func TestValidateContainerIsolationLinux(t *testing.T) {

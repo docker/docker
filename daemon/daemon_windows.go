@@ -477,7 +477,7 @@ func (daemon *Daemon) registerLinks(container *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) cleanupMountsByID(in string) error {
+func (daemon *Daemon) cleanupMountsByID(_ string) error {
 	return nil
 }
 
