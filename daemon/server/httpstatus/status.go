@@ -24,6 +24,8 @@ func FromError(err error) int {
 
 	// Note that the below functions are already checking the error causal chain for matches.
 	// Only check errors from the errdefs package, no new error type checking may be added
+	//
+	// TODO(thaJeztah): rewrite using github.com/containerd/errdefs/pkg/errhttp.ToHTTP after providing a utility to detect if a match was found.
 	switch {
 	case cerrdefs.IsNotFound(rerr):
 		return http.StatusNotFound
@@ -33,6 +35,10 @@ func FromError(err error) int {
 		return http.StatusConflict
 	case cerrdefs.IsUnauthorized(rerr):
 		return http.StatusUnauthorized
+	case cerrdefs.IsFailedPrecondition(rerr):
+		return http.StatusPreconditionFailed
+	case cerrdefs.IsResourceExhausted(rerr):
+		return http.StatusTooManyRequests
 	case cerrdefs.IsUnavailable(rerr):
 		return http.StatusServiceUnavailable
 	case cerrdefs.IsPermissionDenied(rerr):
@@ -111,14 +117,13 @@ func statusCodeFromGRPCError(err error) int {
 func statusCodeFromDistributionError(err error) int {
 	switch errs := err.(type) {
 	case errcode.Errors:
-		if len(errs) < 1 {
-			return http.StatusInternalServerError
-		}
-		if _, ok := errs[0].(errcode.ErrorCoder); ok {
+		if len(errs) > 0 {
 			return statusCodeFromDistributionError(errs[0])
 		}
+		return http.StatusInternalServerError
 	case errcode.ErrorCoder:
 		return errs.ErrorCode().Descriptor().HTTPStatusCode
+	default:
+		return http.StatusInternalServerError
 	}
-	return http.StatusInternalServerError
 }
