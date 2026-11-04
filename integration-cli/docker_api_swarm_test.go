@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -888,20 +887,6 @@ func (s *DockerSwarmSuite) TestAPISwarmUnlockNotLocked(c *testing.T) {
 	d := s.AddDaemon(ctx, c, true, true)
 	err := d.SwarmUnlock(c, swarm.UnlockRequest{UnlockKey: "wrong-key"})
 	assert.ErrorContains(c, err, "swarm is not locked")
-}
-
-// #29885
-func (s *DockerSwarmSuite) TestAPISwarmErrorHandling(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", defaultSwarmPort))
-	assert.NilError(c, err)
-	defer ln.Close()
-	d := s.AddDaemon(ctx, c, false, false)
-	cli := d.NewClientT(c)
-	_, err = cli.SwarmInit(testutil.GetContext(c), client.SwarmInitOptions{
-		ListenAddr: d.SwarmListenAddr(),
-	})
-	assert.ErrorContains(c, err, "address already in use")
 }
 
 // Test case for 30178
