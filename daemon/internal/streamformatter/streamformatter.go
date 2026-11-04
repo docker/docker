@@ -3,6 +3,7 @@ package streamformatter
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -32,7 +33,7 @@ func FormatStatus(id, format string, a ...any) []byte {
 
 // FormatError formats the error as a JSON object
 func FormatError(err error) []byte {
-	jsonError, ok := err.(*jsonstream.Error)
+	jsonError, ok := errors.AsType[*jsonstream.Error](err)
 	if !ok {
 		jsonError = &jsonstream.Error{Message: err.Error()}
 	}

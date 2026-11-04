@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -33,6 +34,11 @@ func TestFormatError(t *testing.T) {
 		{
 			name:     "JSON error",
 			err:      &jsonstream.Error{Code: http.StatusBadRequest, Message: "JSON error"},
+			expected: `{"error":"JSON error","errorDetail":{"code":400,"message":"JSON error"}}`,
+		},
+		{
+			name:     "wrapped JSON error",
+			err:      fmt.Errorf("pull failed: %w", &jsonstream.Error{Code: http.StatusBadRequest, Message: "JSON error"}),
 			expected: `{"error":"JSON error","errorDetail":{"code":400,"message":"JSON error"}}`,
 		},
 	}
