@@ -64,20 +64,21 @@ func NewCleaner(ctx context.Context, config firewaller.Config) firewaller.Firewa
 }
 
 func (ic iptablesCleaner) DelNetwork(ctx context.Context, nc firewaller.NetworkConfig) {
-	if nc.Internal {
-		return
-	}
 	n := network{
 		config: nc,
 		ipt:    &Iptabler{config: ic.config},
 	}
 	if ic.config.IPv4 && nc.Config4.Prefix.IsValid() {
 		_ = deleteLegacyFilterRules(iptables.IPv4, nc.IfName)
-		_ = n.setupNonInternalNetworkRules(ctx, iptables.IPv4, nc.Config4, false)
+		if !nc.Internal {
+			_ = n.setupNonInternalNetworkRules(ctx, iptables.IPv4, nc.Config4, false)
+		}
 	}
 	if ic.config.IPv6 && nc.Config6.Prefix.IsValid() {
 		_ = deleteLegacyFilterRules(iptables.IPv6, nc.IfName)
-		_ = n.setupNonInternalNetworkRules(ctx, iptables.IPv6, nc.Config6, false)
+		if !nc.Internal {
+			_ = n.setupNonInternalNetworkRules(ctx, iptables.IPv6, nc.Config6, false)
+		}
 	}
 }
 
