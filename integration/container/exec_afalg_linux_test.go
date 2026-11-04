@@ -21,6 +21,17 @@ import (
 	"gotest.tools/v3/skip"
 )
 
+// socketcallIA32UnavailableExitCode is the exit code of testdata/socketcall.c
+// when the host kernel has no ia32 emulation, so int $0x80 raises SIGSEGV.
+const socketcallIA32UnavailableExitCode = 77
+
+// skipIfIA32Unavailable skips the test if the socketcall program reported that
+// the host kernel does not support the ia32 compat syscall path.
+func skipIfIA32Unavailable(t *testing.T, res container.ExecResult) {
+	t.Helper()
+	skip.If(t, res.ExitCode == socketcallIA32UnavailableExitCode, "host kernel has no ia32 emulation (int $0x80)")
+}
+
 // kernelSupportsAFALG reports whether the host kernel has the AF_ALG address
 // family registered. Starting with kernel 7.2, AF_ALG is deprecated and may
 // be built without CONFIG_CRYPTO_USER_API, so socket creation fails with
@@ -163,6 +174,7 @@ func TestExecSocketDenied(t *testing.T) {
 				},
 			)
 			assert.NilError(t, err)
+			skipIfIA32Unavailable(t, res)
 			assert.Check(t, is.Equal(res.ExitCode, 1), "expected AF_ALG socketcall to fail, got: %s", res.Combined())
 			assert.Check(t, is.Contains(strings.ToLower(res.Combined()), "permission denied"))
 		})
@@ -185,6 +197,7 @@ func TestExecSocketDenied(t *testing.T) {
 				},
 			)
 			assert.NilError(t, err)
+			skipIfIA32Unavailable(t, res)
 			probeOutput := res.Combined()
 			if res.ExitCode == 1 {
 				out := strings.ToLower(probeOutput)
@@ -330,6 +343,7 @@ func TestExecSocketDenied(t *testing.T) {
 				},
 			)
 			assert.NilError(t, err)
+			skipIfIA32Unavailable(t, res)
 			assert.Check(t, is.Equal(res.ExitCode, 0), "expected AF_INET socketcall to succeed, got: %s", res.Combined())
 		})
 	})

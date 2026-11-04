@@ -6,10 +6,16 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
+#include <sys/wait.h>
 
+#define SYS_GETPID_I386 20
 #define SYS_SOCKETCALL_I386 102
 #define SYS_SOCKET 1
 #define SYS_CONNECT 3
+
+/* Exit code reported when the kernel has no ia32 emulation. */
+#define IA32_UNAVAILABLE_EXIT_CODE 77
 
 #ifndef SOCK_FAMILY
 #error "define SOCK_FAMILY via -DSOCK_FAMILY=..."
@@ -76,7 +82,45 @@ static int read_full(int fd, char *buf, size_t len) {
 }
 #endif
 
+/*
+ * Check that int $0x80 works at all. A kernel built without
+ * CONFIG_IA32_EMULATION, or booted with ia32_emulation=0, delivers SIGSEGV
+ * instead of returning an error. Run the check in a child process with core
+ * dumps disabled, so that the failure is neither fatal nor leaves a core file.
+ */
+static int ia32_emulation_available(void) {
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("fork");
+        return 1;
+    }
+    if (pid == 0) {
+        struct rlimit no_core = {0, 0};
+        setrlimit(RLIMIT_CORE, &no_core);
+        int ret;
+        asm volatile (
+            "int $0x80"
+            : "=a"(ret)
+            : "a"(SYS_GETPID_I386)
+            : "memory"
+        );
+        _exit(0);
+    }
+
+    int status;
+    if (waitpid(pid, &status, 0) < 0) {
+        perror("waitpid");
+        return 1;
+    }
+    return !(WIFSIGNALED(status) && WTERMSIG(status) == SIGSEGV);
+}
+
 int main() {
+    if (!ia32_emulation_available()) {
+        fprintf(stderr, "ia32 emulation is not available\n");
+        return IA32_UNAVAILABLE_EXIT_CODE;
+    }
+
     /*
      * The int $0x80 ia32 compat path truncates all registers to 32 bits.
      * Every pointer used by socketcall must live below 4 GB, so keep its
