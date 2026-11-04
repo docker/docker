@@ -86,6 +86,37 @@ func TestContainerLabels(t *testing.T) {
 	assert.DeepEqual(t, expected, labels)
 }
 
+func TestExtraHostsConversion(t *testing.T) {
+	tests := []struct {
+		name string
+		from []string
+		to   []string
+	}{
+		{name: "single name", from: []string{"1.2.3.4 foo.example.com"}, to: []string{"foo.example.com:1.2.3.4"}},
+		{name: "aliases", from: []string{"1.1.1.1 host1 host2"}, to: []string{"host1 host2:1.1.1.1"}},
+		{name: "ipv6 with aliases", from: []string{"2001:db8::1 host1 host2"}, to: []string{"host1 host2:2001:db8::1"}},
+		{name: "extra whitespace", from: []string{"  1.1.1.1\thost1   host2  "}, to: []string{"host1 host2:1.1.1.1"}},
+		{name: "ip without hostname is skipped", from: []string{"10.0.0.1"}, to: nil},
+		{name: "multiple entries", from: []string{"1.1.1.1 host1 host2", "2.2.2.2 host3"}, to: []string{"host1 host2:1.1.1.1", "host3:2.2.2.2"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			task := swarmapi.Task{
+				Spec: swarmapi.TaskSpec{
+					Runtime: &swarmapi.TaskSpec_Container{
+						Container: &swarmapi.ContainerSpec{
+							Image: "alpine:latest",
+							Hosts: tc.from,
+						},
+					},
+				},
+			}
+			config := containerConfig{task: &task}
+			assert.DeepEqual(t, tc.to, config.hostConfig(nil).ExtraHosts)
+		})
+	}
+}
+
 func TestCredentialSpecConversion(t *testing.T) {
 	tests := []struct {
 		name string

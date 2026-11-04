@@ -439,12 +439,11 @@ func (c *containerConfig) hostConfig(deps exec.VolumeGetter) *container.HostConf
 	//    IP_address canonical_hostname [aliases...]
 	// However, the format of ExtraHosts in HostConfig is
 	//    <host>:<ip>
-	// We need to do the conversion here
-	// (Alias is ignored for now)
+	// We need to do the conversion here.
 	for _, entry := range c.spec().Hosts {
 		parts := strings.Fields(entry)
 		if len(parts) > 1 {
-			hc.ExtraHosts = append(hc.ExtraHosts, fmt.Sprintf("%s:%s", parts[1], parts[0]))
+			hc.ExtraHosts = append(hc.ExtraHosts, fmt.Sprintf("%s:%s", strings.Join(parts[1:], " "), parts[0]))
 		}
 	}
 
