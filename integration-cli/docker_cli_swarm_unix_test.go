@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/integration-cli/checker"
@@ -97,8 +96,6 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *testing.T) {
 	// disable plugin on worker
 	_, err = d2.Cmd("plugin", "disable", "-f", pluginName)
 	assert.NilError(c, err)
-
-	time.Sleep(20 * time.Second)
 
 	const imgName = "busybox:latest"
 	// create a new global service again.
