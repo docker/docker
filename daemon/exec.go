@@ -149,9 +149,13 @@ func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.E
 	}
 
 	daemon.registerExecCommand(cntr, execConfig)
-	daemon.LogContainerEventWithAttributes(cntr, events.Action(string(events.ActionExecCreate)+": "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " ")), map[string]string{
+	attributes := map[string]string{
 		"execID": execConfig.ID,
-	})
+	}
+	if execConfig.ExecType != "" {
+		attributes["execType"] = execConfig.ExecType
+	}
+	daemon.LogContainerEventWithAttributes(cntr, events.Action(string(events.ActionExecCreate)+": "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " ")), attributes)
 
 	return execConfig.ID, nil
 }
@@ -184,9 +188,13 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	ec.Unlock()
 
 	log.G(ctx).Debugf("starting exec command %s in container %s", ec.ID, ec.Container.ID)
-	daemon.LogContainerEventWithAttributes(ec.Container, events.Action(string(events.ActionExecStart)+": "+ec.Entrypoint+" "+strings.Join(ec.Args, " ")), map[string]string{
+	attributes := map[string]string{
 		"execID": ec.ID,
-	})
+	}
+	if ec.ExecType != "" {
+		attributes["execType"] = ec.ExecType
+	}
+	daemon.LogContainerEventWithAttributes(ec.Container, events.Action(string(events.ActionExecStart)+": "+ec.Entrypoint+" "+strings.Join(ec.Args, " ")), attributes)
 
 	defer func() {
 		if retErr != nil {
@@ -333,9 +341,13 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 			if _, ok := err.(term.EscapeError); !ok {
 				return errdefs.System(errors.Wrap(err, "exec attach failed"))
 			}
-			daemon.LogContainerEventWithAttributes(ec.Container, events.ActionExecDetach, map[string]string{
+			detachAttributes := map[string]string{
 				"execID": ec.ID,
-			})
+			}
+			if ec.ExecType != "" {
+				detachAttributes["execType"] = ec.ExecType
+			}
+			daemon.LogContainerEventWithAttributes(ec.Container, events.ActionExecDetach, detachAttributes)
 		}
 	}
 	return nil

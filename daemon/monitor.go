@@ -219,10 +219,17 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 		}
 
 		exitCode := 127
-		if execConfig := c.ExecCommands.Get(ei.ProcessID); execConfig != nil {
+		var execType string
+		execConfig := c.ExecCommands.Get(ei.ProcessID)
+		if execConfig == nil && daemon.execCommands != nil {
+			execConfig = daemon.execCommands.Get(ei.ProcessID)
+		}
+		if execConfig != nil {
 			ec := int(ei.ExitCode)
 			execConfig.Lock()
 			defer execConfig.Unlock()
+
+			execType = execConfig.ExecType
 
 			// Remove the exec command from the container's store only and not the
 			// daemon's store so that the exec command can be inspected. Remove it
@@ -263,10 +270,14 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 				}()
 			}
 		}
-		daemon.LogContainerEventWithAttributes(c, events.ActionExecDie, map[string]string{
+		attributes := map[string]string{
 			"execID":   ei.ProcessID,
 			"exitCode": strconv.Itoa(exitCode),
-		})
+		}
+		if execType != "" {
+			attributes["execType"] = execType
+		}
+		daemon.LogContainerEventWithAttributes(c, events.ActionExecDie, attributes)
 		return nil
 	case libcontainerdtypes.EventStart:
 		c.Lock()

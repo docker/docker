@@ -13,6 +13,13 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 )
 
+const (
+	// ExecTypeDefault represents a standard user-initiated container exec.
+	ExecTypeDefault = "exec"
+	// ExecTypeHealthcheck represents an exec initiated by the daemon for container healthcheck probe.
+	ExecTypeHealthcheck = "healthcheck"
+)
+
 // ExecConfig holds the configurations for execs. The Daemon keeps
 // track of both running and finished execs so that they can be
 // examined both during and after completion.
@@ -38,6 +45,7 @@ type ExecConfig struct {
 	Env          []string
 	Process      types.Process
 	ConsoleSize  *[2]uint
+	ExecType     string
 }
 
 // NewExecConfig initializes the a new exec configuration
@@ -47,6 +55,7 @@ func NewExecConfig(c *Container) *ExecConfig {
 		Container:    c,
 		StreamConfig: stream.NewConfig(),
 		Started:      make(chan struct{}),
+		ExecType:     ExecTypeDefault,
 	}
 }
 

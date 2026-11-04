@@ -9,7 +9,11 @@ import (
 	eventtypes "github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/events"
+	filters "github.com/moby/moby/v2/daemon/internal/filters"
+	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 	swarmapi "github.com/moby/swarmkit/v2/api"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestLogContainerEventCopyLabels(t *testing.T) {
@@ -159,4 +163,112 @@ func TestEventTimestamp(t *testing.T) {
 			tc.check(t, result)
 		})
 	}
+}
+
+func TestExecEventsExecType(t *testing.T) {
+	d := &Daemon{
+		containers:    container.NewMemoryStore(),
+		execCommands:  container.NewExecStore(),
+		EventsService: events.New(),
+	}
+
+	_, l, cancel := d.EventsService.Subscribe()
+	defer cancel()
+
+	ctr := &container.Container{
+		ID:           "test_container_id",
+		Name:         "/test_container",
+		Config:       &containertypes.Config{Image: "test_image"},
+		ExecCommands: container.NewExecStore(),
+		State:        &container.State{Running: true},
+	}
+	d.containers.Add(ctr.ID, ctr)
+
+	// 1. Standard exec create event contains execType="exec"
+	execID, err := d.ContainerExecCreate(ctr.ID, &containertypes.ExecCreateRequest{
+		Cmd: []string{"echo", "hello"},
+	})
+	assert.NilError(t, err)
+
+	select {
+	case ev := <-l:
+		msg, ok := ev.(eventtypes.Message)
+		assert.Assert(t, ok)
+		assert.Check(t, is.Equal(string(msg.Action), string(eventtypes.ActionExecCreate)+": echo hello"))
+		assert.Check(t, is.Equal(msg.Actor.Attributes["execType"], container.ExecTypeDefault))
+		assert.Check(t, is.Equal(msg.Actor.Attributes["execID"], execID))
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for exec_create event")
+	}
+
+	// 2. Standard exec exit (exec_die) event contains execType="exec"
+	err = d.ProcessEvent(ctr.ID, libcontainerdtypes.EventExit, libcontainerdtypes.EventInfo{
+		ProcessID: execID,
+		ExitCode:  0,
+	})
+	assert.NilError(t, err)
+
+	var stdDieEv eventtypes.Message
+	select {
+	case ev := <-l:
+		msg, ok := ev.(eventtypes.Message)
+		assert.Assert(t, ok)
+		assert.Check(t, is.Equal(msg.Action, eventtypes.ActionExecDie))
+		assert.Check(t, is.Equal(msg.Actor.Attributes["execType"], container.ExecTypeDefault))
+		assert.Check(t, is.Equal(msg.Actor.Attributes["execID"], execID))
+		assert.Check(t, is.Equal(msg.Actor.Attributes["exitCode"], "0"))
+		stdDieEv = msg
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for standard exec_die event")
+	}
+
+	// 3. Healthcheck exec exit (exec_die) event contains execType="healthcheck"
+	hcExec := container.NewExecConfig(ctr)
+	hcExec.ExecType = container.ExecTypeHealthcheck
+	hcExec.Entrypoint = "healthcheck.sh"
+	d.registerExecCommand(ctr, hcExec)
+
+	d.LogContainerEventWithAttributes(ctr, eventtypes.Action(string(eventtypes.ActionExecCreate)+": "+hcExec.Entrypoint), map[string]string{
+		"execID":   hcExec.ID,
+		"execType": hcExec.ExecType,
+	})
+
+	select {
+	case ev := <-l:
+		msg, ok := ev.(eventtypes.Message)
+		assert.Assert(t, ok)
+		assert.Check(t, is.Equal(msg.Actor.Attributes["execType"], container.ExecTypeHealthcheck))
+		assert.Check(t, is.Equal(msg.Actor.Attributes["execID"], hcExec.ID))
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for healthcheck exec_create event")
+	}
+
+	err = d.ProcessEvent(ctr.ID, libcontainerdtypes.EventExit, libcontainerdtypes.EventInfo{
+		ProcessID: hcExec.ID,
+		ExitCode:  1,
+	})
+	assert.NilError(t, err)
+
+	var hcDieEv eventtypes.Message
+	select {
+	case ev := <-l:
+		msg, ok := ev.(eventtypes.Message)
+		assert.Assert(t, ok)
+		assert.Check(t, is.Equal(msg.Action, eventtypes.ActionExecDie))
+		assert.Check(t, is.Equal(msg.Actor.Attributes["execType"], container.ExecTypeHealthcheck))
+		assert.Check(t, is.Equal(msg.Actor.Attributes["execID"], hcExec.ID))
+		assert.Check(t, is.Equal(msg.Actor.Attributes["exitCode"], "1"))
+		hcDieEv = msg
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for healthcheck exec_die event")
+	}
+
+	// 4. Verify event filtering by label=execType
+	filterHealthcheck := events.NewFilter(filters.NewArgs(filters.Arg("label", "execType=healthcheck")))
+	assert.Check(t, filterHealthcheck.Include(hcDieEv))
+	assert.Check(t, !filterHealthcheck.Include(stdDieEv))
+
+	filterDefaultExec := events.NewFilter(filters.NewArgs(filters.Arg("label", "execType=exec")))
+	assert.Check(t, filterDefaultExec.Include(stdDieEv))
+	assert.Check(t, !filterDefaultExec.Include(hcDieEv))
 }
