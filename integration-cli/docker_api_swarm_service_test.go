@@ -329,8 +329,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesFailedUpdate(c *testing.T) {
 
 	// should update 2 tasks and then pause
 	poll.WaitOn(c, pollCheck(c, daemons[0].CheckServiceUpdateState(ctx, id), checker.Equals(swarm.UpdateStatePaused)), poll.WithTimeout(defaultReconciliationTimeout))
-	v, _ := daemons[0].CheckServiceRunningTasks(ctx, id)(c)
-	assert.Assert(c, v == instances-2)
+	poll.WaitOn(c, pollCheck(c, daemons[0].CheckServiceRunningTasks(ctx, id), checker.Equals(instances-2)), poll.WithTimeout(defaultReconciliationTimeout))
 
 	// Roll back to the previous version. This uses the CLI because
 	// rollback used to be a client-side operation.
