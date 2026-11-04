@@ -88,13 +88,22 @@ func (s StateStatus) Err() error {
 
 // String returns a human-readable description of the state
 func (s *State) String() string {
+	if s.RemovalInProgress {
+		return "Removal In Progress"
+	}
+	if s.Dead {
+		return "Dead"
+	}
 	if s.Running {
+		// Restarting is expected to be set only while Running, so only
+		// report it for running containers.
+		if s.Restarting {
+			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+		}
+
 		out := "Up " + units.HumanDuration(time.Now().UTC().Sub(s.StartedAt))
 		if s.Paused {
 			return out + " (Paused)"
-		}
-		if s.Restarting {
-			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 		}
 
 		if h := s.Health; h != nil {
@@ -102,14 +111,6 @@ func (s *State) String() string {
 		}
 
 		return out
-	}
-
-	if s.RemovalInProgress {
-		return "Removal In Progress"
-	}
-
-	if s.Dead {
-		return "Dead"
 	}
 
 	if s.StartedAt.IsZero() {
@@ -127,25 +128,26 @@ func (s *State) String() string {
 // [State.Running], [State.Paused], [State.Restarting], [State.RemovalInProgress],
 // [State.StartedAt] and [State.Dead] fields.
 func (s *State) State() container.ContainerState {
+	if s.RemovalInProgress {
+		return container.StateRemoving
+	}
+	if s.Dead {
+		return container.StateDead
+	}
 	if s.Running {
-		if s.Paused {
-			return container.StatePaused
-		}
+		// Restarting is expected to be set only while Running, so only
+		// report it for running containers.
 		if s.Restarting {
 			return container.StateRestarting
+		}
+		if s.Paused {
+			return container.StatePaused
 		}
 		return container.StateRunning
 	}
 
 	// TODO(thaJeztah): should [State.Removed] also have an corresponding string?
 	// TODO(thaJeztah): should [State.OOMKilled] be taken into account anywhere?
-	if s.RemovalInProgress {
-		return container.StateRemoving
-	}
-
-	if s.Dead {
-		return container.StateDead
-	}
 
 	if s.StartedAt.IsZero() {
 		return container.StateCreated
