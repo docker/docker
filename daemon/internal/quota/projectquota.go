@@ -326,6 +326,15 @@ func (q *Control) findNextProjectID(home string, baseID uint32) error {
 	state.Lock()
 	defer state.Unlock()
 
+	// Get the device of the home directory so we can detect mount points
+	// (e.g. overlayfs "merged" directories of still-mounted containers) and
+	// skip them. FS_IOC_FSGETXATTR is XFS specific and returns ENOTTY on
+	// non-XFS mounts, which must not abort project quota detection.
+	var homeStat unix.Stat_t
+	if err := unix.Stat(home, &homeStat); err != nil {
+		return errors.Wrapf(err, "failed to stat %s", home)
+	}
+
 	checkProjID := func(path string) (uint32, error) {
 		projid, err := getProjectID(path)
 		if err != nil {
@@ -340,6 +349,18 @@ func (q *Control) findNextProjectID(home string, baseID uint32) error {
 		return projid, nil
 	}
 
+	// skipMountpoint reports whether path is on a different device than home,
+	// i.e. it is a mount point such as an overlay "merged" directory. The XFS
+	// project quota ioctl does not apply to such paths, so they must be skipped.
+	skipMountpoint := func(path string) bool {
+		var st unix.Stat_t
+		if err := unix.Stat(path, &st); err != nil {
+			// If we cannot stat it, let the caller handle the error.
+			return false
+		}
+		return st.Dev != homeStat.Dev
+	}
+
 	files, err := os.ReadDir(home)
 	if err != nil {
 		return errors.Errorf("read directory failed: %s", home)
@@ -349,8 +370,16 @@ func (q *Control) findNextProjectID(home string, baseID uint32) error {
 			continue
 		}
 		path := filepath.Join(home, file.Name())
+		if skipMountpoint(path) {
+			log.G(context.TODO()).Debugf("findNextProjectID: skipping mount point %s", path)
+			continue
+		}
 		projid, err := checkProjID(path)
 		if err != nil {
+			if isUnsupportedQuotaErr(err) {
+				log.G(context.TODO()).WithError(err).Debugf("findNextProjectID: skipping %s (project quota ioctl not supported on this path)", path)
+				continue
+			}
 			return err
 		}
 		if projid > 0 && projid != baseID {
@@ -365,14 +394,38 @@ func (q *Control) findNextProjectID(home string, baseID uint32) error {
 				continue
 			}
 			subpath := filepath.Join(path, subfile.Name())
+			if skipMountpoint(subpath) {
+				log.G(context.TODO()).Debugf("findNextProjectID: skipping mount point %s", subpath)
+				continue
+			}
 			_, err := checkProjID(subpath)
 			if err != nil {
+				if isUnsupportedQuotaErr(err) {
+					log.G(context.TODO()).WithError(err).Debugf("findNextProjectID: skipping %s (project quota ioctl not supported on this path)", subpath)
+					continue
+				}
 				return err
 			}
 		}
 	}
 
 	return nil
+}
+
+// isUnsupportedQuotaErr reports whether err is caused by a project quota ioctl
+// that is not supported on the given path (e.g. ENOTTY on a non-XFS mount such
+// as an overlayfs "merged" directory). Such errors must not abort project quota
+// detection for the underlying filesystem, which is validated separately by
+// hasQuotaSupport via quotactl on the backing device node.
+func isUnsupportedQuotaErr(err error) bool {
+	cause := errors.Cause(err)
+	if en, ok := cause.(unix.Errno); ok {
+		switch en {
+		case unix.ENOTTY, unix.EINVAL, unix.ENOTDIR, unix.ENOSYS, unix.EOPNOTSUPP:
+			return true
+		}
+	}
+	return false
 }
 
 func free(p *C.char) {
