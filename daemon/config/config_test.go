@@ -388,11 +388,11 @@ func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
 
 func TestValidateConfigurationErrors(t *testing.T) {
 	testCases := []struct {
-		name        string
-		field       string
-		config      *Config
-		platform    string
-		expectedErr string
+		name              string
+		field             string
+		config            *Config
+		supportedPlatform string
+		expectedErr       string
 	}{
 		{
 			name: "single label without value",
@@ -599,24 +599,24 @@ func TestValidateConfigurationErrors(t *testing.T) {
 			expectedErr: "invalid exec-opt (unknown-option=any-value): unknown option: 'unknown-option'",
 		},
 		{
-			name: "exec-opt invalid on linux",
+			name: "exec-opt invalid outside windows",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					ExecOptions: []string{"isolation=default"},
 				},
 			},
-			platform:    "linux",
-			expectedErr: "invalid exec-opt (isolation=default): option 'isolation' is only supported on windows",
+			supportedPlatform: "windows",
+			expectedErr:       "invalid exec-opt (isolation=default): option 'isolation' is only supported on windows",
 		},
 		{
-			name: "exec-opt invalid on windows",
+			name: "exec-opt invalid outside linux",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					ExecOptions: []string{"native.cgroupdriver=systemd"},
 				},
 			},
-			platform:    "windows",
-			expectedErr: "invalid exec-opt (native.cgroupdriver=systemd): option 'native.cgroupdriver' is only supported on linux",
+			supportedPlatform: "linux",
+			expectedErr:       "invalid exec-opt (native.cgroupdriver=systemd): option 'native.cgroupdriver' is only supported on linux",
 		},
 		{
 			name: "invalid mirror",
@@ -640,7 +640,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 				assert.Check(t, mergo.Merge(cfg, tc.config, mergo.WithOverride))
 			}
 			err = Validate(cfg)
-			if tc.platform != "" && tc.platform != runtime.GOOS {
+			if tc.supportedPlatform != "" && tc.supportedPlatform == runtime.GOOS {
 				assert.NilError(t, err)
 			} else {
 				assert.Error(t, err, tc.expectedErr)
