@@ -161,7 +161,7 @@ FROM ${WINDOWS_BASE_IMAGE}:${WINDOWS_BASE_IMAGE_TAG}
 # Use PowerShell as the default shell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ARG GO_VERSION=1.26.6
+ARG GO_VERSION=1.26.10
 # GOTESTSUM_VERSION is the version of gotest.tools/gotestsum to install.
 ARG GOTESTSUM_VERSION=v1.12.3
 

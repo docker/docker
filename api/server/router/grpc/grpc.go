@@ -20,7 +20,7 @@ import (
 type grpcRouter struct {
 	routes     []router.Route
 	grpcServer *grpc.Server
-	h2Server   *http2.Server
+	h2Server   *http2.Server //nolint:staticcheck // http2.Server is deprecated; kept for backward compatibility.
 }
 
 // NewRouter initializes a new grpc http router
@@ -32,7 +32,7 @@ func NewRouter(backends ...Backend) router.Router {
 	}
 
 	r := &grpcRouter{
-		h2Server:   &http2.Server{},
+		h2Server:   &http2.Server{}, //nolint:staticcheck // http2.Server is deprecated; kept for backward compatibility.
 		grpcServer: grpc.NewServer(opts...),
 	}
 	for _, b := range backends {

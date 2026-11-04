@@ -89,10 +89,10 @@ type recvMsg struct {
 
 // recvBuffer is an unbounded channel of recvMsg structs.
 //
-// Note: recvBuffer differs from buffer.Unbounded only in the fact that it
-// holds a channel of recvMsg structs instead of objects implementing "item"
-// interface. recvBuffer is written to much more often and using strict recvMsg
-// structs helps avoid allocation in "recvBuffer.put"
+// Note: recvBuffer differs from buffer.Unbounded in that it provides in-place
+// value initialization (via init) to avoid struct pointer allocations on
+// streams, and automatically frees pooled mem.Buffer payloads when stream
+// errors occur.
 type recvBuffer struct {
 	c       chan recvMsg
 	mu      sync.Mutex
@@ -121,7 +121,9 @@ func (b *recvBuffer) put(r recvMsg) {
 	if b.err != nil {
 		// drop the buffer on the floor. Since b.err is not nil, any subsequent reads
 		// will always return an error, making this buffer inaccessible.
-		r.buffer.Free()
+		if r.buffer != nil {
+			r.buffer.Free()
+		}
 		// An error had occurred earlier, don't accept more
 		// data or errors.
 		return
@@ -466,15 +468,18 @@ func (s *Stream) ReadMessageHeader(header []byte) (err error) {
 		return er
 	}
 	s.readRequester.requestRead(len(header))
+	bytesRead := 0
 	for len(header) != 0 {
 		n, err := s.trReader.ReadMessageHeader(header)
+		bytesRead += n
 		header = header[n:]
 		if len(header) == 0 {
 			err = nil
 		}
 		if err != nil {
-			if n > 0 && err == io.EOF {
+			if bytesRead > 0 && err == io.EOF {
 				err = io.ErrUnexpectedEOF
+				s.trReader.er = err
 			}
 			return err
 		}
@@ -505,19 +510,22 @@ func (s *Stream) read(n int) (data mem.BufferSlice, err error) {
 	allocCap := min(ceil(n, http2MaxFrameLen), 128)
 	data = make(mem.BufferSlice, 0, allocCap)
 	s.readRequester.requestRead(n)
+	bytesRead := 0
 	for n != 0 {
 		buf, err := s.trReader.Read(n)
 		var bufLen int
 		if buf != nil {
 			bufLen = buf.Len()
 		}
+		bytesRead += bufLen
 		n -= bufLen
 		if n == 0 {
 			err = nil
 		}
 		if err != nil {
-			if bufLen > 0 && err == io.EOF {
+			if bytesRead > 0 && err == io.EOF {
 				err = io.ErrUnexpectedEOF
+				s.trReader.er = err
 			}
 			data.Free()
 			return nil, err

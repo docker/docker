@@ -289,7 +289,11 @@ func (h *altsHandshaker) doHandshake(req *altspb.HandshakerReq) (net.Conn, *alts
 	if !ok {
 		return nil, nil, fmt.Errorf("unknown resulted record protocol %v", result.RecordProtocol)
 	}
-	sc, err := conn.NewConn(h.conn, h.side, result.GetRecordProtocol(), result.KeyData[:keyLen], extra)
+	maxFrameSize := int(envconfig.ALTSMaxFrameSize)
+	if peerMax := int(result.GetMaxFrameSize()); peerMax > 0 {
+		maxFrameSize = min(peerMax, maxFrameSize)
+	}
+	sc, err := conn.NewConnWithMaxFrameSize(h.conn, h.side, result.GetRecordProtocol(), result.KeyData[:keyLen], extra, maxFrameSize)
 	if err != nil {
 		return nil, nil, err
 	}

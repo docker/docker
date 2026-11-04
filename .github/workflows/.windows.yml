@@ -28,7 +28,7 @@ on:
         default: false
 
 env:
-  GO_VERSION: "1.26.6"
+  GO_VERSION: "1.26.10"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore

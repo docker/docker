@@ -22,7 +22,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.26.6"
+  GO_VERSION: "1.26.10"
   TESTSTAT_VERSION: v0.1.25
   DESTDIR: ./build
   SETUP_BUILDX_VERSION: edge

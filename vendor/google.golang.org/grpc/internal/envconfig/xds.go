@@ -98,4 +98,9 @@ var (
 	// filter. For more details, see:
 	// https://github.com/grpc/proposal/blob/master/A83-xds-gcp-authn-filter.md
 	GCPAuthenticationFilterEnabled = boolFromEnv("GRPC_EXPERIMENTAL_XDS_GCP_AUTHENTICATION_FILTER", false)
+
+	// XDSClientExtAuthzEnabled indicates whether the external authorization
+	// filter is enabled on the client side. For more details, see:
+	// https://github.com/grpc/proposal/blob/master/A92-xds-ext-authz.md
+	XDSClientExtAuthzEnabled = boolFromEnv("GRPC_EXPERIMENTAL_XDS_EXT_AUTHZ_ON_CLIENT", false)
 )

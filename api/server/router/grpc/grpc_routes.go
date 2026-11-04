@@ -38,8 +38,12 @@ func (gr *grpcRouter) serveGRPC(ctx context.Context, w http.ResponseWriter, r *h
 	conn.Write([]byte{})
 	resp.Write(conn)
 
-	// https://godoc.org/golang.org/x/net/http2#Server.ServeConn
-	// TODO: is it a problem that conn has already been written to?
-	gr.h2Server.ServeConn(conn, &http2.ServeConnOpts{Handler: gr.grpcServer})
+	// Keep using the deprecated http2.Server for compatibility with clients
+	// using the /grpc endpoint, which performs an HTTP/1.1 Upgrade: h2c
+	// handshake. net/http's unencrypted HTTP/2 support uses HTTP/2 with prior
+	// knowledge and does not support Upgrade: h2c.
+	gr.h2Server.ServeConn(conn, &http2.ServeConnOpts{ //nolint:staticcheck // http2.ServeConn and http2.ServeConnOpts are deprecated.
+		Handler: gr.grpcServer,
+	})
 	return nil
 }
