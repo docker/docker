@@ -219,7 +219,7 @@ jobs:
               ${{ env.TEST_IMAGE_NAME }} hack\make.ps1 -Daemon -Client
           go install "github.com/distribution/distribution/v3/cmd/registry@${{ env.REGISTRY_VERSION }}"
         env:
-          REGISTRY_VERSION: "v3.0.0"
+          REGISTRY_VERSION: "v3.1.1"
 
       - name: Checkout BuildKit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
