@@ -173,6 +173,41 @@ func TestStatsNetworkStats(t *testing.T) {
 	}, poll.WithDelay(100*time.Millisecond), poll.WithTimeout(2*time.Second))
 }
 
+func TestStatsStoppedContainerInGoroutines(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	// Run a container that exits immediately
+	cID := container.Run(ctx, t, apiClient, container.WithCmd("/bin/sh", "-c", "echo 1"))
+
+	getGoRoutines := func() int {
+		info, err := apiClient.Info(ctx, client.InfoOptions{})
+		assert.NilError(t, err)
+		return info.Info.NGoroutines
+	}
+
+	routines := getGoRoutines()
+	res, err := apiClient.ContainerStats(ctx, cID, client.ContainerStatsOptions{})
+
+	// Immediately close the HTTP connection by closing the body
+	assert.NilError(t, err)
+	_ = res.Body.Close()
+
+	interval := time.After(30 * time.Second)
+	for {
+		select {
+		case <-interval:
+			assert.Assert(t, getGoRoutines() <= routines)
+			return
+		default:
+			if n := getGoRoutines(); n <= routines {
+				return
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
+}
+
 func getNetworkStats(ctx context.Context, t *testing.T, apiClient client.APIClient, id string) map[string]containertypes.NetworkStats {
 	res, err := apiClient.ContainerStats(ctx, id, client.ContainerStatsOptions{Stream: false})
 	assert.NilError(t, err)
