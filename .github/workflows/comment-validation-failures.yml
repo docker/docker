@@ -1,0 +1,227 @@
+name: comment-validation-failures
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: read
+
+on:
+  workflow_run:
+    workflows:
+      - test
+      - validate-pr
+    types: [completed]
+
+jobs:
+  comment:
+    if: ${{ github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Update validation guidance comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const run = context.payload.workflow_run;
+            const marker = '<!-- moby:validation-failures -->';
+            const trackedWorkflows = new Set(['test', 'validate-pr']);
+            const trackedFailures = {
+              'validate-dco / run': {
+                id: 'validate-no-dco',
+                title: 'DCO sign-off',
+                summary: 'Add a valid `Signed-off-by:` line with your real name to each commit. For the latest commit, run `git commit --amend --signoff`; for multiple commits, use `git rebase -i` and amend each affected commit.',
+              },
+              'check-commit-references': {
+                id: 'validate-no-gh-references',
+                title: 'Commit message references',
+                summary: 'Remove GitHub issue or PR references such as `Closes #1234` from commit messages, move them to the PR description or a PR comment, and use `git commit --amend` or `git rebase -i` to rewrite affected commit messages.',
+              },
+              'validate (pr-gh-references)': {
+                id: 'validate-no-gh-references',
+                title: 'Commit message references',
+                summary: 'Remove GitHub issue or PR references such as `Closes #1234` from commit messages, move them to the PR description or a PR comment, and use `git commit --amend` or `git rebase -i` to rewrite affected commit messages.',
+              },
+              'validate (module-replace)': {
+                id: 'validate-module-replace',
+                title: 'Module replace rules',
+                summary: 'If you changed `api/` or `client/`, run `./hack/vendor.sh replace` and commit the resulting `go.mod` / `go.sum` updates.',
+              },
+              'validate (vendor)': {
+                id: 'validate-vendor',
+                title: 'Vendoring',
+                summary: 'Run `./hack/vendor.sh`, commit the resulting `go.mod`, `go.sum`, and `vendor/` updates, and if CI still fails inspect the regenerated files and push again.',
+              },
+            };
+            const failureConclusions = new Set(['action_required', 'failure', 'startup_failure', 'timed_out']);
+
+            async function findExistingComment(issueNumber) {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 100,
+              });
+              return comments.find((comment) => comment.user?.type === 'Bot' && comment.body?.includes(marker));
+            }
+
+            async function deleteExistingComment(issueNumber) {
+              const existing = await findExistingComment(issueNumber);
+              if (!existing) {
+                return;
+              }
+              await github.rest.issues.deleteComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+              });
+            }
+
+            async function getPullRequestForRun() {
+              const candidatePullNumbers = new Set((run.pull_requests ?? []).map((prRef) => prRef.number));
+              const headOwner = run.head_repository?.owner?.login;
+
+              if (headOwner && run.head_branch) {
+                const { data: matchingPulls } = await github.rest.pulls.list({
+                  owner,
+                  repo,
+                  state: 'open',
+                  head: `${headOwner}:${run.head_branch}`,
+                  per_page: 10,
+                });
+
+                for (const pullRequest of matchingPulls) {
+                  candidatePullNumbers.add(pullRequest.number);
+                }
+              }
+
+              let candidatePullRequest = null;
+              for (const pullNumber of candidatePullNumbers) {
+                const { data: pullRequest } = await github.rest.pulls.get({
+                  owner,
+                  repo,
+                  pull_number: pullNumber,
+                });
+
+                if (!candidatePullRequest) {
+                  candidatePullRequest = pullRequest;
+                }
+                if (pullRequest.head.sha === run.head_sha) {
+                  return { pullRequest, matchesHeadSha: true };
+                }
+              }
+
+              return { pullRequest: candidatePullRequest, matchesHeadSha: false };
+            }
+
+            const pullRequestMatch = await getPullRequestForRun();
+            if (!pullRequestMatch?.pullRequest) {
+              core.info('No pull request is associated with this workflow run.');
+              return;
+            }
+
+            const { pullRequest, matchesHeadSha } = pullRequestMatch;
+            const pullNumber = pullRequest.number;
+
+            if (!matchesHeadSha) {
+              core.info(`Ignoring stale workflow run for ${run.head_sha}; current head is ${pullRequest.head.sha}.`);
+              return;
+            }
+
+            if (['COLLABORATOR', 'MEMBER', 'OWNER'].includes(pullRequest.author_association)) {
+              core.info(`Skipping guidance comment for ${pullRequest.author_association.toLowerCase()} contributor.`);
+              await deleteExistingComment(pullNumber);
+              return;
+            }
+
+            const { data: runsData } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner,
+              repo,
+              event: 'pull_request',
+              head_sha: pullRequest.head.sha,
+              per_page: 50,
+            });
+
+            const latestCompletedRuns = new Map();
+            for (const workflowRun of runsData.workflow_runs) {
+              if (!trackedWorkflows.has(workflowRun.name)) {
+                continue;
+              }
+              if (workflowRun.status !== 'completed') {
+                continue;
+              }
+              if (!latestCompletedRuns.has(workflowRun.name)) {
+                latestCompletedRuns.set(workflowRun.name, workflowRun);
+              }
+            }
+
+            const failures = new Map();
+            for (const workflowRun of latestCompletedRuns.values()) {
+              const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                owner,
+                repo,
+                run_id: workflowRun.id,
+                per_page: 100,
+              });
+
+              for (const job of jobs) {
+                const failure = trackedFailures[job.name];
+                if (!failure || !failureConclusions.has(job.conclusion)) {
+                  continue;
+                }
+                failures.set(failure.id, {
+                  ...failure,
+                  url: job.html_url,
+                  workflow: workflowRun.name,
+                });
+              }
+            }
+
+            const existingComment = await findExistingComment(pullNumber);
+            if (failures.size === 0) {
+              if (existingComment) {
+                await github.rest.issues.deleteComment({
+                  owner,
+                  repo,
+                  comment_id: existingComment.id,
+                });
+              }
+              core.info('No tracked validation failures are present in the latest completed runs.');
+              return;
+            }
+
+            const items = [...failures.values()]
+              .sort((a, b) => a.id.localeCompare(b.id))
+              .map((failure) => `- **${failure.title}** — ${failure.summary} ([failing job](${failure.url}))`);
+
+            const body = [
+              marker,
+              '### :warning: Validation guidance',
+              '',
+              `The latest completed \`test\` and \`validate-pr\` runs for \`${pullRequest.head.sha.slice(0, 12)}\` include contributor-fixable validation failures:`,
+              '',
+              ...items,
+              '',
+              'The bullet points above include all remediation steps for these known validation failures.',
+              '',
+              'This comment updates in place and is removed automatically once these known validation failures are resolved.',
+            ].join('\n');
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingComment.id,
+                body,
+              });
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pullNumber,
+              body,
+            });
