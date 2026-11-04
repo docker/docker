@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"testing"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/google/go-cmp/cmp"
 	"github.com/moby/moby/api/types/jsonstream"
 	"gotest.tools/v3/assert"
@@ -29,7 +30,7 @@ func TestFormatError(t *testing.T) {
 		{
 			name:     "regular error",
 			err:      errors.New("something bad happened"),
-			expected: `{"error":"something bad happened","errorDetail":{"message":"something bad happened"}}`,
+			expected: `{"error":"something bad happened","errorDetail":{"code":500,"message":"something bad happened"}}`,
 		},
 		{
 			name:     "JSON error",
@@ -40,6 +41,26 @@ func TestFormatError(t *testing.T) {
 			name:     "wrapped JSON error",
 			err:      fmt.Errorf("pull failed: %w", &jsonstream.Error{Code: http.StatusBadRequest, Message: "JSON error"}),
 			expected: `{"error":"JSON error","errorDetail":{"code":400,"message":"JSON error"}}`,
+		},
+		{
+			name:     "not found",
+			err:      cerrdefs.ErrNotFound.WithMessage("something was not found"),
+			expected: `{"error":"something was not found","errorDetail":{"code":404,"message":"something was not found"}}`,
+		},
+		{
+			name:     "unauthenticated",
+			err:      cerrdefs.ErrUnauthenticated.WithMessage("must be authenticated"),
+			expected: `{"error":"must be authenticated","errorDetail":{"code":401,"message":"must be authenticated"}}`,
+		},
+		{
+			name:     "wrapped error",
+			err:      fmt.Errorf("pull failed: %w", cerrdefs.ErrUnauthenticated.WithMessage("must be authenticated")),
+			expected: `{"error":"pull failed: must be authenticated","errorDetail":{"code":401,"message":"pull failed: must be authenticated"}}`,
+		},
+		{
+			name:     "rate-limiting",
+			err:      cerrdefs.ErrResourceExhausted.WithMessage("rate limit"),
+			expected: `{"error":"rate limit","errorDetail":{"code":429,"message":"rate limit"}}`,
 		},
 	}
 

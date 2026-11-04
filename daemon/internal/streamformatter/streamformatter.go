@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/api/types/jsonstream"
 	"github.com/moby/moby/v2/daemon/internal/compat"
 	"github.com/moby/moby/v2/daemon/internal/progress"
+	"github.com/moby/moby/v2/daemon/server/httpstatus"
 )
 
 const streamNewline = "\r\n"
@@ -35,7 +36,10 @@ func FormatStatus(id, format string, a ...any) []byte {
 func FormatError(err error) []byte {
 	jsonError, ok := errors.AsType[*jsonstream.Error](err)
 	if !ok {
-		jsonError = &jsonstream.Error{Message: err.Error()}
+		jsonError = &jsonstream.Error{
+			Code:    httpstatus.FromError(err),
+			Message: err.Error(),
+		}
 	}
 
 	// The "error" field was deprecated in favor of "errorDetail" in
