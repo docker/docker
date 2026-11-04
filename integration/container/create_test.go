@@ -488,10 +488,7 @@ func TestCreateTmpfsOverrideAnonymousVolume(t *testing.T) {
 		testContainer.WithCmd("/bin/sh", "-c", "mount | grep '/foo' | grep tmpfs && mount | grep '/bar' | grep tmpfs"),
 	)
 
-	defer func() {
-		_, err := apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
-		assert.NilError(t, err)
-	}()
+	defer testContainer.Remove(ctx, t, apiClient, id, client.ContainerRemoveOptions{Force: true})
 
 	inspect, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
@@ -821,7 +818,7 @@ func TestContainerdContainerImageInfo(t *testing.T) {
 		// busybox is the default (as of this writing) used by the test client, but lets be explicit here.
 		cfg.Config.Image = "busybox"
 	})
-	defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+	defer testContainer.Remove(ctx, t, apiClient, id, client.ContainerRemoveOptions{Force: true})
 
 	c8dClient, err := containerd.New(info.Containerd.Address, containerd.WithDefaultNamespace(info.Containerd.Namespaces.Containers))
 	assert.NilError(t, err)

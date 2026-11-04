@@ -43,7 +43,7 @@ func TestCreateWithCDIDevices(t *testing.T) {
 		container.WithCmd("/bin/sh", "-c", "env"),
 		container.WithCDIDevices("vendor1.com/device=foo"),
 	)
-	defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, id, client.ContainerRemoveOptions{Force: true})
 
 	res, err := apiClient.ContainerInspect(ctx, id, client.ContainerInspectOptions{})
 	assert.NilError(t, err)

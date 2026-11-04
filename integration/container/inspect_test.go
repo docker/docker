@@ -56,10 +56,9 @@ func TestNetworkAliasesAreEmpty(t *testing.T) {
 			ctr := container.Create(ctx, t, apiClient,
 				container.WithName("ctr-"+nwMode),
 				container.WithImage("busybox:latest"),
-				container.WithNetworkMode(nwMode))
-			defer apiClient.ContainerRemove(ctx, ctr, client.ContainerRemoveOptions{
-				Force: true,
-			})
+				container.WithNetworkMode(nwMode),
+			)
+			defer container.Remove(ctx, t, apiClient, ctr, client.ContainerRemoveOptions{Force: true})
 
 			inspect := container.Inspect(ctx, t, apiClient, ctr)
 			netAliases := inspect.NetworkSettings.Networks[nwMode].Aliases

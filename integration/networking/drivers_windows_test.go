@@ -25,7 +25,7 @@ import (
 // Tests: NAT, Transparent, and L2Bridge network drivers.
 func TestWindowsNetworkDrivers(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	testcases := []struct {
 		name   string
@@ -58,7 +58,7 @@ func TestWindowsNetworkDrivers(t *testing.T) {
 			netName := fmt.Sprintf("test-%s-%d", tc.driver, tcID)
 
 			// Create network with specified driver
-			netResp, err := c.NetworkCreate(ctx, netName, client.NetworkCreateOptions{
+			netResp, err := apiClient.NetworkCreate(ctx, netName, client.NetworkCreateOptions{
 				Driver: tc.driver,
 			})
 			if err != nil {
@@ -71,10 +71,10 @@ func TestWindowsNetworkDrivers(t *testing.T) {
 				}
 				t.Fatalf("Failed to create network with %s driver: %v", tc.driver, err)
 			}
-			defer network.RemoveNoError(ctx, t, c, netName)
+			defer network.RemoveNoError(ctx, t, apiClient, netName)
 
 			// Inspect network to validate driver is correctly set
-			netInfo, err := c.NetworkInspect(ctx, netResp.ID, client.NetworkInspectOptions{})
+			netInfo, err := apiClient.NetworkInspect(ctx, netResp.ID, client.NetworkInspectOptions{})
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(netInfo.Network.Driver, tc.driver), "Network driver mismatch")
 			assert.Check(t, is.Equal(netInfo.Network.Name, netName), "Network name mismatch")
@@ -85,7 +85,7 @@ func TestWindowsNetworkDrivers(t *testing.T) {
 // TestWindowsNATDriverPortMapping validates NAT port mapping by testing host connectivity.
 func TestWindowsNATDriverPortMapping(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	// Use default NAT network which supports port mapping
 	netName := "nat"
@@ -107,7 +107,7 @@ func TestWindowsNATDriverPortMapping(t *testing.T) {
 
 	// Create container with port mapping 80->8080
 	ctrName := "port-mapping-test"
-	id := container.Run(ctx, t, c,
+	id := container.Run(ctx, t, apiClient,
 		container.WithName(ctrName),
 		container.WithCmd("powershell", "-Command", psScript),
 		container.WithNetworkMode(netName),
@@ -116,10 +116,10 @@ func TestWindowsNATDriverPortMapping(t *testing.T) {
 			networktypes.MustParsePort("80"): {{HostIP: netip.IPv4Unspecified(), HostPort: "8080"}},
 		}),
 	)
-	defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 	// Verify port mapping metadata
-	ctrInfo := container.Inspect(ctx, t, c, id)
+	ctrInfo := container.Inspect(ctx, t, apiClient, id)
 	portKey := networktypes.MustParsePort("80/tcp")
 	assert.Check(t, ctrInfo.NetworkSettings.Ports[portKey] != nil, "Port mapping not found")
 	assert.Check(t, len(ctrInfo.NetworkSettings.Ports[portKey]) > 0, "No host port binding")
@@ -151,7 +151,7 @@ func TestWindowsNATDriverPortMapping(t *testing.T) {
 // TestWindowsNetworkDNSResolution validates DNS resolution on Windows networks.
 func TestWindowsNetworkDNSResolution(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	testcases := []struct {
 		name       string
@@ -188,27 +188,27 @@ func TestWindowsNetworkDNSResolution(t *testing.T) {
 				}
 			}
 
-			network.CreateNoError(ctx, t, c, netName, netOpts...)
-			defer network.RemoveNoError(ctx, t, c, netName)
+			network.CreateNoError(ctx, t, apiClient, netName, netOpts...)
+			defer network.RemoveNoError(ctx, t, apiClient, netName)
 
 			// Create container and verify DNS resolution
 			ctrName := fmt.Sprintf("dns-test-%d", tcID)
-			id := container.Run(ctx, t, c,
+			id := container.Run(ctx, t, apiClient,
 				container.WithName(ctrName),
 				container.WithNetworkMode(netName),
 			)
-			defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+			defer apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 			// Test DNS resolution by pinging container by name from another container
 			pingCmd := []string{"ping", "-n", "1", "-w", "3000", ctrName}
 
 			attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 			defer cancel()
-			res := container.RunAttach(attachCtx, t, c,
+			res := container.RunAttach(attachCtx, t, apiClient,
 				container.WithCmd(pingCmd...),
 				container.WithNetworkMode(netName),
 			)
-			defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+			defer apiClient.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 
 			assert.Check(t, is.Equal(res.ExitCode, 0), "DNS resolution failed")
 			assert.Check(t, is.Contains(res.Stdout.String(), "Sent = 1, Received = 1, Lost = 0"))
@@ -226,53 +226,53 @@ func TestWindowsNetworkLifecycle(t *testing.T) {
 		"Skipping test: fails on Containerd due to unsupported platform request error during NetworkConnect operations")
 
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	netName := "lifecycle-test-nat"
 
-	netID := network.CreateNoError(ctx, t, c, netName,
+	netID := network.CreateNoError(ctx, t, apiClient, netName,
 		network.WithDriver("nat"),
 	)
 
-	netInfo, err := c.NetworkInspect(ctx, netID, client.NetworkInspectOptions{})
+	netInfo, err := apiClient.NetworkInspect(ctx, netID, client.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(netInfo.Network.Name, netName))
 
 	// Create container on network
 	ctrName := "lifecycle-ctr"
-	id := container.Run(ctx, t, c,
+	id := container.Run(ctx, t, apiClient,
 		container.WithName(ctrName),
 		container.WithNetworkMode(netName),
 	)
 
-	ctrInfo := container.Inspect(ctx, t, c, id)
+	ctrInfo := container.Inspect(ctx, t, apiClient, id)
 	assert.Check(t, ctrInfo.NetworkSettings.Networks[netName] != nil)
 
 	// Disconnect container from network
-	_, err = c.NetworkDisconnect(ctx, netID, client.NetworkDisconnectOptions{
+	_, err = apiClient.NetworkDisconnect(ctx, netID, client.NetworkDisconnectOptions{
 		Container: id,
 		Force:     false,
 	})
 	assert.NilError(t, err)
 
-	ctrInfo = container.Inspect(ctx, t, c, id)
+	ctrInfo = container.Inspect(ctx, t, apiClient, id)
 	assert.Check(t, ctrInfo.NetworkSettings.Networks[netName] == nil, "Container still connected after disconnect")
 
 	// Reconnect container to network
-	_, err = c.NetworkConnect(ctx, netID, client.NetworkConnectOptions{
+	_, err = apiClient.NetworkConnect(ctx, netID, client.NetworkConnectOptions{
 		Container:      id,
 		EndpointConfig: nil,
 	})
 	assert.NilError(t, err)
 
-	ctrInfo = container.Inspect(ctx, t, c, id)
+	ctrInfo = container.Inspect(ctx, t, apiClient, id)
 	assert.Check(t, ctrInfo.NetworkSettings.Networks[netName] != nil, "Container not reconnected")
 
-	c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+	apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
-	network.RemoveNoError(ctx, t, c, netName)
+	network.RemoveNoError(ctx, t, apiClient, netName)
 
-	_, err = c.NetworkInspect(ctx, netID, client.NetworkInspectOptions{})
+	_, err = apiClient.NetworkInspect(ctx, netID, client.NetworkInspectOptions{})
 	assert.Check(t, err != nil, "Network still exists after deletion")
 }
 
@@ -280,27 +280,27 @@ func TestWindowsNetworkLifecycle(t *testing.T) {
 // Ensures containers on different networks cannot communicate, validating Windows network driver isolation.
 func TestWindowsNetworkIsolation(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	// Create two separate NAT networks
 	net1Name := "isolation-net1"
 	net2Name := "isolation-net2"
 
-	network.CreateNoError(ctx, t, c, net1Name, network.WithDriver("nat"))
-	defer network.RemoveNoError(ctx, t, c, net1Name)
+	network.CreateNoError(ctx, t, apiClient, net1Name, network.WithDriver("nat"))
+	defer network.RemoveNoError(ctx, t, apiClient, net1Name)
 
-	network.CreateNoError(ctx, t, c, net2Name, network.WithDriver("nat"))
-	defer network.RemoveNoError(ctx, t, c, net2Name)
+	network.CreateNoError(ctx, t, apiClient, net2Name, network.WithDriver("nat"))
+	defer network.RemoveNoError(ctx, t, apiClient, net2Name)
 
 	// Create container on first network
 	ctr1Name := "isolated-ctr1"
-	id1 := container.Run(ctx, t, c,
+	id1 := container.Run(ctx, t, apiClient,
 		container.WithName(ctr1Name),
 		container.WithNetworkMode(net1Name),
 	)
-	defer c.ContainerRemove(ctx, id1, client.ContainerRemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, id1, client.ContainerRemoveOptions{Force: true})
 
-	ctr1Info := container.Inspect(ctx, t, c, id1)
+	ctr1Info := container.Inspect(ctx, t, apiClient, id1)
 	ctr1IP := ctr1Info.NetworkSettings.Networks[net1Name].IPAddress
 	assert.Check(t, ctr1IP.IsValid(), "Container IP not assigned")
 
@@ -309,11 +309,11 @@ func TestWindowsNetworkIsolation(t *testing.T) {
 
 	attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	res := container.RunAttach(attachCtx, t, c,
+	res := container.RunAttach(attachCtx, t, apiClient,
 		container.WithCmd(pingCmd...),
 		container.WithNetworkMode(net2Name),
 	)
-	defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+	defer apiClient.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 
 	// Ping should fail, demonstrating network isolation
 	assert.Check(t, res.ExitCode != 0, "Ping succeeded unexpectedly - networks are not isolated")
@@ -338,11 +338,13 @@ func TestWindowsNetworkIsolation(t *testing.T) {
 // Tests that multiple containers can be created and managed on the same network.
 func TestWindowsNetworkEndpointManagement(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	netName := "endpoint-test-nat"
-	network.CreateNoError(ctx, t, c, netName, network.WithDriver("nat"))
-	defer network.RemoveNoError(ctx, t, c, netName)
+	network.CreateNoError(ctx, t, apiClient, netName, network.WithDriver("nat"))
+	t.Cleanup(func() {
+		network.RemoveNoError(ctx, t, apiClient, netName)
+	})
 
 	// Create multiple containers on the same network
 	const numContainers = 3
@@ -350,15 +352,17 @@ func TestWindowsNetworkEndpointManagement(t *testing.T) {
 
 	for i := range numContainers {
 		ctrName := fmt.Sprintf("endpoint-ctr-%d", i)
-		id := container.Run(ctx, t, c,
+		id := container.Run(ctx, t, apiClient,
 			container.WithName(ctrName),
 			container.WithNetworkMode(netName),
 		)
 		containerIDs[i] = id
-		defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+		t.Cleanup(func() {
+			container.Remove(ctx, t, apiClient, id, client.ContainerRemoveOptions{Force: true})
+		})
 	}
 
-	netInfo, err := c.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
+	netInfo, err := apiClient.NetworkInspect(ctx, netName, client.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(netInfo.Network.Containers), numContainers),
 		"Expected %d containers, got %d", numContainers, len(netInfo.Network.Containers))
@@ -371,12 +375,14 @@ func TestWindowsNetworkEndpointManagement(t *testing.T) {
 		sourceName := fmt.Sprintf("endpoint-ctr-%d", i+1)
 		attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		defer cancel()
-		res := container.RunAttach(attachCtx, t, c,
+		res := container.RunAttach(attachCtx, t, apiClient,
 			container.WithName(fmt.Sprintf("%s-pinger", sourceName)),
 			container.WithCmd(pingCmd...),
 			container.WithNetworkMode(netName),
 		)
-		defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+		t.Cleanup(func() {
+			container.Remove(ctx, t, apiClient, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+		})
 
 		assert.Check(t, is.Equal(res.ExitCode, 0),
 			"Container %s failed to ping %s", sourceName, targetName)

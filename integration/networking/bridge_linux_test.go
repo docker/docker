@@ -2041,14 +2041,14 @@ func TestAdvertiseAddressesLiveRestore(t *testing.T) {
 // TestNetworkInspectGateway checks that gateways reported in inspect output are parseable as addresses.
 func TestNetworkInspectGateway(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	const netName = "test-inspgw"
-	nid, err := network.Create(ctx, c, netName, network.WithIPv6())
+	nid, err := network.Create(ctx, apiClient, netName, network.WithIPv6())
 	assert.NilError(t, err)
-	defer network.RemoveNoError(ctx, t, c, netName)
+	defer network.RemoveNoError(ctx, t, apiClient, netName)
 
-	res, err := c.NetworkInspect(ctx, nid, client.NetworkInspectOptions{})
+	res, err := apiClient.NetworkInspect(ctx, nid, client.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	for _, ipamCfg := range res.Network.IPAM.Config {
 		assert.Check(t, ipamCfg.Gateway.IsValid())
@@ -2210,13 +2210,13 @@ func TestDNSNamesForNonSwarmScopedNetworks(t *testing.T) {
 // Regression test for https://github.com/moby/moby/issues/51569
 func TestSetIPWithNoConfiguredSubnet(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	const bridgeName = "subnet-from-pools"
-	network.CreateNoError(ctx, t, c, bridgeName, network.WithIPv6())
-	defer network.RemoveNoError(ctx, t, c, bridgeName)
+	network.CreateNoError(ctx, t, apiClient, bridgeName, network.WithIPv6())
+	defer network.RemoveNoError(ctx, t, apiClient, bridgeName)
 
-	insp := network.InspectNoError(ctx, t, c, bridgeName, client.NetworkInspectOptions{})
+	insp := network.InspectNoError(ctx, t, apiClient, bridgeName, client.NetworkInspectOptions{})
 	assert.Assert(t, is.Len(insp.Network.IPAM.Config, 2))
 	ip4 := insp.Network.IPAM.Config[0].Subnet.Addr().Next().Next().String()
 	ip6 := insp.Network.IPAM.Config[1].Subnet.Addr().Next().Next().String()
@@ -2224,7 +2224,7 @@ func TestSetIPWithNoConfiguredSubnet(t *testing.T) {
 		ip4, ip6 = ip6, ip4
 	}
 
-	res := container.RunAttach(ctx, t, c,
+	res := container.RunAttach(ctx, t, apiClient,
 		container.WithCmd("ip", "addr", "show", "eth0"),
 		container.WithNetworkMode(bridgeName),
 		container.WithIPv4(bridgeName, ip4),
@@ -2288,12 +2288,12 @@ func TestGatewayErrorOnNetDisconnect(t *testing.T) {
 // Regression test for https://github.com/moby/moby/issues/51620
 func TestPublishAllWithNilPortBindings(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	imgWithExpose := container.WithImage(build.Do(ctx, t, c,
+	imgWithExpose := container.WithImage(build.Do(ctx, t, apiClient,
 		fakecontext.New(t, "", fakecontext.WithDockerfile("FROM busybox\nEXPOSE 80/tcp\n")), client.ImageBuildOptions{}))
 
-	_ = container.Run(ctx, t, c,
+	_ = container.Run(ctx, t, apiClient,
 		container.WithAutoRemove,
 		container.WithPublishAllPorts(true),
 		imgWithExpose,

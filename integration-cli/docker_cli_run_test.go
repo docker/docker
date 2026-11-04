@@ -3932,9 +3932,9 @@ func (s *DockerDaemonSuite) TestRunWithUlimitAndDaemonDefault(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunStoppedLoggingDriverNoLeak(c *testing.T) {
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 	ctx := testutil.GetContext(c)
-	nroutines, err := getGoroutineNumber(ctx, client)
+	nroutines, err := getGoroutineNumber(ctx, apiClient)
 	assert.NilError(c, err)
 
 	out, _, err := dockerCmdWithError("run", "--name=fail", "--log-driver=splunk", "busybox", "true")
@@ -3942,7 +3942,7 @@ func (s *DockerCLIRunSuite) TestRunStoppedLoggingDriverNoLeak(c *testing.T) {
 	assert.Assert(c, strings.Contains(out, "failed to initialize logging driver"), "error should be about logging driver, got output %s", out)
 
 	// NGoroutines is not updated right away, so we need to wait before failing
-	waitForGoroutines(ctx, c, client, nroutines)
+	waitForGoroutines(ctx, c, apiClient, nroutines)
 }
 
 // Handles error conditions for --credentialspec. Validating E2E success cases

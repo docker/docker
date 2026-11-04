@@ -118,15 +118,14 @@ func CreateInRegistry(ctx context.Context, repo string, auth *registry.AuthConfi
 		return err
 	}
 
-	managerConfig := plugin.ManagerConfig{
+	manager, err := plugin.NewManager(plugin.ManagerConfig{
 		Store:           plugin.NewStore(),
 		RegistryService: regService,
 		Root:            filepath.Join(tmpDir, "root"),
 		ExecRoot:        "/run/docker", // manager init fails if not set
 		CreateExecutor:  dummyExec,
 		LogPluginEvent:  func(id, name string, action events.Action) {}, // panics when not set
-	}
-	manager, err := plugin.NewManager(managerConfig)
+	})
 	if err != nil {
 		return errors.Wrap(err, "error creating plugin manager")
 	}

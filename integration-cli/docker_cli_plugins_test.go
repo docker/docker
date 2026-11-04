@@ -160,7 +160,7 @@ func (s *DockerCLIPluginsSuite) TestPluginInstallDisableVolumeLs(c *testing.T) {
 }
 
 func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
-	client := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	name := "test"
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
@@ -171,7 +171,7 @@ func (ps *DockerPluginSuite) TestPluginSet(c *testing.T) {
 	devPath := "/dev/bar"
 
 	// Create a new plugin with extra settings
-	err := plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
+	err := plugin.Create(ctx, apiClient, name, func(cfg *plugin.Config) {
 		cfg.Env = []plugintypes.Env{{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}}}
 		cfg.Mounts = []plugintypes.Mount{
 			{Name: "pmount1", Settable: []string{"source"}, Type: "none", Source: &mntSrc},
@@ -343,12 +343,12 @@ func (s *DockerCLIPluginsSuite) TestPluginInspectOnWindows(c *testing.T) {
 }
 
 func (ps *DockerPluginSuite) TestPluginIDPrefix(c *testing.T) {
-	name := "test"
-	client := testEnv.APIClient()
+	const name = "test-plugin-id-prefix"
+	apiClient := testEnv.APIClient()
 
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
 	initialValue := "0"
-	err := plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
+	err := plugin.Create(ctx, apiClient, name, func(cfg *plugin.Config) {
 		cfg.Env = []plugintypes.Env{{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}}}
 	})
 	cancel()
@@ -404,12 +404,12 @@ func (ps *DockerPluginSuite) TestPluginListDefaultFormat(c *testing.T) {
 	err = os.WriteFile(filepath.Join(config, "config.json"), []byte(`{"pluginsFormat": "raw"}`), 0o644)
 	assert.NilError(c, err)
 
-	name := "test:latest"
-	client := testEnv.APIClient()
+	const name = "plugin-list-test:latest"
+	apiClient := testEnv.APIClient()
 
 	ctx, cancel := context.WithTimeout(testutil.GetContext(c), 60*time.Second)
 	defer cancel()
-	err = plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
+	err = plugin.Create(ctx, apiClient, name, func(cfg *plugin.Config) {
 		cfg.Description = "test plugin"
 	})
 	assert.Assert(c, err == nil, "failed to create test plugin")
@@ -471,7 +471,7 @@ func (s *DockerCLIPluginsSuite) TestPluginMetricsCollector(c *testing.T) {
 	// plugin listens on localhost:19393 and proxies the metrics
 	resp, err := http.Get("http://localhost:19393/metrics")
 	assert.NilError(c, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	b, err := io.ReadAll(resp.Body)
 	assert.NilError(c, err)

@@ -302,8 +302,7 @@ func runTestNet(t *testing.T, ctx context.Context, bundlesDir string, section se
 }
 
 func createBridgeNetworks(ctx context.Context, t *testing.T, d *daemon.Daemon, section section) {
-	c := d.NewClientT(t)
-	defer c.Close()
+	apiClient := d.NewClientT(t)
 
 	for i, nw := range section.networks {
 		gwMode := nw.gwMode
@@ -321,29 +320,28 @@ func createBridgeNetworks(ctx context.Context, t *testing.T, d *daemon.Daemon, s
 		if nw.internal {
 			netOpts = append(netOpts, network.WithInternal())
 		}
-		network.CreateNoError(ctx, t, c, nw.name, netOpts...)
-		t.Cleanup(func() { network.RemoveNoError(ctx, t, c, nw.name) })
+		network.CreateNoError(ctx, t, apiClient, nw.name, netOpts...)
+		t.Cleanup(func() { network.RemoveNoError(ctx, t, apiClient, nw.name) })
 
 		for _, ctr := range nw.containers {
 			var exposedPorts []string
 			for ep := range ctr.portMappings {
 				exposedPorts = append(exposedPorts, ep.String())
 			}
-			id := container.Run(ctx, t, c,
+			id := container.Run(ctx, t, apiClient,
 				container.WithNetworkMode(nw.name),
 				container.WithExposedPorts(exposedPorts...),
 				container.WithPortMap(ctr.portMappings),
 			)
 			t.Cleanup(func() {
-				c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+				apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 			})
 		}
 	}
 }
 
 func createServices(ctx context.Context, t *testing.T, d *daemon.Daemon, section section, host networking.Host) {
-	c := d.NewClientT(t)
-	defer c.Close()
+	apiClient := d.NewClientT(t)
 
 	for _, nw := range section.networks {
 		for _, ctr := range nw.containers {
@@ -377,7 +375,7 @@ func createServices(ctx context.Context, t *testing.T, d *daemon.Daemon, section
 			})
 			t.Cleanup(func() { d.RemoveService(ctx, t, id) })
 			poll.WaitOn(t, func(_ poll.LogT) poll.Result {
-				return pollService(ctx, t, c, host)
+				return pollService(ctx, t, apiClient, host)
 			}, poll.WithTimeout(10*time.Second), poll.WithDelay(100*time.Millisecond))
 		}
 	}

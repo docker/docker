@@ -46,25 +46,24 @@ func TestNetworkInitErrorUserDefined(t *testing.T) {
 		_ = d.StopWithError()
 	}()
 
-	c := d.NewClientT(t)
-	defer c.Close()
+	apiClient := d.NewClientT(t)
 
 	const netName = "testnet"
 	const brName = "br-" + netName
-	network.CreateNoError(ctx, t, c, netName,
+	network.CreateNoError(ctx, t, apiClient, netName,
 		network.WithOption(bridge.BridgeName, brName),
 	)
-	defer network.RemoveNoError(ctx, t, c, netName)
+	defer network.RemoveNoError(ctx, t, apiClient, netName)
 
 	d.SetEnvVar("DOCKER_TEST_BRIDGE_INIT_ERROR", brName)
 	d.Restart(t)
 
-	_, err := c.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
+	_, err := apiClient.NetworkRemove(ctx, netName, client.NetworkRemoveOptions{})
 	assert.NilError(t, err)
 
 	d.SetEnvVar("DOCKER_TEST_BRIDGE_INIT_ERROR", "")
 	d.Restart(t)
-	network.CreateNoError(ctx, t, c, netName,
+	network.CreateNoError(ctx, t, apiClient, netName,
 		network.WithOption(bridge.BridgeName, brName),
 	)
 }
@@ -82,12 +81,11 @@ func TestNetworkCreateErrorNoBridge(t *testing.T) {
 	d.Start(t)
 	defer d.Stop(t)
 
-	c := d.NewClientT(t)
-	defer c.Close()
+	apiClient := d.NewClientT(t)
 
-	_, err := network.Create(ctx, c, netName, network.WithOption(bridge.BridgeName, brName))
+	_, err := network.Create(ctx, apiClient, netName, network.WithOption(bridge.BridgeName, brName))
 	if err == nil {
-		defer network.RemoveNoError(ctx, t, c, brName)
+		defer network.RemoveNoError(ctx, t, apiClient, brName)
 		t.Fatalf("expected an error creating the network")
 	}
 	assert.Check(t, is.ErrorContains(err, "DOCKER_TEST_BRIDGE_INIT_ERROR"))

@@ -10,9 +10,9 @@ import (
 
 func TestWindowsNoDisableIPv4(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
-	_, err := network.Create(ctx, c, "ipv6only",
+	_, err := network.Create(ctx, apiClient, "ipv6only",
 		network.WithDriver("nat"),
 		network.WithIPv4(false),
 	)

@@ -21,7 +21,7 @@ import (
 // Regression test for https://github.com/moby/moby/issues/47370
 func TestNatNetworkICC(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	testcases := []struct {
 		name    string
@@ -42,30 +42,28 @@ func TestNatNetworkICC(t *testing.T) {
 			ctx := testutil.StartSpan(ctx, t)
 
 			if tc.netName != "nat" {
-				network.CreateNoError(ctx, t, c, tc.netName,
+				network.CreateNoError(ctx, t, apiClient, tc.netName,
 					network.WithDriver("nat"),
 				)
-				defer network.RemoveNoError(ctx, t, c, tc.netName)
+				defer network.RemoveNoError(ctx, t, apiClient, tc.netName)
 			}
 
 			const ctr1Name = "ctr1"
-			id1 := container.Run(ctx, t, c,
+			id1 := container.Run(ctx, t, apiClient,
 				container.WithName(ctr1Name),
 				container.WithNetworkMode(tc.netName),
 			)
-			defer c.ContainerRemove(ctx, id1, client.ContainerRemoveOptions{Force: true})
-
-			pingCmd := []string{"ping", "-n", "1", "-w", "3000", ctr1Name}
+			defer container.Remove(ctx, t, apiClient, id1, client.ContainerRemoveOptions{Force: true})
 
 			const ctr2Name = "ctr2"
 			attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 			defer cancel()
-			res := container.RunAttach(attachCtx, t, c,
+			res := container.RunAttach(attachCtx, t, apiClient,
 				container.WithName(ctr2Name),
-				container.WithCmd(pingCmd...),
+				container.WithCmd("ping", "-n", "1", "-w", "3000", ctr1Name),
 				container.WithNetworkMode(tc.netName),
 			)
-			defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+			defer container.Remove(ctx, t, apiClient, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 
 			assert.Check(t, is.Equal(res.ExitCode, 0))
 			assert.Check(t, is.Equal(res.Stderr.Len(), 0))
@@ -80,38 +78,38 @@ func TestNatNetworkICC(t *testing.T) {
 // FIXME: flaky test; see https://github.com/moby/moby/issues/48881
 func TestFlakyPortMappedHairpinWindows(t *testing.T) {
 	ctx := setupTest(t)
-	c := testEnv.APIClient()
+	apiClient := testEnv.APIClient()
 
 	// Find an address on the test host.
 	conn, err := net.Dial("tcp4", "hub.docker.com:80")
 	assert.NilError(t, err)
 	hostAddr := conn.LocalAddr().(*net.TCPAddr).IP.String()
-	conn.Close()
+	_ = conn.Close()
 
 	const serverNetName = "servernet"
-	network.CreateNoError(ctx, t, c, serverNetName, network.WithDriver("nat"))
-	defer network.RemoveNoError(ctx, t, c, serverNetName)
+	network.CreateNoError(ctx, t, apiClient, serverNetName, network.WithDriver("nat"))
+	defer network.RemoveNoError(ctx, t, apiClient, serverNetName)
 	const clientNetName = "clientnet"
-	network.CreateNoError(ctx, t, c, clientNetName, network.WithDriver("nat"))
-	defer network.RemoveNoError(ctx, t, c, clientNetName)
+	network.CreateNoError(ctx, t, apiClient, clientNetName, network.WithDriver("nat"))
+	defer network.RemoveNoError(ctx, t, apiClient, clientNetName)
 
-	serverId := container.Run(ctx, t, c,
+	serverId := container.Run(ctx, t, apiClient,
 		container.WithNetworkMode(serverNetName),
 		container.WithExposedPorts("80"),
 		container.WithPortMap(networktypes.PortMap{networktypes.MustParsePort("80"): {{HostIP: netip.IPv4Unspecified()}}}),
 		container.WithCmd("httpd", "-f"),
 	)
-	defer c.ContainerRemove(ctx, serverId, client.ContainerRemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, serverId, client.ContainerRemoveOptions{Force: true})
 
-	inspect := container.Inspect(ctx, t, c, serverId)
+	inspect := container.Inspect(ctx, t, apiClient, serverId)
 	hostPort := inspect.NetworkSettings.Ports[networktypes.MustParsePort("80/tcp")][0].HostPort
 
 	attachCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	res := container.RunAttach(attachCtx, t, c,
+	res := container.RunAttach(attachCtx, t, apiClient,
 		container.WithNetworkMode(clientNetName),
 		container.WithCmd("wget", "http://"+hostAddr+":"+hostPort),
 	)
-	defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{Force: true})
+	defer container.Remove(ctx, t, apiClient, res.ContainerID, client.ContainerRemoveOptions{Force: true})
 	assert.Check(t, is.Contains(res.Stderr.String(), "404 Not Found"))
 }

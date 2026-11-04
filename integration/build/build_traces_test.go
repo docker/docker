@@ -37,8 +37,8 @@ func TestBuildkitHistoryTracePropagation(t *testing.T) {
 
 	ctx := testutil.StartSpan(baseContext, t)
 
-	c := testEnv.APIClient()
-	bc, err := client.New(ctx, c.DaemonHost())
+	apiClient := testEnv.APIClient()
+	bc, err := client.New(ctx, apiClient.DaemonHost())
 
 	assert.NilError(t, err)
 	defer bc.Close()
