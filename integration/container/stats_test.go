@@ -100,6 +100,34 @@ func TestStatsContainerNotFound(t *testing.T) {
 	}
 }
 
+func TestStatsNoStreamConnectedContainers(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, testEnv.IsRootless() && testEnv.DaemonInfo.CgroupVersion == "1", "Rootless Mode does not support cgroups v1 stats")
+	ctx := setupTest(t)
+
+	apiClient := testEnv.APIClient()
+
+	cID1 := container.Run(ctx, t, apiClient)
+	cID2 := container.Run(ctx, t, apiClient, func(tcc *container.TestContainerConfig) {
+		tcc.HostConfig.NetworkMode = containertypes.NetworkMode("container:" + cID1)
+	})
+
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+
+	statsResult, err := apiClient.ContainerStats(ctx, cID2, client.ContainerStatsOptions{Stream: false})
+	assert.NilError(t, err)
+
+	defer statsResult.Body.Close()
+
+	var v containertypes.StatsResponse
+	dec := json.NewDecoder(statsResult.Body)
+	assert.NilError(t, dec.Decode(&v))
+	assert.Check(t, is.Equal(v.ID, cID2))
+	err = dec.Decode(&v)
+	assert.Check(t, is.ErrorIs(err, io.EOF), "Expected only a single result")
+}
+
 func TestStatsNetworkStats(t *testing.T) {
 	// The test pings the container from the namespace it runs in. In rootless
 	// mode the container network lives in the RootlessKit network namespace,
