@@ -40,7 +40,17 @@ func (daemon *Daemon) createContainerVolumesOS(ctx context.Context, ctr *contain
 	}
 	defer daemon.Unmount(ctr)
 
-	if err := ctr.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
+	// The working directory, when created, is owned by the container's
+	// user, so that it is writable when running with a non-root USER.
+	usr, err := getUser(ctr, config.User)
+	if err != nil {
+		return err
+	}
+	uid, gid, err := daemon.idMapping.ToHost(int(usr.UID), int(usr.GID))
+	if err != nil {
+		return err
+	}
+	if err := ctr.SetupWorkingDirectory(uid, gid); err != nil {
 		return err
 	}
 

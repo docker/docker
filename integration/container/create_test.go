@@ -837,3 +837,43 @@ func TestContainerdContainerImageInfo(t *testing.T) {
 		assert.Equal(t, ctr.Image, "")
 	}
 }
+
+// Make sure that the working directory, when created by the daemon, is
+// owned by the container's user so that it is writable.
+// https://github.com/docker/cli/issues/3464
+func TestCreateWorkingDirForUser(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows does not set up the working directory at create time")
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	id := testContainer.Create(ctx, t, apiClient,
+		testContainer.WithWorkingDir("/foo"),
+		testContainer.WithUser("1000:1000"),
+		testContainer.WithCmd("touch", "/foo/bar"),
+	)
+
+	defer func() {
+		_, err := apiClient.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
+		assert.NilError(t, err)
+	}()
+
+	wait := apiClient.ContainerWait(ctx, id, client.ContainerWaitOptions{Condition: container.WaitConditionNextExit})
+	_, err := apiClient.ContainerStart(ctx, id, client.ContainerStartOptions{})
+	assert.NilError(t, err)
+
+	timeout := time.NewTimer(30 * time.Second)
+	defer timeout.Stop()
+
+	select {
+	case <-timeout.C:
+		t.Fatal("timeout waiting for container to exit")
+	case status := <-wait.Result:
+		var errMsg string
+		if status.Error != nil {
+			errMsg = status.Error.Message
+		}
+		assert.Equal(t, int(status.StatusCode), 0, errMsg)
+	case err := <-wait.Error:
+		assert.NilError(t, err)
+	}
+}
