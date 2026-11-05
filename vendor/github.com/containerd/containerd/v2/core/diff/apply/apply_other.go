@@ -27,12 +27,10 @@ import (
 	"github.com/containerd/containerd/v2/pkg/archive"
 )
 
-func apply(ctx context.Context, mounts []mount.Mount, r io.Reader, _sync bool) error {
+func apply(ctx context.Context, mounts []mount.Mount, r io.Reader, _sync bool, opts ...archive.ApplyOpt) error {
 	// TODO: for windows, how to sync?
 
 	if !mount.HasBindMounts && len(mounts) == 1 && mounts[0].Type == "bind" {
-		opts := []archive.ApplyOpt{}
-
 		if os.Getuid() != 0 {
 			opts = append(opts, archive.WithNoSameOwner())
 		}
@@ -45,7 +43,7 @@ func apply(ctx context.Context, mounts []mount.Mount, r io.Reader, _sync bool) e
 	}
 
 	return mount.WithTempMount(ctx, mounts, func(root string) error {
-		_, err := archive.Apply(ctx, root, r)
+		_, err := archive.Apply(ctx, root, r, opts...)
 		return err
 	})
 }

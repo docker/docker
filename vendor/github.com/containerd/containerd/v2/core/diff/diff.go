@@ -24,6 +24,7 @@ import (
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/typeurl/v2"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Config is used to hold parameters needed for a diff operation
@@ -48,6 +49,11 @@ type Config struct {
 
 	// SourceDateEpoch specifies the SOURCE_DATE_EPOCH without touching the env vars.
 	SourceDateEpoch *time.Time
+
+	// UIDMap and GIDMap are the user namespace mappings to map the owners
+	// of the files from the host IDs in the mounts to the container IDs in
+	// the diff.
+	UIDMap, GIDMap []specs.LinuxIDMapping
 }
 
 // Opt is used to configure a diff operation
@@ -71,6 +77,10 @@ type ApplyConfig struct {
 	SyncFs bool
 	// Progress is a function which reports status of processed read data
 	Progress func(int64)
+	// UIDMap and GIDMap are the user namespace mappings to map the owners
+	// of the files from the container IDs in the diff to the host IDs in the
+	// mounts.
+	UIDMap, GIDMap []specs.LinuxIDMapping
 }
 
 // ApplyOpt is used to configure an Apply operation
@@ -159,4 +169,27 @@ func WithSourceDateEpoch(tm *time.Time) Opt {
 		c.SourceDateEpoch = tm
 		return nil
 	}
+}
+
+// WithIDMapping maps the owners of the files from the host IDs in the mounts
+// to the container IDs of the user namespace mappings in the diff.
+func WithIDMapping(uidMap, gidMap []specs.LinuxIDMapping) Opt {
+	return func(c *Config) error {
+		c.UIDMap, c.GIDMap = uidMap, gidMap
+		return nil
+	}
+}
+
+// WithApplyIDMapping maps the owners of the files from the container IDs in
+// the diff to the host IDs of the user namespace mappings in the mounts.
+func WithApplyIDMapping(uidMap, gidMap []specs.LinuxIDMapping) ApplyOpt {
+	return func(_ context.Context, _ ocispec.Descriptor, c *ApplyConfig) error {
+		c.UIDMap, c.GIDMap = uidMap, gidMap
+		return nil
+	}
+}
+
+// HasIDMapping returns whether uidMap or gidMap map any IDs.
+func HasIDMapping(uidMap, gidMap []specs.LinuxIDMapping) bool {
+	return len(uidMap) > 0 || len(gidMap) > 0
 }
