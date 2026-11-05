@@ -79,6 +79,23 @@ func (i *IDMap) ToHost(pair User) (User, error) {
 	return target, nil
 }
 
+// ToContainer returns the container user ID pair for the host ID pair.
+func (i *IDMap) ToContainer(pair User) (User, error) {
+	var (
+		target User
+		err    error
+	)
+	target.Uid, err = toContainer(pair.Uid, i.UidMap)
+	if err != nil {
+		return invalidUser, err
+	}
+	target.Gid, err = toContainer(pair.Gid, i.GidMap)
+	if err != nil {
+		return invalidUser, err
+	}
+	return target, nil
+}
+
 // Marshal serializes the IDMap object into two strings:
 // one uidmap list and another one for gidmap list
 func (i *IDMap) Marshal() (string, string) {
@@ -139,6 +156,29 @@ func toHost(contID uint32, idMap []specs.LinuxIDMapping) (uint32, error) {
 		}
 	}
 	return invalidID, fmt.Errorf("container ID %d cannot be mapped to a host ID", contID)
+}
+
+// toContainer takes an id mapping and a host ID, and translates the ID to the
+// mapped container ID. If no map is provided, then the translation assumes a
+// 1-to-1 mapping and returns the passed in id #
+func toContainer(hostID uint32, idMap []specs.LinuxIDMapping) (uint32, error) {
+	if idMap == nil {
+		return hostID, nil
+	}
+	for _, m := range idMap {
+		high, err := safeSum(m.HostID, m.Size)
+		if err != nil {
+			break
+		}
+		if hostID >= m.HostID && hostID < high {
+			contID, err := safeSum(m.ContainerID, hostID-m.HostID)
+			if err != nil || contID == invalidID {
+				break
+			}
+			return contID, nil
+		}
+	}
+	return invalidID, fmt.Errorf("host ID %d cannot be mapped to a container ID", hostID)
 }
 
 // safeSum returns the sum of x and y. or an error if the result overflows

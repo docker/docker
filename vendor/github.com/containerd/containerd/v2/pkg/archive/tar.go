@@ -35,6 +35,7 @@ import (
 	"github.com/containerd/containerd/v2/pkg/epoch"
 	"github.com/containerd/continuity/fs"
 	"github.com/containerd/log"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 var bufPool = &sync.Pool{
@@ -87,6 +88,9 @@ func WriteDiff(ctx context.Context, w io.Writer, a, b string, opts ...WriteDiffO
 		options.SourceDateEpoch = tm
 	}
 
+	if options.writeDiffFunc != nil && options.idMapping != nil {
+		return errors.New("ID mapping is not supported with this diff function")
+	}
 	if options.writeDiffFunc == nil {
 		options.writeDiffFunc = writeDiffNaive
 	}
@@ -107,6 +111,11 @@ func writeDiffNaive(ctx context.Context, w io.Writer, a, b string, o WriteDiffOp
 		opts = append(opts, WithModTimeUpperBound(*o.SourceDateEpoch))
 		// Since containerd v2.0, the whiteout timestamps are set to zero (1970-01-01),
 		// not to the source date epoch
+	}
+	if o.idMapping != nil {
+		opts = append(opts, func(cw *ChangeWriter) {
+			cw.idMapping = o.idMapping
+		})
 	}
 	cw := NewChangeWriter(w, b, opts...)
 	err := fs.Changes(ctx, a, b, cw.HandleChange)
@@ -149,6 +158,9 @@ func Apply(ctx context.Context, root string, r io.Reader, opts ...ApplyOpt) (int
 	}
 	if options.Filter == nil {
 		options.Filter = all
+	}
+	if options.applyFunc != nil && options.idMapping != nil {
+		return 0, errors.New("ID mapping is not supported with this apply function")
 	}
 	if options.applyFunc == nil {
 		options.applyFunc = applyNaive
@@ -256,6 +268,12 @@ func applyNaive(ctx context.Context, root string, r io.Reader, options ApplyOpti
 			continue
 		}
 
+		if options.idMapping != nil {
+			if err := options.idMapping.toHost(hdr); err != nil {
+				return 0, err
+			}
+		}
+
 		if skipFile(hdr) {
 			log.G(ctx).Warnf("file %q ignored: archive may not be supported on system", hdr.Name)
 			continue
@@ -283,7 +301,7 @@ func applyNaive(ctx context.Context, root string, r io.Reader, options ApplyOpti
 			if base == "" {
 				parentPath = filepath.Dir(path)
 			}
-			if err := mkparent(ctx, parentPath, root, options.Parents); err != nil {
+			if err := mkparent(ctx, parentPath, root, options.Parents, options.idMapping); err != nil {
 				return 0, err
 			}
 		}
@@ -333,6 +351,12 @@ func applyNaive(ctx context.Context, root string, r io.Reader, options ApplyOpti
 			return 0, err
 		}
 		if err := chtimes(path, boundTime(latestTime(hdr.AccessTime, hdr.ModTime)), boundTime(hdr.ModTime)); err != nil {
+			return 0, err
+		}
+	}
+
+	if options.idMapping != nil {
+		if err := options.idMapping.chownRoot(root); err != nil {
 			return 0, err
 		}
 	}
@@ -445,7 +469,7 @@ func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header
 	return chtimes(path, boundTime(latestTime(hdr.AccessTime, hdr.ModTime)), boundTime(hdr.ModTime))
 }
 
-func mkparent(ctx context.Context, path, root string, parents []string) error {
+func mkparent(ctx context.Context, path, root string, parents []string, idMapping *idMapping) error {
 	if dir, err := os.Lstat(path); err == nil {
 		if dir.IsDir() {
 			return nil
@@ -465,7 +489,7 @@ func mkparent(ctx context.Context, path, root string, parents []string) error {
 	}
 
 	if i > len(root)+1 {
-		if err := mkparent(ctx, path[:i-1], root, parents); err != nil {
+		if err := mkparent(ctx, path[:i-1], root, parents, idMapping); err != nil {
 			return err
 		}
 	}
@@ -502,6 +526,9 @@ func mkparent(ctx context.Context, path, root string, parents []string) error {
 
 	log.G(ctx).Debugf("parent directory %q not found: default permissions(0755) used", path)
 
+	if idMapping != nil {
+		return idMapping.chownRoot(path)
+	}
 	return nil
 }
 
@@ -519,6 +546,7 @@ type ChangeWriter struct {
 	tw                *tar.Writer
 	source            string
 	modTimeUpperBound *time.Time
+	idMapping         *idMapping
 	inodeSrc          map[uint64]string
 	inodeRefs         map[uint64][]string
 	addedDirs         map[string]struct{}
@@ -531,6 +559,14 @@ type ChangeWriterOpt func(cw *ChangeWriter)
 func WithModTimeUpperBound(tm time.Time) ChangeWriterOpt {
 	return func(cw *ChangeWriter) {
 		cw.modTimeUpperBound = &tm
+	}
+}
+
+// WithChangeWriterIDMapping maps the owners of the files in the tar stream
+// from host IDs to the container IDs of the user namespace mappings.
+func WithChangeWriterIDMapping(uidMap, gidMap []specs.LinuxIDMapping) ChangeWriterOpt {
+	return func(cw *ChangeWriter) {
+		cw.idMapping = newIDMapping(uidMap, gidMap)
 	}
 }
 
@@ -662,6 +698,12 @@ func (cw *ChangeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, e
 				hdr.PAXRecords = map[string]string{}
 			}
 			hdr.PAXRecords[paxSchilyXattr+"security.capability"] = string(capability)
+		}
+
+		if cw.idMapping != nil {
+			if err := cw.idMapping.toContainer(hdr); err != nil {
+				return err
+			}
 		}
 
 		if err := cw.includeParents(hdr); err != nil {

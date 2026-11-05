@@ -21,6 +21,8 @@ import (
 	"context"
 	"io"
 	"time"
+
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // ApplyOptions provides additional options for an Apply operation
@@ -29,6 +31,8 @@ type ApplyOptions struct {
 	ConvertWhiteout ConvertWhiteout // Convert whiteout files
 	Parents         []string        // Parent directories to handle inherited attributes without CoW
 	NoSameOwner     bool            // NoSameOwner will not attempt to preserve the owner specified in the tar archive.
+
+	idMapping *idMapping
 
 	applyFunc func(context.Context, string, io.Reader, ApplyOptions) (int64, error)
 }
@@ -85,9 +89,23 @@ func WithParents(p []string) ApplyOpt {
 	}
 }
 
+// WithApplyIDMapping maps the owners of the files in the archive from
+// container IDs to the host IDs of the user namespace mappings.
+// The root user of the mappings owns the root directory, which the archive
+// does not change, and the parent directories created without attributes to
+// inherit.
+func WithApplyIDMapping(uidMap, gidMap []specs.LinuxIDMapping) ApplyOpt {
+	return func(options *ApplyOptions) error {
+		options.idMapping = newIDMapping(uidMap, gidMap)
+		return nil
+	}
+}
+
 // WriteDiffOptions provides additional options for a WriteDiff operation
 type WriteDiffOptions struct {
 	ParentLayers []string // Windows needs the full list of parent layers
+
+	idMapping *idMapping
 
 	writeDiffFunc func(context.Context, io.Writer, string, string, WriteDiffOptions) error
 
@@ -106,6 +124,15 @@ type WriteDiffOpt func(options *WriteDiffOptions) error
 func WithSourceDateEpoch(tm *time.Time) WriteDiffOpt {
 	return func(options *WriteDiffOptions) error {
 		options.SourceDateEpoch = tm
+		return nil
+	}
+}
+
+// WithWriteDiffIDMapping maps the owners of the files in the diff from host
+// IDs to the container IDs of the user namespace mappings.
+func WithWriteDiffIDMapping(uidMap, gidMap []specs.LinuxIDMapping) WriteDiffOpt {
+	return func(options *WriteDiffOptions) error {
+		options.idMapping = newIDMapping(uidMap, gidMap)
 		return nil
 	}
 }
