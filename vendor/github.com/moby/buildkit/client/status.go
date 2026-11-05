@@ -5,15 +5,11 @@ import (
 
 	controlapi "github.com/moby/buildkit/api/services/control"
 	digest "github.com/opencontainers/go-digest"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var emptyLogVertexSize int
-
-func init() {
-	emptyLogVertex := controlapi.VertexLog{}
-	emptyLogVertexSize = emptyLogVertex.SizeVT()
-}
+const statusResponseSize = 1024 * 1024
 
 func NewSolveStatus(resp *controlapi.StatusResponse) *SolveStatus {
 	s := &SolveStatus{}
@@ -63,68 +59,86 @@ func NewSolveStatus(resp *controlapi.StatusResponse) *SolveStatus {
 	return s
 }
 
+// Marshal batches status updates by encoded size without modifying SolveStatus.
+// Logs may be split across responses. Individual metadata entries larger than
+// the batch target are emitted intact in their own response.
 func (ss *SolveStatus) Marshal() (out []*controlapi.StatusResponse) {
-	logSize := 0
-	for {
-		retry := false
-		sr := controlapi.StatusResponse{}
-		for _, v := range ss.Vertexes {
-			sr.Vertexes = append(sr.Vertexes, &controlapi.Vertex{
-				Digest:        string(v.Digest),
-				Inputs:        digestSliceToPB(v.Inputs),
-				Name:          v.Name,
-				Started:       timestampToPB(v.Started),
-				Completed:     timestampToPB(v.Completed),
-				Error:         v.Error,
-				Cached:        v.Cached,
-				ProgressGroup: v.ProgressGroup,
-			})
+	sr := &controlapi.StatusResponse{}
+	size := 0
+
+	// Each repeated field has a one-byte tag and a length-prefixed message.
+	// Keep indivisible metadata entries intact even if they exceed the target.
+	reserve := func(n int) {
+		n = 1 + protowire.SizeBytes(n)
+		if size > 0 && size+n > statusResponseSize {
+			out = append(out, sr)
+			sr = &controlapi.StatusResponse{}
+			size = 0
 		}
-		for _, v := range ss.Statuses {
-			sr.Statuses = append(sr.Statuses, &controlapi.VertexStatus{
-				ID:        v.ID,
-				Vertex:    string(v.Vertex),
-				Name:      v.Name,
-				Current:   v.Current,
-				Total:     v.Total,
-				Timestamp: timestamppb.New(v.Timestamp),
-				Started:   timestampToPB(v.Started),
-				Completed: timestampToPB(v.Completed),
-			})
+		size += n
+	}
+
+	for _, v := range ss.Vertexes {
+		p := &controlapi.Vertex{
+			Digest:        string(v.Digest),
+			Inputs:        digestSliceToPB(v.Inputs),
+			Name:          v.Name,
+			Started:       timestampToPB(v.Started),
+			Completed:     timestampToPB(v.Completed),
+			Error:         v.Error,
+			Cached:        v.Cached,
+			ProgressGroup: v.ProgressGroup,
 		}
-		for i, v := range ss.Logs {
-			sr.Logs = append(sr.Logs, &controlapi.VertexLog{
-				Vertex:    string(v.Vertex),
-				Stream:    int64(v.Stream),
-				Msg:       v.Data,
-				Timestamp: timestamppb.New(v.Timestamp),
-			})
-			logSize += len(v.Data) + emptyLogVertexSize
-			// avoid logs growing big and split apart if they do
-			if logSize > 1024*1024 {
-				ss.Vertexes = nil
-				ss.Statuses = nil
-				ss.Logs = ss.Logs[i+1:]
-				retry = true
+		reserve(p.SizeVT())
+		sr.Vertexes = append(sr.Vertexes, p)
+	}
+	for _, v := range ss.Statuses {
+		p := &controlapi.VertexStatus{
+			ID:        v.ID,
+			Vertex:    string(v.Vertex),
+			Name:      v.Name,
+			Current:   v.Current,
+			Total:     v.Total,
+			Timestamp: timestamppb.New(v.Timestamp),
+			Started:   timestampToPB(v.Started),
+			Completed: timestampToPB(v.Completed),
+		}
+		reserve(p.SizeVT())
+		sr.Statuses = append(sr.Statuses, p)
+	}
+	for _, v := range ss.Logs {
+		p := &controlapi.VertexLog{
+			Vertex:    string(v.Vertex),
+			Stream:    int64(v.Stream),
+			Timestamp: timestamppb.New(v.Timestamp),
+		}
+		const maxData = statusResponseSize / 2
+		data := v.Data
+		for {
+			p.Msg = data[:min(len(data), maxData)]
+			reserve(p.SizeVT())
+			sr.Logs = append(sr.Logs, p)
+			data = data[len(p.Msg):]
+			if len(data) == 0 {
 				break
 			}
-		}
-		for _, v := range ss.Warnings {
-			sr.Warnings = append(sr.Warnings, &controlapi.VertexWarning{
-				Vertex: string(v.Vertex),
-				Level:  int64(v.Level),
-				Short:  v.Short,
-				Detail: v.Detail,
-				Info:   v.SourceInfo,
-				Ranges: v.Range,
-				Url:    v.URL,
-			})
-		}
-		out = append(out, &sr)
-		if !retry {
-			break
+			p = &controlapi.VertexLog{Vertex: p.Vertex, Stream: p.Stream, Timestamp: p.Timestamp}
 		}
 	}
+	for _, v := range ss.Warnings {
+		p := &controlapi.VertexWarning{
+			Vertex: string(v.Vertex),
+			Level:  int64(v.Level),
+			Short:  v.Short,
+			Detail: v.Detail,
+			Info:   v.SourceInfo,
+			Ranges: v.Range,
+			Url:    v.URL,
+		}
+		reserve(p.SizeVT())
+		sr.Warnings = append(sr.Warnings, p)
+	}
+	out = append(out, sr)
 	return
 }
 

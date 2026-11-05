@@ -141,7 +141,7 @@ func (nc *NamedContext) load(ctx context.Context, count int) (*llb.State, *docke
 		}
 		return &st, &img, nil
 	case "git":
-		st, ok, err := DetectGitContext(nc.input, nil, gitAdviceOpts(nc.bc.GitAdvice)...)
+		st, ok, err := DetectGitContext(nc.input, nil, gitSourceOpts(nc.bc.GitAdvice, nc.bc.GitDebugCommands)...)
 		if !ok {
 			return nil, nil, errors.Errorf("invalid git context %s", nc.input)
 		}
@@ -150,7 +150,7 @@ func (nc *NamedContext) load(ctx context.Context, count int) (*llb.State, *docke
 		}
 		return st, nil, nil
 	case "http", "https":
-		st, ok, err := DetectGitContext(nc.input, nil, gitAdviceOpts(nc.bc.GitAdvice)...)
+		st, ok, err := DetectGitContext(nc.input, nil, gitSourceOpts(nc.bc.GitAdvice, nc.bc.GitDebugCommands)...)
 		if ok {
 			if err != nil {
 				return nil, nil, err

@@ -246,7 +246,10 @@ func (e *exporter) ExportTo(ctx context.Context, t CacheExporterTarget, opt Cach
 	}
 
 	if e.edge != nil {
-		for _, de := range e.edge.secondaryExporters {
+		e.edge.secondaryExportersMu.Lock()
+		secondaryExporters := slices.Clone(e.edge.secondaryExporters)
+		e.edge.secondaryExportersMu.Unlock()
+		for _, de := range secondaryExporters {
 			recs, err := de.cacheKey.CacheKey.Exporter.ExportTo(mainCtx, t, opt)
 			if err != nil {
 				continue

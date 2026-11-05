@@ -40,7 +40,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/stargz-snapshotter/estargz/errorutil"
 	"github.com/klauspost/compress/zstd"
 	digest "github.com/opencontainers/go-digest"
 )
@@ -187,15 +186,10 @@ func testBuild(t *TestRunner, controllers ...TestingControllerFactory) {
 			tt.minChunkSize = []int{0}
 		}
 		for _, srcCompression := range srcCompressions {
-			srcCompression := srcCompression
 			for _, newCL := range controllers {
-				newCL := newCL
 				for _, srcTarFormat := range []tar.Format{tar.FormatUSTAR, tar.FormatPAX, tar.FormatGNU} {
-					srcTarFormat := srcTarFormat
 					for _, prefix := range allowedPrefix {
-						prefix := prefix
 						for _, minChunkSize := range tt.minChunkSize {
-							minChunkSize := minChunkSize
 							t.Run(tt.name+"-"+fmt.Sprintf("compression=%v,prefix=%q,src=%d,format=%s,minChunkSize=%d", newCL(), prefix, srcCompression, srcTarFormat, minChunkSize), func(t *TestRunner) {
 								tarBlob := buildTar(t, tt.in, prefix, srcTarFormat)
 								// Test divideEntries()
@@ -675,15 +669,10 @@ func testDigestAndVerify(t *TestRunner, controllers ...TestingControllerFactory)
 			tt.minChunkSize = []int{0}
 		}
 		for _, srcCompression := range srcCompressions {
-			srcCompression := srcCompression
 			for _, newCL := range controllers {
-				newCL := newCL
 				for _, prefix := range allowedPrefix {
-					prefix := prefix
 					for _, srcTarFormat := range []tar.Format{tar.FormatUSTAR, tar.FormatPAX, tar.FormatGNU} {
-						srcTarFormat := srcTarFormat
 						for _, minChunkSize := range tt.minChunkSize {
-							minChunkSize := minChunkSize
 							t.Run(tt.name+"-"+fmt.Sprintf("compression=%v,prefix=%q,format=%s,minChunkSize=%d", newCL(), prefix, srcTarFormat, minChunkSize), func(t *TestRunner) {
 								// Get original tar file and chunk digests
 								dgstMap := make(map[string]digest.Digest)
@@ -1170,6 +1159,8 @@ func testWriteAndOpen(t *TestRunner, controllers ...TestingControllerFactory) {
 		wantNumGzLossLess  int // expected number of streams (> 0) in lossless mode if it's different from wantNumGz
 		wantFailOnLossLess bool
 		wantTOCVersion     int // default = 1
+
+		wantOpenError bool // opening this blob should fail with returning an error
 	}{
 		{
 			name:      "empty",
@@ -1484,15 +1475,19 @@ func testWriteAndOpen(t *TestRunner, controllers ...TestingControllerFactory) {
 				hasFileContentsRange("foo3", len(data64KB)-1, data64KB[len(data64KB)-1:]),
 			),
 		},
+		{
+			name: "cyclic_hardlink",
+			in: tarOf(
+				link("foo", "foo"),
+			),
+			wantOpenError: true,
+		},
 	}
 
 	for _, tt := range tests {
 		for _, newCL := range controllers {
-			newCL := newCL
 			for _, prefix := range allowedPrefix {
-				prefix := prefix
 				for _, srcTarFormat := range []tar.Format{tar.FormatUSTAR, tar.FormatPAX, tar.FormatGNU} {
-					srcTarFormat := srcTarFormat
 					for _, lossless := range []bool{true, false} {
 						t.Run(tt.name+"-"+fmt.Sprintf("compression=%v,prefix=%q,lossless=%v,format=%s", newCL(), prefix, lossless, srcTarFormat), func(t *TestRunner) {
 							var tr io.Reader = buildTar(t, tt.in, prefix, srcTarFormat)
@@ -1558,6 +1553,9 @@ func testWriteAndOpen(t *TestRunner, controllers ...TestingControllerFactory) {
 								WithTelemetry(telemetry),
 							)
 							if err != nil {
+								if tt.wantOpenError {
+									return
+								}
 								t.Fatalf("stargz.Open: %v", err)
 							}
 							if _, ok := r.Lookup(""); !ok {
@@ -1634,24 +1632,24 @@ func newCalledTelemetry() (telemetry *Telemetry, check func(needsGetTOC bool) er
 	var getTocLatencyCalled bool
 	var deserializeTocLatencyCalled bool
 	return &Telemetry{
-			func(time.Time) { getFooterLatencyCalled = true },
-			func(time.Time) { getTocLatencyCalled = true },
-			func(time.Time) { deserializeTocLatencyCalled = true },
-		}, func(needsGetTOC bool) error {
-			var allErr []error
-			if !getFooterLatencyCalled {
-				allErr = append(allErr, fmt.Errorf("metrics GetFooterLatency isn't called"))
-			}
-			if needsGetTOC {
-				if !getTocLatencyCalled {
-					allErr = append(allErr, fmt.Errorf("metrics GetTocLatency isn't called"))
-				}
-			}
-			if !deserializeTocLatencyCalled {
-				allErr = append(allErr, fmt.Errorf("metrics DeserializeTocLatency isn't called"))
-			}
-			return errorutil.Aggregate(allErr)
+		func(time.Time) { getFooterLatencyCalled = true },
+		func(time.Time) { getTocLatencyCalled = true },
+		func(time.Time) { deserializeTocLatencyCalled = true },
+	}, func(needsGetTOC bool) error {
+		var allErr []error
+		if !getFooterLatencyCalled {
+			allErr = append(allErr, fmt.Errorf("metrics GetFooterLatency isn't called"))
 		}
+		if needsGetTOC {
+			if !getTocLatencyCalled {
+				allErr = append(allErr, fmt.Errorf("metrics GetTocLatency isn't called"))
+			}
+		}
+		if !deserializeTocLatencyCalled {
+			allErr = append(allErr, fmt.Errorf("metrics DeserializeTocLatency isn't called"))
+		}
+		return errors.Join(allErr...)
+	}
 }
 
 func digestFor(content string) string {
@@ -2072,7 +2070,7 @@ func (f tarEntryFunc) appendTar(tw *tar.Writer, prefix string, format tar.Format
 	return f(tw, prefix, format)
 }
 
-func buildTar(t TestingT, ents []tarEntry, prefix string, opts ...interface{}) *io.SectionReader {
+func buildTar(t TestingT, ents []tarEntry, prefix string, opts ...any) *io.SectionReader {
 	format := tar.FormatUnknown
 	for _, opt := range opts {
 		switch v := opt.(type) {
@@ -2096,7 +2094,7 @@ func buildTar(t TestingT, ents []tarEntry, prefix string, opts ...interface{}) *
 	return io.NewSectionReader(bytes.NewReader(data), 0, int64(len(data)))
 }
 
-func dir(name string, opts ...interface{}) tarEntry {
+func dir(name string, opts ...any) tarEntry {
 	return tarEntryFunc(func(tw *tar.Writer, prefix string, format tar.Format) error {
 		var o owner
 		mode := os.FileMode(0755)
@@ -2137,7 +2135,7 @@ type owner struct {
 	gid int
 }
 
-func file(name, contents string, opts ...interface{}) tarEntry {
+func file(name, contents string, opts ...any) tarEntry {
 	return tarEntryFunc(func(tw *tar.Writer, prefix string, format tar.Format) error {
 		var xattrs xAttr
 		var o owner
@@ -2164,15 +2162,19 @@ func file(name, contents string, opts ...interface{}) tarEntry {
 		if len(xattrs) > 0 {
 			format = tar.FormatPAX // only PAX supports xattrs
 		}
+		xattrsPAXRecords := make(map[string]string)
+		for k, v := range xattrs {
+			xattrsPAXRecords["SCHILY.xattr."+k] = v
+		}
 		if err := tw.WriteHeader(&tar.Header{
-			Typeflag: tar.TypeReg,
-			Name:     prefix + name,
-			Mode:     tm,
-			Xattrs:   xattrs,
-			Size:     int64(len(contents)),
-			Uid:      o.uid,
-			Gid:      o.gid,
-			Format:   format,
+			Typeflag:   tar.TypeReg,
+			Name:       prefix + name,
+			Mode:       tm,
+			PAXRecords: xattrsPAXRecords,
+			Size:       int64(len(contents)),
+			Uid:        o.uid,
+			Gid:        o.gid,
+			Format:     format,
 		}); err != nil {
 			return err
 		}
@@ -2349,7 +2351,7 @@ func (f fileInfoOnlyMode) Size() int64        { return 0 }
 func (f fileInfoOnlyMode) Mode() os.FileMode  { return os.FileMode(f) }
 func (f fileInfoOnlyMode) ModTime() time.Time { return time.Now() }
 func (f fileInfoOnlyMode) IsDir() bool        { return os.FileMode(f).IsDir() }
-func (f fileInfoOnlyMode) Sys() interface{}   { return nil }
+func (f fileInfoOnlyMode) Sys() any           { return nil }
 
 func CheckGzipHasStreams(t TestingT, b []byte, streams []int64) {
 	if len(streams) == 0 {

@@ -1,7 +1,6 @@
 package compression
 
 import (
-	"compress/gzip"
 	"context"
 	"io"
 
@@ -57,10 +56,13 @@ func (c gzipType) String() string {
 
 func gzipWriter(comp Config) func(io.Writer) (io.WriteCloser, error) {
 	return func(dest io.Writer) (io.WriteCloser, error) {
-		level := gzip.DefaultCompression
+		level := go126GzipDefaultCompression
 		if comp.Level != nil {
 			level = *comp.Level
 		}
-		return gzip.NewWriterLevel(dest, level)
+		// Go 1.27 changed compress/flate output in CL 707355 for
+		// golang/go#75532. Keep Go 1.26 encoding so existing compatibility
+		// versions continue to produce the same compressed layer digests.
+		return newGo126GzipWriterLevel(dest, level)
 	}
 }

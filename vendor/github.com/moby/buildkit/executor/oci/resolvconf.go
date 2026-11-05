@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/netip"
 	"os"
+	"sync/atomic"
 
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/bklog"
@@ -23,9 +24,10 @@ const (
 )
 
 var (
-	g            flightcontrol.Group[struct{}]
-	notFirstRun  bool
-	lastNotEmpty bool
+	g flightcontrol.Group[struct{}]
+	// accessed concurrently by calls with different keys
+	notFirstRun  atomic.Bool
+	lastNotEmpty atomic.Bool
 )
 
 // overridden by tests
@@ -67,8 +69,7 @@ func GetResolvConf(ctx context.Context, root *os.Root, idmap *user.IdentityMappi
 	}
 
 	_, err := g.Do(ctx, root.Name()+"/"+name, func(ctx context.Context) (struct{}, error) {
-		generate := !notFirstRun
-		notFirstRun = true
+		generate := !notFirstRun.Swap(true)
 
 		if !generate {
 			fi, err := root.Stat(name)
@@ -84,9 +85,8 @@ func GetResolvConf(ctx context.Context, root *os.Root, idmap *user.IdentityMappi
 					if !errors.Is(err, os.ErrNotExist) {
 						return struct{}{}, err
 					}
-					if lastNotEmpty {
+					if lastNotEmpty.CompareAndSwap(true, false) {
 						generate = true
-						lastNotEmpty = false
 					}
 				} else if fi.ModTime().Before(fiMain.ModTime()) {
 					generate = true

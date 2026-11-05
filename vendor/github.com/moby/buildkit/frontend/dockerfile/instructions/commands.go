@@ -148,9 +148,11 @@ func expandSliceInPlace(values []string, expander SingleWordExpander) error {
 // EnvCommand allows setting an variable in the container's environment.
 //
 //	ENV key1 value1 [keyN valueN...]
+//	ENV --unset key1 [keyN...]
 type EnvCommand struct {
 	withNameAndCode
-	Env KeyValuePairs
+	Env   KeyValuePairs
+	Unset bool // Env keys are removed, values are empty
 }
 
 func (c *EnvCommand) Expand(expander SingleWordExpander) error {
@@ -185,9 +187,11 @@ func NewLabelCommand(k string, v string, noExp bool) *LabelCommand {
 // LabelCommand sets an image label in the output
 //
 //	LABEL some json data describing the image
+//	LABEL --unset key1 [keyN...]
 type LabelCommand struct {
 	withNameAndCode
 	Labels   KeyValuePairs
+	Unset    bool // Labels keys are removed, values are empty
 	noExpand bool
 }
 
@@ -436,9 +440,11 @@ func (c *UserCommand) Expand(expander SingleWordExpander) error {
 // VolumeCommand exposes the specified volume for use in the build environment.
 //
 //	VOLUME /foo
+//	VOLUME --unset /foo
 type VolumeCommand struct {
 	withNameAndCode
 	Volumes []string
+	Unset   bool // Volumes are removed
 }
 
 func (c *VolumeCommand) Expand(expander SingleWordExpander) error {
@@ -521,6 +527,7 @@ type Stage struct {
 	OrigCmd  string    // original FROM command, used for rule checks
 	BaseName string    // name of the base stage or source
 	Platform string    // platform of base source to use
+	Reset    []string  // base image config fields to reset, see ResetKeys
 
 	DocComment string // doc-comment directly above the stage
 

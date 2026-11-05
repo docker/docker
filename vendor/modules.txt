@@ -626,10 +626,9 @@ github.com/containerd/platforms
 ## explicit; go 1.22
 github.com/containerd/plugin
 github.com/containerd/plugin/registry
-# github.com/containerd/stargz-snapshotter/estargz v0.18.2
-## explicit; go 1.24.0
+# github.com/containerd/stargz-snapshotter/estargz v0.19.1
+## explicit; go 1.25.0
 github.com/containerd/stargz-snapshotter/estargz
-github.com/containerd/stargz-snapshotter/estargz/errorutil
 # github.com/containerd/ttrpc v1.2.10
 ## explicit; go 1.25.0
 github.com/containerd/ttrpc
@@ -1078,7 +1077,7 @@ github.com/mitchellh/copystructure
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/moby/buildkit v0.34.2
+# github.com/moby/buildkit v0.35.0-rc1
 ## explicit; go 1.26.8
 github.com/moby/buildkit/api/services/control
 github.com/moby/buildkit/api/types
@@ -1088,10 +1087,10 @@ github.com/moby/buildkit/cache/contenthash
 github.com/moby/buildkit/cache/metadata
 github.com/moby/buildkit/cache/remotecache
 github.com/moby/buildkit/cache/remotecache/gha
-github.com/moby/buildkit/cache/remotecache/gha/ghatypes
 github.com/moby/buildkit/cache/remotecache/inline
 github.com/moby/buildkit/cache/remotecache/local
 github.com/moby/buildkit/cache/remotecache/registry
+github.com/moby/buildkit/cache/remotecache/signing
 github.com/moby/buildkit/cache/remotecache/v1
 github.com/moby/buildkit/cache/remotecache/v1/types
 github.com/moby/buildkit/cache/util
@@ -1204,6 +1203,7 @@ github.com/moby/buildkit/util/bkmaps
 github.com/moby/buildkit/util/bkslices
 github.com/moby/buildkit/util/cachedigest
 github.com/moby/buildkit/util/compression
+github.com/moby/buildkit/util/compression/go126flate
 github.com/moby/buildkit/util/cond
 github.com/moby/buildkit/util/contentutil
 github.com/moby/buildkit/util/converter
@@ -1456,8 +1456,8 @@ github.com/moby/sys/signal
 # github.com/moby/sys/symlink v0.3.0
 ## explicit; go 1.17
 github.com/moby/sys/symlink
-# github.com/moby/sys/user v0.4.1
-## explicit; go 1.18
+# github.com/moby/sys/user v0.5.0
+## explicit; go 1.24
 github.com/moby/sys/user
 # github.com/moby/sys/userns v0.2.1
 ## explicit; go 1.21

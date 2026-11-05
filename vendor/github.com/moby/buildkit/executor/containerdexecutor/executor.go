@@ -426,8 +426,7 @@ func (w *containerdExecutor) runProcess(ctx context.Context, p ctd.Process, resi
 				if !ok {
 					return // chan closed
 				}
-				err = p.Resize(eventCtx, size.Cols, size.Rows)
-				if err != nil {
+				if err := p.Resize(eventCtx, size.Cols, size.Rows); err != nil {
 					bklog.G(eventCtx).Warnf("Failed to resize %s: %s", p.ID(), err)
 				}
 			}
@@ -442,8 +441,7 @@ func (w *containerdExecutor) runProcess(ctx context.Context, p ctd.Process, resi
 				if !ok {
 					return // chan closed
 				}
-				err = p.Kill(eventCtx, sig)
-				if err != nil {
+				if err := p.Kill(eventCtx, sig); err != nil {
 					bklog.G(eventCtx).Warnf("Failed to signal %s: %s", p.ID(), err)
 				}
 			}

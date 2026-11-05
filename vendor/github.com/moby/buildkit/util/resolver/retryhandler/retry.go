@@ -5,6 +5,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"syscall"
 	"time"
@@ -18,6 +19,27 @@ import (
 // MaxRetryBackoff is the maximum backoff time before giving up. This is a
 // variable so that code which embeds BuildKit can override the default value.
 var MaxRetryBackoff = 8 * time.Second
+
+// MaxRetryAfter is the longest server-requested delay accepted for a retry.
+// It is independent of the exponential backoff budget. Code which embeds
+// BuildKit can override the default value.
+var MaxRetryAfter = 30 * time.Second
+
+// RetryAfterError marks a failure as retryable after at least Delay.
+// A zero Delay uses the normal backoff. Delays above MaxRetryAfter
+// stop retries rather than retrying before the requested delay has elapsed.
+type RetryAfterError struct {
+	Err   error
+	Delay time.Duration
+}
+
+func (e *RetryAfterError) Error() string {
+	return e.Err.Error()
+}
+
+func (e *RetryAfterError) Unwrap() error {
+	return e.Err
+}
 
 func New(f images.HandlerFunc, logger func([]byte)) images.HandlerFunc {
 	return func(ctx context.Context, desc ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
@@ -33,7 +55,7 @@ func New(f images.HandlerFunc, logger func([]byte)) images.HandlerFunc {
 
 type retryContextKey struct{}
 
-// WithRetry retries transient failures with exponential backoff. Nested calls
+// WithRetry retries transient failures with jittered exponential backoff. Nested calls
 // using the supplied context leave retries to the outer call, including New.
 // f must be safe to retry and preserve retryable errors when wrapping them.
 func WithRetry[T any](ctx context.Context, logger func([]byte), f func(context.Context) (T, error)) (T, error) {
@@ -66,13 +88,21 @@ func WithRetryIf[T any](ctx context.Context, logger func([]byte), f func(context
 		if backoff >= MaxRetryBackoff {
 			return v, err
 		}
+		// Keep the retry budget independent of jitter, including the first retry.
+		delay := backoff/2 + rand.N(backoff/2) //nolint:gosec // Jitter spreads load; it does not need cryptographic randomness.
+		if retryAfter, ok := stderrors.AsType[*RetryAfterError](err); ok {
+			if retryAfter.Delay > MaxRetryAfter {
+				return v, err
+			}
+			delay = max(delay, retryAfter.Delay)
+		}
 		if logger != nil {
-			logger(fmt.Appendf(nil, "retrying in %v\n", backoff))
+			logger(fmt.Appendf(nil, "retrying in %v\n", delay))
 		}
 		select {
 		case <-ctx.Done():
 			return v, contextFailure(ctx)
-		case <-time.After(backoff):
+		case <-time.After(delay):
 		}
 		backoff *= 2
 	}
@@ -88,6 +118,10 @@ func contextFailure(ctx context.Context) error {
 }
 
 func retryError(err error) bool {
+	if _, ok := stderrors.AsType[*RetryAfterError](err); ok {
+		return true
+	}
+
 	// Retry on 5xx errors
 	var errUnexpectedStatus remoteserrors.ErrUnexpectedStatus
 	if errors.As(err, &errUnexpectedStatus) &&

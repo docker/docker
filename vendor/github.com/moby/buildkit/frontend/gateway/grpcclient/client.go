@@ -97,7 +97,8 @@ func convertRef(ref client.Reference) (*pb.Ref, error) {
 	if !ok {
 		return nil, errors.Errorf("invalid return reference type %T", ref)
 	}
-	return &pb.Ref{Id: r.id, Def: r.def}, nil
+	// Return only needs the ID of the reference held by the server.
+	return &pb.Ref{Id: r.id}, nil
 }
 
 func RunFromEnvironment(ctx context.Context, f client.BuildFunc) error {
@@ -821,12 +822,14 @@ func (c *grpcClient) Inputs(ctx context.Context) (map[string]llb.State, error) {
 // communication channel between the process and the ExecProcess message
 // stream.
 type procMessageForwarder struct {
+	ctx  context.Context
 	done chan struct{}
 	msgs chan *pb.ExecMessage
 }
 
-func newProcMessageForwarder() *procMessageForwarder {
+func newProcMessageForwarder(ctx context.Context) *procMessageForwarder {
 	return &procMessageForwarder{
+		ctx:  ctx,
 		done: make(chan struct{}),
 		msgs: make(chan *pb.ExecMessage),
 	}
@@ -840,14 +843,16 @@ func (b *procMessageForwarder) Send(ctx context.Context, m *pb.ExecMessage) {
 	}
 }
 
-func (b *procMessageForwarder) Recv(ctx context.Context) (m *pb.ExecMessage, ok bool) {
+func (b *procMessageForwarder) Recv(ctx context.Context) (*pb.ExecMessage, error) {
 	select {
 	case <-ctx.Done():
-		return nil, true
+		return nil, context.Cause(ctx)
+	case <-b.ctx.Done():
+		return nil, context.Cause(b.ctx)
 	case <-b.done:
-		return nil, false
-	case m = <-b.msgs:
-		return m, true
+		return nil, nil
+	case m := <-b.msgs:
+		return m, nil
 	}
 }
 
@@ -908,6 +913,11 @@ func (m *messageForwarder) Start() (err error) {
 		m.eg.Go(func() error {
 			for {
 				msg, err := m.stream.Recv()
+				if err != nil {
+					// EOF and cancellation also end delivery to every process,
+					// even though they are not errors for Release.
+					m.cancel(errors.Wrap(err, "remote exec stream closed"))
+				}
 				if errors.Is(err, io.EOF) || grpcerrors.Code(err) == codes.Canceled {
 					return nil
 				}
@@ -976,7 +986,7 @@ func (m *messageForwarder) Release() error {
 func (m *messageForwarder) Register(pid string) *procMessageForwarder {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	sender := newProcMessageForwarder()
+	sender := newProcMessageForwarder(m.ctx)
 	m.pids[pid] = sender
 	return sender
 }
@@ -1120,7 +1130,11 @@ func (ctr *container) Start(ctx context.Context, req client.StartRequest) (clien
 		return nil, err
 	}
 
-	msg, _ := msgs.Recv(ctx)
+	msg, err := msgs.Recv(ctx)
+	if err != nil {
+		ctr.execMsgs.Deregister(pid)
+		return nil, err
+	}
 	if msg == nil {
 		return nil, errors.New("failed to receive started message")
 	}
@@ -1165,13 +1179,11 @@ func (ctr *container) Start(ctx context.Context, req client.StartRequest) (clien
 				processID: pid,
 				fd:        0,
 			}
-			_, err := io.Copy(m, stdinReader)
-			// ignore ErrClosedPipe, it is EOF for our usage.
-			if err != nil && !errors.Is(err, io.ErrClosedPipe) {
-				return err
+			_, copyErr := io.Copy(m, stdinReader)
+			if copyErr != nil && !errors.Is(copyErr, io.ErrClosedPipe) {
+				return copyErr
 			}
-			// not an error so must be eof
-			return ctr.execMsgs.Send(&pb.ExecMessage{
+			err := ctr.execMsgs.Send(&pb.ExecMessage{
 				ProcessID: pid,
 				Input: &pb.ExecMessage_File{
 					File: &pb.FdMessage{
@@ -1180,6 +1192,12 @@ func (ctr *container) Start(ctx context.Context, req client.StartRequest) (clien
 					},
 				},
 			})
+			// Cleanup still sends EOF to unblock remote stdin, but a failed send
+			// must not replace the process result that triggered cleanup.
+			if errors.Is(copyErr, io.ErrClosedPipe) {
+				return nil
+			}
+			return err
 		})
 	}
 
@@ -1188,19 +1206,13 @@ func (ctr *container) Start(ctx context.Context, req client.StartRequest) (clien
 		defer closeDoneOnce.Do(func() { close(done) })
 		var exitError error
 		for {
-			msg, ok := msgs.Recv(ctx)
-			if !ok {
+			msg, err := msgs.Recv(ctx)
+			if err != nil {
+				return err
+			}
+			if msg == nil {
 				// no more messages, return
 				return exitError
-			}
-
-			if msg == nil {
-				// empty message from ctx cancel, so just start shutting down
-				// input
-				closeDoneOnce.Do(func() {
-					close(done)
-				})
-				return context.Cause(ctx)
 			}
 
 			if file := msg.GetFile(); file != nil {

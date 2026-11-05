@@ -167,26 +167,37 @@ func ValidateEntitlements(ent entitlements.Set, cdiManager *cdidevices.Manager) 
 				}
 
 				var allowedDevices []*pb.CDIDevice
-				var nonAliasedDevices []*pb.CDIDevice
+				var devicesToResolve []*pb.CDIDevice
+				onDemand := make(map[string]struct{})
 				for _, d := range cdiManager.ListDevices() {
 					if d.OnDemand && d.AutoAllow {
-						allowedDevices = append(allowedDevices, &pb.CDIDevice{Name: d.Name})
+						onDemand[d.Name] = struct{}{}
 					}
 				}
-				if cfg != nil {
-					for _, d := range op.Exec.CdiDevices {
+				for _, d := range op.Exec.CdiDevices {
+					if d == nil {
+						continue
+					}
+					if cfg != nil {
 						if newName, ok := cfg.Devices[d.Name]; ok && newName != "" {
 							d.Name = newName
 							allowedDevices = append(allowedDevices, d)
-						} else {
-							nonAliasedDevices = append(nonAliasedDevices, d)
+							continue
 						}
 					}
-				} else {
-					nonAliasedDevices = op.Exec.CdiDevices
+					kind, _, _ := strings.Cut(d.Name, "=")
+					// A kind with an on-demand installer has no registered devices
+					// yet, so a match here can only come from a class annotation
+					// on another device. That must go through the permission check.
+					if _, ok := onDemand[kind]; ok && len(cdiManager.MatchDevices(d)) == 0 {
+						// Resolve the requested name after the installer has registered its devices.
+						allowedDevices = append(allowedDevices, d)
+					} else {
+						devicesToResolve = append(devicesToResolve, d)
+					}
 				}
 
-				mountedDevices, err := cdiManager.FindDevices(nonAliasedDevices...)
+				mountedDevices, err := cdiManager.FindDevices(devicesToResolve...)
 				if err != nil {
 					return err
 				}
@@ -198,6 +209,10 @@ func ValidateEntitlements(ent entitlements.Set, cdiManager *cdidevices.Manager) 
 				grantedDevices := make(map[string]struct{})
 				if cfg != nil {
 					for d := range cfg.Devices {
+						kind, _, _ := strings.Cut(d, "=")
+						if _, ok := onDemand[kind]; ok && len(cdiManager.MatchDevices(&pb.CDIDevice{Name: d})) == 0 {
+							continue
+						}
 						resolved, err := cdiManager.FindDevices(&pb.CDIDevice{Name: d})
 						if err != nil {
 							return err

@@ -309,19 +309,23 @@ func (s *scheduler) mergeTo(target, src *edge) bool {
 	delete(s.outgoing, src)
 	s.signal(target)
 
+	var exps []expDep
 	for i, d := range src.deps {
 		for _, k := range d.keys {
-			target.secondaryExporters = append(target.secondaryExporters, expDep{i, CacheKeyWithSelector{CacheKey: k, Selector: src.cacheMap.Deps[i].Selector}})
+			exps = append(exps, expDep{i, CacheKeyWithSelector{CacheKey: k, Selector: src.cacheMap.Deps[i].Selector}})
 		}
 		if d.slowCacheKey != nil {
-			target.secondaryExporters = append(target.secondaryExporters, expDep{i, CacheKeyWithSelector{CacheKey: *d.slowCacheKey}})
+			exps = append(exps, expDep{i, CacheKeyWithSelector{CacheKey: *d.slowCacheKey}})
 		}
 		if d.result != nil {
 			for _, dk := range d.result.CacheKeys() {
-				target.secondaryExporters = append(target.secondaryExporters, expDep{i, CacheKeyWithSelector{CacheKey: dk, Selector: src.cacheMap.Deps[i].Selector}})
+				exps = append(exps, expDep{i, CacheKeyWithSelector{CacheKey: dk, Selector: src.cacheMap.Deps[i].Selector}})
 			}
 		}
 	}
+	target.secondaryExportersMu.Lock()
+	target.secondaryExporters = append(target.secondaryExporters, exps...)
+	target.secondaryExportersMu.Unlock()
 
 	// TODO(tonistiigi): merge cache providers
 

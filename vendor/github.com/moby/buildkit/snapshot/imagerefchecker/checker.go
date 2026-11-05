@@ -3,6 +3,7 @@ package imagerefchecker
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 	"sync"
 
@@ -36,6 +37,13 @@ type Checker struct {
 
 func (c *Checker) Exists(key string, blobs []digest.Digest) bool {
 	if c.opt.ImageStore == nil {
+		return false
+	}
+
+	// An empty digest means that a layer in the chain has no blob, so it was
+	// never exported and no image can reference it. Without this check, the
+	// key of such a chain would be the same as the key of its parent chain.
+	if slices.Contains(blobs, "") {
 		return false
 	}
 

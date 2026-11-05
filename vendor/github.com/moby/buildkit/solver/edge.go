@@ -69,7 +69,10 @@ type edge struct {
 	keysDidChange bool
 	index         *edgeIndex
 
-	secondaryExporters []expDep
+	// secondaryExportersMu protects secondaryExporters, which the scheduler
+	// appends to on merge while cache exporters read it from other goroutines
+	secondaryExportersMu sync.Mutex
+	secondaryExporters   []expDep
 
 	failedOnce sync.Once
 	debug      bool
@@ -729,6 +732,14 @@ func (e *edge) processDepSlowCacheReq(index int, dep *dep) {
 // respondToIncoming responds to all incoming requests. completing or
 // updating them when possible
 func (e *edge) respondToIncoming(incoming []pipeSender, allPipes []pipeReceiver) (edgeStatusType, bool) {
+	// Requests can be canceled concurrently. Decide on one snapshot so a late
+	// cancel cannot finish the last request while outgoing work is active; it
+	// is handled on the next dispatch.
+	canceled := make([]bool, len(incoming))
+	for i, req := range incoming {
+		canceled[i] = req.Request().Canceled
+	}
+
 	// detect the result state for the requests
 	allIncomingCanComplete := true
 	desiredState := e.state
@@ -737,8 +748,8 @@ func (e *edge) respondToIncoming(incoming []pipeSender, allPipes []pipeReceiver)
 	// check incoming requests
 	// check if all requests can be either answered or canceled
 	if !e.isComplete() {
-		for _, req := range incoming {
-			if !req.Request().Canceled {
+		for i, req := range incoming {
+			if !canceled[i] {
 				allCanceled = false
 				if r := req.Request().Payload; desiredState < r.desiredState {
 					desiredState = r.desiredState
@@ -765,8 +776,8 @@ func (e *edge) respondToIncoming(incoming []pipeSender, allPipes []pipeReceiver)
 
 		// can close all but one requests
 		var leaveOpen pipeSender
-		for _, req := range incoming {
-			if !req.Request().Canceled {
+		for i, req := range incoming {
+			if !canceled[i] {
 				leaveOpen = req
 				break
 			}
@@ -790,9 +801,9 @@ func (e *edge) respondToIncoming(incoming []pipeSender, allPipes []pipeReceiver)
 	}
 
 	// update incoming based on current state
-	for _, req := range incoming {
+	for i, req := range incoming {
 		r := req.Request().Payload
-		if req.Request().Canceled {
+		if canceled[i] {
 			e.finishIncoming(req)
 		} else if !e.hasActiveOutgoing && e.state >= r.desiredState {
 			e.finishIncoming(req)

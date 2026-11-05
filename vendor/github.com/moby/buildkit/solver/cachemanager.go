@@ -409,42 +409,40 @@ func (c *cacheManager) ensurePersistentKey(k *CacheKey) error {
 
 func (c *cacheManager) getIDFromDeps(k *CacheKey) string {
 	matches := map[string]struct{}{}
-
+loop0:
 	for i, deps := range k.deps {
-		if i == 0 || len(matches) > 0 {
-			for _, ck := range deps {
-				m2 := make(map[string]struct{})
-				if err := c.backend.WalkLinks(c.getID(ck.CacheKey.CacheKey), CacheInfoLink{
-					Input:    Index(i),
-					Output:   k.Output(),
-					Digest:   k.Digest(),
-					Selector: ck.Selector,
-				}, func(id string) error {
-					if i == 0 {
-						matches[id] = struct{}{}
-					} else {
-						m2[id] = struct{}{}
-					}
-					return nil
-				}); err != nil {
-					matches = map[string]struct{}{}
-					break
-				}
-				if i != 0 {
-					for id := range matches {
-						if _, ok := m2[id]; !ok {
-							delete(matches, id)
-						}
-					}
+		if i > 0 && len(matches) == 0 {
+			break
+		}
+		// Keys within one input are alternatives; different inputs must all match.
+		candidates := map[string]struct{}{}
+		for _, ck := range deps {
+			if err := c.backend.WalkLinks(c.getID(ck.CacheKey.CacheKey), CacheInfoLink{
+				Input:    Index(i),
+				Output:   k.Output(),
+				Digest:   k.Digest(),
+				Selector: ck.Selector,
+			}, func(id string) error {
+				candidates[id] = struct{}{}
+				return nil
+			}); err != nil {
+				matches = nil
+				break loop0
+			}
+		}
+		if i == 0 {
+			matches = candidates
+		} else {
+			for id := range matches {
+				if _, ok := candidates[id]; !ok {
+					delete(matches, id)
 				}
 			}
 		}
 	}
-
-	for k := range matches {
-		return k
+	for id := range matches {
+		return id
 	}
-
 	return identity.NewID()
 }
 

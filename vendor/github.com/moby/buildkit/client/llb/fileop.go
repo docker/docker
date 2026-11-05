@@ -262,7 +262,10 @@ func parseUID(str string) (int, error) {
 	if str == "root" {
 		return 0, nil
 	}
-	uid, err := strconv.ParseInt(str, 10, 32)
+	// uid_t/gid_t span 0..2^32-1, matching the daemon-side parser in
+	// executor/oci. ParseInt here would reject the upper half of that range and
+	// silently turn a numeric ID into a name lookup.
+	uid, err := strconv.ParseUint(str, 10, 32)
 	if err != nil {
 		return 0, err
 	}

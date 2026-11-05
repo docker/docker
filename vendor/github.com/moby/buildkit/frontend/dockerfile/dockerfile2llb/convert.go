@@ -20,6 +20,7 @@ import (
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/client/llb/imagemetaresolver"
 	"github.com/moby/buildkit/client/llb/sourceresolver"
+	dfcommand "github.com/moby/buildkit/frontend/dockerfile/command"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/linter"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -47,6 +48,7 @@ const (
 
 	sbomScanContext = "BUILDKIT_SBOM_SCAN_CONTEXT"
 	sbomScanStage   = "BUILDKIT_SBOM_SCAN_STAGE"
+	disableOnbuild  = "BUILDKIT_DISABLE_ONBUILD"
 )
 
 var nonEnvArgs = map[string]struct{}{
@@ -216,6 +218,7 @@ type dispatchContext struct {
 	allDispatchStates *dispatchStates
 	proxyEnv          *llb.ProxyEnv
 	namedContext      func(string, dockerui.ContextOpt) (*dockerui.NamedContext, error)
+	disableOnbuild    bool
 }
 
 func namedContextFunc(opt ConvertOpt) func(string, dockerui.ContextOpt) (*dockerui.NamedContext, error) {
@@ -310,6 +313,14 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		globalArgs = setBuildArgValue(opt.BuildArgs, globalArgs, "SOURCE_DATE_EPOCH", formatSourceDateEpochValue(resolvedEpoch))
 	}
 
+	var skipOnbuild bool
+	if v, ok := getBuildArgValue(opt.BuildArgs, globalArgs, disableOnbuild); ok && v != "" {
+		skipOnbuild, err = strconv.ParseBool(v)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid %s value %q", disableOnbuild, v)
+		}
+	}
+
 	metaResolver := opt.MetaResolver
 	if metaResolver == nil {
 		metaResolver = imagemetaresolver.Default()
@@ -327,6 +338,7 @@ func toDispatchState(ctx context.Context, dt []byte, opt ConvertOpt) (*dispatchS
 		allDispatchStates: newDispatchStates(),
 		proxyEnv:          proxyEnvFromBuildArgs(opt.BuildArgs),
 		namedContext:      namedContextFunc(opt),
+		disableOnbuild:    skipOnbuild,
 	}
 
 	if err := dctx.buildDispatchStates(stages); err != nil {
@@ -568,6 +580,10 @@ func (dctx *dispatchContext) resolveStages(ctx context.Context, target *dispatch
 				}
 				d.onBuildInit = true
 			}
+			if dctx.disableOnbuild || slices.Contains(d.stage.Reset, dfcommand.Onbuild) {
+				onbuilds = nil
+				d.image.Config.OnBuild = nil
+			}
 
 			if len(onbuilds) > 0 {
 				if b, err := initOnBuildTriggers(d, onbuilds, dctx.allDispatchStates, dctx.shlex); err != nil {
@@ -789,6 +805,8 @@ func (dctx *dispatchContext) dispatchStages(ctx context.Context, allReachable ma
 			d.platform = &d.opt.targetPlatform
 		}
 
+		resetBaseConfig(d)
+
 		// make sure that PATH is always set
 		if _, ok := shell.EnvsFromSlice(d.image.Config.Env).Get("PATH"); !ok {
 			var osName string
@@ -834,6 +852,7 @@ func (dctx *dispatchContext) dispatchStages(ctx context.Context, allReachable ma
 			targetPlatform:      dctx.platformOpt.targetPlatform,
 			extraHosts:          dctx.opt.ExtraHosts,
 			gitAdvice:           dctx.opt.GitAdvice,
+			gitDebugCommands:    dctx.opt.GitDebugCommands,
 			shmSize:             dctx.opt.ShmSize,
 			ulimit:              dctx.opt.Ulimits,
 			devices:             dctx.opt.Devices,
@@ -991,6 +1010,7 @@ type dispatchOpt struct {
 	buildPlatforms      []ocispecs.Platform
 	extraHosts          []llb.HostIP
 	gitAdvice           bool
+	gitDebugCommands    bool
 	shmSize             int64
 	ulimit              []*pb.Ulimit
 	devices             []*pb.CDIDevice
@@ -1329,6 +1349,17 @@ func initOnBuildTriggers(d *dispatchState, triggers []string, allDispatchStates 
 }
 
 func dispatchEnv(d *dispatchState, c *instructions.EnvCommand, lint *linter.Linter) error {
+	if c.Unset {
+		keys := make([]string, 0, len(c.Env))
+		for _, e := range c.Env {
+			if e.Key == "" {
+				return errors.New("ENV --unset names can not be blank")
+			}
+			unsetEnv(d, e.Key)
+			keys = append(keys, e.Key)
+		}
+		return commitToHistory(&d.image, "ENV --unset "+strings.Join(keys, " "), false, nil, d.epoch)
+	}
 	commitMessage := bytes.NewBufferString("ENV")
 	for _, e := range c.Env {
 		if e.NoDelim {
@@ -1341,6 +1372,61 @@ func dispatchEnv(d *dispatchState, c *instructions.EnvCommand, lint *linter.Lint
 		d.image.Config.Env = addEnv(d.image.Config.Env, e.Key, e.Value)
 	}
 	return commitToHistory(&d.image, commitMessage.String(), false, nil, d.epoch)
+}
+
+// unsetEnv removes an environment variable and a build arg with the same name.
+func unsetEnv(d *dispatchState, key string) {
+	for _, k := range getEnv(d.state).Keys() {
+		if shell.EqualEnvKeys(k, key) {
+			d.state = d.state.DelEnv(k)
+		}
+	}
+	d.image.Config.Env = delEnv(d.image.Config.Env, key)
+	d.buildArgs = slices.DeleteFunc(d.buildArgs, func(arg instructions.KeyValuePairOptional) bool {
+		return shell.EqualEnvKeys(arg.Key, key)
+	})
+}
+
+// resetBaseConfig clears the base image config fields set with FROM --reset.
+// ONBUILD triggers are skipped when the stages are resolved.
+func resetBaseConfig(d *dispatchState) {
+	for _, k := range d.stage.Reset {
+		switch k {
+		case dfcommand.Cmd:
+			d.image.Config.Cmd = nil
+		case dfcommand.Entrypoint:
+			d.image.Config.Entrypoint = nil
+		case dfcommand.Env:
+			for _, env := range slices.Clone(d.image.Config.Env) {
+				key, _ := parseKeyValue(env)
+				unsetEnv(d, key)
+			}
+		case dfcommand.Expose:
+			d.image.Config.ExposedPorts = nil
+		case dfcommand.Healthcheck:
+			d.image.Config.Healthcheck = nil
+		case dfcommand.Label:
+			d.image.Config.Labels = nil
+		case dfcommand.Shell:
+			d.image.Config.Shell = nil
+		case dfcommand.StopSignal:
+			d.image.Config.StopSignal = ""
+		case dfcommand.User:
+			d.image.Config.User = ""
+			d.state = d.state.User("")
+		case dfcommand.Volume:
+			d.image.Config.Volumes = nil
+		case dfcommand.Workdir:
+			d.image.Config.WorkingDir = ""
+			d.state = d.state.Dir("/")
+			// workdir no longer depends on the base image
+			d.workdirSet = true
+		}
+	}
+	// ArgsEscaped applies to both cmd and entrypoint
+	if len(d.stage.Reset) > 0 && len(d.image.Config.Cmd) == 0 && len(d.image.Config.Entrypoint) == 0 {
+		d.image.Config.ArgsEscaped = false //nolint:staticcheck // ignore SA1019: field is deprecated in OCI Image spec, but used for backward-compatibility with Docker image spec.
+	}
 }
 
 func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyEnv, sources []*dispatchState, dopt dispatchOpt) error {
@@ -1573,6 +1659,17 @@ func dispatchMaintainer(d *dispatchState, c *instructions.MaintainerCommand) err
 }
 
 func dispatchLabel(d *dispatchState, c *instructions.LabelCommand, lint *linter.Linter) error {
+	if c.Unset {
+		keys := make([]string, 0, len(c.Labels))
+		for _, v := range c.Labels {
+			if v.Key == "" {
+				return errors.New("LABEL --unset names can not be blank")
+			}
+			delete(d.image.Config.Labels, v.Key)
+			keys = append(keys, v.Key)
+		}
+		return commitToHistory(&d.image, "LABEL --unset "+strings.Join(keys, " "), false, nil, d.epoch)
+	}
 	commitMessage := bytes.NewBufferString("LABEL")
 	if d.image.Config.Labels == nil {
 		d.image.Config.Labels = make(map[string]string, len(c.Labels))
@@ -1650,13 +1747,24 @@ func dispatchUser(d *dispatchState, c *instructions.UserCommand, commit bool) er
 }
 
 func dispatchVolume(d *dispatchState, c *instructions.VolumeCommand) error {
+	if slices.Contains(c.Volumes, "") {
+		return errors.New("VOLUME specified can not be an empty string")
+	}
+	if c.Unset {
+		for _, v := range c.Volumes {
+			v = path.Clean(v)
+			for k := range d.image.Config.Volumes {
+				if path.Clean(k) == v {
+					delete(d.image.Config.Volumes, k)
+				}
+			}
+		}
+		return commitToHistory(&d.image, fmt.Sprintf("VOLUME --unset %v", c.Volumes), false, nil, d.epoch)
+	}
 	if d.image.Config.Volumes == nil {
 		d.image.Config.Volumes = map[string]struct{}{}
 	}
 	for _, v := range c.Volumes {
-		if v == "" {
-			return errors.New("VOLUME specified can not be an empty string")
-		}
 		d.image.Config.Volumes[v] = struct{}{}
 	}
 	return commitToHistory(&d.image, fmt.Sprintf("VOLUME %v", c.Volumes), false, nil, d.epoch)
@@ -1766,6 +1874,13 @@ func addEnv(env []string, k, v string) []string {
 		env = append(env, k+"="+v)
 	}
 	return env
+}
+
+func delEnv(env []string, k string) []string {
+	return slices.DeleteFunc(env, func(envVar string) bool {
+		key, _ := parseKeyValue(envVar)
+		return shell.EqualEnvKeys(key, k)
+	})
 }
 
 func parseKeyValue(env string) (string, string) {

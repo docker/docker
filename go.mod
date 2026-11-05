@@ -64,7 +64,7 @@ require (
 	github.com/miekg/dns v1.1.73
 	github.com/mistifyio/go-zfs/v4 v4.0.0
 	github.com/mitchellh/copystructure v1.2.0
-	github.com/moby/buildkit v0.34.2
+	github.com/moby/buildkit v0.35.0-rc1
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/extensions v0.0.0-20261020100352-d2819d88bcbe
 	github.com/moby/go-archive v0.3.3
@@ -84,7 +84,7 @@ require (
 	github.com/moby/sys/reexec v0.1.0
 	github.com/moby/sys/signal v0.7.1
 	github.com/moby/sys/symlink v0.3.0
-	github.com/moby/sys/user v0.4.1
+	github.com/moby/sys/user v0.5.0
 	github.com/moby/sys/userns v0.2.1
 	github.com/moby/term v0.5.2
 	github.com/opencontainers/cgroups v0.1.0
@@ -165,7 +165,7 @@ require (
 	github.com/containerd/go-runc v1.2.1 // indirect
 	github.com/containerd/nydus-snapshotter v0.15.15 // indirect
 	github.com/containerd/otelttrpc v0.1.0 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.18.2 // indirect
+	github.com/containerd/stargz-snapshotter/estargz v0.19.1 // indirect
 	github.com/containernetworking/cni v1.3.1 // indirect
 	github.com/containernetworking/plugins v1.9.1 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect

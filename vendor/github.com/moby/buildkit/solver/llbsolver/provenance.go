@@ -2,6 +2,7 @@ package llbsolver
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strconv"
@@ -384,6 +385,7 @@ func captureProvenance(ctx context.Context, res solver.CachedResultWithProvenanc
 }
 
 type ProvenanceCreator struct {
+	mu          sync.Mutex // serializes predicate updates and encoding of pr
 	pr          *provenancetypes.ProvenancePredicateSLSA1
 	slsaVersion provenancetypes.ProvenanceSLSA
 	j           *solver.Job
@@ -643,7 +645,24 @@ func (p *ProvenanceCreator) PredicateType() string {
 	return slsa1.PredicateSLSAProvenance
 }
 
-func (p *ProvenanceCreator) Predicate(ctx context.Context) (any, error) {
+// PredicateJSON finalizes the predicate and returns it JSON encoded. It may be
+// called concurrently, e.g. by parallel exporters sharing one attestation.
+func (p *ProvenanceCreator) PredicateJSON(ctx context.Context) ([]byte, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	pr, err := p.predicate(ctx)
+	if err != nil {
+		return nil, err
+	}
+	dt, err := json.MarshalIndent(pr, "", "  ")
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return dt, nil
+}
+
+func (p *ProvenanceCreator) predicate(ctx context.Context) (any, error) {
 	end := p.j.RegisterCompleteTime()
 	if p.pr.RunDetails.Metadata == nil {
 		p.pr.RunDetails.Metadata = &provenancetypes.ProvenanceMetadataSLSA1{}

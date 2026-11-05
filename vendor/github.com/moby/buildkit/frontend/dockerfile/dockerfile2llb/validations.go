@@ -311,6 +311,7 @@ func getSecretsRegex() (*regexp.Regexp, *regexp.Regexp) {
 			"password",
 			"pword",
 			"passwd",
+			"psw",
 			"secret",
 			"token",
 		}

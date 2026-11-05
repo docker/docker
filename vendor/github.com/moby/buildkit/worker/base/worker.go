@@ -743,7 +743,7 @@ func ID(root string) (string, error) {
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			id := identity.NewID()
-			err := os.WriteFile(f, []byte(id), 0400)
+			err := os.WriteFile(f, []byte(id), 0o600)
 			return id, err
 		}
 		return "", err

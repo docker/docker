@@ -35,7 +35,7 @@ const (
 )
 
 func Build(ctx context.Context, c client.Client) (_ *client.Result, err error) {
-	c = &withResolveCache{Client: c}
+	c = newWithResolveCache(c)
 	bc, err := dockerui.NewClient(c)
 	if err != nil {
 		return nil, err

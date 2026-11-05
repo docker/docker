@@ -394,6 +394,11 @@ func (cm *cacheManager) init(ctx context.Context) error {
 			cm.LeaseManager.Delete(ctx, leases.Lease{ID: si.ID() + "-variants"})
 		}
 	}
+	if n, err := cm.MetadataStore.ClearOrphans(); err != nil {
+		bklog.G(ctx).Warnf("failed to remove external metadata of deleted cache records: %v", err)
+	} else if n > 0 {
+		bklog.G(ctx).Infof("removed external metadata of %d deleted cache records", n)
+	}
 	return nil
 }
 
@@ -470,7 +475,10 @@ func (cm *cacheManager) getRecord(ctx context.Context, id string, opts ...RefOpt
 	}
 
 	if rec, ok := cm.records[id]; ok {
-		if rec.isDead() {
+		rec.mu.Lock()
+		isDead := rec.isDead()
+		rec.mu.Unlock()
+		if isDead {
 			return nil, errors.Wrapf(errNotFound, "failed to get dead record %s", id)
 		}
 		if err := checkLazyProviders(rec); err != nil {
@@ -498,7 +506,7 @@ func (cm *cacheManager) getRecord(ctx context.Context, id string, opts ...RefOpt
 		mutable, err := cm.getRecord(ctx, mutableID)
 		if err == nil {
 			rec := &cacheRecord{
-				mu:            &sync.Mutex{},
+				mu:            mutable.mu, // share the mutex as in mutableRef.commit
 				cm:            cm,
 				refs:          make(map[ref]struct{}),
 				parentRefs:    parents,
@@ -570,10 +578,10 @@ func (cm *cacheManager) getRecord(ctx context.Context, id string, opts ...RefOpt
 		return nil, errors.Wrapf(err, "failed to append image ref metadata to ref %s", rec.ID())
 	}
 
-	cm.records[id] = rec
 	if err := checkLazyProviders(rec); err != nil {
 		return nil, err
 	}
+	cm.records[id] = rec
 	return rec, nil
 }
 

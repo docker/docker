@@ -68,6 +68,7 @@ type BridgeClient struct {
 	workers      worker.Infos
 	resultByID   map[string]solver.Result
 	discarded    bool
+	execErrors   []*llberrdefs.ExecError
 	buildOpts    client.BuildOpts
 	ctrs         []client.Container
 	executor     executor.Executor
@@ -159,6 +160,13 @@ func (c *BridgeClient) wrapSolveError(solveErr error) error {
 		subject  errdefs.IsSolve_Subject
 	)
 	if errors.As(solveErr, &ee) {
+		c.mu.Lock()
+		if c.discarded {
+			ee.Release()
+		} else if !slices.Contains(c.execErrors, ee) {
+			c.execErrors = append(c.execErrors, ee)
+		}
+		c.mu.Unlock()
 		var err error
 		inputIDs, err = c.registerResultIDs(ee.Inputs...)
 		if err != nil {
@@ -174,7 +182,7 @@ func (c *BridgeClient) wrapSolveError(solveErr error) error {
 	}
 	if errors.As(solveErr, &sce) {
 		var err error
-		inputIDs, err = c.registerSlowCacheResult(sce.Result)
+		inputIDs, err = c.registerResultIDs(sce.Result)
 		if err != nil {
 			return err
 		}
@@ -183,32 +191,14 @@ func (c *BridgeClient) wrapSolveError(solveErr error) error {
 	return errdefs.WithSolveError(solveErr, subject, inputIDs, mountIDs)
 }
 
+// registerResultIDs retains gateway-owned clones of error refs until discard.
 func (c *BridgeClient) registerResultIDs(results ...solver.Result) (ids []string, err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	return c.registerResultIDsLocked(results...)
-}
-
-// registerSlowCacheResult registers a clone of a result borrowed from the
-// solver job. The clone is only taken before the client is discarded, as the
-// job may be released after that.
-func (c *BridgeClient) registerSlowCacheResult(res solver.Result) ([]string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.discarded {
 		return nil, nil
 	}
-	// Validate before cloning so a type error can't leak the clone. Once
-	// cloned, registerResultIDsLocked either keeps or releases it.
-	if _, ok := res.Sys().(*worker.WorkerRef); !ok {
-		return nil, errors.Errorf("unexpected type for result, got %T", res.Sys())
-	}
-	return c.registerResultIDsLocked(res.Clone())
-}
-
-func (c *BridgeClient) registerResultIDsLocked(results ...solver.Result) (ids []string, err error) {
 	ids = make([]string, len(results))
 	for i, res := range results {
 		if res == nil {
@@ -220,16 +210,11 @@ func (c *BridgeClient) registerResultIDsLocked(results ...solver.Result) (ids []
 		}
 		id := workerRef.ID()
 		ids[i] = id
-		if existing, ok := c.resultByID[id]; ok {
-			if existing != res {
-				if err := res.Release(context.TODO()); err != nil {
-					return ids, errors.WithStack(err)
-				}
-			}
-			continue
+		if _, ok := c.resultByID[id]; !ok {
+			// Cached sharedOp.Exec errors have snapshots pinned by the active
+			// solver state, even after the original error refs are released.
+			c.resultByID[id] = res.Clone()
 		}
-		// Keep the result wrapper so Release balances split-result ownership.
-		c.resultByID[id] = res
 	}
 	return ids, nil
 }
@@ -281,6 +266,10 @@ func (c *BridgeClient) discard(err error) {
 
 	c.mu.Lock()
 	c.discarded = true
+	for _, ee := range c.execErrors {
+		ee.Release()
+	}
+	c.execErrors = nil
 	for id, res := range c.resultByID {
 		res.Release(context.TODO())
 		delete(c.resultByID, id)

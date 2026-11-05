@@ -245,7 +245,8 @@ func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Contr
 
 	ch := make(chan client.UsageInfo, 32)
 
-	eg, ctx := errgroup.WithContext(stream.Context())
+	ctx := stream.Context()
+	eg, ectx := errgroup.WithContext(ctx)
 	workers, err := c.opt.WorkerController.List()
 	if err != nil {
 		return errors.Wrap(err, "failed to list workers for prune")
@@ -267,7 +268,7 @@ func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Contr
 	for _, w := range workers {
 		func(w worker.Worker) {
 			eg.Go(func() error {
-				return w.Prune(ctx, ch, client.PruneInfo{
+				return w.Prune(ectx, ch, client.PruneInfo{
 					Filter:        req.Filter,
 					All:           req.All,
 					KeepDuration:  time.Duration(req.KeepDuration),
