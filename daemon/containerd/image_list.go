@@ -342,8 +342,9 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 		}
 
 		var dockerImage dockerspec.DockerOCIImage
-		if err := img.ReadConfig(ctx, &dockerImage); err != nil && !cerrdefs.IsNotFound(err) {
-			logger.WithError(err).Warn("failed to read image config")
+		configErr := img.ReadConfig(ctx, &dockerImage)
+		if configErr != nil && !cerrdefs.IsNotFound(configErr) {
+			logger.WithError(configErr).Warn("failed to read image config")
 		}
 
 		if dockerImage.Platform.OS != "" {
@@ -387,11 +388,11 @@ func (i *ImageService) multiPlatformSummary(ctx context.Context, img c8dimages.I
 			}
 		}
 
-		// Filter out platforms that don't match the requested platform.  Do it
-		// after the size, container count and chainIDs are summed up to have
-		// the single combined entry still represent the whole multi-platform
-		// image.
-		if !platformMatcher.Match(platform) {
+		// Filter out platforms that don't match the requested platform, and
+		// manifests whose config cannot be read. Do it after the size,
+		// container count and chainIDs are summed up to have the single
+		// combined entry still represent the whole multi-platform image.
+		if configErr != nil || !platformMatcher.Match(platform) {
 			return nil
 		}
 
