@@ -51,6 +51,7 @@ func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) 
 			return host.Allow()
 		})),
 		host.WithDependencyProviders(dependencyProviders()...),
+		host.WithPointServers(offeredPointServers()...),
 		host.WithExtensionConfig(extensionConfig(&cfg)),
 	)
 }
@@ -130,9 +131,10 @@ func defaultExtensionDir() (string, error) {
 	return filepath.Join(libexecDir, "docker", "moby-extensions"), nil
 }
 
-// ExposeExtensionServices publishes services selected through service.grpc on
-// the API socket. In-process services are registered on gs; out-of-process
-// services are proxied by name. Service-name collisions fail startup.
+// ExposeExtensionServices publishes service.grpc services and points offered
+// through service.v0 on the API socket.
+// In-process services are registered on gs; out-of-process services are proxied.
+// Service-name collisions fail startup.
 func (daemon *Daemon) ExposeExtensionServices(gs *grpc.Server) (*grpcproxy.Proxy, error) {
 	if daemon.extensionHost == nil {
 		return nil, nil
@@ -146,6 +148,10 @@ func (daemon *Daemon) ExposeExtensionServices(gs *grpc.Server) (*grpcproxy.Proxy
 	if err != nil {
 		return nil, err
 	}
+	// Include offered points in the service-name collision check.
+	var offered offeredServices
+	daemon.extensionHost.RegisterInProcessServices(&offered)
+	inproc = append(inproc, offered...)
 	for _, svc := range inproc {
 		if _, taken := reserved[svc.Name]; taken {
 			return nil, fmt.Errorf("in-process extension cannot expose gRPC service %q: it is already served", svc.Name)
@@ -170,4 +176,11 @@ func (daemon *Daemon) ExposeExtensionServices(gs *grpc.Server) (*grpcproxy.Proxy
 		return nil, nil
 	}
 	return grpcproxy.New(routes), nil
+}
+
+// offeredServices collects in-process services for validation before registration.
+type offeredServices []servicegrpcv0.Service
+
+func (s *offeredServices) RegisterService(desc *grpc.ServiceDesc, impl any) {
+	*s = append(*s, servicegrpcv0.Service{Name: desc.ServiceName, Desc: desc, Impl: impl})
 }
