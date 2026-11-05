@@ -4,10 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 
-	cerrdefs "github.com/containerd/errdefs"
-	"github.com/containerd/errdefs/pkg/errhttp"
 	"github.com/moby/moby/client/pkg/versions"
 )
 
@@ -71,44 +68,4 @@ func (cli *Client) requiresVersion(ctx context.Context, apiRequired, feature str
 		return fmt.Errorf("%q requires API version %s, but the Docker daemon API version is %s", feature, apiRequired, cli.version)
 	}
 	return nil
-}
-
-type httpError struct {
-	err    error
-	errdef error
-}
-
-func (e *httpError) Error() string {
-	return e.err.Error()
-}
-
-func (e *httpError) Unwrap() error {
-	return e.err
-}
-
-func (e *httpError) Is(target error) bool {
-	return errors.Is(e.errdef, target)
-}
-
-// httpErrorFromStatusCode creates an errdef error, based on the provided HTTP status-code
-func httpErrorFromStatusCode(err error, statusCode int) error {
-	if err == nil {
-		return nil
-	}
-	base := errhttp.ToNative(statusCode)
-	if base != nil {
-		return &httpError{err: err, errdef: base}
-	}
-
-	switch {
-	case statusCode >= http.StatusOK && statusCode < http.StatusBadRequest:
-		// it's a client error
-		return err
-	case statusCode >= http.StatusBadRequest && statusCode < http.StatusInternalServerError:
-		return &httpError{err: err, errdef: cerrdefs.ErrInvalidArgument}
-	case statusCode >= http.StatusInternalServerError && statusCode < 600:
-		return &httpError{err: err, errdef: cerrdefs.ErrInternal}
-	default:
-		return &httpError{err: err, errdef: cerrdefs.ErrUnknown}
-	}
 }
