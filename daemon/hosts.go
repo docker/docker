@@ -23,13 +23,27 @@ const (
 	defaultPath = "/v2"
 )
 
-// RegistryHosts returns the registry hosts configuration for the host component
-// of a distribution image reference.
-func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) {
-	hosts, err := hostconfig.ConfigureHosts(context.Background(), hostconfig.HostOptions{
+func configureRegistryHosts(host string, insecure bool) ([]docker.RegistryHost, error) {
+	var defaultScheme string
+	// Containerd implicitly allows HTTP for localhost based on the hostname or
+	// IP address, whereas Docker also considers DNS resolution and allows
+	// overriding the localhost default. Use Docker's registry configuration
+	// to determine whether containerd should allow HTTP for localhost.
+	if docker.IsLocalhost(host) && !insecure {
+		defaultScheme = "https"
+	}
+
+	return hostconfig.ConfigureHosts(context.Background(), hostconfig.HostOptions{
+		DefaultScheme: defaultScheme,
 		// TODO: Also check containerd path when updating containerd to use multiple host directories
 		HostDir: hostconfig.HostDirFromRoot(registry.CertsDir()),
 	})(host)
+}
+
+// RegistryHosts returns the registry hosts configuration for the host component
+// of a distribution image reference.
+func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) {
+	hosts, err := configureRegistryHosts(host, daemon.registryService.IsInsecureRegistry(host))
 	if err == nil {
 		// Merge in legacy configuration if provided
 		if cfg := daemon.config().Config; len(cfg.Mirrors) > 0 || len(cfg.InsecureRegistries) > 0 {

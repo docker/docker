@@ -460,7 +460,7 @@ func TestNewIndexInfo(t *testing.T) {
 		"127.0.0.1:5000": {
 			Name:     "127.0.0.1:5000",
 			Official: false,
-			Secure:   false,
+			Secure:   false, // Loopback is insecure in the default configuration.
 			Mirrors:  []string{},
 		},
 	}
@@ -501,49 +501,47 @@ func TestNewIndexInfo(t *testing.T) {
 		"127.0.0.1": {
 			Name:     "127.0.0.1",
 			Official: false,
-			Secure:   false,
+			Secure:   true, // Explicit insecure-registry configuration disables the loopback defaults.
 			Mirrors:  []string{},
 		},
 		"127.0.0.1:5000": {
 			Name:     "127.0.0.1:5000",
 			Official: false,
-			Secure:   false,
+			Secure:   true, // Explicit insecure-registry configuration disables the loopback defaults.
 			Mirrors:  []string{},
 		},
 		"127.255.255.255": {
 			Name:     "127.255.255.255",
 			Official: false,
-			Secure:   false,
+			Secure:   true,
 			Mirrors:  []string{},
 		},
 		"127.255.255.255:5000": {
 			Name:     "127.255.255.255:5000",
 			Official: false,
-			Secure:   false,
+			Secure:   true,
 			Mirrors:  []string{},
 		},
 		"::1": {
 			Name:     "::1",
 			Official: false,
-			Secure:   false,
+			Secure:   true,
 			Mirrors:  []string{},
 		},
 		"[::1]:5000": {
 			Name:     "[::1]:5000",
 			Official: false,
-			Secure:   false,
+			Secure:   true,
 			Mirrors:  []string{},
 		},
-		// IPv6 only has a single loopback address, so ::2 is not a loopback,
-		// hence not marked "insecure".
+		// IPv6 only has a single loopback address, so ::2 is not a loopback.
 		"::2": {
 			Name:     "::2",
 			Official: false,
 			Secure:   true,
 			Mirrors:  []string{},
 		},
-		// IPv6 only has a single loopback address, so ::2 is not a loopback,
-		// hence not marked "insecure".
+		// IPv6 only has a single loopback address, so ::2 is not a loopback.
 		"[::2]:5000": {
 			Name:     "[::2]:5000",
 			Official: false,
@@ -589,13 +587,13 @@ func TestNewIndexInfo(t *testing.T) {
 		"127.0.0.1": {
 			Name:     "127.0.0.1",
 			Official: false,
-			Secure:   false,
+			Secure:   true, // Only the explicitly configured CIDR is insecure.
 			Mirrors:  []string{},
 		},
 		"127.0.0.1:5000": {
 			Name:     "127.0.0.1:5000",
 			Official: false,
-			Secure:   false,
+			Secure:   true,
 			Mirrors:  []string{},
 		},
 		"192.0.2.1:5000": {

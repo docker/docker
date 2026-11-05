@@ -17,10 +17,20 @@ func overrideLookupIP(t *testing.T) {
 	// override net.LookupIP
 	lookupIP = func(host string) ([]net.IP, error) {
 		mockHosts := map[string][]net.IP{
-			"":            {net.ParseIP("0.0.0.0")},
 			"localhost":   {net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
 			"example.com": {net.ParseIP("192.0.2.42")},
 			"other.com":   {net.ParseIP("198.51.100.43")},
+			"docker.io": {
+				// The official registry is always considered secure,
+				// regardless of the address it resolves to.
+				net.ParseIP("127.0.0.1"),
+			},
+			"registry-1.docker.io": {
+				// The actual Docker Hub registry endpoint is not special-cased
+				// by isSecureIndex and follows the normal address matching rules.
+				net.ParseIP("127.0.0.1"),
+			},
+			"index.docker.io": {net.ParseIP("127.0.0.1")},
 			"loopback.example": {
 				net.ParseIP("127.0.0.2"),
 				net.ParseIP("::1"),
@@ -87,7 +97,23 @@ func TestIsSecureIndex(t *testing.T) {
 		{
 			name:     "official registry",
 			addr:     IndexName,
-			expected: true,
+			expected: true, // Secure even though docker.io resolves to a loopback address.
+		},
+		{
+			name:     "official registry",
+			addr:     IndexName,
+			expected: true, // Special-cased as secure even though it resolves to loopback.
+		},
+		{
+			name:     "docker hub registry endpoint is insecure by default",
+			addr:     "registry-1.docker.io",
+			expected: false, // FIXME(thaJeztah): Unlike IndexName, this follows the default loopback CIDR.
+		},
+		{
+			name:     "docker hub registry endpoint with explicit configuration",
+			addr:     "registry-1.docker.io",
+			insecure: []string{},
+			expected: true, // Explicit configuration disables the default loopback CIDR.
 		},
 		{
 			name:     "registry without insecure registries",
@@ -98,30 +124,6 @@ func TestIsSecureIndex(t *testing.T) {
 			name:     "registry configured as insecure",
 			addr:     "example.com",
 			insecure: []string{"example.com"},
-			expected: false,
-		},
-		{
-			name:     "localhost with different configured port",
-			addr:     "localhost",
-			insecure: []string{"localhost:5000"},
-			expected: false,
-		},
-		{
-			name:     "localhost with configured port",
-			addr:     "localhost:5000",
-			insecure: []string{"localhost:5000"},
-			expected: false,
-		},
-		{
-			name:     "localhost with unrelated insecure registry",
-			addr:     "localhost",
-			insecure: []string{"example.com"},
-			expected: false,
-		},
-		{
-			name:     "loopback address with configured port",
-			addr:     "127.0.0.1:5000",
-			insecure: []string{"127.0.0.1:5000"},
 			expected: false,
 		},
 		{
@@ -140,39 +142,57 @@ func TestIsSecureIndex(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:     "localhost with unrelated insecure registry duplicate",
+			name:     "loopback address with port is insecure by default",
+			addr:     "127.0.0.1:5000",
+			expected: false,
+		},
+		{
+			name:     "localhost with empty insecure registries",
+			addr:     "localhost",
+			insecure: []string{},
+			expected: true, // An explicit configuration disables the localhost defaults.
+		},
+		{
+			name:     "loopback address with empty insecure registries",
+			addr:     "127.0.0.1",
+			insecure: []string{},
+			expected: true, // An explicit configuration disables the loopback defaults.
+		},
+		{
+			name:     "localhost with different configured port",
+			addr:     "localhost",
+			insecure: []string{"localhost:5000"},
+			expected: true, // Only the explicitly configured host:port is insecure.
+		},
+		{
+			name:     "localhost with configured port",
+			addr:     "localhost:5000",
+			insecure: []string{"localhost:5000"},
+			expected: false,
+		},
+		{
+			name:     "localhost with unrelated insecure registry",
 			addr:     "localhost",
 			insecure: []string{"example.com"},
+			expected: true, // The default localhost CIDRs are not added with explicit configuration.
+		},
+		{
+			name:     "loopback address with configured port",
+			addr:     "127.0.0.1:5000",
+			insecure: []string{"127.0.0.1:5000"},
 			expected: false,
 		},
 		{
 			name:     "loopback address with unrelated insecure registry",
 			addr:     "127.0.0.1",
 			insecure: []string{"example.com"},
-			expected: false,
-		},
-		{
-			name:     "registry is secure by default",
-			addr:     "example.com",
-			expected: true,
-		},
-		{
-			name:     "registry configured as insecure duplicate",
-			addr:     "example.com",
-			insecure: []string{"example.com"},
-			expected: false,
-		},
-		{
-			name:     "loopback address with unrelated insecure registry duplicate",
-			addr:     "127.0.0.1",
-			insecure: []string{"example.com"},
-			expected: false,
+			expected: true, // The default loopback CIDRs are not added with explicit configuration.
 		},
 		{
 			name:     "loopback address with port and unrelated insecure registry",
 			addr:     "127.0.0.1:5000",
 			insecure: []string{"example.com"},
-			expected: false,
+			expected: true, // The default localhost CIDRs are not added with explicit configuration.
 		},
 		{
 			name:     "registry with port matching insecure CIDR",

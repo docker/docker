@@ -1,12 +1,79 @@
 package daemon
 
 import (
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+func TestConfigureRegistryHosts(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+
+	_, port, err := net.SplitHostPort(server.Listener.Addr().String())
+	assert.NilError(t, err)
+
+	tests := []struct {
+		name     string
+		host     string
+		insecure bool
+		wantHTTP bool
+	}{
+		{
+			name:     "localhost insecure",
+			host:     net.JoinHostPort("localhost", port),
+			insecure: true,
+			wantHTTP: true,
+		},
+		{
+			name: "localhost secure",
+			host: net.JoinHostPort("localhost", port),
+		},
+		{
+			name:     "loopback insecure",
+			host:     net.JoinHostPort("127.0.0.1", port),
+			insecure: true,
+			wantHTTP: true,
+		},
+		{
+			name: "loopback secure",
+			host: net.JoinHostPort("127.0.0.1", port),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			hosts, err := configureRegistryHosts(tc.host, tc.insecure)
+			assert.NilError(t, err)
+			assert.Equal(t, len(hosts), 1)
+
+			host := hosts[0]
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, host.Scheme+"://"+host.Host+"/v2/", http.NoBody)
+			assert.NilError(t, err)
+
+			resp, err := host.Client.Do(req)
+			if resp != nil {
+				defer func() { _ = resp.Body.Close() }()
+			}
+
+			if tc.wantHTTP {
+				assert.NilError(t, err)
+				assert.Equal(t, resp.StatusCode, http.StatusOK)
+			} else {
+				assert.Assert(t, err != nil)
+			}
+		})
+	}
+}
 
 func TestMirrorsToHosts(t *testing.T) {
 	pullCaps := docker.HostCapabilityPull | docker.HostCapabilityResolve | docker.HostCapabilityReferrers

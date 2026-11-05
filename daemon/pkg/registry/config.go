@@ -141,9 +141,16 @@ func (config *serviceConfig) loadMirrors(mirrors []string) error {
 
 // loadInsecureRegistries loads insecure registries to config
 func (config *serviceConfig) loadInsecureRegistries(registries []string) error {
-	// Localhost is by default considered as an insecure registry. This is a
-	// stop-gap for people who are running a private registry on localhost.
-	registries = append(registries, "::1/128", "127.0.0.0/8")
+	if registries == nil {
+		// Configure insecure registries if not configured. We intentionally only
+		// set the defaults it the option is nil to allow disabling insecure registries
+		// through setting an empty slice.
+		//
+		// If not configured, we consider localhost as an insecure registry.
+		// This is a stop-gap for people who are running a private registry
+		// on localhost.
+		registries = append(registries, "::1/128", "127.0.0.0/8")
+	}
 
 	var (
 		insecureRegistryCIDRs = make(map[netip.Prefix]struct{})

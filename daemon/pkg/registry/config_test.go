@@ -258,6 +258,25 @@ func TestNewServiceConfig(t *testing.T) {
 			},
 		},
 		{
+			// Providing an empty slice for insecure registries should
+			// not add the default (localhost) as insecure.
+			doc: "no insecure registries",
+			opts: ServiceOptions{
+				InsecureRegistries: []string{},
+			},
+			expCfg: &serviceConfig{
+				IndexConfigs: map[string]*registry.IndexInfo{
+					"docker.io": {
+						Name:     "docker.io",
+						Mirrors:  []string{},
+						Secure:   true,
+						Official: true,
+					},
+				},
+				Mirrors: []string{},
+			},
+		},
+		{
 			doc: "invalid mirror",
 			opts: ServiceOptions{
 				Mirrors: []string{"example.com:5000"},
@@ -300,8 +319,6 @@ func TestNewServiceConfig(t *testing.T) {
 			expCfg: &serviceConfig{
 				InsecureRegistryCIDRs: []netip.Prefix{
 					netip.MustParsePrefix("102.10.8.0/24"),
-					netip.MustParsePrefix("127.0.0.0/8"),
-					netip.MustParsePrefix("::1/128"),
 				},
 				IndexConfigs: map[string]*registry.IndexInfo{
 					"docker.io": {Name: "docker.io", Mirrors: []string{}, Secure: true, Official: true},

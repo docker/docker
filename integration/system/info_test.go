@@ -2,9 +2,11 @@ package system
 
 import (
 	"fmt"
+	"net/netip"
 	"slices"
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/internal/testutil"
@@ -106,22 +108,33 @@ func TestInfoInsecureRegistries(t *testing.T) {
 		registryHost = "insecurehost.com:5000"
 	)
 
-	d := daemon.New(t)
-	d.Start(t, "--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost, "--iptables=false", "--ip6tables=false")
-	defer d.Stop(t)
+	t.Run("defaults", func(t *testing.T) {
+		t.Parallel()
+		d := daemon.New(t)
+		defer d.Stop(t)
+		d.Start(t, "--iptables=false", "--ip6tables=false")
+		info := d.Info(t)
 
-	info := d.Info(t)
-	assert.Assert(t, is.Len(info.RegistryConfig.InsecureRegistryCIDRs, 3))
-	cidrs := []string{
-		info.RegistryConfig.InsecureRegistryCIDRs[0].String(),
-		info.RegistryConfig.InsecureRegistryCIDRs[1].String(),
-		info.RegistryConfig.InsecureRegistryCIDRs[2].String(),
-	}
-	assert.Assert(t, is.Contains(cidrs, registryCIDR))
-	assert.Assert(t, is.Contains(cidrs, "::1/128"))
-	assert.Assert(t, is.Contains(cidrs, "127.0.0.0/8"))
-	assert.DeepEqual(t, *info.RegistryConfig.IndexConfigs["docker.io"], registry.IndexInfo{Name: "docker.io", Mirrors: []string{}, Secure: true, Official: true})
-	assert.DeepEqual(t, *info.RegistryConfig.IndexConfigs[registryHost], registry.IndexInfo{Name: registryHost, Mirrors: []string{}, Secure: false, Official: false})
+		expectedCIDRS := []netip.Prefix{
+			netip.MustParsePrefix("127.0.0.0/8"),
+			netip.MustParsePrefix("::1/128"),
+		}
+		assert.DeepEqual(t, info.RegistryConfig.InsecureRegistryCIDRs, expectedCIDRS, cmpopts.EquateComparable(netip.Prefix{}))
+	})
+
+	t.Run("insecure-registries", func(t *testing.T) {
+		t.Parallel()
+		d := daemon.New(t)
+		defer d.Stop(t)
+		d.Start(t, "--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost, "--iptables=false", "--ip6tables=false")
+		info := d.Info(t)
+		d.Stop(t)
+
+		expectedCIDRS := []netip.Prefix{netip.MustParsePrefix(registryCIDR)}
+		assert.DeepEqual(t, info.RegistryConfig.InsecureRegistryCIDRs, expectedCIDRS, cmpopts.EquateComparable(netip.Prefix{}))
+		assert.DeepEqual(t, *info.RegistryConfig.IndexConfigs["docker.io"], registry.IndexInfo{Name: "docker.io", Mirrors: []string{}, Secure: true, Official: true})
+		assert.DeepEqual(t, *info.RegistryConfig.IndexConfigs[registryHost], registry.IndexInfo{Name: registryHost, Mirrors: []string{}, Secure: false, Official: false})
+	})
 }
 
 func TestInfoRegistryMirrors(t *testing.T) {

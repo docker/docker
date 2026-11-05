@@ -1,6 +1,7 @@
 package command
 
 import (
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -274,19 +275,47 @@ func TestContainerdRootDir(t *testing.T) {
 }
 
 func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
-	content := `{
-		"registry-mirrors": ["https://mirrors.example.com"],
-		"insecure-registries": ["https://insecure-registry.example.com"]
-	}`
-	tempFile := fs.NewFile(t, "config", fs.WithContent(content))
+	t.Run("empty config", func(t *testing.T) {
+		const content = `{}`
+		cfgFile := filepath.Join(t.TempDir(), "daemon.json")
+		assert.NilError(t, os.WriteFile(cfgFile, []byte(content), 0o600))
 
-	opts := defaultOptions(t, tempFile.Path())
-	loadedConfig, err := loadDaemonCliConfig(opts)
-	assert.NilError(t, err)
-	assert.Assert(t, loadedConfig != nil)
+		opts := defaultOptions(t, cfgFile)
+		loadedConfig, err := loadDaemonCliConfig(opts)
+		assert.NilError(t, err)
+		assert.Assert(t, loadedConfig != nil)
 
-	assert.Check(t, is.Len(loadedConfig.Mirrors, 1))
-	assert.Check(t, is.Len(loadedConfig.InsecureRegistries, 1))
+		assert.Check(t, is.Nil(loadedConfig.Mirrors))
+		assert.Check(t, is.Nil(loadedConfig.InsecureRegistries))
+	})
+
+	t.Run("no insecure registries", func(t *testing.T) {
+		const content = `{"registry-mirrors": [], "insecure-registries": []}`
+		cfgFile := filepath.Join(t.TempDir(), "daemon.json")
+		assert.NilError(t, os.WriteFile(cfgFile, []byte(content), 0o600))
+
+		opts := defaultOptions(t, cfgFile)
+		loadedConfig, err := loadDaemonCliConfig(opts)
+		assert.NilError(t, err)
+		assert.Assert(t, loadedConfig != nil)
+
+		assert.Check(t, is.Len(loadedConfig.Mirrors, 0))
+		assert.Check(t, is.Len(loadedConfig.InsecureRegistries, 0))
+	})
+
+	t.Run("registry options", func(t *testing.T) {
+		const content = `{"registry-mirrors": ["https://mirrors.example.com"],"insecure-registries": ["https://insecure-registry.example.com"]}`
+		cfgFile := filepath.Join(t.TempDir(), "daemon.json")
+		assert.NilError(t, os.WriteFile(cfgFile, []byte(content), 0o600))
+
+		opts := defaultOptions(t, cfgFile)
+		loadedConfig, err := loadDaemonCliConfig(opts)
+		assert.NilError(t, err)
+		assert.Assert(t, loadedConfig != nil)
+
+		assert.Check(t, is.Len(loadedConfig.Mirrors, 1))
+		assert.Check(t, is.Len(loadedConfig.InsecureRegistries, 1))
+	})
 }
 
 func TestConfigureDaemonLogs(t *testing.T) {
