@@ -26,7 +26,7 @@ func (d *Daemon) rootlessCommand(dockerdBinary string) (string, []string, error)
 	if d.rootlessUser == nil {
 		return dockerdBinary, nil, nil
 	}
-	if d.dockerdBinary != defaultDockerdBinary {
+	if d.dockerdBinary != DefaultDockerdBinary {
 		return "", nil, errors.Errorf("[%s] DOCKER_ROOTLESS doesn't support non-default dockerd binary path %q", d.id, d.dockerdBinary)
 	}
 	// Older sudo versions use secure_path to look up the command even when

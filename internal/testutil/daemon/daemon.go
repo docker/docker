@@ -48,8 +48,11 @@ type nopLog struct{}
 func (nopLog) Logf(string, ...any) {}
 
 const (
-	defaultDockerdBinary = "dockerd"
-	defaultTLSHost       = "localhost:2376"
+	// DefaultDockerdBinary is the dockerd binary used by test daemons unless
+	// [WithDockerdBinary] or [Daemon.UseBinary] is used to select another one.
+	DefaultDockerdBinary = "dockerd"
+
+	defaultTLSHost = "localhost:2376"
 )
 
 var errDaemonNotStarted = errors.New("daemon not started")
@@ -149,7 +152,7 @@ func NewDaemon(workingDir string, ops ...Option) (*Daemon, error) {
 		userlandProxy: userlandProxy,
 		// dxr stands for docker-execroot (shortened for avoiding unix(7) path length limitation)
 		execRoot:           filepath.Join(os.TempDir(), "dxr", id),
-		dockerdBinary:      defaultDockerdBinary,
+		dockerdBinary:      DefaultDockerdBinary,
 		swarmListenAddr:    defaultSwarmListenAddr,
 		SwarmPort:          DefaultSwarmPort,
 		log:                nopLog{},
@@ -243,7 +246,7 @@ func New(t testing.TB, ops ...Option) *Daemon {
 
 	d, err := NewDaemon(dest, ops...)
 	assert.NilError(t, err, "could not create daemon at %q", dest)
-	if d.rootlessUser != nil && d.dockerdBinary != defaultDockerdBinary {
+	if d.rootlessUser != nil && d.dockerdBinary != DefaultDockerdBinary {
 		t.Skipf("DOCKER_ROOTLESS doesn't support specifying non-default dockerd binary path %q", d.dockerdBinary)
 	}
 
@@ -925,6 +928,17 @@ func (d *Daemon) SetEnvVar(name, val string) {
 		return
 	}
 	d.extraEnv = append(d.extraEnv, prefix+val)
+}
+
+// UseBinary sets the dockerd binary to start the daemon with. The daemon must
+// be stopped when calling it. It allows a test to restart a daemon's state
+// (data-root, exec-root and containerd namespaces are unchanged) with another
+// version of dockerd, for example to verify that state written by a released
+// daemon can be used by the daemon under test.
+func (d *Daemon) UseBinary(t testing.TB, dockerdBinary string) {
+	t.Helper()
+	assert.Assert(t, d.cmd == nil, "daemon must be stopped before changing the dockerd binary")
+	d.dockerdBinary = dockerdBinary
 }
 
 // LoadBusybox image into the daemon
