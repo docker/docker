@@ -97,7 +97,7 @@ jobs:
           - arch: amd64
             storage: snapshotter
             runnerSuffix: ""
-            extraModes: '["rootless", "systemd", "rootless-systemd", "iptables+firewalld", "nftables", "nftables+firewalld", "embedded"]'
+            extraModes: '["rootless", "systemd", "rootless-systemd", "iptables+firewalld", "nftables", "nftables+firewalld", "embedded", "userns"]'
           - arch: amd64
             storage: graphdriver
             runnerSuffix: ""
