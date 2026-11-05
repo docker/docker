@@ -47,11 +47,10 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *testing.T) {
 	assert.NilError(c, err, "invalid digest %q in output", matches[0][1])
 
 	// We should have a single entry in images.
-	img := strings.TrimSpace(s.Cmd(c, "images"))
-	splitImg := strings.Split(img, "\n")
-	assert.Equal(c, len(splitImg), 2)
-	match, _ := regexp.MatchString(`hello-world\s+latest.*?`, splitImg[1])
-	assert.Assert(c, match, "invalid output for `docker images` (expected image and tag name)")
+	output := s.Cmd(c, "image", "ls", "--format", "{{.Repository}}:{{.Tag}}")
+	splitImg := strings.Split(strings.TrimSpace(output), "\n")
+	assert.Assert(c, is.Len(splitImg, 1), "expected a single image in the output")
+	assert.Assert(c, is.Equal(splitImg[0], "hello-world:latest"), "invalid output for `docker images` (expected image and tag name):\n%s", output)
 }
 
 // TestPullFromCentralRegistryImplicitRefParts pulls an image from the central registry and verifies
@@ -61,34 +60,15 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *testing.T) {
 func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 
-	// Pull hello-world from v2
-	pullFromV2 := func(ref string) (int, string) {
-		out := s.Cmd(c, "pull", "hello-world")
-		v1Retries := 0
-		for strings.Contains(out, "this image was pulled from a legacy registry") {
-			// Some network errors may cause fallbacks to the v1
-			// protocol, which would violate the test's assumption
-			// that it will get the same images. To make the test
-			// more robust against these network glitches, allow a
-			// few retries if we end up with a v1 pull.
-
-			if v1Retries > 2 {
-				c.Fatalf("too many v1 fallback incidents when pulling %s", ref)
-			}
-
-			s.Cmd(c, "rmi", ref)
-			out = s.Cmd(c, "pull", ref)
-
-			v1Retries++
-		}
-
-		return v1Retries, out
+	_, err := s.CmdWithError("image", "pull", "hello-world")
+	if err != nil && strings.Contains(err.Error(), "toomanyrequests") {
+		c.Skipf("XFAIL: %s", err.Error())
 	}
 
-	pullFromV2("hello-world")
-	defer deleteImages("hello-world")
-
 	s.Cmd(c, "tag", "hello-world", "hello-world-backup")
+	defer func() {
+		s.Cmd(c, "image", "rm", "-f", "hello-world", "hello-world-backup")
+	}()
 
 	for _, ref := range []string{
 		"hello-world",
@@ -98,32 +78,23 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *test
 		"docker.io/library/hello-world",
 		"index.docker.io/library/hello-world",
 	} {
-		var out string
-		for {
-			var v1Retries int
-			v1Retries, out = pullFromV2(ref)
-
-			// Keep repeating the test case until we don't hit a v1
-			// fallback case. We won't get the right "Image is up
-			// to date" message if the local image was replaced
-			// with one pulled from v1.
-			if v1Retries == 0 {
-				break
-			}
-			s.Cmd(c, "rmi", ref)
-			s.Cmd(c, "tag", "hello-world-backup", "hello-world")
+		out, err := s.CmdWithError("image", "pull", "hello-world")
+		if err != nil && strings.Contains(err.Error(), "toomanyrequests") {
+			c.Skipf("XFAIL: %s", err.Error())
 		}
+
+		s.Cmd(c, "image", "rm", ref)
+		s.Cmd(c, "image", "tag", "hello-world-backup", "hello-world")
 		assert.Assert(c, is.Contains(out, "Image is up to date for hello-world:latest"))
 	}
 
-	s.Cmd(c, "rmi", "hello-world-backup")
+	s.Cmd(c, "image", "rm", "hello-world-backup")
 
 	// We should have a single entry in images.
-	img := strings.TrimSpace(s.Cmd(c, "images"))
-	splitImg := strings.Split(img, "\n")
-	assert.Equal(c, len(splitImg), 2)
-	match, _ := regexp.MatchString(`hello-world\s+latest.*?`, splitImg[1])
-	assert.Assert(c, match, "invalid output for `docker images` (expected image and tag name)")
+	output := s.Cmd(c, "image", "ls", "--format", "{{.Repository}}:{{.Tag}}")
+	splitImg := strings.Split(strings.TrimSpace(output), "\n")
+	assert.Assert(c, is.Len(splitImg, 1), "expected a single image in the output")
+	assert.Assert(c, is.Equal(splitImg[0], "hello-world:latest"), "invalid output for `docker images` (expected image and tag name):\n%s", output)
 }
 
 // TestPullScratchNotAllowed verifies that pulling 'scratch' is rejected.
@@ -146,41 +117,26 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *testing.T) {
 		c.Skipf("XFAIL: %s", err.Error())
 	}
 	assert.NilError(c, err)
-	outImageCmd := s.Cmd(c, "images", "dockercore/engine-pull-all-test-fixture")
+	outImageCmd := s.Cmd(c, "image", "ls", "--format", "{{.Repository}}:{{.Tag}}\t{{.ID}}", "dockercore/engine-pull-all-test-fixture")
 	splitOutImageCmd := strings.Split(strings.TrimSpace(outImageCmd), "\n")
-	assert.Equal(c, len(splitOutImageCmd), 2)
+	assert.Assert(c, is.Len(splitOutImageCmd, 1))
 
 	s.Cmd(c, "pull", "--all-tags=true", "dockercore/engine-pull-all-test-fixture")
-	outImageAllTagCmd := s.Cmd(c, "images", "dockercore/engine-pull-all-test-fixture")
-	linesCount := strings.Count(outImageAllTagCmd, "\n")
-	assert.Assert(c, linesCount > 2, "pulling all tags should provide more than two images, got %s", outImageAllTagCmd)
+	output := s.Cmd(c, "image", "ls", "--format", "{{.Repository}}:{{.Tag}}\t{{.ID}}", "dockercore/engine-pull-all-test-fixture")
+	splitImg := strings.Split(strings.TrimSpace(output), "\n")
+	assert.Assert(c, len(splitImg) > 2, "pulling all tags should provide more than two images, got %d:\n%s", len(splitImg), output)
 
 	// Verify that the line for 'dockercore/engine-pull-all-test-fixture:latest' is left unchanged.
 	var latestLine string
-	for line := range strings.SplitSeq(outImageAllTagCmd, "\n") {
-		if strings.HasPrefix(line, "dockercore/engine-pull-all-test-fixture") && strings.Contains(line, "latest") {
+	for _, line := range splitImg {
+		if strings.HasPrefix(line, "dockercore/engine-pull-all-test-fixture:latest") {
 			latestLine = line
 			break
 		}
 	}
 	assert.Assert(c, latestLine != "", "no entry for dockercore/engine-pull-all-test-fixture:latest found after pulling all tags")
 
-	splitLatest := strings.Fields(latestLine)
-	splitCurrent := strings.Fields(splitOutImageCmd[1])
-
-	// Clear relative creation times, since these can easily change between
-	// two invocations of "docker images". Without this, the test can fail
-	// like this:
-	// ... obtained []string = []string{"busybox", "latest", "d9551b4026f0", "27", "minutes", "ago", "1.113", "MB"}
-	// ... expected []string = []string{"busybox", "latest", "d9551b4026f0", "26", "minutes", "ago", "1.113", "MB"}
-	splitLatest[3] = ""
-	splitLatest[4] = ""
-	splitLatest[5] = ""
-	splitCurrent[3] = ""
-	splitCurrent[4] = ""
-	splitCurrent[5] = ""
-
-	assert.Assert(c, is.DeepEqual(splitLatest, splitCurrent), "dockercore/engine-pull-all-test-fixture:latest was changed after pulling all tags")
+	assert.Assert(c, is.DeepEqual(latestLine, splitOutImageCmd[0]), "dockercore/engine-pull-all-test-fixture:latest was changed after pulling all tags")
 }
 
 // TestPullClientDisconnect kills the client during a pull operation and verifies that the operation
