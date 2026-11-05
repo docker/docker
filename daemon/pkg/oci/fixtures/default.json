@@ -47,6 +47,10 @@
 			"subArchitectures": [
 				"SCMP_ARCH_S390"
 			]
+		},
+		{
+			"architecture": "SCMP_ARCH_LOONGARCH64",
+			"subArchitectures": null
 		}
 	],
 	"syscalls": [
