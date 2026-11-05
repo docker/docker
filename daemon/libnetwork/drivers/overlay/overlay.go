@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"path/filepath"
 	"sync"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/discoverapi"
@@ -38,12 +39,12 @@ var (
 type driver struct {
 	// Immutable; mu does not need to be held when accessing these fields.
 	initOS sync.Once
-	// netnsDir is the directory the driver keeps the network namespaces
+	// sandboxDir is the directory the driver keeps the network namespaces
 	// of its network sandboxes in.
-	netnsDir string
-	// networkOnce populates vniTbl with the VNIs of the network sandboxes
-	// left in netnsDir by a previous run of the daemon.
-	networkOnce sync.Once
+	sandboxDir string
+	// legacySandboxDir is the directory earlier versions of the driver
+	// kept the network namespaces of their network sandboxes in.
+	legacySandboxDir string
 
 	// encrMu guards secMap and keys,
 	// and synchronizes the application of encryption parameters
@@ -67,19 +68,24 @@ type driver struct {
 	bindAddress      netip.Addr
 	advertiseAddress netip.Addr
 	networks         networkTable
-	vniTbl           map[uint32]string
 }
 
 func newDriver(netnsDir string) *driver {
-	return &driver{
+	d := &driver{
 		networks: networkTable{},
 		secMap:   encrMap{},
-		netnsDir: netnsDir,
 	}
+	if netnsDir != "" {
+		d.sandboxDir = filepath.Join(netnsDir, "overlay")
+		d.legacySandboxDir = netnsDir
+	}
+	return d
 }
 
-// Register registers a new instance of the overlay driver, which keeps the
-// network namespaces of its sandboxes in netnsDir.
+// Register registers a new instance of the overlay driver. It keeps the
+// network namespaces of its network sandboxes in the "overlay"
+// subdirectory of netnsDir. If netnsDir is empty, the driver cannot create
+// network sandboxes.
 func Register(r driverapi.Registerer, netnsDir string) error {
 	return r.RegisterDriver(NetworkType, newDriver(netnsDir), driverapi.Capability{
 		DataScope:         scope.Global,
@@ -97,6 +103,7 @@ func (d *driver) configure() error {
 				d.restoreOverlayEncryptionFirewall(context.TODO())
 			})
 		}
+		d.removeStaleSandboxes()
 	})
 
 	return nil

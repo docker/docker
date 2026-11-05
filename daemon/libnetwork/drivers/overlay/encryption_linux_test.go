@@ -148,7 +148,7 @@ func TestProgramMangleLifecycle(t *testing.T) {
 	const vniA, vniB = 4096, 4097
 
 	// First encrypted network on the node: the marking rule is programmed
-	// when the subnet sandbox is set up, ...
+	// when the subnet is set up in the network sandbox, ...
 	assert.NilError(t, d.programMangle(vniA, true))
 	// ... and the mark-stripping rule when the first peer is discovered.
 	assert.NilError(t, d.programMangleMarkSpoofProtection(true))
@@ -201,15 +201,15 @@ func TestRestoreIptablesEncryptionRulesOnFirewalldReload(t *testing.T) {
 	skip.If(t, nftables.Enabled(), "test is for the iptables backend")
 	defer netnsutils.SetupTestOSContext(t)()
 
-	const encVNI, clearVNI, noSboxVNI = 4097, 4098, 4099
+	const encVNI, clearVNI, notSetUpVNI = 4097, 4098, 4099
 	d := newDriver(t.TempDir())
 	d.advertiseAddress = netip.MustParseAddr("192.0.2.1")
 	d.networks["enc"] = &network{id: "enc", driver: d, secure: true, subnets: []*subnet{
-		{vni: encVNI, sboxInit: true},
-		// A subnet whose sandbox has not been set up.
-		{vni: noSboxVNI},
+		{vni: encVNI, initDone: true},
+		// A subnet which has not been set up.
+		{vni: notSetUpVNI},
 	}}
-	d.networks["clear"] = &network{id: "clear", driver: d, subnets: []*subnet{{vni: clearVNI, sboxInit: true}}}
+	d.networks["clear"] = &network{id: "clear", driver: d, subnets: []*subnet{{vni: clearVNI, initDone: true}}}
 
 	ipt := iptables.GetIptable(iptables.IPv4)
 	type ruleset struct{ MangleOutput, FilterInput []string }
@@ -227,8 +227,8 @@ func TestRestoreIptablesEncryptionRulesOnFirewalldReload(t *testing.T) {
 	}
 	noRules := dump()
 
-	// Install the rules as initSubnetSandbox does for the subnet of the
-	// secure network with a sandbox.
+	// Install the rules as initSubnet does for the subnet of the
+	// secure network which has been set up.
 	// Install and remove the rules for the other network's VNI, as for a
 	// deleted secure network whose VNI was reassigned.
 	ctx := t.Context()

@@ -103,40 +103,36 @@ func deleteInterface(name string) error {
 	return nil
 }
 
-func deleteVxlanByVNI(path string, vni uint32) error {
-	nlh := ns.NlHandle()
-	if path != "" {
-		ns, err := netns.GetFromPath(path)
-		if err != nil {
-			return fmt.Errorf("failed to get ns handle for %s: %v", path, err)
-		}
-		defer ns.Close()
+// deleteVxlans deletes every VXLAN link in the network namespace at path.
+func deleteVxlans(path string) error {
+	ns, err := netns.GetFromPath(path)
+	if err != nil {
+		return fmt.Errorf("failed to get ns handle for %s: %v", path, err)
+	}
+	defer ns.Close()
 
-		nlh, err = nlwrap.NewHandleAt(ns, syscall.NETLINK_ROUTE)
-		if err != nil {
-			return fmt.Errorf("failed to get netlink handle for ns %s: %v", path, err)
-		}
-		defer nlh.Close()
-		err = nlh.SetSocketTimeout(soTimeout)
-		if err != nil {
-			log.G(context.TODO()).Warnf("Failed to set the timeout on the netlink handle sockets for vxlan deletion: %v", err)
-		}
+	nlh, err := nlwrap.NewHandleAt(ns, syscall.NETLINK_ROUTE)
+	if err != nil {
+		return fmt.Errorf("failed to get netlink handle for ns %s: %v", path, err)
+	}
+	defer nlh.Close()
+	if err := nlh.SetSocketTimeout(soTimeout); err != nil {
+		log.G(context.TODO()).Warnf("Failed to set the timeout on the netlink handle sockets for vxlan deletion: %v", err)
 	}
 
 	links, err := nlh.LinkList()
 	if err != nil {
-		return fmt.Errorf("failed to list interfaces while deleting vxlan interface by vni: %v", err)
+		return fmt.Errorf("failed to list interfaces while deleting vxlan interfaces: %v", err)
 	}
 
+	var errs []error
 	for _, l := range links {
-		if l.Type() == "vxlan" && (vni == 0 || l.(*netlink.Vxlan).VxlanId == int(vni)) {
-			err = nlh.LinkDel(l)
-			if err != nil {
-				return fmt.Errorf("error deleting vxlan interface with id %d: %v", vni, err)
-			}
-			return nil
+		if l.Type() != "vxlan" {
+			continue
+		}
+		if err := nlh.LinkDel(l); err != nil {
+			errs = append(errs, fmt.Errorf("error deleting vxlan interface %s: %v", l.Attrs().Name, err))
 		}
 	}
-
-	return fmt.Errorf("could not find a vxlan interface to delete with id %d", vni)
+	return errors.Join(errs...)
 }

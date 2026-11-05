@@ -152,7 +152,7 @@ func (n *network) addNeighbor(peerIP netip.Prefix, peerMac hashable.MACAddr, vte
 	}
 
 	if err := n.joinSandbox(s, false); err != nil {
-		return fmt.Errorf("subnet sandbox join failed for %q: %v", s.subnetIP.String(), err)
+		return fmt.Errorf("network sandbox join failed for subnet %q: %v", s.subnetIP.String(), err)
 	}
 
 	if n.secure {

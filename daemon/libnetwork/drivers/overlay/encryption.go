@@ -407,7 +407,7 @@ func (d *driver) restoreNetworkEncryptionFirewall(ctx context.Context, nid strin
 	}
 
 	for _, s := range n.subnets {
-		if !s.sboxInit {
+		if !s.initDone {
 			continue
 		}
 		// Unlike programOverlayEncryptionFirewall, do not roll back the
