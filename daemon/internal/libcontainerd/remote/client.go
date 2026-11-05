@@ -188,7 +188,7 @@ func (c *container) NewTask(ctx context.Context, checkpointDir string, withStdin
 	if err := json.Unmarshal(md.Spec.GetValue(), &spec); err != nil {
 		return nil, pkgerrors.Wrap(err, "failed to retrieve spec")
 	}
-	uid, gid := getSpecUser(&spec)
+	uid, gid := getIOOwner(&spec)
 
 	taskOpts := []containerd.NewTaskOpts{
 		func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
