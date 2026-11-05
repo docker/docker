@@ -19,7 +19,7 @@ on:
         default: ""
 
 env:
-  GO_VERSION: "1.26.10"
+  GO_VERSION: "1.27.3"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   SETUP_BUILDX_VERSION: edge

@@ -2,7 +2,7 @@ version: "2"
 
 run:
   # prevent golangci-lint from deducting the go version to lint for through go.mod,
-  go: "1.26.10"
+  go: "1.27.3"
   # Only supported with go modules enabled (build flag -mod=vendor only valid when using modules)
   # modules-download-mode: vendor
 
