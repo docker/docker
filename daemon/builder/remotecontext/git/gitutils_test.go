@@ -336,6 +336,77 @@ func TestCheckoutGit(t *testing.T) {
 	}
 }
 
+// TestCloneSubmoduleFileProtocol verifies that clone() fetches submodules with
+// the same config isolation and protocol restrictions as the rest of the
+// clone, so a repository cannot pull a submodule from the daemon host's
+// filesystem when the host's git configuration enables the "file" protocol.
+//
+// The host config below makes a raw "git submodule update" fetch the file://
+// submodule, so without the fix clone() leaks the host repository and the test
+// fails; routing the update through gitWithinDir ignores the host gitconfig
+// and disallows the file protocol, which blocks it.
+func TestCloneSubmoduleFileProtocol(t *testing.T) {
+	gitpath, err := exec.LookPath("git")
+	assert.NilError(t, err)
+
+	root := t.TempDir()
+
+	// Simulate a daemon host whose git configuration enables the file protocol.
+	// Using a global config file (rather than GIT_CONFIG_* env vars) keeps the
+	// test independent of the git version, and also provides a commit identity.
+	home := t.TempDir()
+	gitconfig := "[user]\n\tname = test\n\temail = test@docker.com\n[protocol \"file\"]\n\tallow = always\n"
+	assert.NilError(t, os.WriteFile(filepath.Join(home, ".gitconfig"), []byte(gitconfig), 0o644))
+	t.Setenv("HOME", home)
+
+	// Serve everything under root over Smart HTTP, the way clone() fetches its
+	// remote (the main remote cannot use the file protocol, which gitWithinDir
+	// blocks, so HTTP is required here).
+	server := httptest.NewServer(&cgi.Handler{
+		Path: gitpath,
+		Args: []string{"http-backend"},
+		Dir:  root,
+		Env:  []string{"GIT_PROJECT_ROOT=" + root, "GIT_HTTP_EXPORT_ALL=1"},
+	})
+	defer server.Close()
+
+	// The host-side setup runs git directly; gitWithinDir would block the
+	// file protocol that adding the submodule relies on.
+	git := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		assert.NilError(t, err, "git %s: %s", strings.Join(args, " "), out)
+	}
+
+	// "secret" is a repository on the daemon host that the build must not read.
+	secret := filepath.Join(root, "secret")
+	git(root, "-c", "init.defaultBranch=master", "init", secret)
+	assert.NilError(t, os.WriteFile(filepath.Join(secret, "secret"), []byte("s3cr3t"), 0o644))
+	git(secret, "add", "-A")
+	git(secret, "commit", "-m", "secret")
+
+	// "super" is the attacker-controlled repository, with a file:// submodule
+	// pointing at the host-local "secret" repository.
+	super := filepath.Join(root, "super")
+	git(root, "-c", "init.defaultBranch=master", "init", super)
+	assert.NilError(t, os.WriteFile(filepath.Join(super, "Dockerfile"), []byte("FROM scratch"), 0o644))
+	git(super, "-c", "protocol.file.allow=always", "submodule", "add", "file://"+filepath.ToSlash(secret), "sub")
+	git(super, "add", "-A")
+	git(super, "commit", "-m", "with submodule")
+
+	// Clone with an isolated config, the way the daemon calls Clone().
+	checkoutDir, err := gitRepo{remote: server.URL + "/super", ref: "master", isolateConfig: true}.clone()
+	if checkoutDir != "" {
+		defer os.RemoveAll(checkoutDir)
+	}
+	if err == nil {
+		_, statErr := os.Stat(filepath.Join(checkoutDir, "sub", "secret"))
+		assert.Assert(t, os.IsNotExist(statErr), "file:// submodule was fetched from the host filesystem")
+	}
+}
+
 func TestValidGitTransport(t *testing.T) {
 	gitUrls := []string{
 		"git://github.com/docker/docker",

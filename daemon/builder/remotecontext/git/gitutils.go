@@ -79,9 +79,11 @@ func (repo gitRepo) clone() (checkoutDir string, retErr error) {
 		return "", err
 	}
 
-	cmd := exec.Command("git", "submodule", "update", "--init", "--recursive", "--depth=1")
-	cmd.Dir = root
-	output, err := cmd.CombinedOutput()
+	// Update submodules through gitWithinDir so they use the same protocol
+	// restrictions as the rest of the clone (notably the file protocol
+	// restrictions), keeping submodule fetching independent of the host's
+	// git configuration.
+	output, err := repo.gitWithinDir(root, "submodule", "update", "--init", "--recursive", "--depth=1")
 	if err != nil {
 		return "", errors.Wrapf(err, "error initializing submodules: %s", output)
 	}
@@ -205,13 +207,18 @@ func (repo gitRepo) gitWithinDir(dir string, args ...string) ([]byte, error) {
 	args = append([]string{"-c", "protocol.file.allow=never"}, args...) // Block sneaky repositories from using repos from the filesystem as submodules.
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
-	// Disable unsafe remote protocols.
-	cmd.Env = append(os.Environ(), "GIT_PROTOCOL_FROM_USER=0")
+	cmd.Env = append(os.Environ(),
+		// Disable unsafe remote protocols. The allowlist also covers git
+		// versions without protocol.<name>.allow support (added in git 2.12).
+		"GIT_PROTOCOL_FROM_USER=0",
+		"GIT_ALLOW_PROTOCOL=http:https:git:ssh",
+	)
 
 	if repo.isolateConfig {
 		cmd.Env = append(cmd.Env,
-			"GIT_CONFIG_NOSYSTEM=1", // Disable reading from system gitconfig.
-			"HOME=/dev/null",        // Disable reading from user gitconfig.
+			"GIT_CONFIG_NOSYSTEM=1",         // Disable reading from system gitconfig.
+			"HOME="+os.DevNull,              // Disable reading from user gitconfig.
+			"GIT_CONFIG_GLOBAL="+os.DevNull, // Disable reading from global gitconfig.
 		)
 	}
 
