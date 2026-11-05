@@ -90,6 +90,13 @@ func maskSecretKeys(inp any) {
 
 	if form, ok := inp.(map[string]any); ok {
 		scrub := []string{
+			// Registry credentials sent in the body of POST /auth requests
+			// (registry.AuthConfig). These field names are only used by
+			// credential-bearing structs, so they are scrubbed unconditionally,
+			// as is the "password" field below.
+			"auth",
+			"identitytoken",
+			"registrytoken",
 			// Note: The Data field contains the base64-encoded secret in 'secret'
 			// and 'config' create and update requests. Currently, no other POST
 			// API endpoints use a data field, so we scrub this field unconditionally.

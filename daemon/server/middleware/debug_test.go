@@ -50,6 +50,27 @@ func TestMaskSecretKeys(t *testing.T) {
 			},
 		},
 		{
+			// Credentials from registry.AuthConfig (POST /auth). Matching is
+			// case-insensitive (strings.EqualFold), and only exact credential
+			// field names are scrubbed, so non-secret fields (username,
+			// serveraddress) are preserved.
+			doc: "registry auth credentials (POST /auth)",
+			input: map[string]any{
+				"username":      "user",
+				"serveraddress": "registry.example.test",
+				"auth":          "dXNlcjpwYXNz",
+				"IdEnTiTyToKeN": "id-token",
+				"registrytoken": "reg-token",
+			},
+			expected: map[string]any{
+				"username":      "user",
+				"serveraddress": "registry.example.test",
+				"auth":          "*****",
+				"IdEnTiTyToKeN": "*****",
+				"registrytoken": "*****",
+			},
+		},
+		{
 			doc: "case insensitive field matching",
 			input: map[string]any{
 				"PASSWORD": "pass",
