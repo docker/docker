@@ -167,8 +167,37 @@ func WithCapabilities(ctr *container.Container) coci.SpecOpts {
 		if err != nil {
 			return err
 		}
-		return coci.WithCapabilities(capabilities)(ctx, client, c, s)
+		if err := coci.WithCapabilities(capabilities)(ctx, client, c, s); err != nil {
+			return err
+		}
+		ambient, err := ambientCapabilities(ctr.HostConfig, s.Process.User, capabilities)
+		if err != nil {
+			return err
+		}
+		if len(ambient) == 0 {
+			return nil
+		}
+		return coci.WithAmbientCapabilities(ambient)(ctx, client, c, s)
 	}
+}
+
+func ambientCapabilities(hostConfig *containertypes.HostConfig, user specs.User, allowed []string) ([]string, error) {
+	if hostConfig == nil || user.UID == 0 || len(hostConfig.CapAdd) == 0 {
+		return nil, nil
+	}
+
+	candidates, err := caps.TweakCapabilities(nil, hostConfig.CapAdd, hostConfig.CapDrop, false)
+	if err != nil {
+		return nil, err
+	}
+	var ambient []string
+	for _, cap := range candidates {
+		if !slices.Contains(allowed, cap) || slices.Contains(ambient, cap) {
+			continue
+		}
+		ambient = append(ambient, cap)
+	}
+	return ambient, nil
 }
 
 func resourcePath(c *container.Container, getPath func() (string, error)) (string, error) {

@@ -3,6 +3,7 @@ package capabilities
 import (
 	"bytes"
 	"io"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -15,6 +16,40 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 )
+
+const capSysNice = 23
+
+func TestCapAddForNonRootUserSetsAmbientCapability(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	result := container.RunAttach(ctx, t, apiClient,
+		container.WithImage("busybox:latest"),
+		container.WithUser("2400:2400"),
+		container.WithCapability("SYS_NICE"),
+		container.WithCmd("sh", "-c", "awk '/^CapEff:|^CapAmb:/ { print $1, $2 }' /proc/self/status"),
+	)
+	assert.Equal(t, result.ExitCode, 0, result.Stderr.String())
+
+	stdout := result.Stdout.String()
+	assert.Check(t, hasCapability(t, stdout, "CapEff", capSysNice), stdout)
+	assert.Check(t, hasCapability(t, stdout, "CapAmb", capSysNice), stdout)
+}
+
+func hasCapability(t *testing.T, status string, field string, capability uint) bool {
+	t.Helper()
+	for _, line := range strings.Split(status, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 || strings.TrimSuffix(fields[0], ":") != field {
+			continue
+		}
+		mask, err := strconv.ParseUint(fields[1], 16, 64)
+		assert.NilError(t, err)
+		return mask&(uint64(1)<<capability) != 0
+	}
+	t.Fatalf("missing %s in status output: %s", field, status)
+	return false
+}
 
 func TestNoNewPrivileges(t *testing.T) {
 	ctx := setupTest(t)

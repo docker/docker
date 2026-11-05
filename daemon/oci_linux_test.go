@@ -225,6 +225,100 @@ devices:
 	assert.Assert(t, slices.Contains(s.Process.User.AdditionalGids, uint32(1234)), "CDI additional GID not present in OCI spec")
 }
 
+func TestCreateSpecWithCapAddForNonRootUserSetsAmbientCapabilities(t *testing.T) {
+	c := &container.Container{
+		Config: &containertypes.Config{
+			User: "2400:2400",
+		},
+		HostConfig: &containertypes.HostConfig{
+			CapAdd: []string{"SYS_NICE"},
+		},
+	}
+	d := setupFakeDaemon(t, c)
+
+	s, err := d.createSpec(t.Context(), &configStore{}, c, nil)
+	assert.NilError(t, err)
+
+	assert.Check(t, is.DeepEqual(s.Process.Capabilities.Ambient, []string{"CAP_SYS_NICE"}))
+	assert.Check(t, is.DeepEqual(s.Process.Capabilities.Inheritable, []string{"CAP_SYS_NICE"}))
+	assert.Assert(t, slices.Contains(s.Process.Capabilities.Effective, "CAP_SYS_NICE"))
+	assert.Assert(t, slices.Contains(s.Process.Capabilities.Permitted, "CAP_SYS_NICE"))
+	assert.Assert(t, !slices.Contains(s.Process.Capabilities.Ambient, "CAP_NET_RAW"))
+}
+
+func TestCreateSpecWithCapAddForRootUserLeavesAmbientCapabilitiesUnset(t *testing.T) {
+	c := &container.Container{
+		Config: &containertypes.Config{
+			User: "0:0",
+		},
+		HostConfig: &containertypes.HostConfig{
+			CapAdd: []string{"SYS_NICE"},
+		},
+	}
+	d := setupFakeDaemon(t, c)
+
+	s, err := d.createSpec(t.Context(), &configStore{}, c, nil)
+	assert.NilError(t, err)
+
+	assert.Check(t, is.Len(s.Process.Capabilities.Ambient, 0))
+	assert.Check(t, is.Len(s.Process.Capabilities.Inheritable, 0))
+	assert.Assert(t, slices.Contains(s.Process.Capabilities.Effective, "CAP_SYS_NICE"))
+	assert.Assert(t, slices.Contains(s.Process.Capabilities.Permitted, "CAP_SYS_NICE"))
+}
+
+func TestAmbientCapabilitiesUsesCapabilityTweaks(t *testing.T) {
+	tests := []struct {
+		name       string
+		hostConfig *containertypes.HostConfig
+		allowed    []string
+		expected   []string
+	}{
+		{
+			name: "explicit add wins over matching drop",
+			hostConfig: &containertypes.HostConfig{
+				CapAdd:  []string{"SYS_NICE"},
+				CapDrop: []string{"SYS_NICE"},
+			},
+			allowed:  []string{"CAP_SYS_NICE"},
+			expected: []string{"CAP_SYS_NICE"},
+		},
+		{
+			name: "all respects drops before intersecting allowed",
+			hostConfig: &containertypes.HostConfig{
+				CapAdd:  []string{"ALL"},
+				CapDrop: []string{"CHOWN"},
+			},
+			allowed:  []string{"CAP_CHOWN", "CAP_SYS_NICE"},
+			expected: []string{"CAP_SYS_NICE"},
+		},
+		{
+			name: "drop all keeps explicit additions",
+			hostConfig: &containertypes.HostConfig{
+				CapAdd:  []string{"SYS_NICE"},
+				CapDrop: []string{"ALL"},
+			},
+			allowed:  []string{"CAP_SYS_NICE"},
+			expected: []string{"CAP_SYS_NICE"},
+		},
+		{
+			name: "duplicate additions are emitted once",
+			hostConfig: &containertypes.HostConfig{
+				CapAdd: []string{"SYS_NICE", "CAP_SYS_NICE"},
+			},
+			allowed:  []string{"CAP_SYS_NICE"},
+			expected: []string{"CAP_SYS_NICE"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := ambientCapabilities(tc.hostConfig, specs.User{UID: 2400}, tc.allowed)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, actual, tc.expected)
+		})
+	}
+}
+
 // TestTmpfsDevShmNoDupMount checks that a user-specified /dev/shm tmpfs
 // mount (as in "docker run --tmpfs /dev/shm:rw,size=NNN") does not result
 // in "Duplicate mount point" error from the engine.
