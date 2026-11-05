@@ -25,9 +25,6 @@ on:
         required: true
         type: string
         default: "graphdriver"
-    secrets:
-      CODECOV_TOKEN:
-        required: false
 
 env:
   GO_VERSION: "1.26.10"
@@ -172,6 +169,9 @@ jobs:
             });
 
   integration:
+    permissions:
+      contents: read
+      id-token: write # needed for CodeCov; https://github.com/codecov/codecov-action/blob/v7.1.1/README.md#using-oidc
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
@@ -282,7 +282,7 @@ jobs:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
           flags: integration,${{ inputs.arch }},${{ matrix.mode }}
-          token: ${{ secrets.CODECOV_TOKEN }}  # used to upload coverage reports: https://github.com/moby/buildkit/pull/4660#issue-2142122533
+          use_oidc: true
       -
         name: Test daemon logs
         if: always()
@@ -425,6 +425,9 @@ jobs:
             });
 
   integration-cli:
+    permissions:
+      contents: read
+      id-token: write # needed for CodeCov; https://github.com/codecov/codecov-action/blob/v7.1.1/README.md#using-oidc
     runs-on: ubuntu-26.04${{ inputs.runnerSuffix }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ github.event_name != 'pull_request' }}
@@ -506,7 +509,7 @@ jobs:
           directory: ./bundles/test-integration
           env_vars: RUNNER_OS
           flags: integration-cli,${{ inputs.arch }}
-          token: ${{ secrets.CODECOV_TOKEN }}  # used to upload coverage reports: https://github.com/moby/buildkit/pull/4660#issue-2142122533
+          use_oidc: true
       -
         name: Test daemon logs
         if: always()
