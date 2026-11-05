@@ -114,7 +114,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.47.0
 	golang.org/x/net v0.62.0
 	golang.org/x/sync v0.24.0
-	golang.org/x/sys v0.49.0
+	golang.org/x/sys v0.49.1-0.20261022125458-f5cb0306ac0e // includes fix for https://go.dev/issue/82324
 	golang.org/x/text v0.43.0
 	golang.org/x/time v0.16.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20261012220534-4341edf3f941
