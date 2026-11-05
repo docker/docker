@@ -12,37 +12,39 @@ type mkdirOptions struct {
 	onlyNew bool
 }
 
-// WithOnlyNew is an option for MkdirAllAndChown that will only change ownership and permissions
-// on newly created directories.  If the directory already exists, it will not be modified
+// WithOnlyNew configures [MkdirAllAndChown] and [MkdirAndChown] to leave
+// the requested directory unchanged if it already exists. Newly created
+// directories are still assigned the requested ownership and permissions.
 func WithOnlyNew(o *mkdirOptions) {
 	o.onlyNew = true
 }
 
-// MkdirAllAndChown creates a directory (include any along the path) and then modifies
-// ownership to the requested uid/gid.  By default, if the directory already exists, this
-// function will still change ownership and permissions. If WithOnlyNew is passed as an
-// option, then only the newly created directories will have ownership and permissions changed.
+// MkdirAllAndChown creates a directory named path, along with any necessary
+// parents, and applies the requested ownership and permission bits to all
+// directories it creates.
+//
+// If path already exists as a directory, its ownership and permission bits
+// are updated unless [WithOnlyNew] is specified. Existing parent directories
+// are not modified.
+//
+// MkdirAllAndChown is similar to [os.MkdirAll], but also applies ownership and
+// reapplies the requested permission bits after creation, so the resulting
+// permissions are not affected by the process umask.
 func MkdirAllAndChown(path string, mode os.FileMode, uid, gid int, opts ...MkdirOpt) error {
-	var options mkdirOptions
-	for _, opt := range opts {
-		opt(&options)
-	}
-
-	return mkdirAs(path, mode, uid, gid, true, options.onlyNew)
+	return mkdirAs(path, mode, uid, gid, true, opts...)
 }
 
-// MkdirAndChown creates a directory and then modifies ownership to the requested uid/gid.
-// By default, if the directory already exists, this function still changes ownership and permissions.
-// If WithOnlyNew is passed as an option, then only the newly created directory will have ownership
-// and permissions changed.
-// Note that unlike os.Mkdir(), this function does not return IsExist error
-// in case path already exists.
+// MkdirAndChown creates a directory named path and applies the requested
+// ownership and permission bits.
+//
+// If path already exists as a directory, its ownership and permission bits
+// are updated unless [WithOnlyNew] is specified.
+//
+// MkdirAndChown is similar to [os.Mkdir], but returns nil if path already
+// exists as a directory. The resulting permission bits are not affected by
+// the process umask.
 func MkdirAndChown(path string, mode os.FileMode, uid, gid int, opts ...MkdirOpt) error {
-	var options mkdirOptions
-	for _, opt := range opts {
-		opt(&options)
-	}
-	return mkdirAs(path, mode, uid, gid, false, options.onlyNew)
+	return mkdirAs(path, mode, uid, gid, false, opts...)
 }
 
 // getRootUIDGID retrieves the remapped root uid/gid pair from the set of maps.
@@ -106,22 +108,14 @@ func (i IdentityMapping) RootPair() (int, int) {
 	return uid, gid
 }
 
-// ToHost returns the host UID and GID for the container uid, gid.
-// Remapping is only performed if the ids aren't already the remapped root ids
+// ToHost returns the host UID and GID for the container uid and gid.
+// An empty mapping is treated as identity.
 func (i IdentityMapping) ToHost(uid, gid int) (int, int, error) {
-	var err error
-	ruid, rgid := i.RootPair()
-
-	if uid != ruid {
-		ruid, err = toHost(uid, i.UIDMaps)
-		if err != nil {
-			return ruid, rgid, err
-		}
+	ruid, err := toHost(uid, i.UIDMaps)
+	if err != nil {
+		return -1, -1, err
 	}
-
-	if gid != rgid {
-		rgid, err = toHost(gid, i.GIDMaps)
-	}
+	rgid, err := toHost(gid, i.GIDMaps)
 	return ruid, rgid, err
 }
 

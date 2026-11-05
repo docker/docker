@@ -1456,8 +1456,8 @@ github.com/moby/sys/signal
 # github.com/moby/sys/symlink v0.3.0
 ## explicit; go 1.17
 github.com/moby/sys/symlink
-# github.com/moby/sys/user v0.4.1
-## explicit; go 1.18
+# github.com/moby/sys/user v0.5.0
+## explicit; go 1.24
 github.com/moby/sys/user
 # github.com/moby/sys/userns v0.2.1
 ## explicit; go 1.21

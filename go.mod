@@ -84,7 +84,7 @@ require (
 	github.com/moby/sys/reexec v0.1.0
 	github.com/moby/sys/signal v0.7.1
 	github.com/moby/sys/symlink v0.3.0
-	github.com/moby/sys/user v0.4.1
+	github.com/moby/sys/user v0.5.0
 	github.com/moby/sys/userns v0.2.1
 	github.com/moby/term v0.5.2
 	github.com/opencontainers/cgroups v0.1.0

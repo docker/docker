@@ -507,8 +507,8 @@ github.com/moby/sys/signal v0.7.1 h1:PrQxdvxcGijdo6UXXo/lU/TvHUWyPhj7UOpSo8tuvk0
 github.com/moby/sys/signal v0.7.1/go.mod h1:Se1VGehYokAkrSQwL4tDzHvETwUZlnY7S5XtQ50mQp8=
 github.com/moby/sys/symlink v0.3.0 h1:GZX89mEZ9u53f97npBy4Rc3vJKj7JBDj/PN2I22GrNU=
 github.com/moby/sys/symlink v0.3.0/go.mod h1:3eNdhduHmYPcgsJtZXW1W4XUJdZGBIkttZ8xKqPUJq0=
-github.com/moby/sys/user v0.4.1 h1:RgjRlaDKi/Xmyrz4t8lyzXT6v2ooFeO/7xtchmhVWE0=
-github.com/moby/sys/user v0.4.1/go.mod h1:E9QsW5WRe1kUAf7kW8hXKwu1uhsZEAdPLYHYSDudF4Y=
+github.com/moby/sys/user v0.5.0 h1:5+S4lyoavGyX1DGs68NW8xpx48T9+a7ogSUc0KjZg8Y=
+github.com/moby/sys/user v0.5.0/go.mod h1:4mQzP5aTmaLjDLp/dc870oNkik6E9vjRtWYwI05gvow=
 github.com/moby/sys/userns v0.2.1 h1:4OvdM7BcPkASbuouHsbW3aeMJSFlYDldBRnXVZhaRk8=
 github.com/moby/sys/userns v0.2.1/go.mod h1:IHUYgu/kao6N8YZlp9Cf444ySSvCmDlmzUcYfDHOl28=
 github.com/moby/term v0.5.2 h1:6qk3FJAFDs6i/q3W/pQ97SX192qKfZgGjCQqfCJkgzQ=
