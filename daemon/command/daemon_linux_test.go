@@ -129,6 +129,22 @@ func TestC8dSnapshotterWithUsernsRemap(t *testing.T) {
 			expErr: "containerd-snapshotter is explicitly enabled, but is not compatible with userns remapping. Please disable userns remapping or containerd-snapshotter",
 		},
 		{
+			name: "userns remap, containerd-migration feature",
+			cfg: &config.Config{
+				RemappedRoot: "default",
+				CommonConfig: config.CommonConfig{Features: map[string]bool{"containerd-migration": true}},
+			},
+			expCfg: &config.Config{
+				RemappedRoot: "dockremap:dockremap",
+				CommonConfig: config.CommonConfig{
+					ContainerdNamespace:       "-100000.100000",
+					ContainerdPluginNamespace: "-100000.100000",
+					Features:                  map[string]bool{"containerd-migration": true},
+				},
+			},
+			expErr: "containerd-migration is enabled, but is not compatible with userns remapping. Please disable userns remapping or containerd-migration",
+		},
+		{
 			name: "no remap, explicit containerd-snapshotter feature",
 			cfg: &config.Config{
 				CommonConfig: config.CommonConfig{Features: map[string]bool{"containerd-snapshotter": true}},

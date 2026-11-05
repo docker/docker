@@ -32,6 +32,12 @@ func setPlatformOptions(conf *config.Config) error {
 	if enabled {
 		return errors.New("containerd-snapshotter is explicitly enabled, but is not compatible with userns remapping. Please disable userns remapping or containerd-snapshotter")
 	}
+	// Migration switches to the containerd image store regardless of the
+	// containerd-snapshotter feature. Refuse rather than silently skip it, as
+	// containers and images of an already migrated daemon would not be visible.
+	if conf.Features["containerd-migration"] {
+		return errors.New("containerd-migration is enabled, but is not compatible with userns remapping. Please disable userns remapping or containerd-migration")
+	}
 
 	log.G(context.TODO()).Warn("userns remapping enabled, disabling containerd snapshotter")
 	if conf.Features == nil {
