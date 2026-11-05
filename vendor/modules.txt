@@ -362,8 +362,8 @@ github.com/cilium/ebpf/internal/testutils/testmain
 github.com/cilium/ebpf/internal/tracefs
 github.com/cilium/ebpf/internal/unix
 github.com/cilium/ebpf/link
-# github.com/cloudflare/cfssl v1.6.5
-## explicit; go 1.18
+# github.com/cloudflare/cfssl v1.7.1
+## explicit; go 1.27
 github.com/cloudflare/cfssl/api
 github.com/cloudflare/cfssl/auth
 github.com/cloudflare/cfssl/certdb

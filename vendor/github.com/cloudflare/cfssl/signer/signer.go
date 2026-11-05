@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509"
@@ -23,6 +24,7 @@ import (
 	cferr "github.com/cloudflare/cfssl/errors"
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/cloudflare/cfssl/info"
+	"github.com/cloudflare/cfssl/log"
 )
 
 // Subject contains the information that should be used to override the
@@ -171,6 +173,17 @@ func DefaultSigAlgo(priv crypto.Signer) x509.SignatureAlgorithm {
 		}
 	case ed25519.PublicKey:
 		return x509.PureEd25519
+	case *mldsa.PublicKey:
+		switch {
+		case pub.Parameters() == mldsa.MLDSA44():
+			return x509.MLDSA44
+		case pub.Parameters() == mldsa.MLDSA65():
+			return x509.MLDSA65
+		case pub.Parameters() == mldsa.MLDSA87():
+			return x509.MLDSA87
+		default:
+			return x509.UnknownSignatureAlgorithm
+		}
 	default:
 		return x509.UnknownSignatureAlgorithm
 	}
@@ -178,6 +191,47 @@ func DefaultSigAlgo(priv crypto.Signer) x509.SignatureAlgorithm {
 
 func isCommonAttr(t []int) bool {
 	return (len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 && (t[3] == 3 || (t[3] >= 5 && t[3] <= 11) || t[3] == 17))
+}
+
+// caMangedExtensionOIDs is the set of X.509v3 extension OIDs whose values are
+// authoritatively determined by the CA's signing profile (via FillTemplate) and
+// must never be copied from a CSR. Allowing a CSR to supply these via
+// ExtraExtensions would silently override the profile because Go's
+// x509.CreateCertificate gives ExtraExtensions precedence over struct fields
+// for the same OID.
+//
+// See: https://pkg.go.dev/crypto/x509#Certificate (ExtraExtensions field).
+var caManagedExtensionOIDs = map[string]bool{
+	// Key Usage (RFC 5280, 4.2.1.3) — set by profile.Usages()
+	asn1.ObjectIdentifier{2, 5, 29, 15}.String(): true,
+	// Extended Key Usage (RFC 5280, 4.2.1.12) — set by profile.Usages()
+	asn1.ObjectIdentifier{2, 5, 29, 37}.String(): true,
+	// Basic Constraints (RFC 5280, 4.2.1.9) — already handled specially above,
+	// but included for defense-in-depth
+	asn1.ObjectIdentifier{2, 5, 29, 19}.String(): true,
+	// Subject Key Identifier (RFC 5280, 4.2.1.2) — computed by FillTemplate
+	asn1.ObjectIdentifier{2, 5, 29, 14}.String(): true,
+	// Authority Key Identifier (RFC 5280, 4.2.1.1) — set by CreateCertificate
+	// from the issuer
+	asn1.ObjectIdentifier{2, 5, 29, 35}.String(): true,
+	// Authority Info Access / OCSP (RFC 5280, 4.2.2.1) — set by profile OCSP URL
+	asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 1, 1}.String(): true,
+	// CRL Distribution Points (RFC 5280, 4.2.1.13) — set by profile CRL URL
+	asn1.ObjectIdentifier{2, 5, 29, 31}.String(): true,
+	// Certificate Policies (RFC 5280, 4.2.1.4) — set by profile Policies
+	asn1.ObjectIdentifier{2, 5, 29, 32}.String(): true,
+	// Name Constraints (RFC 5280, 4.2.1.10) — CA-controlled
+	asn1.ObjectIdentifier{2, 5, 29, 30}.String(): true,
+	// Subject Alternative Name (RFC 5280, 4.2.1.6) — handled via Hosts/SANs
+	asn1.ObjectIdentifier{2, 5, 29, 17}.String(): true,
+	// Issuer Alternative Name (RFC 5280, 4.2.1.7) — CA-controlled
+	asn1.ObjectIdentifier{2, 5, 29, 18}.String(): true,
+}
+
+// isCAManagedExtension reports whether the given OID is for an extension whose
+// value is authoritatively set by the CA and must not be copied from a CSR.
+func isCaManagedExtension(oid asn1.ObjectIdentifier) bool {
+	return caManagedExtensionOIDs[oid.String()]
 }
 
 // ParseCertificateRequest takes an incoming certificate request and
@@ -247,8 +301,16 @@ func ParseCertificateRequest(s Signer, p *config.SigningProfile, csrBytes []byte
 		} else if val.Id.Equal(helpers.DelegationUsage) {
 			template.ExtraExtensions = append(template.ExtraExtensions, val)
 		} else {
-			// If the profile has 'copy_extensions' to true then lets add it
+			// If the profile has 'copy_extensions' to true then copy the
+			// extension, but never copy CA-managed extensions (KeyUsage,
+			// ExtKeyUsage, SKI, AKI, etc.) whose values are set by the
+			// signing profile. Allowing them through would let a CSR
+			// override the CA's policy via ExtraExtensions precedence.
 			if p.CopyExtensions {
+				if isCaManagedExtension(val.Id) {
+					log.Warningf("copy_extensions: skipping CA-managed extension OID %s from CSR", val.Id)
+					continue
+				}
 				template.ExtraExtensions = append(template.ExtraExtensions, val)
 			}
 		}
@@ -282,6 +344,27 @@ func ComputeSKI(template *x509.Certificate) ([]byte, error) {
 	return pubHash[:], nil
 }
 
+// mldsaForbiddenKeyUsages are the key usages that RFC 9881, Section 5
+// prohibits in the keyUsage extension of a certificate with an ML-DSA subject
+// public key.
+const mldsaForbiddenKeyUsages = x509.KeyUsageKeyEncipherment |
+	x509.KeyUsageDataEncipherment |
+	x509.KeyUsageKeyAgreement |
+	x509.KeyUsageEncipherOnly |
+	x509.KeyUsageDecipherOnly
+
+// KeyUsageForPublicKey returns ku without the key usages that are invalid for
+// the subject public key pub. For ML-DSA keys it clears keyEncipherment,
+// dataEncipherment, keyAgreement, encipherOnly and decipherOnly, which
+// RFC 9881 prohibits for a signature-only key. For all other key types ku is
+// returned unchanged.
+func KeyUsageForPublicKey(pub crypto.PublicKey, ku x509.KeyUsage) x509.KeyUsage {
+	if _, ok := pub.(*mldsa.PublicKey); ok {
+		return ku &^ mldsaForbiddenKeyUsages
+	}
+	return ku
+}
+
 // FillTemplate is a utility function that tries to load as much of
 // the certificate template as possible from the profiles and current
 // template. It fills in the key uses, expiration, revocation URLs
@@ -305,11 +388,16 @@ func FillTemplate(template *x509.Certificate, defaultProfile, profile *config.Si
 	// This should be used when validating the profile at load, and isn't used
 	// here.
 	ku, eku, _ = profile.Usages()
+	profileKU := ku
+	ku = KeyUsageForPublicKey(template.PublicKey, ku)
 	if profile.IssuerURL == nil {
 		issuerURL = defaultProfile.IssuerURL
 	}
 
-	if ku == 0 && len(eku) == 0 {
+	// If the profile lists key usages but none are valid for the subject key,
+	// fail closed: issuing with only the extended key usages would omit the
+	// keyUsage extension, leaving the key unrestricted under RFC 5280.
+	if ku == 0 && (len(eku) == 0 || profileKU != 0) {
 		return cferr.New(cferr.PolicyError, cferr.NoKeyUsages)
 	}
 

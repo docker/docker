@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -67,7 +68,7 @@ func (kr *KeyRequest) Size() int {
 }
 
 // Generate generates a key as specified in the request. Currently,
-// only ECDSA, RSA and ed25519 algorithms are supported.
+// ECDSA, RSA, Ed25519, and ML-DSA (mldsa44, mldsa65, mldsa87) algorithms are supported.
 func (kr *KeyRequest) Generate() (crypto.PrivateKey, error) {
 	log.Debugf("generate key from request: algo=%s, size=%d", kr.Algo(), kr.Size())
 	switch kr.Algo() {
@@ -98,6 +99,12 @@ func (kr *KeyRequest) Generate() (crypto.PrivateKey, error) {
 			return nil, err
 		}
 		return ed25519.NewKeyFromSeed(seed), nil
+	case "mldsa44":
+		return mldsa.GenerateKey(mldsa.MLDSA44())
+	case "mldsa65":
+		return mldsa.GenerateKey(mldsa.MLDSA65())
+	case "mldsa87":
+		return mldsa.GenerateKey(mldsa.MLDSA87())
 	default:
 		return nil, errors.New("invalid algorithm")
 	}
@@ -131,6 +138,12 @@ func (kr *KeyRequest) SigAlgo() x509.SignatureAlgorithm {
 		}
 	case "ed25519":
 		return x509.PureEd25519
+	case "mldsa44":
+		return x509.MLDSA44
+	case "mldsa65":
+		return x509.MLDSA65
+	case "mldsa87":
+		return x509.MLDSA87
 	default:
 		return x509.UnknownSignatureAlgorithm
 	}
@@ -271,8 +284,21 @@ func ParseRequest(req *CertificateRequest) (csr, key []byte, err error) {
 			Bytes: key,
 		}
 		key = pem.EncodeToMemory(&block)
+	case *mldsa.PrivateKey:
+		key, err = x509.MarshalPKCS8PrivateKey(priv)
+		if err != nil {
+			err = cferr.Wrap(cferr.PrivateKeyError, cferr.Unknown, err)
+			return
+		}
+		block := pem.Block{
+			Type:  "PRIVATE KEY",
+			Bytes: key,
+		}
+		key = pem.EncodeToMemory(&block)
 	default:
-		panic("Generate should have failed to produce a valid key.")
+		err = cferr.Wrap(cferr.PrivateKeyError, cferr.Unknown,
+			fmt.Errorf("unsupported generated private key type %T", priv))
+		return
 	}
 
 	csr, err = Generate(priv.(crypto.Signer), req)

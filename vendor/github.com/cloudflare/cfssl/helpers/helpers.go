@@ -8,6 +8,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
@@ -73,6 +74,8 @@ func KeyLength(key interface{}) int {
 		return rsaKey.N.BitLen()
 	} else if _, ok := key.(ed25519.PublicKey); ok {
 		return ed25519.PublicKeySize
+	} else if mldsaKey, ok := key.(*mldsa.PublicKey); ok {
+		return mldsaKey.Parameters().PublicKeySize()
 	}
 
 	return 0
@@ -156,6 +159,12 @@ func SignatureString(alg x509.SignatureAlgorithm) string {
 		return "ECDSAWithSHA512"
 	case x509.PureEd25519:
 		return "Ed25519"
+	case x509.MLDSA44:
+		return "MLDSA44"
+	case x509.MLDSA65:
+		return "MLDSA65"
+	case x509.MLDSA87:
+		return "MLDSA87"
 	default:
 		return "Unknown Signature"
 	}
@@ -191,19 +200,29 @@ func HashAlgoString(alg x509.SignatureAlgorithm) string {
 		return "SHA512"
 	case x509.PureEd25519:
 		return "Ed25519"
+	case x509.MLDSA44:
+		return "MLDSA44"
+	case x509.MLDSA65:
+		return "MLDSA65"
+	case x509.MLDSA87:
+		return "MLDSA87"
 	default:
 		return "Unknown Hash Algorithm"
 	}
 }
 
 // StringTLSVersion returns underlying enum values from human names for TLS
-// versions, defaults to current golang default of TLS 1.0
+// versions ("1.0" through "1.3"). Unrecognised values return TLS 1.0.
 func StringTLSVersion(version string) uint16 {
 	switch version {
+	case "1.3":
+		return tls.VersionTLS13
 	case "1.2":
 		return tls.VersionTLS12
 	case "1.1":
 		return tls.VersionTLS11
+	case "1.0":
+		return tls.VersionTLS10
 	default:
 		return tls.VersionTLS10
 	}
@@ -502,6 +521,17 @@ func SignerAlgo(priv crypto.Signer) x509.SignatureAlgorithm {
 		}
 	case ed25519.PublicKey:
 		return x509.PureEd25519
+	case *mldsa.PublicKey:
+		switch {
+		case pub.Parameters() == mldsa.MLDSA44():
+			return x509.MLDSA44
+		case pub.Parameters() == mldsa.MLDSA65():
+			return x509.MLDSA65
+		case pub.Parameters() == mldsa.MLDSA87():
+			return x509.MLDSA87
+		default:
+			return x509.UnknownSignatureAlgorithm
+		}
 	default:
 		return x509.UnknownSignatureAlgorithm
 	}
