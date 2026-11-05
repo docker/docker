@@ -4,8 +4,10 @@ package libnetwork
 
 import (
 	"context"
+	"errors"
 	"math"
 	"net"
+	"strconv"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
@@ -228,3 +230,239 @@ func (gatewaylessDriver) Leave(string, string) error { return nil }
 func (gatewaylessDriver) Type() string { return gatewaylessDriverName }
 
 func (gatewaylessDriver) IsBuiltIn() bool { return false }
+
+var errFake = errors.New("fake failure")
+
+// lbWithBackends returns a loadBalancer carrying the given backends, and enough
+// of a service behind it to be named in a log entry.
+func lbWithBackends(backends ...*lbBackend) *loadBalancer {
+	lb := &loadBalancer{
+		backEnds: make(map[string]*lbBackend, len(backends)),
+		service: &service{
+			name:         "svc",
+			id:           "svcid",
+			ingressPorts: portConfigs{{Protocol: ProtocolTCP, PublishedPort: 8080, TargetPort: 80}},
+		},
+	}
+	for i, be := range backends {
+		lb.backEnds["ep"+strconv.Itoa(i)] = be
+	}
+	return lb
+}
+
+// TestProgramService covers the serviceProgrammed latch on the way up: which
+// combinations of data plane, backends and ingress ports leave a service recorded
+// as fully plumbed. The latch decides whether a later backend event retries the
+// setup and whether teardown unpublishes the ports, so both a latch set too early
+// and one never set are bugs that outlive the event that caused them.
+func TestProgramService(t *testing.T) {
+	tests := []struct {
+		name           string
+		ingress        bool
+		programmed     bool
+		backends       []*lbBackend
+		dataPlaneFails bool
+		publishFails   bool
+		wantPublished  bool
+		wantProgrammed bool
+	}{
+		{
+			name:           "publishes and latches on the first backend",
+			ingress:        true,
+			backends:       []*lbBackend{{}},
+			wantPublished:  true,
+			wantProgrammed: true,
+		},
+		{
+			// The latch must not be set for a partially-plumbed service: the next
+			// backend event has to retry the ingress ports too, not just the data
+			// plane, which it only does while the latch is clear.
+			name:           "data-plane failure leaves the latch clear",
+			ingress:        true,
+			backends:       []*lbBackend{{}},
+			dataPlaneFails: true,
+		},
+		{
+			// Same, one step later. Publishing is the last step precisely so that its
+			// failure is the one the latch reflects.
+			name:          "publish failure leaves the latch clear",
+			ingress:       true,
+			backends:      []*lbBackend{{}},
+			publishFails:  true,
+			wantPublished: true,
+		},
+		{
+			// Publishing is once per service, not once per backend event. A second
+			// publish would take a second reference to the same host-port reservation,
+			// and the single unpublish at teardown would leave it held forever.
+			name:           "already latched publishes nothing",
+			ingress:        true,
+			programmed:     true,
+			backends:       []*lbBackend{{}},
+			wantProgrammed: true,
+		},
+		{
+			// Mid rolling-update the old generation can be left with every backend
+			// deweighted. Latching then would mean the ports were never published for
+			// the backend that eventually arrives.
+			name:     "all backends deweighted does not latch",
+			ingress:  true,
+			backends: []*lbBackend{{disabled: true}},
+		},
+		{
+			name:    "no backends does not latch",
+			ingress: true,
+		},
+		{
+			// Only an ingress network has host-published ports; the latch still records
+			// that the data plane is up.
+			name:           "non-ingress network latches without publishing",
+			backends:       []*lbBackend{{}},
+			wantProgrammed: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			lb := lbWithBackends(tc.backends...)
+			lb.serviceProgrammed = tc.programmed
+
+			var dataPlaneCalled, published bool
+			lb.programService(tc.ingress,
+				func() bool {
+					dataPlaneCalled = true
+					return !tc.dataPlaneFails
+				},
+				func() error {
+					published = true
+					if tc.publishFails {
+						return errFake
+					}
+					return nil
+				})
+
+			// The data plane is restated on every backend event, whatever the latch
+			// says: it's the ingress ports that are once-per-service, not the map or
+			// IPVS entries a new backend has to appear in.
+			assert.Check(t, dataPlaneCalled, "the data plane must be stated unconditionally")
+			assert.Check(t, is.Equal(published, tc.wantPublished))
+			assert.Check(t, is.Equal(lb.serviceProgrammed, tc.wantProgrammed))
+		})
+	}
+}
+
+// TestProgramServiceRetriesAfterPublishFailure is what a cleared latch buys: the
+// service's next backend event attempts the whole setup again. A latch set before
+// publishing had succeeded would leave the ports closed for the rest of the
+// service's life, since nothing else ever retries them.
+func TestProgramServiceRetriesAfterPublishFailure(t *testing.T) {
+	lb := lbWithBackends(&lbBackend{})
+
+	dataPlane := func() bool { return true }
+	var publishes int
+	publish := func() error {
+		publishes++
+		if publishes == 1 {
+			return errFake
+		}
+		return nil
+	}
+
+	lb.programService(true, dataPlane, publish)
+	assert.Check(t, !lb.serviceProgrammed, "a failed publish must not latch")
+
+	lb.programService(true, dataPlane, publish)
+	assert.Check(t, lb.serviceProgrammed)
+	assert.Check(t, is.Equal(publishes, 2), "the retry must reach the ports")
+
+	// And now that it has latched, further events leave the ports alone.
+	lb.programService(true, dataPlane, publish)
+	assert.Check(t, is.Equal(publishes, 2))
+}
+
+// TestProgramServiceLatchesWhenBackendsReturn covers the other reason the latch
+// stays clear. A service with nothing to load-balance to publishes no ports, so
+// its latch must be clear for the backend that eventually arrives to publish them
+// - the case that makes the latch's independence from the live backend count load
+// bearing rather than merely tidy.
+func TestProgramServiceLatchesWhenBackendsReturn(t *testing.T) {
+	be := &lbBackend{disabled: true}
+	lb := lbWithBackends(be)
+
+	dataPlane := func() bool { return true }
+	var publishes int
+	publish := func() error {
+		publishes++
+		return nil
+	}
+
+	lb.programService(true, dataPlane, publish)
+	assert.Check(t, !lb.serviceProgrammed)
+	assert.Check(t, is.Equal(publishes, 0))
+
+	be.disabled = false
+	lb.programService(true, dataPlane, publish)
+	assert.Check(t, lb.serviceProgrammed)
+	assert.Check(t, is.Equal(publishes, 1))
+}
+
+// TestUnprogramService covers the latch on the way down, where the stake is a
+// host-port reservation shared with whatever other service or generation holds it.
+func TestUnprogramService(t *testing.T) {
+	tests := []struct {
+		name            string
+		ingress         bool
+		programmed      bool
+		unpublishFails  bool
+		wantUnpublished bool
+		wantProgrammed  bool
+	}{
+		{
+			name:            "unpublishes and clears the latch",
+			ingress:         true,
+			programmed:      true,
+			wantUnpublished: true,
+		},
+		{
+			// The service's ports were never published, so unpublishing here would
+			// drop a reference it never took - releasing a reservation that another
+			// service, or another generation of this one, is still serving.
+			name:    "never latched unpublishes nothing",
+			ingress: true,
+		},
+		{
+			// The latch is left set, which is inconsequential: rmLBBackend only reaches
+			// here for the last backend of the service, by which point rmServiceBinding
+			// has already detached this loadBalancer, so nothing reads the latch again.
+			name:            "unpublish failure keeps the latch",
+			ingress:         true,
+			programmed:      true,
+			unpublishFails:  true,
+			wantUnpublished: true,
+			wantProgrammed:  true,
+		},
+		{
+			name:       "non-ingress network clears the latch without unpublishing",
+			programmed: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			lb := lbWithBackends()
+			lb.serviceProgrammed = tc.programmed
+
+			var unpublished bool
+			lb.unprogramService(tc.ingress, func() error {
+				unpublished = true
+				if tc.unpublishFails {
+					return errFake
+				}
+				return nil
+			})
+
+			assert.Check(t, is.Equal(unpublished, tc.wantUnpublished))
+			assert.Check(t, is.Equal(lb.serviceProgrammed, tc.wantProgrammed))
+		})
+	}
+}

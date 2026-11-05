@@ -24,9 +24,11 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"text/template"
+	"time"
 
 	networktypes "github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
@@ -37,9 +39,9 @@ import (
 	"github.com/moby/moby/v2/integration/internal/testutils/networking"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
-	"github.com/vishvananda/netlink"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -157,20 +159,18 @@ var index = []section{
 			},
 		}},
 	},
-	/*
-		{
-			name:  "swarm-portmap.md",
-			swarm: true,
-			networks: []networkDesc{{
-				containers: []ctrDesc{
-					{
-						name:         "c1",
-						portMappings: containertypes.PortMap{"80/tcp": {{HostPort: "8080"}}},
-					},
+	{
+		name:  "swarm-portmap.md",
+		swarm: true,
+		networks: []networkDesc{{
+			containers: []ctrDesc{
+				{
+					name:         "c1",
+					portMappings: networktypes.PortMap{networktypes.MustParsePort("80/tcp"): {{HostPort: "8080"}}},
 				},
-			}},
-		},
-	*/
+			},
+		}},
+	},
 	{
 		name: "usernet-portmap-lo.md",
 		networks: []networkDesc{{
@@ -233,9 +233,6 @@ func runTestNet(t *testing.T, ctx context.Context, bundlesDir string, section se
 		dArgs = append(dArgs, "--userland-proxy=false")
 	}
 	if section.swarm {
-		if _, err := netlink.GenlFamilyGet("IPVS"); err != nil {
-			t.Skipf("No IPVS, so DOCKER-INGRESS will not be set up: %v", err)
-		}
 		dArgs = append(dArgs, "--swarm-default-advertise-addr="+host.Iface)
 	}
 
@@ -250,14 +247,18 @@ func runTestNet(t *testing.T, ctx context.Context, bundlesDir string, section se
 	})
 
 	assert.Assert(t, len(section.networks) < len(docNetworks), "Don't have enough container network addresses")
+	var sandboxKeys []string
 	if section.swarm {
 		d.SwarmInit(ctx, t, swarmtypes.InitRequest{})
-		createServices(ctx, t, d, section, host)
+		sandboxKeys = createServices(ctx, t, d, section, host)
 	} else {
 		createBridgeNetworks(ctx, t, d, section)
 	}
 
 	nftablesOutput := runNftables(t, host)
+	if section.swarm {
+		runSwarmNftables(t, host, sandboxKeys, nftablesOutput)
+	}
 	generated := generate(t, section.name, nftablesOutput)
 
 	// Write the output to the 'bundles' directory for easy reference.
@@ -314,68 +315,77 @@ func createBridgeNetworks(ctx context.Context, t *testing.T, d *daemon.Daemon, s
 	}
 }
 
-func createServices(ctx context.Context, t *testing.T, d *daemon.Daemon, section section, host networking.Host) {
-	/*
-		c := d.NewClientT(t)
-		defer c.Close()
+// createServices creates a service for each container in the section, and
+// returns the sandbox key (network namespace path) of each service's task.
+func createServices(ctx context.Context, t *testing.T, d *daemon.Daemon, section section, host networking.Host) []string {
+	c := d.NewClientT(t)
+	defer c.Close()
 
-		for _, nw := range section.networks {
-			for _, ctr := range nw.containers {
-				// Convert portMap to swarm PortConfig, just well-enough for this test.
-				var portConfig []swarmtypes.PortConfig
-				for ctrPP, hostPorts := range ctr.portMappings {
-					for _, hostPort := range hostPorts {
-						hp, err := strconv.Atoi(hostPort.HostPort)
-						assert.NilError(t, err)
-						portConfig = append(portConfig, swarmtypes.PortConfig{
-							Protocol:      swarmtypes.PortConfigProtocol(ctrPP.Proto()),
-							PublishedPort: uint32(hp),
-							TargetPort:    uint32(ctrPP.Int()),
-						})
-					}
+	var sandboxKeys []string
+	for _, nw := range section.networks {
+		for _, ctr := range nw.containers {
+			// Convert portMap to swarm PortConfig, just well-enough for this test.
+			var portConfig []swarmtypes.PortConfig
+			for ctrPP, hostPorts := range ctr.portMappings {
+				for _, hostPort := range hostPorts {
+					hp, err := strconv.Atoi(hostPort.HostPort)
+					assert.NilError(t, err)
+					portConfig = append(portConfig, swarmtypes.PortConfig{
+						Protocol:      ctrPP.Proto(),
+						PublishedPort: uint32(hp),
+						TargetPort:    uint32(ctrPP.Num()),
+					})
 				}
-				id := d.CreateService(ctx, t, func(s *swarmtypes.Service) {
-					s.Spec = swarmtypes.ServiceSpec{
-						TaskTemplate: swarmtypes.TaskSpec{
-							ContainerSpec: &swarmtypes.ContainerSpec{
-								Image:   "busybox:latest",
-								Command: []string{"/bin/top"},
-							},
-						},
-						EndpointSpec: &swarmtypes.EndpointSpec{
-							Ports: portConfig,
-						},
-					}
-				})
-				t.Cleanup(func() { d.RemoveService(ctx, t, id) })
-				poll.WaitOn(t, func(_ poll.LogT) poll.Result {
-					return pollService(ctx, t, c, host)
-				}, poll.WithTimeout(10*time.Second), poll.WithDelay(100*time.Millisecond))
 			}
+			id := d.CreateService(ctx, t, func(s *swarmtypes.Service) {
+				s.Spec = swarmtypes.ServiceSpec{
+					TaskTemplate: swarmtypes.TaskSpec{
+						ContainerSpec: &swarmtypes.ContainerSpec{
+							Image:   "busybox:latest",
+							Command: []string{"/bin/top"},
+							// top ignores SIGTERM as PID 1; an init forwards it.
+							Init: new(true),
+						},
+					},
+					EndpointSpec: &swarmtypes.EndpointSpec{
+						Ports: portConfig,
+					},
+				}
+			})
+			t.Cleanup(func() { d.RemoveService(ctx, t, id) })
+			var ctrID string
+			poll.WaitOn(t, func(_ poll.LogT) poll.Result {
+				var res poll.Result
+				ctrID, res = pollService(ctx, t, c, host)
+				return res
+			}, poll.WithTimeout(10*time.Second), poll.WithDelay(100*time.Millisecond))
+			inspect, err := c.ContainerInspect(ctx, ctrID, client.ContainerInspectOptions{})
+			assert.NilError(t, err)
+			sandboxKeys = append(sandboxKeys, inspect.Container.NetworkSettings.SandboxKey)
 		}
-	*/
+	}
+	return sandboxKeys
 }
 
-/*
-func pollService(ctx context.Context, t *testing.T, c *client.Client, host networking.Host) poll.Result {
-	cl, err := c.ContainerList(ctx, client.ContainerListOptions{})
+// pollService waits for a service's single task to be running, with its
+// ingress port published. It returns the task's container ID.
+func pollService(ctx context.Context, t *testing.T, c *client.Client, host networking.Host) (string, poll.Result) {
+	list, err := c.ContainerList(ctx, client.ContainerListOptions{})
 	if err != nil {
-		return poll.Error(fmt.Errorf("failed to list containers: %w", err))
+		return "", poll.Error(fmt.Errorf("failed to list containers: %w", err))
 	}
-	if len(cl) != 1 {
-		return poll.Continue("got %d containers, want 1", len(cl))
+	if len(list.Items) != 1 {
+		return "", poll.Continue("got %d containers, want 1", len(list.Items))
 	}
-	// The DOCKER-INGRESS chain seems to be created, then populated, a few
-	// milliseconds after the container starts. So, also wait for a conntrack
-	// "RELATED" rule to appear in the chain.
-	// TODO(robmry) - is there something better to poll?
-	di, err := host.Run(t, "iptables", "-L", "DOCKER-INGRESS")
-	if err != nil || !strings.Contains(di, "RELATED") {
-		return poll.Continue("ingress chain not ready, got: %s", di)
+	// Ingress ports are published as ordinary port mappings on the load-balancer
+	// sandbox's docker_gwbridge gateway endpoint, once the load balancer has a
+	// backend for them. So, wait for the DNAT rule to appear.
+	out, err := host.Run(t, "nft", "list", "chain", "ip", "docker-bridges", "nat-prerouting-and-output")
+	if err != nil || !strings.Contains(out, "dnat") {
+		return "", poll.Continue("ingress DNAT rule not ready, got: %s", out)
 	}
-	return poll.Success()
+	return list.Items[0].ID, poll.Success()
 }
-*/
 
 func runNftables(t *testing.T, host networking.Host) map[string]string {
 	res := map[string]string{}
@@ -435,6 +445,25 @@ func runNftables(t *testing.T, host networking.Host) map[string]string {
 		sb.WriteString(line)
 	}
 	return res
+}
+
+// runSwarmNftables adds the nftables tables in the ingress load-balancer
+// sandbox and in each task's network namespace to res, as "IngressLB4" and
+// "Task<n>Ingress4". The sandboxes' namespaces sit together in the daemon's
+// netns directory, so the ingress sandbox's is found next to the first task's.
+func runSwarmNftables(t *testing.T, host networking.Host, sandboxKeys []string, res map[string]string) {
+	t.Helper()
+	if len(sandboxKeys) == 0 {
+		return
+	}
+	listTable := func(nsPath, table string) string {
+		out := host.MustRun(t, "nsenter", "--net="+nsPath, "nft", "-s", "list", "table", "ip", table)
+		return "    " + strings.ReplaceAll(strings.TrimRight(out, "\n"), "\n", "\n    ")
+	}
+	res["IngressLB4"] = listTable(filepath.Join(filepath.Dir(sandboxKeys[0]), "ingress_sbox"), "docker-lb-nat")
+	for i, key := range sandboxKeys {
+		res[fmt.Sprintf("Task%dIngress4", i)] = listTable(key, "docker-container-ingress")
+	}
 }
 
 // lines produces a line iterator

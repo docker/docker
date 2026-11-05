@@ -208,7 +208,6 @@ func TestSwarmScopedNetFromConfig(t *testing.T) {
 func TestDockerIngressPortAfterRestart(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	skip.If(t, testEnv.FirewallBackendDriver() == "nftables")
 	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
 	ctx := setupTest(t)
 
@@ -279,7 +278,7 @@ func TestDockerIngressPortAfterRestart(t *testing.T) {
 func TestRestoreIngressRulesOnFirewalldReload(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	skip.If(t, testEnv.FirewallBackendDriver() != "iptables+firewalld", "nftables backend doesn't support Swarm-mode")
+	skip.If(t, !strings.HasSuffix(testEnv.FirewallBackendDriver(), "+firewalld"))
 	skip.If(t, !networking.FirewalldRunning(), "Need firewalld to test restoration ingress rules")
 	ctx := setupTest(t)
 
@@ -414,7 +413,6 @@ func TestRestoreEncryptedOverlayRulesOnFirewalldReload(t *testing.T) {
 func TestServiceVIPAcrossRollingUpdate(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	skip.If(t, strings.HasPrefix(testEnv.FirewallBackendDriver(), "nftables"), "swarm cannot be used with nftables")
 	ctx := setupTest(t)
 
 	d := swarm.NewSwarm(ctx, t, testEnv, daemon.WithSwarmIptables(true))
@@ -576,7 +574,6 @@ func createPublishingService(ctx context.Context, t *testing.T, d *daemon.Daemon
 func TestIngressPortsAcrossServiceUpdate(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	skip.If(t, testEnv.FirewallBackendDriver() == "nftables")
 	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
 	ctx := setupTest(t)
 
@@ -646,7 +643,7 @@ func TestIngressPortsAcrossServiceUpdate(t *testing.T) {
 	})
 }
 
-// refusedIngressPort is the published port the iptables wrapper in
+// refusedIngressPort is the published port the firewall wrapper in
 // TestIngressPortsAfterFailedPublish refuses to program.
 const refusedIngressPort = 9091
 
@@ -670,7 +667,6 @@ const refusedIngressPort = 9091
 func TestIngressPortsAfterFailedPublish(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	skip.If(t, testEnv.FirewallBackendDriver() == "nftables")
 	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
 	ctx := setupTest(t)
 
@@ -686,25 +682,54 @@ func TestIngressPortsAfterFailedPublish(t *testing.T) {
 		return checkPublishedPort(t, l3.Hosts[l3SegHost], hostAddr, port)
 	}
 
-	// The daemon finds iptables on its PATH, so putting a wrapper ahead of the real
-	// one is a seam for failing a chosen rule on demand. Refuse anything mentioning
-	// the port added below, and nothing else - the daemon needs a working iptables
-	// for everything from bringing up the bridge to publishing the first port.
+	// The daemon finds iptables and nft on its PATH, so putting a wrapper ahead of
+	// the real one is a seam for failing a chosen rule on demand. Refuse anything
+	// that would program the port added below on the host, and nothing else - the
+	// daemon needs a working firewall for everything from bringing up the bridge to
+	// publishing the first port.
+	//
+	// The port also appears in the task's own ingress rules and, with nftables, in
+	// the ingress load balancer's table. Those are let through: a task that can't
+	// add its rules fails to start, a load balancer that can't be programmed never
+	// gets as far as publishing, and this test is about the publish on the host.
 	refusedPort := strconv.Itoa(refusedIngressPort)
-	realIptables, err := exec.LookPath("iptables")
-	assert.NilError(t, err)
 	binDir := t.TempDir()
 	refusals := filepath.Join(binDir, "refusals")
-	assert.NilError(t, os.WriteFile(filepath.Join(binDir, "iptables"),
-		fmt.Appendf(nil, `#!/bin/sh
+	nftables := strings.HasPrefix(testEnv.FirewallBackendDriver(), "nftables")
+	fwTool := "iptables"
+	if nftables {
+		fwTool = "nft"
+	}
+	realFwTool, err := exec.LookPath(fwTool)
+	assert.NilError(t, err)
+	if nftables {
+		// Each update is an nft script on stdin. Host port mappings are in the
+		// docker-bridges table.
+		assert.NilError(t, os.WriteFile(filepath.Join(binDir, fwTool),
+			fmt.Appendf(nil, `#!/bin/sh
+in=$(cat)
+case "$in" in *docker-bridges*)
+  if printf '%%s\n' "$in" | grep -qw %[1]q; then
+    printf '%%s\n' "$in" >> %[2]q
+    echo "nft: refused by test wrapper" >&2
+    exit 1
+  fi ;;
+esac
+printf '%%s\n' "$in" | exec %[3]s "$@"`, refusedPort, refusals, realFwTool), 0o755))
+	} else {
+		// The task's ingress rule is the only one using REDIRECT.
+		assert.NilError(t, os.WriteFile(filepath.Join(binDir, fwTool),
+			fmt.Appendf(nil, `#!/bin/sh
+case "$*" in *REDIRECT*) exec %[3]s "$@" ;; esac
 for arg in $@; do
-   if [ $arg = %q ]; then
-     echo "$*" >> %q
+   if [ $arg = %[1]q ]; then
+     echo "$*" >> %[2]q
      echo "iptables: refused by test wrapper" >&2
      exit 1
    fi
  done
- exec %s "$@"`, refusedPort, refusals, realIptables), 0o755))
+ exec %[3]s "$@"`, refusedPort, refusals, realFwTool), 0o755))
+	}
 
 	l3.Hosts[l3SegHost].Do(t, func() {
 		d := swarm.NewSwarm(ctx, t, testEnv, daemon.WithSwarmIptables(true),
@@ -748,7 +773,7 @@ for arg in $@; do
 		// - an ineffective PATH would mean the publish succeeded and nothing under test
 		// here ever ran.
 		refused, err := os.ReadFile(refusals)
-		assert.NilError(t, err, "iptables wrapper was never consulted")
+		assert.NilError(t, err, "firewall wrapper was never consulted")
 		assert.Check(t, is.Contains(string(refused), refusedPort))
 
 		t.Log("Checking the host port the service published has been released")
@@ -771,6 +796,74 @@ for arg in $@; do
 	})
 }
 
+// TestIngressTaskFailsWithoutRedirectRules checks that a task whose ingress
+// rules can't be added to its network namespace fails to start, rather than
+// running without them.
+func TestIngressTaskFailsWithoutRedirectRules(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
+	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
+	ctx := setupTest(t)
+
+	const l3SegHost = "itfr"
+	l3 := networking.NewL3Segment(t, "test-"+l3SegHost)
+	defer l3.Destroy(t)
+	l3.AddHost(t, l3SegHost, "ns-"+l3SegHost, "eth0", netip.MustParsePrefix("192.168.114.222/24"))
+
+	// The daemon finds iptables and nft on its PATH, so a wrapper ahead of the
+	// real one can refuse the task's ingress rules and nothing else.
+	fwTool := "iptables"
+	// Only a task's ingress rules use REDIRECT.
+	wrapper := `#!/bin/sh
+case "$*" in *REDIRECT*) echo "iptables: refused by test wrapper" >&2; exit 1 ;; esac
+exec %s "$@"`
+	if strings.HasPrefix(testEnv.FirewallBackendDriver(), "nftables") {
+		fwTool = "nft"
+		// Each update is an nft script on stdin. A task's ingress rules are the
+		// docker-container-ingress table.
+		wrapper = `#!/bin/sh
+in=$(cat)
+case "$in" in *docker-container-ingress*) echo "nft: refused by test wrapper" >&2; exit 1 ;; esac
+printf '%%s\n' "$in" | exec %s "$@"`
+	}
+	realFwTool, err := exec.LookPath(fwTool)
+	assert.NilError(t, err)
+	binDir := t.TempDir()
+	assert.NilError(t, os.WriteFile(filepath.Join(binDir, fwTool), fmt.Appendf(nil, wrapper, realFwTool), 0o755))
+
+	l3.Hosts[l3SegHost].Do(t, func() {
+		d := swarm.NewSwarm(ctx, t, testEnv, daemon.WithSwarmIptables(true),
+			daemon.WithEnvVars("PATH="+binDir+":"+os.Getenv("PATH")))
+		defer d.Stop(t)
+		c := d.NewClientT(t)
+		defer c.Close()
+
+		serviceID := swarm.CreateService(ctx, t, d,
+			swarm.ServiceWithName("test-"+l3SegHost),
+			swarm.ServiceWithCommand([]string{"httpd", "-f"}),
+			swarm.ServiceWithEndpoint(ingressPortSpec(8080)),
+			swarm.ServiceWithReplicas(1),
+		)
+		poll.WaitOn(t, func(_ poll.LogT) poll.Result {
+			tasks, err := c.TaskList(ctx, client.TaskListOptions{
+				Filters: make(client.Filters).Add("service", serviceID),
+			})
+			if err != nil {
+				return poll.Error(err)
+			}
+			for _, task := range tasks.Items {
+				if task.Status.State == swarmtypes.TaskStateRunning {
+					return poll.Error(fmt.Errorf("task %s is running without its ingress rules", task.ID))
+				}
+				if strings.Contains(task.Status.Err, "ingress redirect rules") {
+					return poll.Success()
+				}
+			}
+			return poll.Continue("waiting for a task to fail, tasks: %d", len(tasks.Items))
+		}, swarm.ServicePoll)
+	})
+}
+
 // TestSwarmPublishedPortsOverIPv6 checks that the ports a Swarm service publishes
 // are reachable over IPv6 - and that when the daemon is configured so they can't
 // be, an IPv6 client is refused rather than left waiting.
@@ -785,7 +878,6 @@ for arg in $@; do
 func TestSwarmPublishedPortsOverIPv6(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	skip.If(t, testEnv.FirewallBackendDriver() == "nftables")
 	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
 	ctx := setupTest(t)
 
@@ -1090,7 +1182,6 @@ func probeUDPPort(t *testing.T, host networking.Host, hostAddr, port string) err
 func TestIngressPortFromTaskOnSameNode(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
-	skip.If(t, testEnv.FirewallBackendDriver() == "nftables")
 	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
 	ctx := setupTest(t)
 

@@ -8,11 +8,9 @@ import (
 	"github.com/moby/moby/v2/integration/internal/swarm"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/skip"
 )
 
 func TestSwarmCAHash(t *testing.T) {
-	skip.If(t, strings.HasPrefix(testEnv.FirewallBackendDriver(), "nftables"), "swarm cannot be used with nftables")
 	ctx := setupTest(t)
 
 	d1 := swarm.NewSwarm(ctx, t, testEnv)
