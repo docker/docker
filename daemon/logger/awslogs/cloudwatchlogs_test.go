@@ -2015,33 +2015,42 @@ func TestNewAWSLogsClientCredentialEndpointDetect(t *testing.T) {
 
 	credsRetrieved := false
 	actualAuthHeader := ""
-
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpClient := smithyhttp.ClientDoFunc(func(r *http.Request) (*http.Response, error) {
+		var body string
 		switch r.URL.Path {
 		case "/creds":
 			credsRetrieved = true
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintln(w, credsResp)
+			body = credsResp
 		case "/":
 			actualAuthHeader = r.Header.Get("Authorization")
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintln(w, "{}")
+			body = "{}"
+		default:
+			return nil, fmt.Errorf("unexpected request path %q", r.URL.Path)
 		}
-	}))
-	defer testServer.Close()
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": {"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Request:    r,
+		}, nil
+	})
 
-	// set the SDKEndpoint in the driver
-	newSDKEndpoint = testServer.URL
+	// Set the SDK endpoint and restore it after the test.
+	oldSDKEndpoint := newSDKEndpoint
+	newSDKEndpoint = "http://cloudwatchlogs.test"
+	t.Cleanup(func() {
+		newSDKEndpoint = oldSDKEndpoint
+	})
 
 	info := logger.Info{
 		Config: map[string]string{
-			endpointKey:            testServer.URL,
+			endpointKey:            newSDKEndpoint,
 			credentialsEndpointKey: "/creds",
 		},
 	}
 
-	client, err := newAWSLogsClient(info)
-	assert.Check(t, err)
+	client, err := newAWSLogsClient(info, config.WithHTTPClient(httpClient))
+	assert.NilError(t, err)
 
 	_, err = client.CreateLogGroup(t.Context(), &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String("foo")})
 	assert.NilError(t, err)

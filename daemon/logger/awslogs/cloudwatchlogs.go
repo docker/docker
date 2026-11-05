@@ -486,11 +486,16 @@ func newAWSLogsClient(info logger.Info, configOpts ...func(*config.LoadOptions) 
 
 	configOpts = append(configOpts, config.WithRegion(*region))
 
-	if uri, ok := info.Config[credentialsEndpointKey]; ok {
+	credentialsEndpoint, hasCredentialsEndpoint := info.Config[credentialsEndpointKey]
+	if hasCredentialsEndpoint {
 		log.G(ctx).Debugf("Trying to get credentials from awslogs-credentials-endpoint")
-
-		ep := newSDKEndpoint + uri
-		configOpts = append(configOpts, config.WithCredentialsProvider(endpointcreds.New(ep)))
+		ep := newSDKEndpoint + credentialsEndpoint
+		configOpts = append(configOpts, func(o *config.LoadOptions) error {
+			o.Credentials = endpointcreds.New(ep, func(providerOptions *endpointcreds.Options) {
+				providerOptions.HTTPClient = o.HTTPClient
+			})
+			return nil
+		})
 	}
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(), configOpts...)
