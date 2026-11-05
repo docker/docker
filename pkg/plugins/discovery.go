@@ -95,6 +95,14 @@ func (l *LocalRegistry) Scan() ([]string, error) {
 
 // Plugin returns the plugin registered with the given name (or returns an error).
 func (l *LocalRegistry) Plugin(name string) (*Plugin, error) {
+	// name is used to build filesystem paths for the plugin's socket and spec
+	// files (see pluginPaths). Reject names that are not a single, local path
+	// element so that a crafted name such as "../other" cannot escape the
+	// configured plugin directories and load an out-of-scope spec or socket.
+	if !validName(name) {
+		return nil, errors.Wrapf(ErrNotFound, "invalid v1 plugin name %q", name)
+	}
+
 	socketPaths := pluginPaths(l.socketsPath, name, ".sock")
 	for _, p := range socketPaths {
 		if fi, err := os.Stat(p); err == nil && fi.Mode()&os.ModeSocket != 0 {
@@ -182,4 +190,16 @@ func pluginPaths(base, name, ext string) []string {
 		filepath.Join(base, name+ext),
 		filepath.Join(base, name, name+ext),
 	}
+}
+
+// validName reports whether name is safe to use as a single path element when
+// locating a plugin's socket and spec files. It rejects the "." and ".."
+// directory entries and any non-local name (empty, absolute, containing a path
+// separator, or, on Windows, a reserved device name), all of which could
+// otherwise be joined with a base directory to reference files outside it.
+func validName(name string) bool {
+	if name == "." || name == ".." {
+		return false
+	}
+	return filepath.IsLocal(name)
 }

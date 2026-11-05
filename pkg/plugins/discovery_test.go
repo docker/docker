@@ -1,6 +1,7 @@
 package plugins
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -103,6 +104,57 @@ func TestFileJSONSpecPlugin(t *testing.T) {
 
 	if plugin.TLSConfig.KeyFile != "/usr/shared/docker/certs/example-key.pem" {
 		t.Fatalf("Expected plugin Key `/usr/shared/docker/certs/example-key.pem`, got %s\n", plugin.TLSConfig.KeyFile)
+	}
+}
+
+func TestPluginRejectsTraversalName(t *testing.T) {
+	// Lay out a plugin directory with a sentinel spec one level above it. A name
+	// that escapes the plugin directory via ".." resolves to the sentinel, so a
+	// successful lookup of a crafted name would prove a directory traversal.
+	root := t.TempDir()
+	pluginDir := filepath.Join(root, "plugins")
+	if err := os.Mkdir(pluginDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "evil.spec"), []byte("tcp://attacker:9999"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	r := LocalRegistry{
+		socketsPath: pluginDir,
+		specsPaths:  []string{pluginDir},
+	}
+
+	for _, tc := range []struct {
+		name   string
+		plugin string
+	}{
+		{name: "empty", plugin: ""},
+		{name: "dot", plugin: "."},
+		{name: "dotdot", plugin: ".."},
+		{name: "parent", plugin: "../evil"},
+		{name: "grandparent", plugin: "../../evil"},
+		{name: "embedded traversal", plugin: "foo/../../evil"},
+		{name: "native separator", plugin: filepath.Join("..", "evil")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, err := r.Plugin(tc.plugin)
+			if !errors.Is(err, ErrNotFound) {
+				t.Fatalf("expected ErrNotFound for name %q, got plugin=%v, err=%v", tc.plugin, p, err)
+			}
+			if p != nil {
+				t.Fatalf("expected no plugin for name %q, got %v", tc.plugin, p)
+			}
+		})
+	}
+
+	// A legitimate, single-element name must still resolve, to guard against
+	// over-rejection.
+	if err := os.WriteFile(filepath.Join(pluginDir, "echo.spec"), []byte("tcp://localhost:8080"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Plugin("echo"); err != nil {
+		t.Fatalf("expected legitimate plugin name to resolve, got %v", err)
 	}
 }
 
