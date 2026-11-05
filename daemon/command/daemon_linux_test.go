@@ -108,7 +108,6 @@ func TestC8dSnapshotterWithUsernsRemap(t *testing.T) {
 				CommonConfig: config.CommonConfig{
 					ContainerdNamespace:       "-100000.100000",
 					ContainerdPluginNamespace: "-100000.100000",
-					Features:                  map[string]bool{"containerd-snapshotter": false},
 				},
 			},
 		},
@@ -126,7 +125,6 @@ func TestC8dSnapshotterWithUsernsRemap(t *testing.T) {
 					Features:                  map[string]bool{"containerd-snapshotter": true},
 				},
 			},
-			expErr: "containerd-snapshotter is explicitly enabled, but is not compatible with userns remapping. Please disable userns remapping or containerd-snapshotter",
 		},
 		{
 			name: "userns remap, containerd-migration feature",

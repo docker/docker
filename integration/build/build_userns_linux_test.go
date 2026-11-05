@@ -136,7 +136,6 @@ func TestBuildUserNamespaceValidateCapabilitiesAreV2(t *testing.T) {
 func TestBuildUserNamespaceRemap(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRootless())
-	skip.If(t, testEnv.UsingSnapshotter(), "TODO: Broken with containerd")
 
 	ctx := testutil.StartSpan(baseContext, t)
 
