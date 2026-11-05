@@ -205,7 +205,7 @@ func imageWithTagString(image string) string {
 // image name that could not be pinned by digest. The formatting
 // is hardcoded, but could me made smarter in the future
 func digestWarning(image string) string {
-	return fmt.Sprintf("image %s could not be accessed on a registry to record\nits digest. Each node will access %s independently,\npossibly leading to different nodes running different\nversions of the image.\n", image, image)
+	return fmt.Sprintf("image %s could not be accessed on a registry to record\nits digest. Each node will access %s independently,\npossibly leading to different nodes running different versions of the image.\n", image, image)
 }
 
 func validateServiceSpec(s swarm.ServiceSpec) error {
