@@ -14,6 +14,7 @@ package windows
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/Microsoft/hcsshim/hcn"
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/datastore"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
@@ -103,10 +105,40 @@ type hnsNetwork struct {
 	sync.Mutex
 }
 
+type containerNamespaceCache struct {
+	namespaces map[string]string
+	sync.Mutex
+}
+
+func newContainerNamespaceCache() *containerNamespaceCache {
+	return &containerNamespaceCache{namespaces: map[string]string{}}
+}
+
+func (c *containerNamespaceCache) get(containerID string) string {
+	c.Lock()
+	defer c.Unlock()
+	return c.namespaces[containerID]
+}
+
+func (c *containerNamespaceCache) set(containerID, namespaceID string) {
+	c.Lock()
+	defer c.Unlock()
+	c.namespaces[containerID] = namespaceID
+}
+
+func (c *containerNamespaceCache) deleteIfEqual(containerID, namespaceID string) {
+	c.Lock()
+	defer c.Unlock()
+	if c.namespaces[containerID] == namespaceID {
+		delete(c.namespaces, containerID)
+	}
+}
+
 type driver struct {
-	name     string
-	networks map[string]*hnsNetwork
-	store    *datastore.Store
+	name                string
+	networks            map[string]*hnsNetwork
+	containerNamespaces *containerNamespaceCache
+	store               *datastore.Store
 	sync.Mutex
 }
 
@@ -177,11 +209,12 @@ func IsAdoptableNetworkType(networkType string) bool {
 	return !ok
 }
 
-func newDriver(networkType string, store *datastore.Store) (*driver, error) {
+func newDriver(networkType string, store *datastore.Store, containerNamespaces *containerNamespaceCache) (*driver, error) {
 	d := &driver{
-		name:     networkType,
-		store:    store,
-		networks: map[string]*hnsNetwork{},
+		name:                networkType,
+		store:               store,
+		networks:            map[string]*hnsNetwork{},
+		containerNamespaces: containerNamespaces,
 	}
 	err := d.initStore()
 	if err != nil {
@@ -192,8 +225,9 @@ func newDriver(networkType string, store *datastore.Store) (*driver, error) {
 
 // RegisterBuiltinLocalDrivers registers the builtin local drivers.
 func RegisterBuiltinLocalDrivers(r driverapi.Registerer, store *datastore.Store) error {
+	containerNamespaces := newContainerNamespaceCache()
 	for networkType := range builtinLocalDrivers {
-		d, err := newDriver(networkType, store)
+		d, err := newDriver(networkType, store, containerNamespaces)
 		if err != nil {
 			return err
 		}
@@ -912,6 +946,23 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	endpoint.sandboxID = sboxKey
 
 	err = hcsshim.HotAttachEndpoint(endpoint.sandboxID, endpoint.profileID)
+	if err == hcsshim.ErrPlatformNotSupported {
+		namespaceID, namespaceErr := d.containerNamespaceID(endpoint.sandboxID)
+		if namespaceErr != nil {
+			return namespaceErr
+		}
+
+		if err = hcn.AddNamespaceEndpoint(namespaceID, endpoint.profileID); err != nil {
+			return err
+		}
+		namespace, err := hcn.GetNamespaceByID(namespaceID)
+		if err != nil {
+			return errors.Join(err, hcn.RemoveNamespaceEndpoint(namespaceID, endpoint.profileID))
+		}
+		if err = namespace.Sync(); err != nil {
+			return errors.Join(err, hcn.RemoveNamespaceEndpoint(namespaceID, endpoint.profileID))
+		}
+	}
 	if err != nil {
 		// If container doesn't exists in hcs, do not throw error for hot add/remove
 		if err != hcsshim.ErrComputeSystemDoesNotExist {
@@ -921,6 +972,64 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 
 	jinfo.DisableGatewayService()
 	return nil
+}
+
+// containerNamespaceID returns the HCN namespace for a container. Existing
+// endpoints are authoritative; the cache bridges the period after the
+// container's last endpoint is detached.
+func (d *driver) containerNamespaceID(containerID string) (string, error) {
+	endpoints, err := hcsshim.HNSListEndpointRequest()
+	if err != nil {
+		return "", err
+	}
+	namespaceID, err := d.liveContainerNamespaceID(endpoints, containerID)
+	if err != nil {
+		return "", err
+	}
+	if namespaceID != "" {
+		return namespaceID, nil
+	}
+
+	return d.cachedContainerNamespaceID(containerID, hcn.GetNamespaceByID)
+}
+
+func (d *driver) cachedContainerNamespaceID(containerID string, getNamespace func(string) (*hcn.HostComputeNamespace, error)) (string, error) {
+	namespaceID := d.containerNamespaces.get(containerID)
+	if namespaceID == "" {
+		return "", fmt.Errorf("failed to find network namespace for container %s", containerID)
+	}
+	if _, err := getNamespace(namespaceID); err != nil {
+		if hcn.IsNotFoundError(err) {
+			d.containerNamespaces.deleteIfEqual(containerID, namespaceID)
+			return "", fmt.Errorf("cached network namespace %s for container %s is no longer valid: %w", namespaceID, containerID, err)
+		}
+		return "", fmt.Errorf("failed to query cached network namespace %s for container %s: %w", namespaceID, containerID, err)
+	}
+	return namespaceID, nil
+}
+
+func (d *driver) liveContainerNamespaceID(endpoints []hcsshim.HNSEndpoint, containerID string) (string, error) {
+	namespaceID, err := findContainerNamespaceID(endpoints, containerID)
+	if err != nil {
+		return "", err
+	}
+	if namespaceID != "" {
+		d.containerNamespaces.set(containerID, namespaceID)
+	}
+	return namespaceID, nil
+}
+
+func findContainerNamespaceID(endpoints []hcsshim.HNSEndpoint, containerID string) (string, error) {
+	var namespaceID string
+	for _, endpoint := range endpoints {
+		if endpoint.Namespace != nil && endpoint.Namespace.ID != "" && slices.Contains(endpoint.SharedContainers, containerID) {
+			if namespaceID != "" && namespaceID != endpoint.Namespace.ID {
+				return "", fmt.Errorf("multiple network namespaces found for container %s", containerID)
+			}
+			namespaceID = endpoint.Namespace.ID
+		}
+	}
+	return namespaceID, nil
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
@@ -937,6 +1046,26 @@ func (d *driver) Leave(nid, eid string) error {
 	}
 
 	err = hcsshim.HotDetachEndpoint(endpoint.sandboxID, endpoint.profileID)
+	if err == hcsshim.ErrPlatformNotSupported {
+		hnsEndpoint, getErr := hcsshim.GetHNSEndpointByID(endpoint.profileID)
+		if getErr != nil {
+			return getErr
+		}
+		if hnsEndpoint.Namespace == nil || hnsEndpoint.Namespace.ID == "" {
+			return err
+		}
+		namespaceID := hnsEndpoint.Namespace.ID
+		if err = d.cacheAndRemoveNamespaceEndpoint(endpoint.sandboxID, namespaceID, endpoint.profileID, hcn.RemoveNamespaceEndpoint); err != nil {
+			return err
+		}
+		namespace, err := hcn.GetNamespaceByID(namespaceID)
+		if err != nil {
+			return err
+		}
+		if err = namespace.Sync(); err != nil {
+			return err
+		}
+	}
 	if err != nil {
 		// If container doesn't exists in hcs, do not throw error for hot add/remove
 		if err != hcsshim.ErrComputeSystemDoesNotExist {
@@ -944,6 +1073,11 @@ func (d *driver) Leave(nid, eid string) error {
 		}
 	}
 	return nil
+}
+
+func (d *driver) cacheAndRemoveNamespaceEndpoint(containerID, namespaceID, endpointID string, removeEndpoint func(string, string) error) error {
+	d.containerNamespaces.set(containerID, namespaceID)
+	return removeEndpoint(namespaceID, endpointID)
 }
 
 func (d *driver) IsBuiltIn() bool {

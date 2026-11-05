@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	containertypes "github.com/moby/moby/api/types/container"
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -18,7 +19,6 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
-	"gotest.tools/v3/skip"
 )
 
 // TestWindowsNetworkDrivers validates Windows-specific network drivers for Windows.
@@ -219,12 +219,6 @@ func TestWindowsNetworkDNSResolution(t *testing.T) {
 // TestWindowsNetworkLifecycle validates network lifecycle operations on Windows.
 // Tests network creation, container attachment, detachment, and deletion.
 func TestWindowsNetworkLifecycle(t *testing.T) {
-	// Skip this test on Windows Containerd because NetworkConnect operations fail with an
-	// unsupported platform request error:
-	// https://github.com/moby/moby/issues/51589
-	skip.If(t, testEnv.RuntimeIsWindowsContainerd(),
-		"Skipping test: fails on Containerd due to unsupported platform request error during NetworkConnect operations")
-
 	ctx := setupTest(t)
 	c := testEnv.APIClient()
 
@@ -243,33 +237,120 @@ func TestWindowsNetworkLifecycle(t *testing.T) {
 	id := container.Run(ctx, t, c,
 		container.WithName(ctrName),
 		container.WithNetworkMode(netName),
+		container.WithIsolation(containertypes.IsolationProcess),
 	)
+	defer c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
 
 	ctrInfo := container.Inspect(ctx, t, c, id)
 	assert.Check(t, ctrInfo.NetworkSettings.Networks[netName] != nil)
 
-	// Disconnect container from network
-	_, err = c.NetworkDisconnect(ctx, netID, client.NetworkDisconnectOptions{
+	peerName := "lifecycle-peer"
+	peerID := container.Run(ctx, t, c,
+		container.WithName(peerName),
+		container.WithNetworkMode(netName),
+		container.WithIsolation(containertypes.IsolationProcess),
+	)
+	defer c.ContainerRemove(ctx, peerID, client.ContainerRemoveOptions{Force: true})
+	peerInfo := container.Inspect(ctx, t, c, peerID)
+	peerIP := peerInfo.NetworkSettings.Networks[netName].IPAddress
+	assert.Assert(t, peerIP.IsValid())
+
+	for cycle := 1; cycle <= 2; cycle++ {
+		_, err = c.NetworkDisconnect(ctx, netID, client.NetworkDisconnectOptions{
+			Container: id,
+			Force:     false,
+		})
+		assert.NilError(t, err)
+
+		ctrInfo = container.Inspect(ctx, t, c, id)
+		assert.Check(t, ctrInfo.NetworkSettings.Networks[netName] == nil,
+			"Container still connected after disconnect cycle %d", cycle)
+
+		_, err = c.NetworkConnect(ctx, netID, client.NetworkConnectOptions{
+			Container: id,
+		})
+		assert.NilError(t, err)
+
+		ctrInfo = container.Inspect(ctx, t, c, id)
+		assert.Check(t, ctrInfo.NetworkSettings.Networks[netName] != nil,
+			"Container not reconnected after cycle %d", cycle)
+
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			execCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			res, err := container.Exec(execCtx, c, id, []string{"ping", "-n", "1", "-w", "3000", peerIP.String()})
+			if err != nil {
+				return poll.Continue("ping failed after reconnect cycle %d: %v", cycle, err)
+			}
+			if res.ExitCode != 0 || !strings.Contains(res.Stdout(), "Sent = 1, Received = 1, Lost = 0") {
+				return poll.Continue("network traffic unavailable after reconnect cycle %d: %s", cycle, res.Stdout())
+			}
+			return poll.Success()
+		}, poll.WithTimeout(20*time.Second))
+	}
+
+	// Restart after the disconnect cycles have populated the namespace cache,
+	// then verify the restored endpoint before the next hot-connect.
+	_, err = c.ContainerStop(ctx, id, client.ContainerStopOptions{})
+	assert.NilError(t, err)
+	_, err = c.ContainerStart(ctx, id, client.ContainerStartOptions{})
+	assert.NilError(t, err)
+
+	ctrInfo = container.Inspect(ctx, t, c, id)
+	assert.Check(t, ctrInfo.NetworkSettings.Networks[netName] != nil,
+		"Container not connected to original network after restart")
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		execCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		res, err := container.Exec(execCtx, c, id, []string{"ping", "-n", "1", "-w", "3000", peerIP.String()})
+		if err != nil {
+			return poll.Continue("ping failed after restart: %v", err)
+		}
+		if res.ExitCode != 0 || !strings.Contains(res.Stdout(), "Sent = 1, Received = 1, Lost = 0") {
+			return poll.Continue("network traffic unavailable after restart: %s", res.Stdout())
+		}
+		return poll.Success()
+	}, poll.WithTimeout(20*time.Second))
+
+	secondNetName := "lifecycle-test-secondary"
+	secondNetID := network.CreateNoError(ctx, t, c, secondNetName,
+		network.WithDriver("nat"),
+	)
+	secondPeerID := container.Run(ctx, t, c,
+		container.WithNetworkMode(secondNetName),
+		container.WithIsolation(containertypes.IsolationProcess),
+	)
+	defer c.ContainerRemove(ctx, secondPeerID, client.ContainerRemoveOptions{Force: true})
+	secondPeerInfo := container.Inspect(ctx, t, c, secondPeerID)
+	secondPeerIP := secondPeerInfo.NetworkSettings.Networks[secondNetName].IPAddress
+	assert.Assert(t, secondPeerIP.IsValid())
+
+	_, err = c.NetworkConnect(ctx, secondNetID, client.NetworkConnectOptions{
 		Container: id,
-		Force:     false,
 	})
 	assert.NilError(t, err)
 
 	ctrInfo = container.Inspect(ctx, t, c, id)
-	assert.Check(t, ctrInfo.NetworkSettings.Networks[netName] == nil, "Container still connected after disconnect")
+	assert.Check(t, ctrInfo.NetworkSettings.Networks[secondNetName] != nil,
+		"Container not connected to second network")
 
-	// Reconnect container to network
-	_, err = c.NetworkConnect(ctx, netID, client.NetworkConnectOptions{
-		Container:      id,
-		EndpointConfig: nil,
-	})
-	assert.NilError(t, err)
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		execCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		res, err := container.Exec(execCtx, c, id, []string{"ping", "-n", "1", "-w", "3000", secondPeerIP.String()})
+		if err != nil {
+			return poll.Continue("ping on second network failed: %v", err)
+		}
+		if res.ExitCode != 0 || !strings.Contains(res.Stdout(), "Sent = 1, Received = 1, Lost = 0") {
+			return poll.Continue("second network traffic unavailable: %s", res.Stdout())
+		}
+		return poll.Success()
+	}, poll.WithTimeout(20*time.Second))
 
-	ctrInfo = container.Inspect(ctx, t, c, id)
-	assert.Check(t, ctrInfo.NetworkSettings.Networks[netName] != nil, "Container not reconnected")
-
+	c.ContainerRemove(ctx, secondPeerID, client.ContainerRemoveOptions{Force: true})
+	c.ContainerRemove(ctx, peerID, client.ContainerRemoveOptions{Force: true})
 	c.ContainerRemove(ctx, id, client.ContainerRemoveOptions{Force: true})
-
+	network.RemoveNoError(ctx, t, c, secondNetName)
 	network.RemoveNoError(ctx, t, c, netName)
 
 	_, err = c.NetworkInspect(ctx, netID, client.NetworkInspectOptions{})
