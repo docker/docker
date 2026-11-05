@@ -333,7 +333,7 @@ func TestAuxAddresses(t *testing.T) {
 		enableIPv4:  true,
 		ipamType:    defaultipam.DriverName,
 		networkType: "bridge",
-		ctrlr:       c,
+		controller:  c,
 	}
 
 	input := []struct {
@@ -478,10 +478,10 @@ func TestUpdateSvcRecord(t *testing.T) {
 func getSvcRecords(t *testing.T, n *Network, key string) (addrs []netip.Addr, found4, found6 bool) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	n.ctrlr.mu.Lock()
-	defer n.ctrlr.mu.Unlock()
+	n.controller.mu.Lock()
+	defer n.controller.mu.Unlock()
 
-	sr, ok := n.ctrlr.svcRecords[n.id]
+	sr, ok := n.controller.svcRecords[n.id]
 	assert.Assert(t, ok)
 
 	lookup := func(svcMap *setmatrix.SetMatrix[string, svcMapEntry]) bool {

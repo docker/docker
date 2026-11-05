@@ -340,7 +340,7 @@ func (sb *Sandbox) populateNetworkResources(ctx context.Context, ep *Endpoint) (
 
 	// Populate DNS records.
 	n := ep.getNetwork()
-	if !n.getController().isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
+	if !n.controller.isSwarmNode() || n.Scope() != scope.Swarm || !n.driverIsMultihost() {
 		n.updateSvcRecord(context.WithoutCancel(ctx), ep, true)
 	}
 
