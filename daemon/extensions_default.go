@@ -91,6 +91,15 @@ func clientProviders() []clientpoint.Registration {
 	}
 }
 
+// offeredPointServers lists generated server wiring for points that built-in
+// extensions offer through servicev0.Offer.
+// Missing entries fail daemon startup if the offering extension is enabled.
+// Out-of-process extensions register their own servers and need no entries here.
+// Points that are not offered and service.grpc services also need no entries.
+func offeredPointServers() []serverpoint.Registration {
+	return []serverpoint.Registration{}
+}
+
 // dependencyProviders lists points that external extensions may call back
 // into.
 // Points not in this list will not be able to used as dependencies.
