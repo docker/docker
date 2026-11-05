@@ -2,8 +2,10 @@ package networkdb
 
 import (
 	"bytes"
+	cryptorand "crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"math/rand/v2"
 	"net"
 	"net/netip"
 	"slices"
@@ -58,10 +60,18 @@ type memCluster struct {
 	mn  *memNetwork
 }
 
+// staggerStream separates a cluster's launch-offset draws from its per-node
+// gossip streams, which newMemCluster fans out of the last eight bytes of the
+// same seed. "stagger." as bytes.
+const staggerStream = 0x737461676765722e
+
 // newMemCluster brings up num NetworkDB instances wired to a private in-memory
 // network and waits for every node to see every other. The cluster is torn down
 // by a [testing.T.Cleanup] registered here, so callers need no teardown of their
 // own.
+//
+// stagger bounds how far apart their creation is spread, and so how far apart
+// the phases of their periodic work fall; zero creates them together, in phase.
 //
 // Owning the teardown matters, rather than leaving a deferred one to each
 // caller. launchNode and the formation wait below are both fatal, and a fatal
@@ -84,7 +94,7 @@ type memCluster struct {
 // cluster formation alone is O(n^2), and these tests build hundreds of clusters
 // of up to 25 nodes. Left at debug they bury a failing subtest under tens of
 // thousands of lines from the ones that passed.
-func newMemCluster(t TestingT, num int, namePrefix string, conf *Config) *memCluster {
+func newMemCluster(t TestingT, num int, namePrefix string, conf *Config, stagger time.Duration) *memCluster {
 	t.Helper()
 
 	if logLevel := log.GetLevel(); logLevel > log.WarnLevel {
@@ -141,24 +151,46 @@ func newMemCluster(t TestingT, num int, namePrefix string, conf *Config) *memClu
 		configs[i] = localConfig
 	}
 
-	// Then bring every node up from its own goroutine, all at one virtual
-	// instant. Creating them together is deliberate, and here is the only place
-	// it can be decided: Create calls memberlist's schedule(), which builds the
-	// probe and gossip tickers, and clusterInit starts NetworkDB's own triggers,
-	// so the instant a node is created fixes the phase of every periodic task it
-	// will ever run, and nothing afterwards moves it -- memberlist's randStagger
-	// cannot, since schedule() builds the ticker before the goroutine which reads
-	// it, and a stagger shorter than the interval never even skips a tick.
+	// Then bring every node up from its own goroutine, each after the offset the
+	// caller asked for. Creation is the only place this can be done: Create
+	// calls memberlist's schedule(), which builds the probe and gossip tickers,
+	// and clusterInit starts NetworkDB's own triggers, so the instant a node is
+	// created fixes the phase of every periodic task it will ever run. Nothing
+	// afterwards moves that phase -- memberlist's randStagger cannot, since
+	// schedule() builds the ticker before the goroutine which reads it, and a
+	// stagger shorter than the interval never even skips a tick. A harness which
+	// wants those phases spread has to space the creations itself, and must not
+	// leave the spacing to whatever Join happens to cost.
 	//
-	// Launching one at a time left those phases to whatever each Join happened to
-	// cost, which came out a multiple of the gossip interval: they landed in
-	// phase by accident rather than by intent, and would have drifted the moment
-	// a join got faster or slower.
+	// Spacing them here, before any Join, costs nothing but clock: a node with no
+	// peers has nobody to gossip with while it waits its turn. The offsets come
+	// from their own stream off the template seed -- eight bytes nothing else
+	// derives from -- so spreading the launches leaves every node's gossip choices
+	// exactly as they would have been, and the arrangement follows from the seed
+	// rather than having to be recorded a node at a time.
+	offsets := make([]time.Duration, num)
+	if stagger > 0 {
+		var seed [32]byte
+		if conf.rngSeed != nil {
+			seed = *conf.rngSeed
+		} else {
+			_, _ = cryptorand.Read(seed[:]) // Documented never to return an error
+		}
+		binary.LittleEndian.PutUint64(seed[16:], staggerStream)
+		rng := rand.New(rand.NewChaCha8(seed)) //gosec:disable G404 -- not used in a security sensitive context
+		for i := range offsets {
+			offsets[i] = time.Duration(rng.Int64N(int64(stagger)))
+		}
+	}
+
 	dbs := make([]*NetworkDB, num)
 	errs := make([]error, num)
 	var wg sync.WaitGroup
 	for i := range num {
 		wg.Go(func() {
+			if offsets[i] > 0 {
+				time.Sleep(offsets[i])
+			}
 			dbs[i], errs[i] = New(&configs[i])
 		})
 	}

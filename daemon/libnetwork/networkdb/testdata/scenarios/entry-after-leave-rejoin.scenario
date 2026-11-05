@@ -1,0 +1,86 @@
+# An entry created by a node which had left and rejoined the network never
+# reaches a node which joins later: #1 joins nw1, leaves it, rejoins, and creates
+# wkayzkkd, and #6 -- which joins nw1 near the end -- ends up without it.
+#
+# That is both of the shapes this bug has been seen in at once, which is the
+# strongest thing known about it. A second failure -- found by a search on this
+# tree, where this one was reconstructed from a fail file recorded against
+# another branch -- reduced independently to the same two things: an owner which
+# had left and rejoined the network before creating the entry, and a node which
+# joined after it. Only this one is kept, the other having pinned a subset of it
+# at roughly ten times the cost, but two unrelated reductions arriving at the
+# same sequence is why both of those facts are worth stating here.
+#
+# Fixed by moby/moby#53437, which made bulk syncs carry network attachments. This
+# failed one in twenty at worst before that landed, and has since run 17,664
+# consecutive executions without failing. The rates recorded below are from before
+# the fix; they are what the attempts are sized against, so that a regression is
+# caught rather than merely likely to be.
+#
+# moby/moby#53142 left every one of these rates untouched, so the credit is
+# #53437's rather than the run of NetworkDB fixes in general.
+#
+# Reduced by -networkdb.convergence-minimize=optimize from the 16-node, 71-action
+# scenario reconstructed from a rapid fail file recorded while validating an
+# unrelated pull request. Reducing further is possible and a bad trade: the
+# smallest form which still fails is 6 nodes and 12 actions, which fails about 1
+# execution in 729 and would cost over two minutes a run against this one's four
+# seconds.
+#
+# The +delays are not padding. Firing every action at one virtual instant overruns
+# memberlist's broadcast path, and the cluster then converges only once push/pull
+# anti-entropy catches up, some 27s of virtual time later. The cost of that is
+# the gossip and probe timers firing across those 27 seconds, not the polling
+# that watches for it: at the default convergence step, polling is about a fifth
+# of what an execution costs and formation is the largest part. That is measured
+# on actions like these: a variant of this scenario with no delays in it waits
+# about 27s for anti-entropy, and spreading those same actions 100ms apart brings
+# the wait to nothing.
+#
+# So a scenario with no delays in it is mostly exercising anti-entropy rather than
+# gossip, whatever else it is pinning. Spacing one out is not a free win either:
+# these bugs turn on actions landing close together. Respacing a variant of this
+# one at 50ms thinned its failures by about a factor of three, and at 100ms stopped
+# them altogether.
+#
+# Nine nodes is deliberate. memberlist gives a broadcast a budget of
+# RetransmitMult*ceil(log10(N+1)) transmissions spent one per recipient, so N=9
+# is the worst budget-to-peers ratio in the range these tests cover, 4 against 8,
+# the ceil(log10) step to 8 landing at N=10.
+#
+# Measured before the fix, three times with -networkdb.convergence-measure, 12
+# trials apiece, at about 1 in 8, 1 in 16 and 1 in 20, and 106ms an execution. The
+# 92 attempts below are sized from the worst of those rather than the average: a
+# budget is only worth stating if it holds on a bad day. At 1 in 20 they give about
+# a 99% chance of catching it, for about 9.8s on a run which does not fail. That
+# cost is from before the fix too; measured on the fixed tree this scenario runs in
+# about 2.8s.
+#
+# A factor of two between repeats, as above, is ordinary for a 12-trial estimate.
+# Re-measure rather than trusting any single figure, this one included.
+scenario nodes=9 seed=0x0 attempts=92
+         #3:JoinNetwork(nw0)
+         #1:JoinNetwork(nw1)
+         #8:JoinNetwork(nw1)
+         #3:LeaveNetwork(nw0)
+         #1:LeaveNetwork(nw1)
+         #8:JoinNetwork(nw0)
+         #2:JoinNetwork(nw1)
+         #4:JoinNetwork(nw0)
+         #1:JoinNetwork(nw1)
+         #1:CreateEntry(nw1, wkayzkkd=ocbhbqeglhqoetcdbbbb)
+         #0:JoinNetwork(nw1)
+         #1:JoinNetwork(nw0)
+         #5:JoinNetwork(nw0)
+  +500ms #1:LeaveNetwork(nw0)
+         #8:LeaveNetwork(nw0)
+         #5:LeaveNetwork(nw0)
+   +10ms #4:LeaveNetwork(nw0)
+         #0:JoinNetwork(nw0)
+         #1:JoinNetwork(nw0)
+         #0:LeaveNetwork(nw0)
+  +116ms #1:LeaveNetwork(nw0)
+         #1:UpdateEntry(nw1, wkayzkkd=vhrblimc)
+         #6:JoinNetwork(nw1)
+         #7:JoinNetwork(nw0)
+   +13ms #7:LeaveNetwork(nw0)

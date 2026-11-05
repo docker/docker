@@ -1,0 +1,108 @@
+# Entries created by a node which then leaves the network go missing on another
+# node: #3 joins nw0, creates three entries, and leaves, and two of them are
+# absent from one node at the end.
+#
+# That is the opposite order to entry-after-leave-rejoin.scenario, where the owner
+# leaves and rejoins before creating. Both shapes turn on membership changing
+# around a write, and it is not established whether they are one bug or two.
+#
+# Fixed by moby/moby#53437, which made bulk syncs carry network attachments. This
+# failed one in thirteen at worst before that landed, and has since run 11,520
+# consecutive executions without failing. The rates recorded below are from before
+# the fix; they are what the attempts are sized against, so that a regression is
+# caught rather than merely likely to be.
+#
+# moby/moby#53142 left every one of these rates untouched, so the credit is
+# #53437's rather than the run of NetworkDB fixes in general.
+#
+# Found by TestNetworkDBAlwaysConverges on this tree at maxDelay=0: every action
+# lands at one virtual instant, with no waits at all. The generator this was found
+# with draws waiting per action against a per-scenario rate, so a scenario of pure
+# burst is drawn about a tenth of the time; the previous generator, which drew
+# waiting as one action in six, could not produce one at all.
+#
+# Its three networks are load-bearing. Dropping the actions of the two which do
+# converge -- 35 of the 68 -- loses the failure, because their gossip still
+# competes for memberlist's broadcast budget. Dropping the entries which converge
+# is fine, and that is how it reduces.
+#
+# Measured before the fix, three times with -networkdb.convergence-measure, 12
+# trials apiece, at about 1 in 9, 1 in 12 and 1 in 13, and 174ms an execution. The
+# 60 attempts below are sized from the worst of those rather than the average: a
+# budget is only worth stating if it holds on a bad day. At 1 in 13 they give about
+# a 99% chance of catching it, for about 10.4s on a run which does not fail. That
+# cost is from before the fix too; measured on the fixed tree this scenario runs in
+# about 6.9s.
+#
+# This scenario is why the sizing is done that way. An earlier budget of 28, sized
+# for 95% against the 1 in 9 measurement on its own, was seen passing with the bug
+# present -- and against the 1 in 13 seen later, 28 is only about 89%.
+scenario nodes=10 seed=0x2 attempts=60
+         #2:JoinNetwork(nw2)
+         #2:LeaveNetwork(nw2)
+         #7:JoinNetwork(nw0)
+         #7:LeaveNetwork(nw0)
+         #0:JoinNetwork(nw2)
+         #0:LeaveNetwork(nw2)
+         #3:JoinNetwork(nw0)
+         #3:CreateEntry(nw0, bznunjbcajwk=wanrslfuadoaurulzgh)
+         #3:CreateEntry(nw0, btzan=ildvnfl)
+         #3:CreateEntry(nw0, aksgwegmu=xcmqbj)
+         #3:LeaveNetwork(nw0)
+         #0:JoinNetwork(nw1)
+         #3:JoinNetwork(nw2)
+         #0:LeaveNetwork(nw1)
+         #3:CreateEntry(nw2, adv=nawstbcx)
+         #3:CreateEntry(nw2, bpsjfhwjtbs=qbfdgppcbejnhhwtsrdu)
+         #3:CreateEntry(nw2, lgfvay=nsafz)
+         #3:DeleteEntry(nw2, bpsjfhwjtbs)
+         #3:DeleteEntry(nw2, adv)
+         #7:JoinNetwork(nw0)
+         #4:JoinNetwork(nw0)
+         #4:LeaveNetwork(nw0)
+         #3:LeaveNetwork(nw2)
+         #7:CreateEntry(nw0, dhbz=lvbzaaa)
+         #7:CreateEntry(nw0, mbikpar=ucwam)
+         #7:LeaveNetwork(nw0)
+         #9:JoinNetwork(nw2)
+         #9:LeaveNetwork(nw2)
+         #2:JoinNetwork(nw0)
+         #2:LeaveNetwork(nw0)
+         #1:JoinNetwork(nw2)
+         #0:JoinNetwork(nw2)
+         #0:LeaveNetwork(nw2)
+         #1:LeaveNetwork(nw2)
+         #7:JoinNetwork(nw1)
+         #2:JoinNetwork(nw0)
+         #3:JoinNetwork(nw0)
+         #2:CreateEntry(nw0, bpkaeladv=mhgwcbznydo)
+         #3:CreateEntry(nw0, yxa=csbwa)
+         #3:UpdateEntry(nw0, yxa=rabmfbb)
+         #9:JoinNetwork(nw2)
+         #6:JoinNetwork(nw2)
+         #3:UpdateEntry(nw0, yxa=akdkdafrix)
+         #3:JoinNetwork(nw2)
+         #5:JoinNetwork(nw2)
+         #3:LeaveNetwork(nw0)
+         #2:UpdateEntry(nw0, bpkaeladv=bansyscqbfgydb)
+         #5:JoinNetwork(nw0)
+         #5:CreateEntry(nw0, kzcsb=arfdyfaaczba)
+         #7:JoinNetwork(nw0)
+         #3:CreateEntry(nw2, bcgcbrnftczxbdqzp=eaetphckt)
+         #3:LeaveNetwork(nw2)
+         #2:UpdateEntry(nw0, bpkaeladv=cohbbl)
+         #2:JoinNetwork(nw2)
+         #1:JoinNetwork(nw2)
+         #4:JoinNetwork(nw2)
+         #7:JoinNetwork(nw2)
+         #6:CreateEntry(nw2, izzbe=nabpwb)
+         #8:JoinNetwork(nw1)
+         #1:CreateEntry(nw2, faawzteq=asnddebakbj)
+         #1:CreateEntry(nw2, atht=ufjabyq)
+         #8:CreateEntry(nw1, exx=zmbeydz)
+         #2:CreateEntry(nw2, ief=wtayif)
+         #2:DeleteEntry(nw0, bpkaeladv)
+         #2:CreateEntry(nw2, ksz=gbfaxa)
+         #5:DeleteEntry(nw0, kzcsb)
+         #9:LeaveNetwork(nw2)
+         #1:JoinNetwork(nw0)

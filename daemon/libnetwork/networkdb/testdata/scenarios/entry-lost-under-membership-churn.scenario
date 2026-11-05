@@ -1,0 +1,102 @@
+# An entry goes missing on some node while the network's membership churns: 19
+# nodes join and leave nw0 throughout, entries are created among the churn, and at
+# the end one node is short of one of them.
+#
+# Which entry is lost is not fixed. Over four runs this scenario lost vfaoqbzt
+# three times and bakk once, so whatever goes wrong is not tied to a particular
+# entry -- which also means no variant of this scenario with an entry removed
+# reliably passes, and its cost cannot be measured that way. Use
+# -networkdb.convergence-measure, which times only the executions which converged.
+#
+# Fixed by moby/moby#53437, which made bulk syncs carry network attachments. This
+# failed one execution in eight at worst before that landed, and has since run 7,104
+# consecutive executions without failing. The rates recorded below are from before
+# the fix; they are what the attempts are sized against, so that a regression is
+# caught rather than merely likely to be.
+#
+# moby/moby#53142 left every one of these rates untouched, so the credit is
+# #53437's rather than the run of NetworkDB fixes in general.
+#
+# Found by TestNetworkDBAlwaysConverges on this tree, at maxDelay=3, so its actions
+# land 1-3ms apart: tight clumping rather than either extreme. Kept unreduced.
+# Reducing it is possible and a bad trade: -networkdb.convergence-minimize=optimize
+# walked it down to 13 nodes and 8 actions and reported that form as 1 in 404,
+# against single digits here, and chose to keep this one.
+#
+# Measured before the fix, four times with -networkdb.convergence-measure, 12
+# trials apiece, at about 1 in 4, 1 in 6, 1 in 7 and 1 in 8, and 310ms an
+# execution. The 37 attempts below are sized from the worst of those rather than
+# the average: a budget is only worth stating if it holds on a bad day, and these
+# four estimates spread by a factor of two. At 1 in 8 they give about a 99% chance
+# of catching it, for about 11.5s on a run which does not fail. That cost is from
+# before the fix too; measured on the fixed tree this scenario runs in about
+# 10.3s.
+#
+# Sizing from the first measurement alone put this at 19, which is 99% against 1 in
+# 4 and only 92% against 1 in 8 -- one run in twelve passing with the bug present.
+#
+# Cost did not pick between the three scenarios here. Once each was measured
+# repeatedly and sized from its own worst rate they landed within about 15% of one
+# another -- 11.5s here against 9.8s and 10.4s -- where sizing from single
+# measurements had made this one look half the price of the others. Those figures
+# are priced at pre-fix per-execution costs; measured on the fixed tree the three
+# run in about 10.3s, 2.8s and 6.9s, so this one is now the dearest by some way.
+# On readability it is the worst of the three, so prefer
+# entry-after-leave-rejoin.scenario both for understanding the bug and as the
+# regression test, and keep this one for the membership churn it covers and they
+# do not.
+scenario nodes=19 seed=0x3e664 attempts=37
+    +2ms #17:JoinNetwork(nw0)
+    +3ms #17:LeaveNetwork(nw0)
+    +2ms #3:JoinNetwork(nw0)
+         #3:LeaveNetwork(nw0)
+    +2ms #0:JoinNetwork(nw0)
+    +3ms #0:CreateEntry(nw0, vaz=bnwdc)
+    +3ms #0:LeaveNetwork(nw0)
+    +1ms #4:JoinNetwork(nw0)
+         #18:JoinNetwork(nw0)
+    +1ms #1:JoinNetwork(nw0)
+    +3ms #18:LeaveNetwork(nw0)
+         #1:CreateEntry(nw0, bsvabz=hkbgbd)
+    +2ms #4:CreateEntry(nw0, szenqpuik=yxdfdpfaqegrfxnzkb)
+    +2ms #1:CreateEntry(nw0, lkamuzaeofebd=bopmdbz)
+    +3ms #4:LeaveNetwork(nw0)
+    +3ms #1:DeleteEntry(nw0, lkamuzaeofebd)
+    +1ms #1:LeaveNetwork(nw0)
+         #13:JoinNetwork(nw0)
+         #8:JoinNetwork(nw0)
+    +3ms #13:LeaveNetwork(nw0)
+    +3ms #15:JoinNetwork(nw0)
+    +3ms #15:CreateEntry(nw0, bczaaac=wbgvpbxyuyic)
+    +2ms #1:JoinNetwork(nw0)
+    +3ms #8:CreateEntry(nw0, cxpj=vzdgg)
+    +1ms #2:JoinNetwork(nw0)
+    +3ms #2:LeaveNetwork(nw0)
+    +3ms #0:JoinNetwork(nw0)
+    +2ms #0:LeaveNetwork(nw0)
+    +1ms #8:CreateEntry(nw0, bemm=nchem)
+    +1ms #9:JoinNetwork(nw0)
+    +2ms #15:CreateEntry(nw0, zsdng=qcayihbu)
+    +2ms #4:JoinNetwork(nw0)
+    +1ms #2:JoinNetwork(nw0)
+    +2ms #6:JoinNetwork(nw0)
+    +3ms #3:JoinNetwork(nw0)
+         #5:JoinNetwork(nw0)
+         #6:CreateEntry(nw0, tzhchycctym=mrdksb)
+    +1ms #2:CreateEntry(nw0, abcmcaf=dfoyofxbdmzfvbrld)
+         #3:CreateEntry(nw0, bakk=pidfe)
+         #16:JoinNetwork(nw0)
+    +1ms #17:JoinNetwork(nw0)
+    +2ms #0:JoinNetwork(nw0)
+    +2ms #12:JoinNetwork(nw0)
+    +3ms #8:CreateEntry(nw0, jzjbpbedriiebgd=sfmfdxhcnbccagrcnhmf)
+         #7:JoinNetwork(nw0)
+         #2:UpdateEntry(nw0, abcmcaf=szrzcg)
+         #6:CreateEntry(nw0, jpd=hzbel)
+         #18:JoinNetwork(nw0)
+    +2ms #4:LeaveNetwork(nw0)
+         #17:CreateEntry(nw0, xzdiagw=vfaoqbzt)
+         #14:JoinNetwork(nw0)
+    +3ms #7:LeaveNetwork(nw0)
+         #8:LeaveNetwork(nw0)
+    +1ms #2:DeleteEntry(nw0, abcmcaf)

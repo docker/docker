@@ -42,6 +42,8 @@ type TestingT interface {
 	Cleanup(func())
 	Helper()
 	Context() context.Context
+	Errorf(format string, args ...any)
+	Logf(format string, args ...any)
 }
 
 func launchNode(t TestingT, conf Config) *NetworkDB {

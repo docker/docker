@@ -268,7 +268,7 @@ func (p perturbation) do(t *testing.T, nodes int) {
 	conf := DefaultConfig()
 	conf.tableEventObserver = obs.record
 
-	c := newMemCluster(t, nodes, "node", conf)
+	c := newMemCluster(t, nodes, "node", conf, 0)
 
 	// Every node joins the network, except the one a perturbation which joins as
 	// part of the measurement needs to keep out of it.
@@ -803,7 +803,7 @@ func measureUnderChurn(t *testing.T, nodes int) {
 	conf := DefaultConfig()
 	conf.tableEventObserver = obs.record
 
-	c := newMemCluster(t, nodes, "node", conf)
+	c := newMemCluster(t, nodes, "node", conf, 0)
 
 	for _, db := range c.dbs {
 		assert.NilError(t, db.JoinNetwork(nw))
@@ -938,7 +938,7 @@ func TestNetworkDBBulkSyncCarriesAttachments(t *testing.T) {
 			key = "k0"
 		)
 
-		c := newMemCluster(t, 2, "node", DefaultConfig())
+		c := newMemCluster(t, 2, "node", DefaultConfig(), 0)
 		a, b := c.dbs[0], c.dbs[1]
 		aID, bID := a.config.NodeID, b.config.NodeID
 
@@ -994,7 +994,7 @@ func TestNetworkDBBulkSyncSkipsAttachmentsForOldPeers(t *testing.T) {
 			key = "k0"
 		)
 
-		c := newMemCluster(t, 2, "node", DefaultConfig())
+		c := newMemCluster(t, 2, "node", DefaultConfig(), 0)
 		a, b := c.dbs[0], c.dbs[1]
 		aID, bID := a.config.NodeID, b.config.NodeID
 

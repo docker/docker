@@ -71,7 +71,7 @@ func TestTriggerFuncStagger(t *testing.T) {
 func TestBulkSyncTablesCrossesOverlappingNetworks(t *testing.T) {
 	requireSynctest(t)
 	synctest.Test(t, func(t *testing.T) {
-		c := newMemCluster(t, 4, "node", DefaultConfig())
+		c := newMemCluster(t, 4, "node", DefaultConfig(), 0)
 		members := func(indices ...int) []string {
 			out := make([]string, 0, len(indices))
 			for _, i := range indices {
