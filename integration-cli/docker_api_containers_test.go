@@ -485,37 +485,6 @@ func (s *DockerAPISuite) TestContainerAPICommitWithLabelInConfig(c *testing.T) {
 	cli.DockerCmd(c, "run", img.ID, "ls", "/test")
 }
 
-func (s *DockerAPISuite) TestContainerAPIBadPort(c *testing.T) {
-	// TODO Windows to Windows CI - Port this test
-	testRequires(c, DaemonIsLinux)
-
-	config := container.Config{
-		Image: "busybox",
-		Cmd:   []string{"/bin/sh", "-c", "echo test"},
-	}
-
-	hostConfig := container.HostConfig{
-		PortBindings: network.PortMap{
-			network.MustParsePort("8080/tcp"): []network.PortBinding{
-				{
-					HostPort: "aa80",
-				},
-			},
-		},
-	}
-
-	apiClient, err := client.New(client.FromEnv)
-	assert.NilError(c, err)
-	defer apiClient.Close()
-
-	_, err = apiClient.ContainerCreate(testutil.GetContext(c), client.ContainerCreateOptions{
-		Config:           &config,
-		HostConfig:       &hostConfig,
-		NetworkingConfig: &network.NetworkingConfig{},
-	})
-	assert.ErrorContains(c, err, `invalid port specification: "aa80"`)
-}
-
 func (s *DockerAPISuite) TestContainerAPICreate(c *testing.T) {
 	config := container.Config{
 		Image: "busybox",

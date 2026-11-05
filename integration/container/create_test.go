@@ -588,6 +588,26 @@ func TestCreatePlatformSpecificImageNoPlatform(t *testing.T) {
 	assert.NilError(t, err)
 }
 
+func TestCreateInvalidHostPort(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+	_, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config: &container.Config{
+			Image: "busybox",
+			Cmd:   []string{"/bin/sh", "-c", "echo test"},
+		},
+		HostConfig: &container.HostConfig{
+			PortBindings: network.PortMap{
+				network.MustParsePort("8080/tcp"): {{HostPort: "aa80"}},
+			},
+		},
+		NetworkingConfig: &network.NetworkingConfig{},
+	})
+	assert.Check(t, is.ErrorContains(err, `invalid port specification: "aa80"`))
+}
+
 func TestCreateInvalidHostConfig(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
