@@ -43,7 +43,7 @@ func (m *Manager) fireManual(ctx context.Context, jobID string) (*jobsv0.Run, er
 func (m *Manager) fireManualLocked(ctx context.Context, jobID string) (*jobsv0.Run, error) {
 	return m.tryFireLocked(ctx, jobID, &jobsv0.TriggerEvidence{
 		Kind:        jobsv0.TriggerKindManual,
-		FiredAtNano: m.now().UnixNano(),
+		FiredAtNano: time.Now().UnixNano(),
 	})
 }
 
@@ -82,7 +82,7 @@ func (m *Manager) tryFireLocked(ctx context.Context, jobID string, evidence *job
 		return nil, cerrdefs.ErrFailedPrecondition.WithMessage(fmt.Sprintf("job %s is already running", job.Name))
 	}
 
-	now := m.now().UnixNano()
+	now := time.Now().UnixNano()
 	run := &jobsv0.Run{
 		ID:            stringid.GenerateRandomID(),
 		JobID:         job.ID,
@@ -146,7 +146,7 @@ func (m *Manager) startContainer(ctx context.Context, job *jobsv0.Job, run *jobs
 		return fmt.Errorf("starting run container: %w", err)
 	}
 	run.State = jobsv0.RunStateRunning
-	run.StartedAtNano = m.now().UnixNano()
+	run.StartedAtNano = time.Now().UnixNano()
 
 	if err := m.store.UpdateRun(ctx, run); err != nil {
 		// The container is already running. Keep observing it until exit,
@@ -221,7 +221,7 @@ func (m *Manager) watch(ctx context.Context, job *jobsv0.Job, run *jobsv0.Run) {
 	// A run whose start was never recorded has no deadline to enforce.
 	if job.Spec.TimeoutSeconds > 0 && run.StartedAtNano != 0 {
 		deadline := time.Unix(0, run.StartedAtNano).Add(time.Duration(job.Spec.TimeoutSeconds) * time.Second)
-		m.armTimeout(run.ID, run.ContainerID, deadline.Sub(m.now()))
+		m.armTimeout(run.ID, run.ContainerID, time.Until(deadline))
 	}
 
 	m.background.Go(func() {
@@ -284,7 +284,7 @@ func (m *Manager) completeRunLocked(ctx context.Context, job *jobsv0.Job, run *j
 		run.ExitCode = &jobsv0.ExitCode{Value: *outcome.exitCode}
 	}
 	run.Error = outcome.errMsg
-	run.FinishedAtNano = m.now().UnixNano()
+	run.FinishedAtNano = time.Now().UnixNano()
 	m.finishRunLocked(ctx, job, run)
 }
 
@@ -350,7 +350,7 @@ func (m *Manager) releaseJobLocked(ctx context.Context, jobID, runID string) {
 	// are then a tombstone and there is no state to restore.
 	if current, err := m.store.Job(jobID); err == nil {
 		current.State = jobsv0.JobStateIdle
-		current.UpdatedAtNano = m.now().UnixNano()
+		current.UpdatedAtNano = time.Now().UnixNano()
 
 		if err := m.store.UpdateJob(ctx, current); err != nil {
 			log.G(ctx).WithError(err).WithFields(log.Fields{"job": jobID}).Warn("could not return job to idle; retrying")

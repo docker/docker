@@ -86,8 +86,6 @@ type Manager struct {
 	// triggers racing on the same job cannot both pass the concurrency
 	// policy.
 	locks *locker.Locker
-	// now is the manager's clock, injectable in tests.
-	now func() time.Time
 	// validateCron validates a cron expression at registration time; a
 	// field so tests can substitute it.
 	validateCron func(expr string) error
@@ -133,7 +131,6 @@ func NewManager(store *Store, backend Backend, generateName NameGenerator) *Mana
 		backend:      backend,
 		generateName: generateName,
 		locks:        locker.New(),
-		now:          time.Now,
 		validateCron: func(expr string) error {
 			_, err := parseCron(expr)
 			return err
@@ -166,7 +163,8 @@ func (m *Manager) Start(ctx context.Context) {
 	m.started = true
 	m.mu.Unlock()
 
-	now := m.now()
+	now := time.Now()
+
 	for _, job := range m.store.Jobs() {
 		if triggerKind(job.Spec.Trigger) != jobsv0.TriggerKindSchedule || job.Paused {
 			continue
@@ -316,7 +314,7 @@ func (m *Manager) create(ctx context.Context, name string, spec *jobsv0.JobSpec,
 			return nil, false, errdefs.InvalidParameter(err) // unreachable after validateSpec, kept for defense
 		}
 		var ok bool
-		if next, ok = schedule.next(m.now(), loc); !ok {
+		if next, ok = schedule.next(time.Now(), loc); !ok {
 			return nil, false, errdefs.InvalidParameter(fmt.Errorf("cron expression %q has no future occurrence", spec.Trigger.Schedule.Cron))
 		}
 	}
@@ -327,8 +325,8 @@ func (m *Manager) create(ctx context.Context, name string, spec *jobsv0.JobSpec,
 		Spec:          spec,
 		SpecHash:      hash,
 		State:         jobsv0.JobStateIdle,
-		CreatedAtNano: m.now().UnixNano(),
-		UpdatedAtNano: m.now().UnixNano(),
+		CreatedAtNano: time.Now().UnixNano(),
+		UpdatedAtNano: time.Now().UnixNano(),
 	}
 	if schedule != nil {
 		job.NextFireAtNano = next.UnixNano()

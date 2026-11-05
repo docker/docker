@@ -3,6 +3,7 @@ package jobs
 import (
 	"errors"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
@@ -173,52 +174,52 @@ func TestRestoreUnstoppableUnstartedRunKeepsJobOccupied(t *testing.T) {
 // missed while the daemon was down still gets its catch-up run when the
 // daemon stopped during a run.
 func TestRestoreCatchesUpFireMissedDuringRun(t *testing.T) {
-	m1, fake, kv := newRestartableManager(t)
-	clk := &fakeClock{t: jan15}
-	m1.now = clk.Now
-	job, _, err := m1.Create(t.Context(), "nightly", scheduleSpec(""))
-	assert.NilError(t, err)
+	synctest.Test(t, func(t *testing.T) {
+		start := time.Now()
+		m1, fake, kv := newRestartableManager(t)
+		job, _, err := m1.Create(t.Context(), "nightly", scheduleSpec(""))
+		assert.NilError(t, err)
 
-	clk.Advance(3*time.Hour + time.Second)
-	m1.sched.tick(t.Context())
-	run, err := m1.Wait(t.Context(), job.ID, "latest", jobsv0.WaitConditionRunning)
-	assert.NilError(t, err)
+		time.Sleep(3*time.Hour + time.Second)
+		m1.sched.tick(t.Context())
+		run, err := m1.Wait(t.Context(), job.ID, "latest", jobsv0.WaitConditionRunning)
+		assert.NilError(t, err)
 
-	// The run finishes and the next occurrence passes while the daemon is
-	// down.
-	assert.NilError(t, m1.Shutdown(shutdownCtx(t)))
-	fake.exit(run.ContainerID, 0, nil)
-	clk.Advance(48 * time.Hour)
+		// The run finishes and the next occurrence passes while the daemon
+		// is down.
+		assert.NilError(t, m1.Shutdown(shutdownCtx(t)))
+		fake.exit(run.ContainerID, 0, nil)
+		time.Sleep(48 * time.Hour)
 
-	store, err := NewStore(t.Context(), kv)
-	assert.NilError(t, err)
+		store, err := NewStore(t.Context(), kv)
+		assert.NilError(t, err)
 
-	m2 := NewManager(store, fake, testNameGenerator)
-	m2.now = clk.Now
+		m2 := NewManager(store, fake, testNameGenerator)
 
-	t.Cleanup(func() { assert.Check(t, m2.Shutdown(shutdownCtx(t))) })
-	m2.Restore(t.Context())
-	m2.Start(t.Context())
+		t.Cleanup(func() { assert.Check(t, m2.Shutdown(shutdownCtx(t))) })
+		m2.Restore(t.Context())
+		m2.Start(t.Context())
 
-	var catchUp *jobsv0.Run
+		var catchUp *jobsv0.Run
 
-	poll.WaitOn(t, func(poll.LogT) poll.Result {
-		latest, err := m2.store.LatestRun(job.ID)
-		if err != nil {
-			return poll.Error(err)
-		}
+		poll.WaitOn(t, func(poll.LogT) poll.Result {
+			latest, err := m2.store.LatestRun(job.ID)
+			if err != nil {
+				return poll.Error(err)
+			}
 
-		if latest.ID == run.ID || latest.State != jobsv0.RunStateRunning {
-			return poll.Continue("no catch-up run yet")
-		}
+			if latest.ID == run.ID || latest.State != jobsv0.RunStateRunning {
+				return poll.Continue("no catch-up run yet")
+			}
 
-		catchUp = latest
+			catchUp = latest
 
-		return poll.Success()
+			return poll.Success()
+		})
+		assert.Check(t, is.Equal(catchUp.Trigger.ScheduledAtNano, start.Add(27*time.Hour).UnixNano()))
+		fake.exit(catchUp.ContainerID, 0, nil)
+		waitTerminal(t, m2, job.ID, catchUp.ID)
 	})
-	assert.Check(t, is.Equal(catchUp.Trigger.ScheduledAtNano, jan15.Add(27*time.Hour).UnixNano()))
-	fake.exit(catchUp.ContainerID, 0, nil)
-	waitTerminal(t, m2, job.ID, catchUp.ID)
 }
 
 func TestRestoreIdlesStuckJob(t *testing.T) {
@@ -246,62 +247,63 @@ func TestRestoreIdlesStuckJob(t *testing.T) {
 func TestRestoreTimeouts(t *testing.T) {
 	t.Run("completed run keeps its outcome past the deadline", func(t *testing.T) {
 		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			m1, fake, kv := newRestartableManager(t)
+			spec := manualSpec()
+			spec.TimeoutSeconds = 60
+			job, _, err := m1.Create(t.Context(), "quick", spec)
+			assert.NilError(t, err)
+			run, err := m1.Run(t.Context(), job.ID, false)
+			assert.NilError(t, err)
+			assert.NilError(t, m1.Shutdown(shutdownCtx(t)))
 
-		m1, fake, kv := newRestartableManager(t)
-		clk := &fakeClock{t: jan15}
-		m1.now = clk.Now
-		spec := manualSpec()
-		spec.TimeoutSeconds = 60
-		job, _, err := m1.Create(t.Context(), "quick", spec)
-		assert.NilError(t, err)
-		run, err := m1.Run(t.Context(), job.ID, false)
-		assert.NilError(t, err)
-		assert.NilError(t, m1.Shutdown(shutdownCtx(t)))
+			// The container exits within its timeout, but startup happens
+			// later.
+			fake.exit(run.ContainerID, 0, nil)
+			time.Sleep(time.Hour)
 
-		// The container exits within its timeout, but startup happens later.
-		fake.exit(run.ContainerID, 0, nil)
-		clk.Advance(time.Hour)
+			store, err := NewStore(t.Context(), kv)
+			assert.NilError(t, err)
 
-		store, err := NewStore(t.Context(), kv)
-		assert.NilError(t, err)
+			m2 := NewManager(store, fake, testNameGenerator)
 
-		m2 := NewManager(store, fake, testNameGenerator)
-		m2.now = clk.Now
+			t.Cleanup(func() { assert.Check(t, m2.Shutdown(shutdownCtx(t))) })
+			m2.Restore(t.Context())
 
-		t.Cleanup(func() { assert.Check(t, m2.Shutdown(shutdownCtx(t))) })
-		m2.Restore(t.Context())
-
-		done := waitTerminal(t, m2, job.ID, run.ID)
-		assert.Equal(t, done.State, jobsv0.RunStateSucceeded)
-		assert.Assert(t, done.ExitCode != nil)
-		assert.Equal(t, done.ExitCode.Value, int64(0))
-		assert.Equal(t, len(fake.stoppedContainers()), 0)
+			done := waitTerminal(t, m2, job.ID, run.ID)
+			assert.Equal(t, done.State, jobsv0.RunStateSucceeded)
+			assert.Assert(t, done.ExitCode != nil)
+			assert.Equal(t, done.ExitCode.Value, int64(0))
+			assert.Equal(t, len(fake.stoppedContainers()), 0)
+		})
 	})
 
 	t.Run("expired deadline is enforced on restore", func(t *testing.T) {
-		m1, fake, kv := newRestartableManager(t)
-		clk := &fakeClock{t: jan15}
-		m1.now = clk.Now
-		spec := manualSpec()
-		spec.TimeoutSeconds = 60
-		_, _, err := m1.Create(t.Context(), "slow", spec)
-		assert.NilError(t, err)
-		run, err := m1.Run(t.Context(), "slow", false)
-		assert.NilError(t, err)
+		synctest.Test(t, func(t *testing.T) {
+			m1, fake, kv := newRestartableManager(t)
+			spec := manualSpec()
+			spec.TimeoutSeconds = 60
+			_, _, err := m1.Create(t.Context(), "slow", spec)
+			assert.NilError(t, err)
+			run, err := m1.Run(t.Context(), "slow", false)
+			assert.NilError(t, err)
 
-		assert.NilError(t, m1.Shutdown(shutdownCtx(t)))
-		store, err := NewStore(t.Context(), kv)
-		assert.NilError(t, err)
-		m2 := NewManager(store, fake, testNameGenerator)
-		t.Cleanup(func() { assert.Check(t, m2.Shutdown(shutdownCtx(t))) })
-		// The daemon comes back long past the run's deadline.
-		clk.Advance(time.Hour)
-		m2.now = clk.Now
-		m2.Restore(t.Context())
+			assert.NilError(t, m1.Shutdown(shutdownCtx(t)))
+			// The daemon comes back long past the run's deadline.
+			time.Sleep(time.Hour)
 
-		done := waitTerminal(t, m2, "slow", run.ID)
-		assert.Check(t, is.Equal(done.State, jobsv0.RunStateTimedOut))
-		assert.Check(t, is.Contains(fake.stoppedContainers(), run.ContainerID))
+			store, err := NewStore(t.Context(), kv)
+			assert.NilError(t, err)
+
+			m2 := NewManager(store, fake, testNameGenerator)
+
+			t.Cleanup(func() { assert.Check(t, m2.Shutdown(shutdownCtx(t))) })
+			m2.Restore(t.Context())
+
+			done := waitTerminal(t, m2, "slow", run.ID)
+			assert.Check(t, is.Equal(done.State, jobsv0.RunStateTimedOut))
+			assert.Check(t, is.Contains(fake.stoppedContainers(), run.ContainerID))
+		})
 	})
 
 	t.Run("remaining deadline is re-armed", func(t *testing.T) {

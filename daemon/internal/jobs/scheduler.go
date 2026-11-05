@@ -211,7 +211,7 @@ type dueFire struct {
 // the next one. Dispatch happens after the scheduler lock is released: fires
 // take job locks, which are held around arm/disarm calls into the scheduler.
 func (s *scheduler) tick(ctx context.Context) time.Duration {
-	fires, wait := s.takeDue(s.m.now())
+	fires, wait := s.takeDue(time.Now())
 	for _, fire := range fires {
 		// Firing takes the job's lock, which a run may hold across container
 		// operations; doing it here would stall every other schedule.
@@ -313,7 +313,7 @@ func (m *Manager) fireScheduledLocked(ctx context.Context, jobID string, schedul
 	evidence := &jobsv0.TriggerEvidence{
 		Kind:            jobsv0.TriggerKindSchedule,
 		ScheduledAtNano: scheduledAt.UnixNano(),
-		FiredAtNano:     m.now().UnixNano(),
+		FiredAtNano:     time.Now().UnixNano(),
 	}
 
 	_, err := m.tryFireLocked(ctx, jobID, evidence)
@@ -370,7 +370,8 @@ func (m *Manager) persistNextFireLocked(ctx context.Context, jobID string) {
 	}
 
 	job.NextFireAtNano = atNano
-	job.UpdatedAtNano = m.now().UnixNano()
+	job.UpdatedAtNano = time.Now().UnixNano()
+
 	if err := m.store.UpdateJob(ctx, job); err != nil {
 		log.G(ctx).WithError(err).WithFields(log.Fields{"job": jobID}).Warn("could not record next fire time")
 	}

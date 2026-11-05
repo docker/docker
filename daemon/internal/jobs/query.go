@@ -126,11 +126,12 @@ func (m *Manager) setPaused(ctx context.Context, jobRef string, paused bool) err
 			return err
 		}
 
-		if next, rearm = schedule.next(m.now(), loc); rearm {
+		if next, rearm = schedule.next(time.Now(), loc); rearm {
 			job.NextFireAtNano = next.UnixNano()
 		}
 	}
-	job.UpdatedAtNano = m.now().UnixNano()
+
+	job.UpdatedAtNano = time.Now().UnixNano()
 	if err := m.store.UpdateJob(ctx, job); err != nil {
 		return err
 	}
