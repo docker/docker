@@ -1,5 +1,6 @@
 nameserver 127.0.0.11
 
 # Based on host file: '/etc/resolv.conf' (internal resolver)
-# NO EXTERNAL NAMESERVERS DEFINED
+# Used default nameservers.
+# ExtServers: [host(127.0.0.1) host(::1)]
 # Overrides: []

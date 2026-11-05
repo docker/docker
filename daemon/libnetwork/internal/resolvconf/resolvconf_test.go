@@ -404,6 +404,10 @@ func TestRCTransformForIntNS(t *testing.T) {
 		{
 			name:  "No config",
 			input: "",
+			expExtServers: []ExtDNSEntry{
+				mke("127.0.0.1", true),
+				mke("::1", true),
+			},
 		},
 	}
 
