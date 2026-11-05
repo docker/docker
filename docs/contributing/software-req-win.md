@@ -88,6 +88,8 @@ to learn about the other software that powers the Moby platform.
 Create a builder-container with the Moby source code. You can change the source
 code on your system and rebuild any time:
 
+    docker pull mcr.microsoft.com/windows/servercore:ltsc2022
+    docker image tag mcr.microsoft.com/windows/servercore:ltsc2022 microsoft/windowsservercore
     docker build -t nativebuildimage -f .\Dockerfile.windows .
     docker build -t nativebuildimage -f Dockerfile.windows -m 2GB .  # (if using Hyper-V containers)
 
