@@ -20,6 +20,9 @@ jobs:
       pull-requests: read
     uses: ./.github/workflows/.dco.yml
   run:
+    permissions:
+      contents: read
+      id-token: write # needed for CodeCov; https://github.com/codecov/codecov-action/blob/v7.1.1/README.md#using-oidc
     needs: validate-dco
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     uses: ./.github/workflows/.windows.yml
@@ -38,5 +41,3 @@ jobs:
       storage: ${{ matrix.storage }}
       containerd: ${{ matrix.containerd }}
       send_coverage: true
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
