@@ -2,7 +2,10 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -21,12 +24,18 @@ import (
 // newExtensionHost builds the daemon's extension host.
 func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) {
 	cfg := daemon.Config()
-	runtimeDir := filepath.Join(cfg.ExecRoot, "extensions")
+	runtimeDir := extensionRuntimeDir(&cfg)
 	if err := os.MkdirAll(runtimeDir, 0o700); err != nil {
 		return nil, fmt.Errorf("create extension runtime directory: %w", err)
 	}
 	if err := os.Chmod(runtimeDir, 0o700); err != nil {
 		return nil, fmt.Errorf("set permissions on extension runtime directory: %w", err)
+	}
+	// A crashed daemon leaves its API socket behind. Opening the socket
+	// replaces it, but a daemon whose extensions never use the API would
+	// otherwise keep the dead socket around.
+	if err := os.Remove(extensionAPISocket(&cfg)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		log.G(ctx).WithError(err).Warn("failed to remove stale extension API socket")
 	}
 	defaults := slices.Concat(builtinExtensions, daemon.daemonExtensions())
 	exts, err := selectBuiltinExtensions(cfg.Extensions, defaults, daemon.optionalExtensions())
@@ -44,6 +53,37 @@ func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) 
 		host.WithDependencyProviders(dependencyProviders()...),
 		host.WithExtensionConfig(extensionConfig(&cfg)),
 	)
+}
+
+// extensionRuntimeDir holds the extension sockets.
+// It is private to the daemon user.
+func extensionRuntimeDir(cfg *config.Config) string {
+	return filepath.Join(cfg.ExecRoot, "extensions")
+}
+
+// extensionAPISocket is the path of the API socket for extensions.
+func extensionAPISocket(cfg *config.Config) string {
+	return filepath.Join(extensionRuntimeDir(cfg), "api.sock")
+}
+
+// extensionAPIEndpoint provides the daemon.api point.
+// It opens the API socket for extensions when an extension first asks for the
+// endpoint, so daemons without such extensions expose no extra API endpoint.
+// The socket is separate from the configured hosts, which may be TLS-only TCP
+// or socket-activated and so unusable by extensions.
+func (daemon *Daemon) extensionAPIEndpoint(ctx context.Context) (string, error) {
+	cfg := daemon.Config()
+	path := extensionAPISocket(&cfg)
+	if err := daemon.apiSockets.Open(ctx, path); err != nil {
+		return "", err
+	}
+	return "unix://" + path, nil
+}
+
+// StartAPISockets serves h on the API sockets the daemon creates for its own
+// consumers, such as extensions.
+func (daemon *Daemon) StartAPISockets(h http.Handler) {
+	daemon.apiSockets.Start(h)
 }
 
 // extensionConfig converts daemon.json's extensions.configs entries to host form.

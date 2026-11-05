@@ -361,7 +361,9 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 		return err
 	}
 	httpServer.Protocols = &p
-	httpServer.Handler = newHTTPHandler(ctx, gs, extProxy, apiServer.CreateMux(ctx, routers...))
+	handler := newHTTPHandler(ctx, gs, extProxy, apiServer.CreateMux(ctx, routers...))
+	httpServer.Handler = handler
+	d.StartAPISockets(handler)
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
