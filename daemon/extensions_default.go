@@ -13,11 +13,13 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/extensionapi"
 	"github.com/moby/moby/v2/daemon/internal/extensionconfig"
 	"github.com/moby/moby/v2/daemon/internal/extensionstorage/bbolt"
+	"github.com/moby/moby/v2/daemon/internal/jobs"
 
 	containernamegeneratorpb "github.com/moby/moby/v2/extpoints/containernamegenerator/v0/protogen"
 	containerstatepb "github.com/moby/moby/v2/extpoints/containerstate/v0/protogen"
 	daemonapipb "github.com/moby/moby/v2/extpoints/daemonapi/v0/protogen"
 	daemonconfigpb "github.com/moby/moby/v2/extpoints/daemonconfig/v0/protogen"
+	jobspb "github.com/moby/moby/v2/extpoints/jobs/api/v0/protogen"
 	servicenamegeneratorpb "github.com/moby/moby/v2/extpoints/servicenamegenerator/v0/protogen"
 	storagepb "github.com/moby/moby/v2/extpoints/storage/kv/v0/protogen"
 	namesgeneratorlegacy "github.com/moby/moby/v2/internal/namesgenerator/legacy"
@@ -33,7 +35,9 @@ var builtinExtensions = []extensions.Extension{
 // optionalExtensions lists built-ins that remain inactive until explicitly
 // enabled through extensions.enable.
 func (daemon *Daemon) optionalExtensions() []extensions.Extension {
-	return []extensions.Extension{}
+	return []extensions.Extension{
+		jobs.NewExtension(),
+	}
 }
 
 // daemonExtensions declares extensions that need daemon-owned state.
@@ -97,7 +101,9 @@ func clientProviders() []clientpoint.Registration {
 // Out-of-process extensions register their own servers and need no entries here.
 // Points that are not offered and service.grpc services also need no entries.
 func offeredPointServers() []serverpoint.Registration {
-	return []serverpoint.Registration{}
+	return []serverpoint.Registration{
+		jobspb.ServerPoint,
+	}
 }
 
 // dependencyProviders lists points that external extensions may call back
