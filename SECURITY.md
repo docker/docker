@@ -8,6 +8,9 @@ a security issue, please bring it to their attention right away!
 Please **DO NOT** file a public issue, instead send your report privately
 to [security@docker.com](mailto:security@docker.com).
 
+See [THREAT_MODEL.md](THREAT_MODEL.md) for what the project considers a
+vulnerability.
+
 Reporter(s) can expect a response within 72 hours, acknowledging the issue was
 received.
 
