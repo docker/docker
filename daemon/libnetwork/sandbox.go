@@ -13,6 +13,8 @@ import (
 	"sync"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
@@ -441,6 +443,11 @@ func (sb *Sandbox) ResolveService(ctx context.Context, name string) ([]*net.SRV,
 	return nil, nil
 }
 
+// crossNetworkDomainSuffix is the pseudo-domain for looking up a container
+// in a network the sandbox is not attached to. The "moby" label keeps it
+// clear of a site's own names under the reserved ".internal" TLD.
+const crossNetworkDomainSuffix = ".moby.internal"
+
 func (sb *Sandbox) ResolveName(ctx context.Context, name string, ipType types.IPFamily) ([]net.IP, bool) {
 	// Embedded server owns the docker network domain. Resolution should work
 	// for both container_name and container_name.network_name
@@ -495,6 +502,13 @@ func (sb *Sandbox) ResolveName(ctx context.Context, name string, ipType types.IP
 			return ip, true
 		}
 	}
+
+	// Try the pseudo-domain only after the in-sandbox path, so that a network
+	// literally named "moby.internal" or "<name>.moby.internal" is still
+	// resolved through its attached endpoint first.
+	if n := len(name) - len(crossNetworkDomainSuffix); n > 0 && strings.EqualFold(name[n:], crossNetworkDomainSuffix) {
+		return sb.resolveCrossNetwork(ctx, name[:n], ipType)
+	}
 	return nil, false
 }
 
@@ -542,6 +556,130 @@ func (sb *Sandbox) resolveName(ctx context.Context, nameOrAlias string, networkN
 		}
 	}
 	return nil, false
+}
+
+// resolveCrossNetwork looks up "<container>.<network>" in a network the
+// sandbox need not be attached to. It only answers for a container that
+// publishes a port reachable at its own address (see directlyReachable).
+//
+// The container part is a single label, so the first dot separates it from
+// the network name, which may itself contain dots. Both parts are matched
+// case-insensitively against container names (not aliases) and network names,
+// as DNS requires. Docker allows names that differ only in case, and names
+// that can't be written as DNS labels at all, so a name that matches more
+// than one container or network, or that isn't made of DNS labels, is not
+// answered rather than resolved to an arbitrary pick.
+func (sb *Sandbox) resolveCrossNetwork(ctx context.Context, base string, ipType types.IPFamily) ([]net.IP, bool) {
+	ctx, span := otel.Tracer("").Start(ctx, "Sandbox.resolveCrossNetwork", trace.WithAttributes(
+		attribute.String("libnet.resolver.name", base),
+		attribute.Int("libnet.resolver.ip-family", int(ipType))))
+	defer span.End()
+
+	ctrName, netName, ok := strings.Cut(base, ".")
+	if !ok || !isDNSName(ctrName) || !isDNSName(netName) {
+		return nil, false
+	}
+
+	var nw *Network
+	matches := 0
+	sb.controller.WalkNetworks(func(n *Network) bool {
+		if strings.EqualFold(n.Name(), netName) {
+			nw = n
+			matches++
+		}
+		return matches > 1
+	})
+	if matches != 1 || nw.Internal() {
+		return nil, false
+	}
+
+	var ep *Endpoint
+	matches = 0
+	nw.WalkEndpoints(func(e *Endpoint) bool {
+		if strings.EqualFold(e.Name(), ctrName) {
+			ep = e
+			matches++
+		}
+		return matches > 1
+	})
+	if matches != 1 {
+		return nil, false
+	}
+
+	if !directlyReachable(nw, ep, ipType) {
+		// If the container is reachable on the other address family,
+		// the name exists: answer NODATA rather than NXDOMAIN, so the
+		// query isn't forwarded upstream.
+		other := types.IPv6
+		if ipType == types.IPv6 {
+			other = types.IPv4
+		}
+		if directlyReachable(nw, ep, other) {
+			return nil, true
+		}
+		return nil, false
+	}
+	// Use the endpoint's own address rather than the service records,
+	// because another endpoint may carry ctrName as an alias.
+	var addr *net.IPNet
+	if iface := ep.Iface(); iface != nil {
+		addr = iface.Address()
+		if ipType == types.IPv6 {
+			addr = iface.AddressIPv6()
+		}
+	}
+	if addr == nil {
+		return nil, true
+	}
+	return []net.IP{addr.IP}, true
+}
+
+// isDNSName reports whether s is one or more non-empty labels separated by
+// single dots, each made of letters, digits, '-' and '_'. That is the subset
+// of Docker container and network names that can be used in a DNS name as is.
+func isDNSName(s string) bool {
+	for _, label := range strings.Split(s, ".") {
+		if label == "" {
+			return false
+		}
+		for i := 0; i < len(label); i++ {
+			switch c := label[i]; {
+			case 'a' <= c && c <= 'z', 'A' <= c && c <= 'Z', '0' <= c && c <= '9', c == '-', c == '_':
+			default:
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// directlyReachable reports whether ep publishes a port that can be reached
+// at ep's own address, for the given address family. That is only the case
+// on a bridge network in "routed" gateway mode, which publishes ports at the
+// container's address instead of mapping a host port. Other drivers keep
+// unknown options too, so the gateway mode is only meaningful for "bridge".
+func directlyReachable(nw *Network, ep *Endpoint, family types.IPFamily) bool {
+	if nw.Type() != "bridge" {
+		return false
+	}
+	gwMode := bridge.IPv4GatewayMode
+	if family == types.IPv6 {
+		gwMode = bridge.IPv6GatewayMode
+	}
+	if nw.DriverOptions()[gwMode] != "routed" {
+		return false
+	}
+	info, err := ep.DriverInfo()
+	if err != nil {
+		return false
+	}
+	pbs, _ := info[netlabel.PortMap].([]types.PortBinding)
+	for _, pb := range pbs {
+		if (pb.IP.To4() != nil) == (family != types.IPv6) {
+			return true
+		}
+	}
+	return false
 }
 
 // hasExternalAccess returns true if any of sb's Endpoints appear to have external

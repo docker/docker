@@ -15,6 +15,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/setmatrix"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipams/defaultipam"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
@@ -716,6 +717,213 @@ func TestServiceVIPReuse(t *testing.T) {
 	name = n.ResolveIP(ctx, ipToResolve)
 	if name != "" {
 		t.Fatalf("It must return empty no more services associated, instead:%s", name)
+	}
+}
+
+// TestSandboxResolveCrossNetworkInternal exercises name resolution through
+// the "<container>.<network>.moby.internal" pseudo-domain.
+// See https://github.com/moby/moby/issues/49572.
+func TestSandboxResolveCrossNetworkInternal(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "test only works on linux")
+
+	defer netnsutils.SetupTestOSContext(t)()
+
+	ctx := t.Context()
+	c, err := New(ctx,
+		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Stop()
+
+	var nets []*Network
+	defer func() {
+		for _, n := range nets {
+			if err := n.Delete(); err != nil {
+				t.Errorf("delete network %s: %v", n.Name(), err)
+			}
+		}
+	}()
+	mustNewNetwork := func(name string, opts ...NetworkOption) *Network {
+		opts = append([]NetworkOption{NetworkOptionEnableIPv4(true)}, opts...)
+		n, err := c.NewNetwork(ctx, "bridge", name, "", opts...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nets = append(nets, n)
+		return n
+	}
+
+	gwModes := func(v4, v6 string) NetworkOption {
+		opts := map[string]string{}
+		if v4 != "" {
+			opts[bridge.IPv4GatewayMode] = v4
+		}
+		if v6 != "" {
+			opts[bridge.IPv6GatewayMode] = v6
+		}
+		return NetworkOptionDriverOpts(opts)
+	}
+
+	netA := mustNewNetwork("netA") // default gateway mode (nat): not directly reachable
+	netB := mustNewNetwork("netB", gwModes("routed", ""))
+	netC := mustNewNetwork("netC", NetworkOptionEnableIPv6(true),
+		NetworkOptionIpam(defaultipam.DriverName, "", nil, []*IpamConf{{PreferredPool: "fd00:c::/64"}}, nil),
+		gwModes("routed", "routed"))
+	netUnprot := mustNewNetwork("netU", gwModes("nat-unprotected", ""))
+	netInt := mustNewNetwork("netInt", NetworkOptionInternalNetwork(), gwModes("routed", ""))
+	netDotted := mustNewNetwork("my.net", gwModes("routed", ""))
+	netNamedMoby := mustNewNetwork("moby.internal")
+	netFooMoby := mustNewNetwork("foo.moby.internal")
+	netFoo := mustNewNetwork("foo", gwModes("routed", "routed"))
+	// Names Docker accepts but DNS can't tell apart, or can't carry at all.
+	netDup := mustNewNetwork("dup", gwModes("routed", ""))
+	netDupUpper := mustNewNetwork("Dup", gwModes("routed", ""))
+	netSlash := mustNewNetwork("odd/net", gwModes("routed", ""))
+
+	// Names that only need to exist for the legacy, in-sandbox path.
+	netA.addSvcRecords("epA", "c1", "svcA", net.ParseIP("10.0.1.10"), nil, true, "test")
+	netNamedMoby.addSvcRecords("epN", "db", "svcN", net.ParseIP("10.0.5.50"), net.ParseIP("fd00:5::1"), true, "test")
+	netFoo.addSvcRecords("epFoo", "shadowed", "svcFoo", net.ParseIP("10.0.6.60"), net.ParseIP("fd00:6::1"), true, "test")
+	netFooMoby.addSvcRecords("epFM", "shadowed", "svcFM", net.ParseIP("10.0.7.70"), net.ParseIP("fd00:7::1"), true, "test")
+
+	// Cross-network targets need a real endpoint, joined to its own sandbox,
+	// so that the driver has the endpoint's operational port bindings.
+	var sandboxes []*Sandbox
+	defer func() {
+		for _, s := range sandboxes {
+			if err := s.Delete(ctx); err != nil {
+				t.Errorf("delete sandbox %s: %v", s.ContainerID(), err)
+			}
+		}
+	}()
+	mustRunAliased := func(n *Network, name string, aliases []string, ports ...types.PortBinding) *Endpoint {
+		ep, err := n.CreateEndpoint(ctx, name, CreateOptionDNSNames(append([]string{name}, aliases...)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Port bindings are a sandbox option. The driver reads them when
+		// the endpoint joins and becomes the sandbox's gateway.
+		s, err := c.NewSandbox(ctx, n.Name()+"/"+name, OptionPortMapping(ports))
+		if err != nil {
+			t.Fatal(err)
+		}
+		sandboxes = append(sandboxes, s)
+		if err := ep.Join(ctx, s); err != nil {
+			t.Fatal(err)
+		}
+		return ep
+	}
+	mustRun := func(n *Network, name string, ports ...types.PortBinding) *Endpoint {
+		return mustRunAliased(n, name, nil, ports...)
+	}
+	tcp80 := types.PortBinding{Proto: types.TCP, Port: 80}
+	c2 := mustRun(netB, "c2", tcp80)
+	c4 := mustRun(netC, "c4", tcp80)
+	mustRun(netB, "noport")
+	// Carries c2's name as a network alias but publishes nothing.
+	// Its address must never be returned for c2.netB.moby.internal.
+	mustRunAliased(netB, "impostor", []string{"c2"})
+	mustRun(netA, "cn", tcp80)
+	mustRun(netUnprot, "cu", tcp80)
+	mustRun(netInt, "ci", tcp80)
+	c3 := mustRun(netDotted, "c3", tcp80)
+	mustRun(netDup, "cd", tcp80)
+	mustRun(netDupUpper, "cd", tcp80)
+	mustRun(netB, "twin", tcp80)
+	mustRun(netB, "Twin", tcp80)
+	mustRun(netB, "dot.ted", tcp80)
+	mustRun(netSlash, "co", tcp80)
+	ip4 := func(ep *Endpoint) string { return ep.Iface().Address().IP.String() }
+	ip6 := func(ep *Endpoint) string { return ep.Iface().AddressIPv6().IP.String() }
+
+	epA, err := netA.CreateEndpoint(ctx, "ep-c1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	epN, err := netNamedMoby.CreateEndpoint(ctx, "ep-c1-moby-internal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	epFI, err := netFooMoby.CreateEndpoint(ctx, "ep-c1-foo-moby-internal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sb, err := c.NewSandbox(ctx, "c1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := sb.Delete(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	if err := epA.Join(ctx, sb); err != nil {
+		t.Fatal(err)
+	}
+	if err := epN.Join(ctx, sb); err != nil {
+		t.Fatal(err)
+	}
+	if err := epFI.Join(ctx, sb); err != nil {
+		t.Fatal(err)
+	}
+
+	const nodata = "NODATA" // name exists, but has no address of the family
+	tests := []struct {
+		name   string
+		query  string
+		family types.IPFamily
+		want   string // empty -> expect NXDOMAIN
+	}{
+		{"cross-network routed", "c2.netB.moby.internal", types.IPv4, ip4(c2)},
+		{"cross-network IPv6 routed", "c4.netC.moby.internal", types.IPv6, ip6(c4)},
+		{"container name and suffix are case-insensitive", "C2.netB.MOBY.Internal", types.IPv4, ip4(c2)},
+		{"network name is case-insensitive", "c2.NETB.moby.internal", types.IPv4, ip4(c2)},
+		{"networks differing only in case are ambiguous", "cd.dup.moby.internal", types.IPv4, ""},
+		{"containers differing only in case are ambiguous", "twin.netB.moby.internal", types.IPv4, ""},
+		{"dotted container name is not resolvable", "dot.ted.netB.moby.internal", types.IPv4, ""},
+		{"network name with a slash is not resolvable", "co.odd/net.moby.internal", types.IPv4, ""},
+		{"empty label", "c2..netB.moby.internal", types.IPv4, ""},
+		{"routed network, no published port", "noport.netB.moby.internal", types.IPv4, ""},
+		{"no address for the family is NODATA", "c2.netB.moby.internal", types.IPv6, nodata},
+		{"nat network is excluded", "cn.netA.moby.internal", types.IPv4, ""},
+		{"nat-unprotected network is excluded", "cu.netU.moby.internal", types.IPv4, ""},
+		{"internal network is excluded", "ci.netInt.moby.internal", types.IPv4, ""},
+		{"plain .internal is not a pseudo-domain", "c2.netB.internal", types.IPv4, ""},
+		{"unknown network", "c2.nope.moby.internal", types.IPv4, ""},
+		{"unknown container", "ghost.netB.moby.internal", types.IPv4, ""},
+		{"missing network segment", "noworld.moby.internal", types.IPv4, ""},
+		{"trailing dot before suffix", "name..moby.internal", types.IPv4, ""},
+		{"dotted network name", "c3.my.net.moby.internal", types.IPv4, ip4(c3)},
+		{"legacy first: moby.internal-named network", "db.moby.internal", types.IPv4, "10.0.5.50"},
+		{"legacy first: *.moby.internal vs foo", "shadowed.foo.moby.internal", types.IPv4, "10.0.7.70"},
+		{"legacy first IPv6: *.moby.internal vs foo", "shadowed.foo.moby.internal", types.IPv6, "fd00:7::1"},
+		{"legacy first IPv6: moby.internal-named network", "db.moby.internal", types.IPv6, "fd00:5::1"},
+		{"bare name", "c1", types.IPv4, "10.0.1.10"},
+		{"container.network shorthand", "c1.netA", types.IPv4, "10.0.1.10"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := sb.ResolveName(ctx, tc.query, tc.family)
+			if tc.want == "" {
+				if ok || len(got) != 0 {
+					t.Fatalf("expected NXDOMAIN for %q, got %v", tc.query, got)
+				}
+				return
+			}
+			if tc.want == nodata {
+				if !ok || len(got) != 0 {
+					t.Fatalf("expected NODATA for %q, got ok=%v %v", tc.query, ok, got)
+				}
+				return
+			}
+			if !ok || len(got) == 0 {
+				t.Fatalf("expected %q to resolve to %s, got NXDOMAIN", tc.query, tc.want)
+			}
+			if len(got) != 1 || got[0].String() != tc.want {
+				t.Fatalf("expected %q -> [%s], got %v", tc.query, tc.want, got)
+			}
+		})
 	}
 }
 
