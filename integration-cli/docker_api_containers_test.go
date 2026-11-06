@@ -2,7 +2,6 @@ package main
 
 import (
 	"archive/tar"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -623,36 +622,6 @@ func (s *DockerAPISuite) TestContainerAPICreateWithCpuSharesCpuset(c *testing.T)
 
 	outCpuset := inspectField(c, res.Container.ID, "HostConfig.CpusetCpus")
 	assert.Equal(c, outCpuset, "0")
-}
-
-func (s *DockerAPISuite) TestContainerAPIVerifyHeader(c *testing.T) {
-	config := map[string]any{
-		"Image": "busybox",
-	}
-
-	create := func(ct string) (*http.Response, io.ReadCloser, error) {
-		jsonData := bytes.NewBuffer(nil)
-		assert.NilError(c, json.NewEncoder(jsonData).Encode(config))
-		return request.Post(testutil.GetContext(c), "/containers/create", request.RawContent(io.NopCloser(jsonData)), request.ContentType(ct))
-	}
-
-	// Try with no content-type
-	res, body, err := create("")
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	_ = body.Close()
-
-	// Try with wrong content-type
-	res, body, err = create("application/xml")
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusBadRequest)
-	_ = body.Close()
-
-	// now application/json
-	res, body, err = create("application/json")
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusCreated)
-	_ = body.Close()
 }
 
 // Issue 7941 - test to make sure a "null" in JSON is just ignored.

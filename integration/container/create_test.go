@@ -3,6 +3,7 @@ package container
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -717,6 +718,60 @@ func TestCreateValidation(t *testing.T) {
 				var respErr common.ErrorResponse
 				assert.NilError(t, request.ReadJSONResponse(res, &respErr))
 				assert.ErrorContains(t, respErr, tc.expError)
+			}
+		})
+	}
+}
+
+func TestContainerAPIVerifyHeader(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	const config = `{"Image":"busybox"}`
+	testCases := []struct {
+		name        string
+		contentType string
+		expStatus   int
+	}{
+		// Try with no content-type
+		{
+			name:      "missing Content-Type",
+			expStatus: http.StatusBadRequest,
+		},
+		// Try with wrong content-type
+		{
+			name:        "application/xml",
+			contentType: "application/xml",
+			expStatus:   http.StatusBadRequest,
+		},
+		// now application/json
+		{
+			name:        "application/json",
+			contentType: "application/json",
+			expStatus:   http.StatusCreated,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			modifiers := []func(*request.Options){request.RawString(config)}
+			if tc.contentType != "" {
+				modifiers = append(modifiers, request.ContentType(tc.contentType))
+			}
+
+			res, body, err := request.Post(ctx, "/containers/create", modifiers...)
+			assert.NilError(t, err)
+			buf, err := request.ReadBody(body)
+			assert.NilError(t, err)
+			assert.Equal(t, res.StatusCode, tc.expStatus, string(buf))
+
+			if tc.expStatus == http.StatusCreated {
+				var resp container.CreateResponse
+				assert.NilError(t, json.Unmarshal(buf, &resp))
+				assert.Assert(t, resp.ID != "")
+				t.Cleanup(func() {
+					testContainer.Remove(ctx, t, apiClient, resp.ID, client.ContainerRemoveOptions{Force: true})
+				})
 			}
 		})
 	}
