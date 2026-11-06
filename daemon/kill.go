@@ -187,6 +187,14 @@ func (daemon *Daemon) kill(ctx context.Context, container *containerpkg.Containe
 	if runtime.GOOS == "windows" {
 		waitTimeout = 75 * time.Second // runhcs can be sloooooow.
 	}
+	// SIGKILL can take time to complete, for example while the kernel frees a
+	// large address space. Honor a longer configured stop timeout, but retain
+	// the platform minimum and a finite wait for negative (infinite) timeouts.
+	stopTimeout := daemon.config().DefaultStopTimeout
+	if container.Config.StopTimeout != nil {
+		stopTimeout = *container.Config.StopTimeout
+	}
+	waitTimeout = max(waitTimeout, time.Duration(stopTimeout)*time.Second)
 
 	waitCtx, cancel := context.WithTimeout(ctx, waitTimeout)
 	defer cancel()
