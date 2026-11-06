@@ -1,11 +1,13 @@
 package cnmallocator
 
 import (
+	"fmt"
 	"net"
 	"net/netip"
 	"testing"
 
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/ipams/defaultipam"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"gotest.tools/v3/assert"
@@ -717,6 +719,253 @@ func TestServiceNetworkUpdate(t *testing.T) {
 
 	assert.Check(t, na.IsServiceAllocated(s))
 	assert.Check(t, is.Len(s.Endpoint.VirtualIPs, 1))
+}
+
+// strictReleaseIpam wraps an IPAM driver to record each release of an
+// address which it did not give out, or which has been released already.
+type strictReleaseIpam struct {
+	ipamapi.Ipam
+	held map[string]map[string]struct{} // pool ID -> address
+	// strays lists the addresses released without being held.
+	strays []string
+}
+
+func (a *strictReleaseIpam) RequestAddress(poolID string, ip net.IP, opts map[string]string) (*net.IPNet, map[string]string, error) {
+	addr, data, err := a.Ipam.RequestAddress(poolID, ip, opts)
+	if err == nil {
+		if a.held[poolID] == nil {
+			a.held[poolID] = map[string]struct{}{}
+		}
+		a.held[poolID][addr.IP.String()] = struct{}{}
+	}
+	return addr, data, err
+}
+
+func (a *strictReleaseIpam) ReleaseAddress(poolID string, ip net.IP) error {
+	if _, ok := a.held[poolID][ip.String()]; !ok {
+		a.strays = append(a.strays, fmt.Sprintf("%s in pool %q", ip, poolID))
+	}
+	delete(a.held[poolID], ip.String())
+	return a.Ipam.ReleaseAddress(poolID, ip)
+}
+
+func (a *strictReleaseIpam) ReleasePool(poolID string) error {
+	delete(a.held, poolID)
+	return a.Ipam.ReleasePool(poolID)
+}
+
+// allocateSmallNetworks allocates a network with a /29 subnet, which has 5
+// addresses to give out, for each of ids. The network with the ID "ingress"
+// is the ingress network. The networks use the default IPAM driver, wrapped
+// in the strictReleaseIpam it returns.
+func allocateSmallNetworks(t *testing.T, na *cnmNetworkAllocator, ids ...string) (map[string]*api.Network, *strictReleaseIpam) {
+	t.Helper()
+	const ipamName = "strict-release"
+	ipam, _ := na.ipamRegistry.IPAM(defaultipam.DriverName)
+	assert.Assert(t, ipam != nil)
+	strict := &strictReleaseIpam{Ipam: ipam, held: map[string]map[string]struct{}{}}
+	assert.NilError(t, na.ipamRegistry.RegisterIpamDriver(ipamName, strict))
+
+	networks := make(map[string]*api.Network, len(ids))
+	for i, id := range ids {
+		n := &api.Network{
+			ID: id,
+			Spec: api.NetworkSpec{
+				Annotations:  api.Annotations{Name: id},
+				DriverConfig: &api.Driver{},
+				Ingress:      id == "ingress",
+				IPAM: &api.IPAMOptions{
+					Driver:  &api.Driver{Name: ipamName},
+					Configs: []*api.IPAMConfig{{Subnet: netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 9, byte(i), 0}), 29).String()}},
+				},
+			},
+		}
+		assert.NilError(t, na.Allocate(n))
+		networks[id] = n
+	}
+	return networks, strict
+}
+
+func networkAttachments(ids ...string) []*api.NetworkAttachmentConfig {
+	var nAttach []*api.NetworkAttachmentConfig
+	for _, id := range ids {
+		nAttach = append(nAttach, &api.NetworkAttachmentConfig{Target: id})
+	}
+	return nAttach
+}
+
+// TestAllocateServiceFailureReleasesVIPs checks that AllocateService releases
+// every VIP of the service when it fails to allocate a VIP on one of the
+// networks of the service, both those the service had and those the call
+// allocated, and that it releases each address it holds once and no other.
+func TestAllocateServiceFailureReleasesVIPs(t *testing.T) {
+	// A VIP leaked on each attempt exhausts a network.
+	const attempts = 6
+	networkIDs := []string{"ov1", "ov2", "ov3", "ov4"}
+
+	tests := []struct {
+		name string
+		// had lists the networks which the service has VIPs on before
+		// the call which fails.
+		had []string
+		// freed lists the networks which are deallocated after the
+		// service has VIPs on them, and allocated again after the call
+		// which fails.
+		freed []string
+		// onGateway names a network which the service also has a VIP
+		// on, at the gateway address of the network.
+		onGateway string
+		// published sets the service to publish a port on the ingress
+		// network before the call which fails, which gives the service
+		// a VIP with no address on the ingress network, as swarmkit
+		// does.
+		published bool
+		// spec lists the networks of the service in the call which
+		// fails. "unallocated" is a network which is not allocated.
+		spec []string
+		// err is the error of the call which fails, if it is not
+		// "could not find local network state".
+		err string
+	}{
+		{
+			name: "new service",
+			spec: []string{"ov1", "unallocated"},
+		},
+		{
+			name: "unallocated network first",
+			spec: []string{"unallocated", "ov1"},
+		},
+		{
+			name: "networks added",
+			had:  []string{"ov1"},
+			spec: []string{"ov1", "ov2", "unallocated"},
+		},
+		{
+			name: "networks added and removed",
+			had:  []string{"ov3", "ov1"},
+			spec: []string{"ov1", "ov2", "ov4", "unallocated"},
+		},
+		{
+			name: "network removed",
+			had:  []string{"ov2", "ov1"},
+			spec: []string{"ov1", "unallocated"},
+		},
+		{
+			// The call fails on the VIP on ov2, before it looks at the
+			// VIP on ov3.
+			name:  "network of a VIP freed",
+			had:   []string{"ov1", "ov2", "ov3"},
+			freed: []string{"ov2"},
+			spec:  []string{"ov1", "ov2", "ov3", "ov4"},
+		},
+		{
+			// IPAM holds the gateway address, so the call fails on
+			// the VIP on ov2.
+			name:      "VIP on a gateway address",
+			had:       []string{"ov1"},
+			onGateway: "ov2",
+			spec:      []string{"ov1", "ov2", "ov3"},
+			err:       "could not allocate VIP from IPAM",
+		},
+		{
+			name:      "port published",
+			had:       []string{"ov1"},
+			published: true,
+			spec:      []string{"ov1", "ov2", "unallocated"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			na := newNetworkAllocator(t).(*cnmNetworkAllocator)
+			networks, ipam := allocateSmallNetworks(t, na, append(networkIDs, "ingress")...)
+
+			for range attempts {
+				s := &api.Service{ID: "svc1"}
+				if len(tc.had) > 0 {
+					s.Spec.Task.Networks = networkAttachments(tc.had...)
+					assert.NilError(t, na.AllocateService(s))
+					assert.Assert(t, is.Len(s.Endpoint.VirtualIPs, len(tc.had)))
+				}
+				for _, id := range tc.freed {
+					assert.NilError(t, na.Deallocate(networks[id]))
+				}
+				if s.Endpoint == nil {
+					s.Endpoint = &api.Endpoint{}
+				}
+				if tc.onGateway != "" {
+					s.Endpoint.VirtualIPs = append(s.Endpoint.VirtualIPs, &api.Endpoint_VirtualIP{
+						NetworkID: tc.onGateway,
+						Addr:      networks[tc.onGateway].IPAM.Configs[0].Gateway + "/29",
+					})
+				}
+				if tc.published {
+					s.Spec.Endpoint = &api.EndpointSpec{
+						Ports: []*api.PortConfig{{TargetPort: 80, PublishMode: api.PublishModeIngress}},
+					}
+					s.Endpoint.VirtualIPs = append(s.Endpoint.VirtualIPs, &api.Endpoint_VirtualIP{NetworkID: "ingress"})
+				}
+
+				s.Spec.Task.Networks = networkAttachments(tc.spec...)
+				expErr := tc.err
+				if expErr == "" {
+					expErr = "could not find local network state"
+				}
+				assert.ErrorContains(t, na.AllocateService(s), expErr)
+				assert.Check(t, is.Len(s.Endpoint.VirtualIPs, 0))
+				assert.Check(t, !na.IsServiceAllocated(s))
+				assert.Assert(t, is.Len(ipam.strays, 0), "released addresses which were not held")
+				for id := range networks {
+					if nw := na.networks[id]; nw != nil {
+						assert.Assert(t, is.Len(nw.endpoints, 0), "network %s", id)
+					}
+				}
+
+				for _, id := range tc.freed {
+					assert.NilError(t, na.Allocate(networks[id]))
+				}
+			}
+
+			s := &api.Service{ID: "svc2"}
+			s.Spec.Task.Networks = networkAttachments(networkIDs...)
+			assert.NilError(t, na.AllocateService(s))
+			assert.Check(t, is.Len(s.Endpoint.VirtualIPs, len(networkIDs)))
+		})
+	}
+}
+
+// TestAllocateServiceDuplicateNetwork checks that AllocateService allocates
+// one VIP on a network which the spec of the service lists twice.
+func TestAllocateServiceDuplicateNetwork(t *testing.T) {
+	tests := []struct {
+		name string
+		// had lists the networks which the service has VIPs on before
+		// its spec lists ov1 twice.
+		had []string
+	}{
+		{name: "new service"},
+		{name: "network replaced", had: []string{"ov2"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			na := newNetworkAllocator(t).(*cnmNetworkAllocator)
+			allocateSmallNetworks(t, na, "ov1", "ov2")
+
+			s := &api.Service{ID: "svc1"}
+			if len(tc.had) > 0 {
+				s.Spec.Task.Networks = networkAttachments(tc.had...)
+				assert.NilError(t, na.AllocateService(s))
+			}
+
+			s.Spec.Task.Networks = networkAttachments("ov1", "ov1")
+			assert.NilError(t, na.AllocateService(s))
+			assert.Check(t, is.Len(s.Endpoint.VirtualIPs, 1))
+			assert.Check(t, is.Len(na.networks["ov1"].endpoints, 1))
+			assert.Check(t, is.Len(na.networks["ov2"].endpoints, 0))
+			assert.Check(t, na.IsServiceAllocated(s))
+		})
+	}
 }
 
 type mockIpam struct {
