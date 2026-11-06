@@ -13,6 +13,20 @@ import (
 	"gotest.tools/v3/skip"
 )
 
+func TestServiceListEmpty(t *testing.T) {
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
+	defer d.Stop(t)
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	result, err := apiClient.ServiceList(ctx, client.ServiceListOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, result.Items != nil)
+	assert.Check(t, is.Len(result.Items, 0))
+}
+
 // TestServiceListWithStatuses tests that performing a ServiceList operation
 // correctly uses the Status parameter, and that the resulting response
 // contains correct service statuses.

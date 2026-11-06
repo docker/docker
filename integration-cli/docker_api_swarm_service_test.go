@@ -55,15 +55,6 @@ func (s *DockerSwarmSuite) TestAPIServiceUpdatePort(c *testing.T) {
 	assert.Equal(c, updatedService.Spec.EndpointSpec.Ports[0].PublishedPort, uint32(8082))
 }
 
-func (s *DockerSwarmSuite) TestAPISwarmServicesEmptyList(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	d := s.AddDaemon(ctx, c, true, true)
-
-	services := d.ListServices(ctx, c)
-	assert.Assert(c, services != nil)
-	assert.Assert(c, len(services) == 0, "services: %#v", services)
-}
-
 func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *testing.T) {
 	ctx := testutil.GetContext(c)
 	d := s.AddDaemon(ctx, c, true, true)
