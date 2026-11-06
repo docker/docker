@@ -13,25 +13,45 @@ source hack/make/.integration-test-helpers
 # --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream
 : "${PY_TEST_OPTIONS:=--junitxml=${DEST}/junit-report.xml}"
 
+docker_py_deselects=()
+docker_py_deselect_reasons=()
+
+deselect_docker_py_test() {
+	local selector="$1"
+	local reason="$2"
+
+	docker_py_deselects+=("${selector}")
+	docker_py_deselect_reasons+=("${reason}")
+}
+
 # build --squash is not supported with containerd integration.
 if [ -z "$TEST_INTEGRATION_USE_GRAPHDRIVER" ]; then
-	PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_build_test.py::BuildTest::test_build_squash"
+	deselect_docker_py_test "tests/integration/api_build_test.py::BuildTest::test_build_squash" \
+		"build --squash is not supported with containerd integration"
 fi
 
 # TODO re-enable test_attach_no_stream after https://github.com/docker/docker-py/issues/2513 is resolved
-PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream"
+deselect_docker_py_test "tests/integration/api_container_test.py::AttachContainerTest::test_attach_no_stream" \
+	"pending upstream docker-py issue docker/docker-py#2513"
 
 # TODO re-enable test_run_container_reading_socket_ws. It's reported in https://github.com/docker/docker-py/issues/1478, and we're getting that error in our tests.
-PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_container_test.py::AttachContainerTest::test_run_container_reading_socket_ws"
+deselect_docker_py_test "tests/integration/api_container_test.py::AttachContainerTest::test_run_container_reading_socket_ws" \
+	"pending upstream docker-py issue docker/docker-py#1478"
 
 # Legacy links are deprecated since a long time, and starting with v29.0, the Engine won't set legacy links env vars
 # automatically in linking containers. Thus, this test is expected to fail — skip it. See https://github.com/moby/moby/pull/50719
-PY_TEST_OPTIONS="${PY_TEST_OPTIONS} --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_links"
+deselect_docker_py_test "tests/integration/api_container_test.py::CreateContainerTest::test_create_with_links" \
+	"legacy link environment variables are intentionally no longer set"
 
 # The NetworkSettings.MacAddress field has been deprecated since Docker 1.9, and starting with v29.0, the Engine won't
 # include it in API respoonses. Thus, this test is expected to fail — skip it.
 # See https://github.com/moby/moby/pull/50846 and https://github.com/moby/moby/pull/50957
-PY_TEST_OPTIONS="${PY_TEST_OPTIONS} --deselect=tests/integration/api_container_test.py::CreateContainerTest::test_create_with_mac_address"
+deselect_docker_py_test "tests/integration/api_container_test.py::CreateContainerTest::test_create_with_mac_address" \
+	"deprecated NetworkSettings.MacAddress is intentionally omitted from API responses"
+
+for docker_py_deselect in "${docker_py_deselects[@]}"; do
+	PY_TEST_OPTIONS="${PY_TEST_OPTIONS} --deselect=${docker_py_deselect}"
+done
 
 # TODO re-enable once leaving a swarm no longer races the certificate renewal
 # that follows enabling autolock. When the leave loses, it fails with
@@ -76,6 +96,9 @@ PY_TEST_OPTIONS="$PY_TEST_OPTIONS --deselect=tests/integration/api_swarm_test.py
 		)
 	fi
 
+	for docker_py_deselect_index in "${!docker_py_deselects[@]}"; do
+		echo "INFO: Deselecting docker-py test ${docker_py_deselects[$docker_py_deselect_index]}: ${docker_py_deselect_reasons[$docker_py_deselect_index]}"
+	done
 	echo INFO: Starting docker-py tests...
 	(
 		[ -n "${TESTDEBUG}" ] && set -x
