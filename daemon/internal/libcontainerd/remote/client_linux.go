@@ -50,6 +50,43 @@ func getSpecUser(ociSpec *specs.Spec) (int, int) {
 	return uid, gid
 }
 
+// getIOOwner returns the host UID and GID that should own the stdio pipes
+// of the container's process, i.e. the host IDs of the user the process
+// runs as (spec.Process.User), mapped through the user namespace ID
+// mappings. The containerd shim chowns the stdio pipes to the IoUid/IoGid
+// passed when the task is created, so a process that reopens /dev/stderr
+// by path is only allowed to write when the pipes are owned by its own
+// user; mapping container UID 0 here would deny a non-root process with
+// EACCES under userns-remap.
+//
+// Unlike getSpecUser, which maps container UID 0 and is used for bundle
+// ownership, this must follow the process user. When no user namespace is
+// configured, or the spec has no process, it returns 0, 0.
+func getIOOwner(ociSpec *specs.Spec) (int, int) {
+	var (
+		uid int
+		gid int
+	)
+
+	if ociSpec.Linux == nil {
+		return uid, gid
+	}
+	for _, ns := range ociSpec.Linux.Namespaces {
+		if ns.Type == specs.UserNamespace {
+			if ociSpec.Process != nil {
+				uid = hostIDFromMap(ociSpec.Process.User.UID, ociSpec.Linux.UIDMappings)
+				gid = hostIDFromMap(ociSpec.Process.User.GID, ociSpec.Linux.GIDMappings)
+			} else {
+				uid = hostIDFromMap(0, ociSpec.Linux.UIDMappings)
+				gid = hostIDFromMap(0, ociSpec.Linux.GIDMappings)
+			}
+			break
+		}
+	}
+
+	return uid, gid
+}
+
 // WithBundle creates the bundle for the container
 func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOpts {
 	return func(ctx context.Context, client *containerd.Client, c *containers.Container) error {

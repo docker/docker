@@ -96,3 +96,8 @@ func getSpecUser(ociSpec *specs.Spec) (int, int) {
 	// TODO: (containerd): Not implemented, but don't error.
 	return 0, 0
 }
+
+func getIOOwner(ociSpec *specs.Spec) (int, int) {
+	// TODO: (containerd): Not implemented, but don't error.
+	return 0, 0
+}
