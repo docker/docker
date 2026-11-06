@@ -9,11 +9,14 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	containertypes "github.com/moby/moby/api/types/container"
+	mounttypes "github.com/moby/moby/api/types/mount"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/moby/v2/daemon/network"
 	daemonoci "github.com/moby/moby/v2/daemon/pkg/oci"
+	"github.com/moby/sys/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
@@ -403,4 +406,93 @@ func checkResourcesAreUnset(t *testing.T, r *specs.LinuxResources) {
 			assert.Check(t, is.DeepEqual(r.Network, &specs.LinuxNetwork{}, cmpopts.EquateEmpty()))
 		}
 	}
+}
+
+func TestMountIDMappings(t *testing.T) {
+	skip.If(t, rootless.RunningWithRootlessKit(), "id-mapped mounts are rejected on rootless daemons")
+
+	newSpec := func(uid, gid uint32) *specs.Spec {
+		return &specs.Spec{Process: &specs.Process{User: specs.User{UID: uid, GID: gid}}}
+	}
+	// The mount source's ownership is read with a stat: use a directory
+	// owned by the test runner and expect its actual IDs in the mappings.
+	src := t.TempDir()
+	srcUID := uint32(os.Getuid())
+	srcGID := uint32(os.Getgid())
+
+	t.Run("match-user with the container user", func(t *testing.T) {
+		d := &Daemon{}
+		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
+		uidMaps, gidMaps, err := d.mountIDMappings(c, newSpec(1001, 1002), src, &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser})
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(uidMaps, []specs.LinuxIDMapping{{ContainerID: srcUID, HostID: 1001, Size: 1}}))
+		assert.Check(t, is.DeepEqual(gidMaps, []specs.LinuxIDMapping{{ContainerID: srcGID, HostID: 1002, Size: 1}}))
+	})
+
+	t.Run("match-user with a numeric user", func(t *testing.T) {
+		d := &Daemon{}
+		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
+		c.Root = t.TempDir()
+		c.BaseFS = c.Root
+		uidMaps, gidMaps, err := d.mountIDMappings(c, newSpec(0, 0), src, &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser, User: "1234:5678"})
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(uidMaps, []specs.LinuxIDMapping{{ContainerID: srcUID, HostID: 1234, Size: 1}}))
+		assert.Check(t, is.DeepEqual(gidMaps, []specs.LinuxIDMapping{{ContainerID: srcGID, HostID: 5678, Size: 1}}))
+	})
+
+	t.Run("match-user with userns-remap", func(t *testing.T) {
+		d := &Daemon{
+			idMapping: user.IdentityMapping{
+				UIDMaps: []user.IDMap{{ID: 0, ParentID: 100000, Count: 65536}},
+				GIDMaps: []user.IDMap{{ID: 0, ParentID: 200000, Count: 65536}},
+			},
+		}
+		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
+		uidMaps, gidMaps, err := d.mountIDMappings(c, newSpec(33, 33), src, &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser})
+		assert.NilError(t, err)
+		// The mount mapping targets the host-side representation of the
+		// container user, which the user namespace maps back to it.
+		assert.Check(t, is.DeepEqual(uidMaps, []specs.LinuxIDMapping{{ContainerID: srcUID, HostID: 100033, Size: 1}}))
+		assert.Check(t, is.DeepEqual(gidMaps, []specs.LinuxIDMapping{{ContainerID: srcGID, HostID: 200033, Size: 1}}))
+	})
+
+	t.Run("match-user with a missing source", func(t *testing.T) {
+		d := &Daemon{}
+		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
+		_, _, err := d.mountIDMappings(c, newSpec(0, 0), filepath.Join(src, "missing"), &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser})
+		assert.ErrorContains(t, err, "cannot stat mount source")
+	})
+
+	t.Run("userns source without user namespace", func(t *testing.T) {
+		d := &Daemon{}
+		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
+		_, _, err := d.mountIDMappings(c, newSpec(0, 0), src, &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceUserns})
+		assert.ErrorContains(t, err, "private user namespace")
+	})
+
+	t.Run("userns source with userns-remap", func(t *testing.T) {
+		d := &Daemon{
+			idMapping: user.IdentityMapping{
+				UIDMaps: []user.IDMap{{ID: 0, ParentID: 100000, Count: 65536}},
+				GIDMaps: []user.IDMap{{ID: 0, ParentID: 200000, Count: 65536}},
+			},
+		}
+		c := &container.Container{HostConfig: &containertypes.HostConfig{}}
+		uidMaps, gidMaps, err := d.mountIDMappings(c, newSpec(0, 0), src, &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceUserns})
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(uidMaps, []specs.LinuxIDMapping{{ContainerID: 0, HostID: 100000, Size: 65536}}))
+		assert.Check(t, is.DeepEqual(gidMaps, []specs.LinuxIDMapping{{ContainerID: 0, HostID: 200000, Size: 65536}}))
+	})
+
+	t.Run("userns source with userns host mode", func(t *testing.T) {
+		d := &Daemon{
+			idMapping: user.IdentityMapping{
+				UIDMaps: []user.IDMap{{ID: 0, ParentID: 100000, Count: 65536}},
+				GIDMaps: []user.IDMap{{ID: 0, ParentID: 200000, Count: 65536}},
+			},
+		}
+		c := &container.Container{HostConfig: &containertypes.HostConfig{UsernsMode: "host"}}
+		_, _, err := d.mountIDMappings(c, newSpec(0, 0), src, &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceUserns})
+		assert.ErrorContains(t, err, "private user namespace")
+	})
 }

@@ -729,6 +729,18 @@ func (c *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 	}
 
+	if versions.LessThan(version, "1.57") {
+		for _, m := range hostConfig.Mounts {
+			if m.BindOptions != nil && m.BindOptions.IDMapping != nil {
+				// Produce an error instead of silently ignoring: an id-mapped
+				// mount grants the container different file ownership than
+				// the caller expressed, so ignoring the option could expose
+				// files with unexpected permissions.
+				return errdefs.InvalidParameter(errors.New("BindOptions.IDMapping needs API v1.57 or newer"))
+			}
+		}
+	}
+
 	var warnings []string
 	if warn := handleVolumeDriverBC(version, hostConfig); warn != "" {
 		warnings = append(warnings, warn)

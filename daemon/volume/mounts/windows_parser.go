@@ -237,6 +237,9 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, additionalValid
 			if len(opts.Propagation) > 0 {
 				return &errMountConfig{mnt, fmt.Errorf("invalid propagation mode: %s", opts.Propagation)}
 			}
+			if opts.IDMapping != nil {
+				return &errMountConfig{mnt, errors.New("id-mapped mounts are not supported on this platform")}
+			}
 		}
 
 		if err := windowsValidateAbsolute(mnt.Source); err != nil {

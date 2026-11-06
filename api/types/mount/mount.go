@@ -93,6 +93,52 @@ type BindOptions struct {
 	ReadOnlyNonRecursive bool `json:",omitempty"`
 	// ReadOnlyForceRecursive raises an error if the mount cannot be made recursively read-only.
 	ReadOnlyForceRecursive bool `json:",omitempty"`
+	// IDMapping, when set, makes the mount an id-mapped mount: file
+	// ownership within the mount is translated according to the mapping
+	// selected by its Source, without changing ownership on the backing
+	// filesystem.
+	//
+	// Requires API v1.57 or newer, a Linux daemon running rootful, a kernel
+	// with MOUNT_ATTR_IDMAP support for the backing filesystem (5.12 or
+	// newer for most filesystems), and an OCI runtime with id-mapped mount
+	// support (runc 1.2 or newer).
+	IDMapping *IDMapping `json:"IDMapping,omitzero"`
+}
+
+// IDMappingSource selects how an id-mapped mount derives its ID mappings.
+type IDMappingSource string
+
+const (
+	// IDMappingSourceMatchUser derives the mapping from the intended
+	// result: the owner of the mount's source appears, inside the
+	// container, as the container user — the user configured in
+	// IDMapping.User when set, or the container's running user (from the
+	// container configuration or the image) otherwise. Files created
+	// through the mount by that container user are owned by the source's
+	// owner on the backing filesystem.
+	//
+	// Only the source's owner (a single UID and a single GID) is mapped:
+	// files owned by any other user or group within the mount appear owned
+	// by the kernel overflow ID (nobody/nogroup, 65534 by default). Use
+	// IDMappingSourceUserns to cover a container's whole ID range instead.
+	IDMappingSourceMatchUser IDMappingSource = "match-user"
+	// IDMappingSourceUserns follows the mapping of the container's private
+	// user namespace, which requires the container to run in one, i.e. the
+	// daemon to run with userns-remap.
+	IDMappingSourceUserns IDMappingSource = "userns"
+)
+
+// IDMapping makes a bind mount id-mapped: file ownership within the mount
+// is translated according to the mapping selected by Source, without
+// changing ownership on the backing filesystem.
+type IDMapping struct {
+	// Source selects how the mapping is derived.
+	Source IDMappingSource `json:"Source"`
+	// User is the container user (name, UID, or UID:GID, as accepted for
+	// running a container) the mount source's owner is presented as when
+	// Source is "match-user". When empty, the container's running user is
+	// used. Must be empty for other sources.
+	User string `json:"User,omitzero"`
 }
 
 // VolumeOptions represents the options for a mount of type volume.

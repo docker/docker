@@ -89,6 +89,7 @@ func (daemon *Daemon) setupMounts(ctx context.Context, c *container.Container) (
 				mnt.NonRecursive = m.Spec.BindOptions.NonRecursive
 				mnt.ReadOnlyNonRecursive = m.Spec.BindOptions.ReadOnlyNonRecursive
 				mnt.ReadOnlyForceRecursive = m.Spec.BindOptions.ReadOnlyForceRecursive
+				mnt.IDMapping = m.Spec.BindOptions.IDMapping
 			}
 			if m.Volume != nil {
 				daemon.LogVolumeEvent(m.Volume.Name(), events.ActionMount, map[string]string{

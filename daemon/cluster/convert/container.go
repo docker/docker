@@ -395,6 +395,10 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		}
 
 		if m.BindOptions != nil {
+			if m.BindOptions.IDMapping != nil {
+				// TODO(idmap): requires swarmkit support; reject rather than silently discarding the option.
+				return nil, errors.New("BindOptions.IDMapping is not supported for swarm services")
+			}
 			if mountPropagation, ok := swarmapi.Mount_BindOptions_MountPropagation_value[strings.ToUpper(string(m.BindOptions.Propagation))]; ok {
 				mount.BindOptions = &swarmapi.Mount_BindOptions{Propagation: swarmapi.Mount_BindOptions_MountPropagation(mountPropagation)}
 			} else if string(m.BindOptions.Propagation) != "" {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -832,4 +833,73 @@ func TestContainerBindMountRecursivelyReadOnly(t *testing.T) {
 
 func isRROSupported() bool {
 	return kernel.CheckKernelVersion(5, 12, 0)
+}
+
+func TestContainerBindMountIDMapped(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.IsRootless, "id-mapped mounts require a rootful daemon")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.57"), "requires API v1.57")
+	skip.If(t, !kernel.CheckKernelVersion(5, 12, 0), "id-mapped mounts require kernel 5.12")
+
+	ctx := setupTest(t)
+
+	// The test runs as root, so the file is owned by uid/gid 0 on the
+	// backing filesystem. With a "match-user" ID mapping, it appears owned
+	// by the container's running user.
+	tmpDir := fs.NewDir(t, "idmapped", fs.WithMode(0o755),
+		fs.WithFile("file", "hello", fs.WithMode(0o644)))
+	defer tmpDir.Remove()
+
+	idMapped := mounttypes.Mount{
+		Type:   mounttypes.TypeBind,
+		Source: tmpDir.Path(),
+		Target: "/foo",
+		BindOptions: &mounttypes.BindOptions{
+			IDMapping: &mounttypes.IDMapping{Source: mounttypes.IDMappingSourceMatchUser},
+		},
+	}
+	mappedVerifier := []string{`/bin/sh`, `-xc`, `[ "$(stat -c %u:%g /foo/file)" = "1234:1234" ] && echo written-by-1234 > /foo/new.txt`}
+
+	// Without an IDMapping the same file keeps its host ownership: uid/gid 0,
+	// or the overflow ID when the daemon runs with userns-remap, as the
+	// host-owned file is not covered by the container's user namespace.
+	plain := mounttypes.Mount{
+		Type:   mounttypes.TypeBind,
+		Source: tmpDir.Path(),
+		Target: "/foo",
+	}
+	plainOwner := "0:0"
+	if testEnv.IsUserNamespace() {
+		plainOwner = "65534:65534"
+	}
+	plainVerifier := []string{`/bin/sh`, `-xc`, `[ "$(stat -c %u:%g /foo/file)" = "` + plainOwner + `" ]`}
+
+	apiClient := testEnv.APIClient()
+
+	// Start the id-mapped container by hand: kernel support for id-mapped
+	// mounts depends on the filesystem backing the test directory, which
+	// cannot be probed from a kernel version alone.
+	idMappedCtr := container.Create(ctx, t, apiClient, container.WithMount(idMapped), container.WithUser("1234:1234"), container.WithCmd(mappedVerifier...), container.WithSecurityOpt("label=disable"))
+	if _, err := apiClient.ContainerStart(ctx, idMappedCtr, client.ContainerStartOptions{}); err != nil {
+		if strings.Contains(err.Error(), "MOUNT_ATTR_IDMAP") {
+			t.Skipf("filesystem backing the test directory does not support id-mapped mounts: %v", err)
+		}
+		t.Fatal(err)
+	}
+
+	containers := []string{
+		idMappedCtr,
+		container.Run(ctx, t, apiClient, container.WithMount(plain), container.WithCmd(plainVerifier...), container.WithSecurityOpt("label=disable")),
+	}
+	for _, c := range containers {
+		poll.WaitOn(t, container.IsSuccessful(ctx, apiClient, c))
+	}
+
+	// The file created by the container user through the mount is owned by
+	// the mount source's owner on the backing filesystem.
+	fi, err := os.Stat(tmpDir.Join("new.txt"))
+	assert.NilError(t, err)
+	st := fi.Sys().(*syscall.Stat_t)
+	assert.Check(t, is.Equal(st.Uid, uint32(0)))
+	assert.Check(t, is.Equal(st.Gid, uint32(0)))
 }
