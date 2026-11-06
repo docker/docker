@@ -83,7 +83,8 @@ func TestWithUmask(t *testing.T) {
 
 		err := WithUmask(c)(t.Context(), nil, nil, &s)
 		assert.NilError(t, err)
-		assert.Assert(t, s.Process.User.Umask == nil)
+		assert.Assert(t, s.Process.User.Umask != nil)
+		assert.Equal(t, *s.Process.User.Umask, uint32(0o022))
 	})
 
 	t.Run("set", func(t *testing.T) {

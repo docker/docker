@@ -68,6 +68,34 @@ func TestFailedExecExitCode(t *testing.T) {
 	}
 }
 
+func TestContainerExecDefaultUmask(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	users := []string{"", "1000", "nobody"}
+	prettyUser := func(s string) string {
+		if s == "" {
+			return "unspecified"
+		}
+		return s
+	}
+
+	for _, runUser := range users {
+		for _, execUser := range users {
+			t.Run(fmt.Sprintf("user_%s_%s", prettyUser(runUser), prettyUser(execUser)), func(t *testing.T) {
+				cID := container.Run(ctx, t, apiClient, container.WithUser(runUser))
+				result, err := container.Exec(ctx, apiClient, cID, []string{"sh", "-c", "umask"}, func(ec *client.ExecCreateOptions) {
+					ec.User = execUser
+				})
+				assert.NilError(t, err)
+				assert.Equal(t, "0022", strings.TrimSpace(result.Stdout()))
+			})
+		}
+	}
+}
+
 func TestContainerExecWithUmask(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.56"), "requires API v1.56")
 

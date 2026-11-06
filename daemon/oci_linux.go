@@ -1015,10 +1015,13 @@ func WithUser(c *container.Container) coci.SpecOpts {
 // WithUmask sets the container's umask.
 func WithUmask(c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, client coci.Client, ctr *containers.Container, s *coci.Spec) error {
-		if c.HostConfig.Umask == nil {
-			return nil
+		// runc only applies its default umask to the init process; exec
+		// processes would inherit the shim's umask, which may be 0.
+		umask := uint32(0o022)
+		if c.HostConfig.Umask != nil {
+			umask = *c.HostConfig.Umask
 		}
-		return coci.WithUmask(*c.HostConfig.Umask)(ctx, client, ctr, s)
+		return coci.WithUmask(umask)(ctx, client, ctr, s)
 	}
 }
 
