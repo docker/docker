@@ -60,6 +60,10 @@ func TestUsernsCommit(t *testing.T) {
 	ctx := t.Context()
 	dUserRemap := daemon.New(t, daemon.WithUserNsRemap("default"))
 	dUserRemap.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false")
+	t.Cleanup(func() {
+		dUserRemap.Stop(t)
+		dUserRemap.Cleanup(t)
+	})
 	clientUserRemap := dUserRemap.NewClientT(t)
 	defer clientUserRemap.Close()
 
