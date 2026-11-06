@@ -7,9 +7,47 @@ import (
 	"testing"
 	"time"
 
+	runcoptions "github.com/containerd/containerd/api/types/runc/options"
+	"github.com/containerd/containerd/v2/plugins"
+	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/container"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 )
+
+func TestContainerFSHostAccess(t *testing.T) {
+	runcOpts := &runcoptions.Options{BinaryName: config.DefaultRuntimeBinary}
+	tests := []struct {
+		name        string
+		snapshotter string
+		runtime     string
+		shim        string
+		opts        any
+		wantErr     bool
+	}{
+		{name: "Kata with blockfile", snapshotter: "blockfile", runtime: "kata", shim: "io.containerd.kata.v2", wantErr: true},
+		{name: "Kata with devmapper", snapshotter: "devmapper", runtime: "kata", shim: "io.containerd.kata.v2", wantErr: true},
+		{name: "runc with blockfile", snapshotter: "blockfile", runtime: config.StockRuntimeName, shim: plugins.RuntimeRuncV2, opts: runcOpts},
+		{name: "runc with devmapper", snapshotter: "devmapper", runtime: config.StockRuntimeName, shim: plugins.RuntimeRuncV2, opts: runcOpts},
+		{name: "custom runc", snapshotter: "blockfile", runtime: "custom-runc", shim: plugins.RuntimeRuncV2, wantErr: true},
+		{name: "runc v2", snapshotter: "blockfile", runtime: linuxV2RuntimeName, shim: plugins.RuntimeRuncV2, opts: runcOpts},
+		{name: "custom runc binary", snapshotter: "blockfile", runtime: linuxV2RuntimeName, shim: plugins.RuntimeRuncV2, opts: &runcoptions.Options{BinaryName: "kata-runtime"}, wantErr: true},
+		{name: "missing runc options", snapshotter: "blockfile", runtime: config.StockRuntimeName, shim: plugins.RuntimeRuncV2, wantErr: true},
+		{name: "Kata with overlayfs", snapshotter: "overlayfs", runtime: "kata", shim: "io.containerd.kata.v2"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := containerFSHostAccessError(tt.snapshotter, tt.runtime, tt.shim, tt.opts)
+			if tt.wantErr {
+				assert.Assert(t, cerrdefs.IsInvalidArgument(err))
+				return
+			}
+			assert.NilError(t, err)
+		})
+	}
+}
 
 func TestCreateIfNotExists(t *testing.T) {
 	t.Run("directory", func(t *testing.T) {
@@ -108,4 +146,10 @@ func TestCreateIfNotExists(t *testing.T) {
 		err = createIfNotExists(root, "dir", false)
 		assert.NilError(t, err, "Should not fail if already exists as a directory")
 	})
+}
+
+func TestContainerFSHostAccessStopped(t *testing.T) {
+	daemon := &Daemon{usesSnapshotter: true}
+	ctr := &container.Container{State: &container.State{}, Driver: "blockfile"}
+	assert.NilError(t, daemon.checkContainerFSHostAccess(ctr))
 }

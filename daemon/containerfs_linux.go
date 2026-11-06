@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	runcoptions "github.com/containerd/containerd/api/types/runc/options"
+	"github.com/containerd/containerd/v2/plugins"
 	"github.com/containerd/log"
 	"github.com/moby/sys/mount"
 	"github.com/moby/sys/symlink"
@@ -17,10 +19,12 @@ import (
 	"golang.org/x/sys/unix"
 
 	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/internal/mounttree"
 	"github.com/moby/moby/v2/daemon/internal/rootless/mountopts"
 	"github.com/moby/moby/v2/daemon/internal/unshare"
+	"github.com/moby/moby/v2/errdefs"
 )
 
 type future struct {
@@ -56,6 +60,9 @@ type containerFSView struct {
 // openContainerFS opens a new view of the container's filesystem.
 func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSView, retErr error) {
 	ctx := context.TODO()
+	if err := daemon.checkContainerFSHostAccess(ctr); err != nil {
+		return nil, err
+	}
 
 	if err := daemon.Mount(ctr); err != nil {
 		return nil, err
@@ -364,4 +371,43 @@ func makeMountRRO(dest string) error {
 		err = fmt.Errorf("failed to apply MOUNT_ATTR_RDONLY with AT_RECURSIVE to %q: %w", dest, err)
 	}
 	return err
+}
+
+func (daemon *Daemon) checkContainerFSHostAccess(ctr *container.Container) error {
+	if !ctr.IsRunning() || !daemon.UsesSnapshotter() || (ctr.Driver != "blockfile" && ctr.Driver != "devmapper") {
+		return nil
+	}
+
+	cfg := daemon.config()
+	runtimeName := config.StockRuntimeName
+	if cfg.Runtimes.Default != "" {
+		runtimeName = cfg.Runtimes.Default
+	}
+	if ctr.HostConfig != nil && ctr.HostConfig.Runtime != "" {
+		runtimeName = ctr.HostConfig.Runtime
+	}
+
+	shim, opts, err := cfg.Runtimes.Get(runtimeName)
+	if err != nil {
+		return errdefs.InvalidParameter(fmt.Errorf("cannot resolve runtime %q: %w", runtimeName, err))
+	}
+	return containerFSHostAccessError(ctr.Driver, runtimeName, shim, opts)
+}
+
+func containerFSHostAccessError(snapshotter, runtimeName, shim string, opts any) error {
+	if snapshotter != "blockfile" && snapshotter != "devmapper" {
+		return nil
+	}
+
+	if shim == plugins.RuntimeRuncV2 && (runtimeName == config.StockRuntimeName || runtimeName == linuxV2RuntimeName) {
+		if runcOpts, ok := opts.(*runcoptions.Options); ok && runcOpts.BinaryName == config.DefaultRuntimeBinary {
+			return nil
+		}
+	}
+
+	// VM runtimes may mount the block device inside the guest instead.
+	return errdefs.InvalidParameter(fmt.Errorf(
+		"docker cp is not supported for a running container with snapshotter %q and runtime %q: the daemon may not have access to the container filesystem",
+		snapshotter, runtimeName,
+	))
 }
