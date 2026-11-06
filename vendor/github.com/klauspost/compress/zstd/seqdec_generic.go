@@ -1,10 +1,17 @@
-//go:build (!amd64 && !arm64) || appengine || !gc || noasm
+//go:build (!amd64 && !arm64) || !gc || noasm
 
 package zstd
 
 import (
 	"fmt"
 	"io"
+	"math"
+)
+
+// See seqdec_arm64.go; the pure Go decoder has neither path.
+var (
+	twoPassMinFarShare     = 257 // never: the share is at most 256
+	decodeTwoPassMinWindow = math.MaxInt
 )
 
 // decode sequences from the stream with the provided history but without dictionary.

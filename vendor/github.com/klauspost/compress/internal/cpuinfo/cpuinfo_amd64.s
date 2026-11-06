@@ -1,6 +1,4 @@
-// +build !appengine
-// +build gc
-// +build !noasm
+//go:build !noasm && gc
 
 #include "textflag.h"
 #include "funcdata.h"

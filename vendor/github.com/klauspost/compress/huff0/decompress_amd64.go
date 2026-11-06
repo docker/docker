@@ -1,4 +1,4 @@
-//go:build amd64 && !appengine && !noasm && gc
+//go:build amd64 && !noasm && gc
 
 // amd64 stubs and dispatch for the asm loops used by decompress_asm.go.
 package huff0

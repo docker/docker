@@ -258,18 +258,6 @@ func (d *frameDec) reset(br byteBuffer) error {
 		return ErrWindowSizeTooSmall
 	}
 	d.history.windowSize = int(d.WindowSize)
-	if !d.o.lowMem || d.history.windowSize < maxBlockSize {
-		// Alloc 2x window size if not low-mem, or window size below 2MB.
-		d.history.allocFrameBuffer = d.history.windowSize * 2
-	} else {
-		if d.o.lowMem {
-			// Alloc with 1MB extra.
-			d.history.allocFrameBuffer = d.history.windowSize + maxBlockSize/2
-		} else {
-			// Alloc with 2MB extra.
-			d.history.allocFrameBuffer = d.history.windowSize + maxBlockSize
-		}
-	}
 
 	if debugDecoder {
 		println("Frame: Dict:", d.DictionaryID, "FrameContentSize:", d.FrameContentSize, "singleseg:", d.SingleSegment, "window:", d.WindowSize, "crc:", d.HasCheckSum)
@@ -355,14 +343,12 @@ func (d *frameDec) runDecoder(dst []byte, dec *blockDec) ([]byte, error) {
 		if debugDecoder {
 			println("maxSyncLen:", d.history.decoders.maxSyncLen)
 		}
-		if !d.o.limitToCap && uint64(cap(dst)) < d.history.decoders.maxSyncLen {
-			// Alloc for output
-			dst2 := make([]byte, len(dst), d.history.decoders.maxSyncLen+compressedBlockOverAlloc)
-			copy(dst2, dst)
-			dst = dst2
-		}
 	}
 	var err error
+	// Hash each block while it is still in cache rather than the whole
+	// frame at the end.
+	hashCRC := d.HasCheckSum && !d.o.ignoreChecksum
+	crcDone := crcStart
 	for {
 		err = dec.reset(d.rawInput, d.WindowSize)
 		if err != nil {
@@ -374,6 +360,10 @@ func (d *frameDec) runDecoder(dst []byte, dec *blockDec) ([]byte, error) {
 		err = dec.decodeBuf(&d.history)
 		if err != nil {
 			break
+		}
+		if hashCRC {
+			d.crc.Write(d.history.b[crcDone:])
+			crcDone = len(d.history.b)
 		}
 		if uint64(len(d.history.b)-crcStart) > d.o.maxDecodedSize {
 			println("runDecoder: maxDecodedSize exceeded", uint64(len(d.history.b)-crcStart), ">", d.o.maxDecodedSize)
@@ -405,7 +395,6 @@ func (d *frameDec) runDecoder(dst []byte, dec *blockDec) ([]byte, error) {
 			if d.o.ignoreChecksum {
 				err = d.consumeCRC()
 			} else {
-				d.crc.Write(dst[crcStart:])
 				err = d.checkCRC()
 			}
 		}

@@ -1,8 +1,4 @@
-//go:build !appengine && gc && !purego && !noasm
-// +build !appengine
-// +build gc
-// +build !purego
-// +build !noasm
+//go:build gc && !purego && !noasm
 
 #include "textflag.h"
 

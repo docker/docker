@@ -1,4 +1,4 @@
-//go:build (amd64 || arm64) && !appengine && !noasm && gc
+//go:build (amd64 || arm64) && !noasm && gc
 
 package zstd
 
@@ -15,6 +15,7 @@ type buildDtableAsmContext struct {
 	stateTable *uint16
 	norm       *int16
 	dt         *uint64
+	ext        *uint64
 
 	// outputs --- set by the procedure in the case of error;
 	// for interpretation please see the error handling part below
@@ -35,12 +36,13 @@ const (
 	errorNewStateNoBits             = 3
 )
 
-// buildDtable will build the decoding table.
-func (s *fseDecoder) buildDtable() error {
+// fillDtable fills the decoding table; see buildDtable.
+func (s *fseDecoder) fillDtable(ext *symbolExt) error {
 	ctx := buildDtableAsmContext{
 		stateTable: &s.stateTable[0],
 		norm:       &s.norm[0],
 		dt:         (*uint64)(&s.dt[0]),
+		ext:        (*uint64)(&ext[0]),
 	}
 	code := buildDtable_asm(s, &ctx)
 

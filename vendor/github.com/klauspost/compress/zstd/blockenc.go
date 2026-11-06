@@ -628,38 +628,6 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error {
 		return err
 	}
 
-	// Choose the best compression mode for each type.
-	// Will evaluate the new vs predefined and previous.
-	chooseComp := func(cur, prev, preDef *fseEncoder) (*fseEncoder, seqCompMode) {
-		// See if predefined/previous is better
-		hist := cur.count[:cur.symbolLen]
-		nSize := cur.approxSize(hist) + cur.maxHeaderSize()
-		predefSize := preDef.approxSize(hist)
-		prevSize := prev.approxSize(hist)
-
-		// Add a small penalty for new encoders.
-		// Don't bother with extremely small (<2 byte gains).
-		nSize = nSize + (nSize+2*8*16)>>4
-		switch {
-		case predefSize <= prevSize && predefSize <= nSize || forcePreDef:
-			if debugEncoder {
-				println("Using predefined", predefSize>>3, "<=", nSize>>3)
-			}
-			return preDef, compModePredefined
-		case prevSize <= nSize:
-			if debugEncoder {
-				println("Using previous", prevSize>>3, "<=", nSize>>3)
-			}
-			return prev, compModeRepeat
-		default:
-			if debugEncoder {
-				println("Using new, predef", predefSize>>3, ". previous:", prevSize>>3, ">", nSize>>3, "header max:", cur.maxHeaderSize()>>3, "bytes")
-				println("tl:", cur.actualTableLog, "symbolLen:", cur.symbolLen, "norm:", cur.norm[:cur.symbolLen], "hist", cur.count[:cur.symbolLen])
-			}
-			return cur, compModeFSE
-		}
-	}
-
 	// Write compression mode
 	var mode uint8
 	if llEnc.useRLE {
@@ -670,7 +638,7 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error {
 		}
 	} else {
 		var m seqCompMode
-		llEnc, m = chooseComp(llEnc, b.coders.llPrev, &fsePredefEnc[tableLiteralLengths])
+		llEnc, m = b.chooseComp(llEnc, b.coders.llPrev, &fsePredefEnc[tableLiteralLengths])
 		mode |= uint8(m) << 6
 	}
 	if ofEnc.useRLE {
@@ -681,7 +649,7 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error {
 		}
 	} else {
 		var m seqCompMode
-		ofEnc, m = chooseComp(ofEnc, b.coders.ofPrev, &fsePredefEnc[tableOffsets])
+		ofEnc, m = b.chooseComp(ofEnc, b.coders.ofPrev, &fsePredefEnc[tableOffsets])
 		mode |= uint8(m) << 4
 	}
 
@@ -693,7 +661,7 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error {
 		}
 	} else {
 		var m seqCompMode
-		mlEnc, m = chooseComp(mlEnc, b.coders.mlPrev, &fsePredefEnc[tableMatchLengths])
+		mlEnc, m = b.chooseComp(mlEnc, b.coders.mlPrev, &fsePredefEnc[tableMatchLengths])
 		mode |= uint8(m) << 2
 	}
 	b.output = append(b.output, mode)
@@ -753,54 +721,57 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error {
 		println("Encoded seq", seq, s, "codes:", s.llCode, s.mlCode, s.ofCode, "states:", ll.state, ml.state, of.state, "bits:", llB, mlB, ofB)
 	}
 	seq--
-	// Store sequences in reverse...
+	wr.flush32()
+
+	// Store sequences in reverse, with the bit writer and states in locals.
+	// flush stores 8 bytes and advances by whole bytes, so each chunk
+	// checks room for seqMaxBytes per sequence plus the store's slack.
+	const seqMaxBytes = 12 // 26 state bits + 63 extra bits.
+	w := bitState{c: wr.bitContainer, nb: uint(wr.nBits), pos: len(wr.out)}
+	buf := wr.out[:cap(wr.out)]
+	ofState, mlState, llState := of.state, ml.state, ll.state
+	ofTab, mlTab, llTab := of.stateTable, ml.stateTable, ll.stateTable
+	seqs := b.sequences
 	for seq >= 0 {
-		s = b.sequences[seq]
-
-		ofB := ofTT[s.ofCode]
-		wr.flush32() // tablelog max is below 8 for each, so it will fill max 24 bits.
-		//of.encode(ofB)
-		nbBitsOut := (uint32(of.state) + ofB.deltaNbBits) >> 16
-		dstState := int32(of.state>>(nbBitsOut&15)) + int32(ofB.deltaFindState)
-		wr.addBits16NC(of.state, uint8(nbBitsOut))
-		of.state = of.stateTable[dstState]
-
-		// Accumulate extra bits.
-		outBits := ofB.outBits & 31
-		extraBits := uint64(s.offset & bitMask32[outBits])
-		extraBitsN := outBits
-
-		mlB := mlTT[s.mlCode]
-		//ml.encode(mlB)
-		nbBitsOut = (uint32(ml.state) + mlB.deltaNbBits) >> 16
-		dstState = int32(ml.state>>(nbBitsOut&15)) + int32(mlB.deltaFindState)
-		wr.addBits16NC(ml.state, uint8(nbBitsOut))
-		ml.state = ml.stateTable[dstState]
-
-		outBits = mlB.outBits & 31
-		extraBits = extraBits<<outBits | uint64(s.matchLen&bitMask32[outBits])
-		extraBitsN += outBits
-
-		llB := llTT[s.llCode]
-		//ll.encode(llB)
-		nbBitsOut = (uint32(ll.state) + llB.deltaNbBits) >> 16
-		dstState = int32(ll.state>>(nbBitsOut&15)) + int32(llB.deltaFindState)
-		wr.addBits16NC(ll.state, uint8(nbBitsOut))
-		ll.state = ll.stateTable[dstState]
-
-		outBits = llB.outBits & 31
-		extraBits = extraBits<<outBits | uint64(s.litLen&bitMask32[outBits])
-		extraBitsN += outBits
-
-		wr.flush32()
-		wr.addBits64NC(extraBits, extraBitsN)
-
-		if debugSequences {
-			println("Encoded seq", seq, s)
+		n := (len(buf) - w.pos - 16) / seqMaxBytes
+		if n <= 0 {
+			buf = slices.Grow(buf[:w.pos], (seq+1)*seqMaxBytes+16)
+			buf = buf[:cap(buf)]
+			continue
 		}
+		for stop := max(seq-n, -1); seq > stop; seq-- {
+			s := seqs[seq]
+			ofB, mlB, llB := ofTT[s.ofCode], mlTT[s.mlCode], llTT[s.llCode]
 
-		seq--
+			// w.nb <= 37 here, and the states add at most 26 bits.
+			w, ofState = w.addState(ofState, ofTab, ofB)
+			w, mlState = w.addState(mlState, mlTab, mlB)
+			w, llState = w.addState(llState, llTab, llB)
+
+			ofBits, mlBits, llBits := ofB.outBits&31, mlB.outBits&31, llB.outBits&31
+			extra := uint64(s.offset&bitMask32[ofBits])<<(mlBits+llBits) |
+				uint64(s.matchLen&bitMask32[mlBits])<<llBits |
+				uint64(s.litLen&bitMask32[llBits])
+			extraN := uint(ofBits + mlBits + llBits)
+			if w.nb+extraN > 63 {
+				w = w.flush(buf)
+				if extraN > 56 {
+					// Only offsets over 24 bits get here.
+					low := uint(mlBits + llBits)
+					w = w.add(extra&(1<<low-1), low).flush(buf)
+					extra >>= low
+					extraN -= low
+				}
+			}
+			w = w.add(extra, extraN).flush(buf)
+
+			if debugSequences {
+				println("Encoded seq", seq, s)
+			}
+		}
 	}
+	wr.bitContainer, wr.nBits, wr.out = w.c, uint8(w.nb), buf[:w.pos]
+	of.state, ml.state, ll.state = ofState, mlState, llState
 	ml.flush(mlEnc.actualTableLog)
 	of.flush(ofEnc.actualTableLog)
 	ll.flush(llEnc.actualTableLog)
@@ -824,6 +795,54 @@ func (b *blockEnc) encode(org []byte, raw, rawAllLits bool) error {
 	_ = bh.appendTo(b.output[bhOffset:bhOffset])
 	b.coders.setPrev(llEnc, mlEnc, ofEnc)
 	return nil
+}
+
+// chooseComp chooses the cheapest of the new, predefined and previous table.
+func (b *blockEnc) chooseComp(cur, prev, preDef *fseEncoder) (*fseEncoder, seqCompMode) {
+	hist := cur.count[:cur.symbolLen]
+	nSize := cur.approxSize(hist) + cur.maxHeaderSize()
+	predefSize := preDef.approxSize(hist)
+	prevSize := prev.approxSize(hist)
+
+	// Add a small penalty for new encoders.
+	// Don't bother with extremely small (<2 byte gains).
+	nSize = nSize + (nSize+2*8*16)>>4
+	// The previous table may come from a dictionary and fit poorly,
+	// so it is compared against the exact header size, without penalty.
+	nSizePrev := nSize
+	if prevSize != math.MaxUint32 {
+		// Written to spare capacity; the real header goes there later.
+		if hdr, err := cur.writeCount(b.output[len(b.output):]); err == nil {
+			nSizePrev = cur.approxSize(hist) + uint32(len(hdr))*8
+		}
+	}
+	// Each stream ends with a flush of tableLog bits.
+	nSize += uint32(cur.actualTableLog)
+	nSizePrev += uint32(cur.actualTableLog)
+	if predefSize != math.MaxUint32 {
+		predefSize += uint32(preDef.actualTableLog)
+	}
+	if prevSize != math.MaxUint32 {
+		prevSize += uint32(prev.actualTableLog)
+	}
+	switch {
+	case predefSize <= prevSize && predefSize <= nSize || forcePreDef:
+		if debugEncoder {
+			println("Using predefined", predefSize>>3, "<=", nSize>>3)
+		}
+		return preDef, compModePredefined
+	case prevSize <= nSizePrev:
+		if debugEncoder {
+			println("Using previous", prevSize>>3, "<=", nSizePrev>>3)
+		}
+		return prev, compModeRepeat
+	default:
+		if debugEncoder {
+			println("Using new, predef", predefSize>>3, ". previous:", prevSize>>3, ">", nSize>>3, "header max:", cur.maxHeaderSize()>>3, "bytes")
+			println("tl:", cur.actualTableLog, "symbolLen:", cur.symbolLen, "norm:", cur.norm[:cur.symbolLen], "hist", cur.count[:cur.symbolLen])
+		}
+		return cur, compModeFSE
+	}
 }
 
 var errIncompressible = errors.New("incompressible")

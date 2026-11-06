@@ -25,6 +25,10 @@ var (
 	// https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#the-codes-for-literals-lengths-match-lengths-and-offsets
 	symbolTableX [3][]baseOffset
 
+	// symbolExtX holds symbolTableX as decSymbols carrying only addBits and
+	// baseline, which buildDtable merges into each state.
+	symbolExtX [3]symbolExt
+
 	// maxTableSymbol is the biggest supported symbol for each table type
 	// https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#the-codes-for-literals-lengths-match-lengths-and-offsets
 	maxTableSymbol = [3]uint8{tableLiteralLengths: maxLiteralLengthSymbol, tableOffsets: maxOffsetLengthSymbol, tableMatchLengths: maxMatchLengthSymbol}
@@ -105,6 +109,15 @@ func initPredefined() {
 		}
 		fillBase(tmp[2:], 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30)
 		symbolTableX[tableOffsets] = tmp
+		for i, t := range symbolTableX {
+			for j, lu := range t {
+				// fseDecoder.buildDtable takes maxBits from the last symbol.
+				if j > 0 && lu.addBits < t[j-1].addBits {
+					panic(fmt.Sprintf("table %v: addBits decreases at symbol %d", tableIndex(i), j))
+				}
+				symbolExtX[i][j] = newDecSymbol(0, lu.addBits, 0, lu.baseLine)
+			}
+		}
 
 		// Fill predefined tables and transform them.
 		// https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#default-distributions
@@ -135,10 +148,7 @@ func initPredefined() {
 					-1, -1, -1, -1, -1})
 				f.symbolLen = 53
 			}
-			if err := f.buildDtable(); err != nil {
-				panic(fmt.Errorf("building table %v: %v", tableIndex(i), err))
-			}
-			if err := f.transform(symbolTableX[i]); err != nil {
+			if err := f.buildDtable(&symbolExtX[i]); err != nil {
 				panic(fmt.Errorf("building table %v: %v", tableIndex(i), err))
 			}
 			f.preDefined = true

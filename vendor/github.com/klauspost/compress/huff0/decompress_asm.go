@@ -1,4 +1,4 @@
-//go:build (amd64 || arm64) && !appengine && !noasm && gc
+//go:build (amd64 || arm64) && !noasm && gc
 
 // This file contains the specialisation of Decoder.Decompress4X
 // and Decoder.Decompress1X that use an asm implementation of their main loops.

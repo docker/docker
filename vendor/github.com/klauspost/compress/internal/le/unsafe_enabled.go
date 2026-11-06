@@ -1,6 +1,6 @@
 // We enable 64 bit LE platforms:
 
-//go:build (amd64 || arm64 || ppc64le || riscv64) && !nounsafe && !purego && !appengine
+//go:build (amd64 || arm64 || ppc64le || riscv64) && !nounsafe && !purego
 
 package le
 

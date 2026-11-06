@@ -5,6 +5,50 @@
 
 package huff0
 
+import (
+	"github.com/klauspost/compress/internal/le"
+	"github.com/klauspost/compress/internal/regmask"
+)
+
+// bitState is a bit writer that stays in registers when passed and
+// returned by value. It writes into a buffer owned by the caller.
+type bitState struct {
+	c   uint64
+	nb  uint
+	pos int
+}
+
+// flush writes the whole bytes with one 8-byte store at pos, leaving
+// at most 7 bits. buf must have 8 bytes of room at pos.
+func (s bitState) flush(buf []byte) bitState {
+	le.Store64(buf, s.pos, s.c)
+	s.pos += int(s.nb >> 3)
+	s.c >>= (s.nb &^ 7) & regmask.Shift64ByUint
+	s.nb &= 7
+	return s
+}
+
+// add adds n bits from v, which must have no bits set above them.
+// There must be room for them.
+func (s bitState) add(v uint64, n uint) bitState {
+	s.c |= v << (s.nb & regmask.Shift64ByUint)
+	s.nb += n
+	return s
+}
+
+// fourSymbols returns the codes for a, b, c and d packed in that order
+// from the LSB, and their total length.
+func fourSymbols(a, b, c, d cTableEntry) (uint64, uint) {
+	bitsA := uint(a.nBits)
+	bitsB := bitsA + uint(b.nBits)
+	bitsC := bitsB + uint(c.nBits)
+	v := uint64(a.val) |
+		uint64(b.val)<<(bitsA&regmask.Shift64ByUint) |
+		uint64(c.val)<<(bitsB&regmask.Shift64ByUint) |
+		uint64(d.val)<<(bitsC&regmask.Shift64ByUint)
+	return v, bitsC + uint(d.nBits)
+}
+
 // bitWriter will write bits.
 // First bit will be LSB of the first byte of output.
 type bitWriter struct {
@@ -31,55 +75,6 @@ func (b *bitWriter) encSymbol(ct cTable, symbol byte) {
 		}
 	}
 	b.nBits += enc.nBits
-}
-
-// encTwoSymbols will add up to 32 bits. value may not contain more set bits than indicated.
-// It will not check if there is space for them, so the caller must ensure that it has flushed recently.
-func (b *bitWriter) encTwoSymbols(ct cTable, av, bv byte) {
-	encA := ct[av]
-	encB := ct[bv]
-	sh := b.nBits & 63
-	combined := uint64(encA.val) | (uint64(encB.val) << (encA.nBits & 63))
-	b.bitContainer |= combined << sh
-	if false {
-		if encA.nBits == 0 {
-			panic("nbitsA 0")
-		}
-		if encB.nBits == 0 {
-			panic("nbitsB 0")
-		}
-	}
-	b.nBits += encA.nBits + encB.nBits
-}
-
-// encFourSymbols adds up to 32 bits from four symbols.
-// It will not check if there is space for them,
-// so the caller must ensure that b has been flushed recently.
-func (b *bitWriter) encFourSymbols(encA, encB, encC, encD cTableEntry) {
-	bitsA := encA.nBits
-	bitsB := bitsA + encB.nBits
-	bitsC := bitsB + encC.nBits
-	bitsD := bitsC + encD.nBits
-	combined := uint64(encA.val) |
-		(uint64(encB.val) << (bitsA & 63)) |
-		(uint64(encC.val) << (bitsB & 63)) |
-		(uint64(encD.val) << (bitsC & 63))
-	b.bitContainer |= combined << (b.nBits & 63)
-	b.nBits += bitsD
-}
-
-// flush32 will flush out, so there are at least 32 bits available for writing.
-func (b *bitWriter) flush32() {
-	if b.nBits < 32 {
-		return
-	}
-	b.out = append(b.out,
-		byte(b.bitContainer),
-		byte(b.bitContainer>>8),
-		byte(b.bitContainer>>16),
-		byte(b.bitContainer>>24))
-	b.nBits -= 32
-	b.bitContainer >>= 32
 }
 
 // flushAlign will flush remaining full bytes and align to next byte boundary.

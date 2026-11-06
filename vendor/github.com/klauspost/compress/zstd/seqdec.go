@@ -76,6 +76,31 @@ type sequenceDecs struct {
 	maxSyncLen   uint64
 }
 
+// twoPassFarCode is the offset code from which a match counts as far: 20 is
+// 1 MiB, the distance every measured arm64 core gains from. A Neoverse N1
+// (Graviton2, Ampere Altra) gains from 128 KiB too, but that needs a
+// per-core threshold override; not worth the CPU-specific special case for
+// a core class already being phased out of the fleet.
+const twoPassFarCode = 20
+
+// useTwoPass reports whether the block is decoded in two passes with the
+// match-source prefetch (seqdec_arm64.go): a window of at least
+// decodeTwoPassMinWindow and, unless the offset table is predefined or
+// RLE, a share of at least twoPassMinFarShare of codes twoPassFarCode+.
+func (s *sequenceDecs) useTwoPass() bool {
+	if s.windowSize < decodeTwoPassMinWindow {
+		return false
+	}
+	fse := s.offsets.fse
+	if fse != nil && !fse.preDefined && fse.actualTableLog != 0 && int(fse.symbolLen) <= twoPassFarCode {
+		// No symbol reaches twoPassFarCode, so codeShare can only return 0:
+		// skip finding it.
+		return false
+	}
+	share := fse.codeShare(twoPassFarCode)
+	return share < 0 || share >= twoPassMinFarShare
+}
+
 // initialize all 3 decoders from the stream input.
 func (s *sequenceDecs) initialize(br *bitReader, hist *history, out []byte) error {
 	if err := s.litLengths.init(br); err != nil {
@@ -240,11 +265,17 @@ func (s *sequenceDecs) execute(seqs []seqVals, hist []byte) error {
 	return nil
 }
 
+// decodeSyncGoOnly makes decodeSync skip the assembly decoder, so tests can
+// compare it with the Go one in the same binary.
+var decodeSyncGoOnly bool
+
 // decode sequences from the stream with the provided history.
 func (s *sequenceDecs) decodeSync(hist []byte) error {
-	supported, err := s.decodeSyncSimple(hist)
-	if supported {
-		return err
+	if !decodeSyncGoOnly {
+		supported, err := s.decodeSyncSimple(hist)
+		if supported {
+			return err
+		}
 	}
 
 	br := s.br
@@ -367,13 +398,13 @@ func (s *sequenceDecs) decodeSync(hist []byte) error {
 
 		if mo > len(out)+len(hist) || mo > s.windowSize {
 			if len(s.dict) == 0 {
-				return fmt.Errorf("match offset (%d) bigger than current history (%d)", mo, len(out)+len(hist)-startSize)
+				return fmt.Errorf("match offset (%d) bigger than current history (%d)", mo, len(out)-startSize)
 			}
 
 			// we may be in dictionary.
 			dictO := len(s.dict) - (mo - (len(out) + len(hist)))
 			if dictO < 0 || dictO >= len(s.dict) {
-				return fmt.Errorf("match offset (%d) bigger than current history (%d)", mo, len(out)+len(hist)-startSize)
+				return fmt.Errorf("match offset (%d) bigger than current history (%d)", mo, len(out)-startSize)
 			}
 			end := dictO + ml
 			if end > len(s.dict) {
