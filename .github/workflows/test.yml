@@ -227,6 +227,46 @@ jobs:
           make validate-swagger
           make validate-swagger-gen
 
+  # check that dependencies are adopted by trusted projects (i.e., CNCF graduated projects).
+  # findings are reported as annotations, and do not fail the job.
+  # on pull requests, findings for the modules changed in go.sum are reported first.
+  validate-gosocialcheck:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20 # guardrails timeout for the whole job
+    needs:
+      - validate-dco
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - .
+          - api
+          - client
+    name: validate (gosocialcheck, ${{ matrix.module }})
+    env:
+      GOSOCIALCHECK_VERSION: v0.2.1
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      -
+        name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+      -
+        name: Install gosocialcheck
+        run: |
+          go install "github.com/AkihiroSuda/gosocialcheck/cmd/gosocialcheck@${GOSOCIALCHECK_VERSION}"
+      -
+        name: Run gosocialcheck
+        working-directory: ${{ matrix.module }}
+        run: |
+          gosocialcheck run --gha ./...
+
   smoke-prepare:
     runs-on: ubuntu-26.04
     timeout-minutes: 10 # guardrails timeout for the whole job
