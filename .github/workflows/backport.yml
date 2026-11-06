@@ -1,0 +1,27 @@
+name: Backport
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - master
+
+jobs:
+  backport:
+    if: ${{ github.event.pull_request.merged == true && contains(join(github.event.pull_request.labels.*.name, ' '), 'process/cherry-pick/') }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: cherry-pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          ./hack/backport-pr.sh ${{ github.event.pull_request.number }}
+
