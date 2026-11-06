@@ -22,6 +22,7 @@ import (
 	"github.com/moby/moby/api/types/network"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
 	"github.com/moby/moby/v2/integration/internal/container"
 	net "github.com/moby/moby/v2/integration/internal/network"
@@ -868,13 +869,21 @@ printf '%%s\n' "$in" | exec %s "$@"`
 // are reachable over IPv6 - and that when the daemon is configured so they can't
 // be, an IPv6 client is refused rather than left waiting.
 //
-// Neither the ingress network nor docker_gwbridge has an IPv6 address, so there is
-// no IPv6 path to a task. Host IPv6 traffic reaches one the way it reaches any
-// other IPv4-only container: docker-proxy accepts it on "[::]" and forwards over
-// IPv4. Disabling the userland proxy takes that path away, along with the IPv6
+// By default, neither the ingress network nor docker_gwbridge has an IPv6
+// address, so there is no IPv6 path to a task.
+// Host IPv6 traffic reaches one the way it reaches any other IPv4-only
+// container: docker-proxy accepts it on "[::]" and forwards over IPv4.
+// Disabling the userland proxy takes that path away, along with the IPv6
 // binding, so the traffic is refused.
 //
-// Regression test for https://github.com/moby/moby/issues/53091.
+// One daemon gets a docker_gwbridge with IPv6, created before the Swarm the
+// way a user would customise it.
+// Its tasks then have IPv6 addresses, but the ingress sandbox still only
+// forwards IPv4, so host IPv6 traffic to an ingress port must still go through
+// docker-proxy rather than be DNATed to the sandbox and refused.
+//
+// Regression test for https://github.com/moby/moby/issues/53091 and
+// https://github.com/moby/moby/issues/53939.
 func TestSwarmPublishedPortsOverIPv6(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.IsRootless, "rootless mode doesn't support Swarm-mode")
@@ -883,12 +892,13 @@ func TestSwarmPublishedPortsOverIPv6(t *testing.T) {
 
 	// Run the test in its own netns, to avoid interfering with iptables on the test
 	// host - and so that the host ports it publishes are its own. A dual-stack
-	// segment, with a host per userland-proxy setting so the two can run at once
-	// without contending for ports, and a neighbour to probe from over the wire.
+	// segment, with a host per daemon setup so they can run at once without
+	// contending for ports, and a neighbour to probe from over the wire.
 	const (
-		hostProxy   = "spv6a"
-		hostNoProxy = "spv6b"
-		neighbour   = "spv6n"
+		hostProxy        = "spv6a"
+		hostNoProxy      = "spv6b"
+		hostGWBridgeIPv6 = "spv6c"
+		neighbour        = "spv6n"
 	)
 	l3 := networking.NewL3Segment(t, "test-spv6",
 		netip.MustParsePrefix("192.168.114.1/24"),
@@ -918,12 +928,15 @@ func TestSwarmPublishedPortsOverIPv6(t *testing.T) {
 	)
 
 	for _, tc := range []struct {
+		name          string
 		hostname      string
 		userlandProxy bool
+		gwbridgeIPv6  bool
 		addr4, addr6  string
 	}{
-		{hostname: hostProxy, userlandProxy: true, addr4: "192.168.114.2", addr6: "fd6a:9c1e:2f3b::2"},
-		{hostname: hostNoProxy, userlandProxy: false, addr4: "192.168.114.4", addr6: "fd6a:9c1e:2f3b::4"},
+		{name: "userland-proxy=true", hostname: hostProxy, userlandProxy: true, addr4: "192.168.114.2", addr6: "fd6a:9c1e:2f3b::2"},
+		{name: "userland-proxy=false", hostname: hostNoProxy, userlandProxy: false, addr4: "192.168.114.4", addr6: "fd6a:9c1e:2f3b::4"},
+		{name: "userland-proxy=true,gwbridge-ipv6", hostname: hostGWBridgeIPv6, userlandProxy: true, gwbridgeIPv6: true, addr4: "192.168.114.5", addr6: "fd6a:9c1e:2f3b::5"},
 	} {
 		l3.AddHost(t, tc.hostname, "ns-"+tc.hostname, "eth0",
 			netip.MustParsePrefix(tc.addr4+"/24"),
@@ -935,9 +948,9 @@ func TestSwarmPublishedPortsOverIPv6(t *testing.T) {
 		// out is no defence; turn the limit off where the errors originate.
 		l3.Hosts[tc.hostname].MustRun(t, "sysctl", "-w", "net.ipv6.icmp.ratelimit=0")
 
-		t.Run(fmt.Sprintf("userland-proxy=%t", tc.userlandProxy), func(t *testing.T) {
-			// Each setting has a netns and a daemon to itself, so the two can run
-			// side by side.
+		t.Run(tc.name, func(t *testing.T) {
+			// Each case has a netns and a daemon to itself, so they can run side
+			// by side.
 			t.Parallel()
 
 			published := []*publishedTestPort{
@@ -958,9 +971,12 @@ func TestSwarmPublishedPortsOverIPv6(t *testing.T) {
 
 			var c *client.Client
 			l3.Hosts[tc.hostname].Do(t, func() {
-				d := swarm.NewSwarm(ctx, t, testEnv,
+				// Not swarm.NewSwarm, because docker_gwbridge has to be created
+				// before the Swarm - or the daemon creates its own, without IPv6.
+				d := daemon.New(t,
 					daemon.WithSwarmIptables(true),
 					daemon.WithUserlandProxy(tc.userlandProxy))
+				d.StartNodeWithBusybox(ctx, t)
 				c = d.NewClientT(t)
 				// Cleanup rather than defer, again: the parallel checks below run
 				// after this returns, and a defer would stop the daemon first.
@@ -968,6 +984,13 @@ func TestSwarmPublishedPortsOverIPv6(t *testing.T) {
 					c.Close()
 					d.Stop(t)
 				})
+				if tc.gwbridgeIPv6 {
+					net.CreateNoError(ctx, t, c, "docker_gwbridge",
+						net.WithIPv6(),
+						net.WithOption(bridge.BridgeName, "docker_gwbridge"),
+						net.WithOption(bridge.EnableICC, "false"))
+				}
+				d.SwarmInit(ctx, t, swarmtypes.InitRequest{})
 
 				// A listening nc latches onto the first peer it hears from and
 				// ignores every other source address for as long as it runs, so

@@ -12,6 +12,7 @@ import (
 
 	"github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipams/defaultipam"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamutils"
 	"github.com/moby/moby/v2/daemon/libnetwork/scope"
@@ -199,6 +200,53 @@ func TestLoadBalancerSandboxHasNoResolver(t *testing.T) {
 			assert.Check(t, sb.resolver == nil, "embedded DNS resolver started")
 		})
 	}
+}
+
+// TestIngressSandboxGatewayNoIPv6 checks that the ingress sandbox's
+// docker_gwbridge endpoint gets no IPv6 address, even if docker_gwbridge has
+// IPv6 enabled.
+// The ingress sandbox only forwards IPv4, so host IPv6 traffic to published
+// ports must reach it over IPv4.
+func TestIngressSandboxGatewayNoIPv6(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+	c, err := New(t.Context(), config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
+	assert.NilError(t, err)
+	defer c.Stop()
+	assert.NilError(t, c.drvRegistry.RegisterDriver(gatewaylessDriverName, gatewaylessDriver{},
+		driverapi.Capability{DataScope: scope.Global}))
+
+	gwn, err := c.NewNetwork(t.Context(), "bridge", libnGWNetwork, "",
+		NetworkOptionDriverOpts(map[string]string{bridge.BridgeName: libnGWNetwork}),
+		NetworkOptionEnableIPv4(true),
+		NetworkOptionEnableIPv6(true),
+		NetworkOptionIpam(defaultipam.DriverName, "",
+			[]*IpamConf{{PreferredPool: "172.30.0.0/16"}},
+			[]*IpamConf{{PreferredPool: "fd00:30::/64"}}, nil))
+	assert.NilError(t, err)
+	defer func() {
+		assert.Check(t, gwn.Delete())
+	}()
+
+	n, err := c.NewNetwork(t.Context(), gatewaylessDriverName, "testlb", "",
+		NetworkOptionEnableIPv4(true),
+		NetworkOptionIpam(defaultipam.DriverName, "", []*IpamConf{{PreferredPool: "192.0.2.0/24"}}, nil, nil),
+		NetworkOptionLBEndpoint(net.ParseIP("192.0.2.2")),
+		NetworkOptionIngress(true))
+	assert.NilError(t, err)
+	defer func() {
+		assert.Check(t, n.Delete(NetworkDeleteOptionRemoveLB))
+	}()
+
+	sb, err := c.GetSandbox(n.lbSandboxName())
+	assert.NilError(t, err)
+	gwEP := sb.getEndpointInGWNetwork()
+	assert.Assert(t, gwEP != nil)
+	assert.Check(t, gwEP.Iface().Address() != nil)
+	assert.Check(t, is.Nil(gwEP.Iface().AddressIPv6()))
+
+	gw4, gw6 := sb.getGatewayEndpoint()
+	assert.Check(t, gw4 == gwEP, "docker_gwbridge endpoint is not the IPv4 gateway")
+	assert.Check(t, is.Nil(gw6))
 }
 
 const gatewaylessDriverName = "gatewayless"
