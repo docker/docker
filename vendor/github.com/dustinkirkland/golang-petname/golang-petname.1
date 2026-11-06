@@ -1,0 +1,51 @@
+.TH golang-petname 1 "15 December 2014" golang-petname "golang-petname"
+.SH NAME
+golang-petname \- utility to generate "pet names", consisting of a random combination of adverbs, an adjective, and a proper name
+
+.SH SYNOPSIS
+\fBgolang-petname\fP [-w|--words INT] [-s|--separator STR]
+
+.SH OPTIONS
+
+    --words            number of words in the name, default is 2
+    --separator        string used to separate name words, default is '-'
+
+.SH DESCRIPTION
+
+This utility will generate "pet names", consisting of a random combination of an adverb, adjective, and proper name.  These are useful for unique hostnames, for instance.
+
+The default packaging contains about 2000 names, 1300 adjectives, and 4000 adverbs, yielding nearly 10 billion unique combinations, covering over 32 bits of unique namespace.
+
+As such, PetName tries to follow the tenets of Zooko's triangle.  Names are:
+
+ - human meaningful
+ - decentralized
+ - secure
+
+.SH EXAMPLES
+
+    $ golang-petname
+    wiggly-Anna
+
+    $ golang-petname --words 1
+    Marco
+
+    $ golang-petname --words 3
+    quickly-scornful-Johnathan
+
+    $ golang-petname --words 4
+    dolorously-leisurely-wee-Susan
+
+    $ golang-petname --separator ":"
+    hospitable:Isla
+
+    $ golang-petname --separator "" --words 3
+    adeptlystaticNicole
+
+.SH SEE ALSO
+\fIpetname\fP(1)
+
+.SH AUTHOR
+This manpage and the utility were written by Dustin Kirkland <dustin.kirkland@gmail.com> for Ubuntu systems (but may be used by others).  Permission is granted to copy, distribute and/or modify this document and the utility under the terms of the Apache2 License.
+
+The complete text of the Apache2 License can be found in \fI/usr/share/common-licenses/Apache-2.0\fP on Debian/Ubuntu systems.

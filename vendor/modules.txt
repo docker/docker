@@ -728,6 +728,9 @@ github.com/docker/go-units
 # github.com/dustin/go-humanize v1.0.1
 ## explicit; go 1.16
 github.com/dustin/go-humanize
+# github.com/dustinkirkland/golang-petname v0.0.0-20261016130451-be8536a0e189
+## explicit; go 1.20
+github.com/dustinkirkland/golang-petname
 # github.com/felixge/httpsnoop v1.1.0
 ## explicit; go 1.25
 github.com/felixge/httpsnoop
