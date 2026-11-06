@@ -312,6 +312,21 @@ func setupDockerZone() (bool, error) {
 // zone (where packets will be dealt with by docker's usual/non-firewalld configuration).
 // The bool return value is true if a firewalld reload is required.
 func setupDockerForwardingPolicy() (bool, error) {
+	var policies []string
+	// Check if policy exists
+	if err := connection.sysObj.Call(dbusInterface+".policy.getPolicies", 0).Store(&policies); err != nil {
+		var derr dbus.Error
+		if errors.As(err, &derr) && derr.Name == dbus.ErrMsgUnknownMethod.Name {
+			log.G(context.TODO()).Debugf("Firewalld: getPolicies: unknown method")
+			return false, nil
+		}
+		return false, err
+	}
+	if contains(policies, dockerFwdPolicy) {
+		log.G(context.TODO()).Infof("Firewalld: %s policy already exists, returning", dockerFwdPolicy)
+		return false, nil
+	}
+
 	// https://firewalld.org/documentation/man-pages/firewalld.dbus.html#FirewallD1.config
 	policy := map[string]any{
 		"version":       "1.0",

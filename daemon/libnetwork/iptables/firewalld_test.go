@@ -205,3 +205,59 @@ func TestFirewalldErrorCode(t *testing.T) {
 		assert.Check(t, is.Equal(firewalldErrorCode(tc.err), tc.want), tc.name)
 	}
 }
+
+type fakeBusObject struct {
+	dbus.BusObject
+	replies map[string]*dbus.Call
+	calls   []string
+}
+
+func (o *fakeBusObject) Call(method string, _ dbus.Flags, _ ...any) *dbus.Call {
+	o.calls = append(o.calls, method)
+	if reply, ok := o.replies[method]; ok {
+		return reply
+	}
+	return &dbus.Call{}
+}
+
+func TestSetupDockerForwardingPolicy(t *testing.T) {
+	testcases := []struct {
+		name        string
+		getPolicies *dbus.Call
+		wantAdded   bool
+		wantAddCall bool
+	}{
+		{
+			name:        "policy exists",
+			getPolicies: &dbus.Call{Body: []any{[]string{"allow-host-ipv6", dockerFwdPolicy}}},
+			wantAdded:   false,
+			wantAddCall: false,
+		},
+		{
+			name:        "policy missing",
+			getPolicies: &dbus.Call{Body: []any{[]string{"allow-host-ipv6"}}},
+			wantAdded:   true,
+			wantAddCall: true,
+		},
+		{
+			name:        "policies not supported",
+			getPolicies: &dbus.Call{Err: dbus.Error{Name: dbus.ErrMsgUnknownMethod.Name}},
+			wantAdded:   false,
+			wantAddCall: false,
+		},
+	}
+	defer func(orig *Conn) { connection = orig }(connection)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			sysConfObj := &fakeBusObject{}
+			connection = &Conn{
+				sysObj:     &fakeBusObject{replies: map[string]*dbus.Call{dbusInterface + ".policy.getPolicies": tc.getPolicies}},
+				sysConfObj: sysConfObj,
+			}
+			added, err := setupDockerForwardingPolicy()
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(added, tc.wantAdded))
+			assert.Check(t, is.Equal(slices.Contains(sysConfObj.calls, dbusInterface+".config.addPolicy"), tc.wantAddCall))
+		})
+	}
+}
