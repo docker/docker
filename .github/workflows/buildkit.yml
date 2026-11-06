@@ -167,7 +167,7 @@ jobs:
         working-directory: buildkit
 
   build-windows:
-    runs-on: windows-2022
+    runs-on: windows-2025
     timeout-minutes: 60 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
@@ -253,7 +253,7 @@ jobs:
           retention-days: 2
 
   test-windows:
-    runs-on: windows-2022
+    runs-on: windows-2025
     timeout-minutes: 60 # guardrails timeout for the whole job
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
