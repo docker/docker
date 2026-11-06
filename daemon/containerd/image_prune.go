@@ -15,7 +15,8 @@ import (
 	dockerspec "github.com/moby/docker-image-spec/specs-go/v1"
 	"github.com/moby/moby/api/types/events"
 	"github.com/moby/moby/api/types/image"
-	"github.com/moby/moby/v2/daemon/internal/filters"
+	"github.com/moby/moby/api/types/prune"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -36,7 +37,8 @@ var imagesAcceptedFilters = map[string]bool{
 var errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
 
 // ImagePrune removes unused images
-func (i *ImageService) ImagePrune(ctx context.Context, fltrs filters.Args) (*image.PruneReport, error) {
+func (i *ImageService) ImagePrune(ctx context.Context, opts pruneprogress.Options) (*image.PruneReport, error) {
+	fltrs := opts.Filters
 	if !i.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errPruneRunning
 	}
@@ -80,7 +82,7 @@ func (i *ImageService) ImagePrune(ctx context.Context, fltrs filters.Args) (*ima
 		}
 	}
 
-	return i.pruneUnused(ctx, filterFunc, danglingOnly)
+	return i.pruneUnused(ctx, filterFunc, danglingOnly, opts.Progress)
 }
 
 // pruneUnused deletes images that are dangling or unused by any container.
@@ -96,7 +98,7 @@ func (i *ImageService) ImagePrune(ctx context.Context, fltrs filters.Args) (*ima
 //
 // In case a digested and tagged reference was used (e.g. `docker run alpine:latest@sha256:82d1e9d7ed48a7523bdebc18cf6290bdb97b82302a8a9c27d4fe885949ea94d1`),
 // the alpine:latest image will be kept.
-func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFunc, danglingOnly bool) (*image.PruneReport, error) {
+func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFunc, danglingOnly bool, progress func(prune.Object)) (*image.PruneReport, error) {
 	ctx, span := tracing.StartSpan(ctx, "ImageService.pruneUnused")
 	span.SetAttributes(tracing.Attribute("danglingOnly", danglingOnly))
 	defer span.End()
@@ -150,7 +152,7 @@ func (i *ImageService) pruneUnused(ctx context.Context, filterFunc imageFilterFu
 		}
 	}
 
-	return i.pruneAll(ctx, imagesToPrune)
+	return i.pruneAll(ctx, imagesToPrune, progress)
 }
 
 // filterImagesUsedByContainers removes image names that are used by containers
@@ -214,7 +216,7 @@ func filterImagesUsedByContainers(ctx context.Context,
 }
 
 // pruneAll deletes all images in the imagesToPrune map.
-func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8dimages.Image) (*image.PruneReport, error) {
+func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8dimages.Image, progress func(prune.Object)) (*image.PruneReport, error) {
 	report := image.PruneReport{}
 
 	ctx, span := tracing.StartSpan(ctx, "ImageService.pruneAll")
@@ -279,6 +281,7 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 
 		familiarName := imageFamiliarName(img)
 		i.logImageEvent(img, familiarName, events.ActionUnTag)
+		pruneprogress.Notify(progress, familiarName, "untagged")
 		report.ImagesDeleted = append(report.ImagesDeleted,
 			image.DeleteResponse{
 				Untagged: familiarName,
@@ -293,6 +296,7 @@ func (i *ImageService) pruneAll(ctx context.Context, imagesToPrune map[string]c8
 			if cerrdefs.IsNotFound(err) {
 				if c8dimages.IsManifestType(blob.MediaType) || c8dimages.IsIndexType(blob.MediaType) {
 					deleted = true
+					pruneprogress.Notify(progress, blob.Digest.String(), "deleted")
 					report.ImagesDeleted = append(report.ImagesDeleted,
 						image.DeleteResponse{
 							Deleted: blob.Digest.String(),

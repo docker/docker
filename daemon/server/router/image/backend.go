@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
+
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/registry"
@@ -29,7 +31,7 @@ type imageBackend interface {
 	ImageInspect(ctx context.Context, refOrID string, options imagebackend.ImageInspectOpts) (*imagebackend.InspectData, error)
 	ImageAttestations(ctx context.Context, refOrID string, opts imagebackend.AttestationOpts) ([]image.AttestationStatement, error)
 	TagImage(ctx context.Context, id dockerimage.ID, newRef reference.Named) error
-	ImagePrune(ctx context.Context, pruneFilters filters.Args) (*image.PruneReport, error)
+	ImagePrune(ctx context.Context, opts pruneprogress.Options) (*image.PruneReport, error)
 }
 
 type importExportBackend interface {

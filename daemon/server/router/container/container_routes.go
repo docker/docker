@@ -13,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/moby/moby/api/types/prune"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
+
 	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/moby/moby/api/types"
@@ -1268,9 +1271,7 @@ func (c *containerRouter) postContainersPrune(ctx context.Context, w http.Respon
 		return err
 	}
 
-	pruneReport, err := c.backend.ContainerPrune(ctx, pruneFilters)
-	if err != nil {
-		return err
-	}
-	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+	return httputils.WritePruneResponse(ctx, w, r, func(ctx context.Context, progress func(prune.Object)) (any, error) {
+		return c.backend.ContainerPrune(ctx, pruneprogress.Options{Filters: pruneFilters, Progress: progress})
+	})
 }

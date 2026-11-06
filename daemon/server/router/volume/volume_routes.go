@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/moby/moby/api/types/prune"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
+
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/volume"
@@ -204,9 +207,7 @@ func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWrit
 		pruneFilters.Add("all", "true")
 	}
 
-	pruneReport, err := v.backend.Prune(ctx, pruneFilters)
-	if err != nil {
-		return err
-	}
-	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+	return httputils.WritePruneResponse(ctx, w, r, func(ctx context.Context, progress func(prune.Object)) (any, error) {
+		return v.backend.Prune(ctx, pruneprogress.Options{Filters: pruneFilters, Progress: progress})
+	})
 }

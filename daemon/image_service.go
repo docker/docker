@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
+
 	"github.com/distribution/reference"
 	"github.com/moby/go-archive"
 	"github.com/moby/moby/api/types/events"
@@ -11,7 +13,6 @@ import (
 	"github.com/moby/moby/v2/daemon/builder"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/images"
-	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/server/backend"
@@ -36,7 +37,7 @@ type ImageService interface {
 	Images(ctx context.Context, opts imagebackend.ListOptions) ([]imagetype.Summary, error)
 	LogImageEvent(ctx context.Context, imageID, refName string, action events.Action)
 	CountImages(ctx context.Context) int
-	ImagePrune(ctx context.Context, pruneFilters filters.Args) (*imagetype.PruneReport, error)
+	ImagePrune(ctx context.Context, opts pruneprogress.Options) (*imagetype.PruneReport, error)
 	ImportImage(ctx context.Context, ref reference.Named, platform *ocispec.Platform, msg string, layerReader io.Reader, changes []string) (image.ID, error)
 	TagImage(ctx context.Context, imageID image.ID, newTag reference.Named) error
 	GetImage(ctx context.Context, refOrID string, options imagebackend.GetImageOpts) (*image.Image, error)

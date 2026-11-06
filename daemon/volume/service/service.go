@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/directory"
 	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/idtools"
+	"github.com/moby/moby/v2/daemon/internal/pruneprogress"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/moby/moby/v2/daemon/volume"
 	"github.com/moby/moby/v2/daemon/volume/drivers"
@@ -209,7 +210,8 @@ func (s *VolumesService) LocalVolumesSize(ctx context.Context) ([]volumetypes.Vo
 // Prune removes (local) volumes which match the past in filter arguments.
 // Note that this intentionally skips volumes with mount options as there would
 // be no space reclaimed in this case.
-func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*volumetypes.PruneReport, error) {
+func (s *VolumesService) Prune(ctx context.Context, opts pruneprogress.Options) (*volumetypes.PruneReport, error) {
+	filter := opts.Filters
 	if !s.pruneRunning.CompareAndSwap(false, true) {
 		return nil, errdefs.Conflict(errors.New("a prune operation is already running"))
 	}
@@ -259,6 +261,7 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*volum
 		}
 		rep.SpaceReclaimed += uint64(vSize)
 		rep.VolumesDeleted = append(rep.VolumesDeleted, v.Name())
+		pruneprogress.Notify(opts.Progress, v.Name(), "deleted")
 	}
 	s.eventLogger.LogVolumeEvent("", events.ActionPrune, map[string]string{
 		"reclaimed": strconv.FormatInt(int64(rep.SpaceReclaimed), 10),

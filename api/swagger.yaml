@@ -8128,6 +8128,37 @@ definitions:
               The digest of the image manifest that this attestation is for.
             type: "string"
             example: "sha256:95869fbcf224d947ace8d61d0e931d49e31bb7fc67fffbbe9c3198c33aa8e93f"
+  PruneEvent:
+    description: |
+      A JSON Lines prune record contains exactly one of `object`, `report`,
+      or `error`. Object records describe confirmed changes. The final record
+      contains the complete report or an error; progress has no estimated total.
+    type: "object"
+    properties:
+      object:
+        description: "A confirmed deletion or image reference untagging."
+        type: "object"
+        required: ["id", "action"]
+        properties:
+          id:
+            description: "The identifier used in the corresponding final report entry."
+            type: "string"
+          action:
+            type: "string"
+            enum: ["deleted", "untagged"]
+      report:
+        description: |
+          The complete prune report, with the same fields as this operation's
+          application/json response.
+        type: "object"
+        additionalProperties: true
+      error:
+        description: "An operation that failed after streaming began."
+        type: "object"
+        required: ["message"]
+        properties:
+          message:
+            type: "string"
 paths:
   /containers/json:
     get:
@@ -9546,6 +9577,21 @@ paths:
       operationId: "ContainerPrune"
       tags: ["Container"]
       parameters:
+        - name: "stream"
+          in: "query"
+          description: |
+            Stream progress as JSON Lines (API v1.57 and later). Each successful
+            deletion produces a message with `object.id` and `object.action` (`deleted`). The
+            last message contains the complete prune response in `report`, or
+            `error` if pruning fails after progress has begun. Errors before
+            the first progress message retain their normal HTTP status. When false,
+            the response is the usual single JSON report. Older API versions ignore
+            this parameter. Progress does not include an estimated total. When an authorization
+            plugin is enabled, the daemon returns the normal JSON report so the
+            plugin can inspect and authorize the complete response. A stalled
+            streaming write times out after 30 seconds and cancels pruning.
+          type: "boolean"
+          default: false
         - name: "filters"
           in: "query"
           description: |
@@ -9557,6 +9603,7 @@ paths:
           type: "string"
       produces:
         - "application/json"
+        - "application/jsonl"
       responses:
         "200":
           description: "No error"
@@ -9844,6 +9891,21 @@ paths:
       operationId: "BuildPrune"
       tags: ["Image"]
       parameters:
+        - name: "stream"
+          in: "query"
+          description: |
+            Stream progress as JSON Lines (API v1.57 and later). Each successfully
+            pruned cache record produces a message with its `object.id` and `object.action`
+            (`deleted`). The last message contains the complete prune response in
+            `report`, or `error` if pruning fails after progress has begun. Errors
+            before the first progress message retain their normal HTTP status. When
+            false, the response is the usual single JSON report. Older API versions
+            ignore this parameter. Progress does not include an estimated total. When an authorization
+            plugin is enabled, the daemon returns the normal JSON report so the
+            plugin can inspect and authorize the complete response. A stalled
+            streaming write times out after 30 seconds and cancels pruning.
+          type: "boolean"
+          default: false
         - name: "reserved-space"
           in: "query"
           description: "Amount of disk space in bytes to keep for cache"
@@ -9882,6 +9944,7 @@ paths:
           type: "string"
       produces:
         - "application/json"
+        - "application/jsonl"
       responses:
         "200":
           description: "No error"
@@ -10469,6 +10532,22 @@ paths:
       operationId: "ImagePrune"
       tags: ["Image"]
       parameters:
+        - name: "stream"
+          in: "query"
+          description: |
+            Stream progress as JSON Lines (API v1.57 and later). Each successful
+            deletion or untagging produces a message with `object.id` and `object.action`
+            (`deleted` or `untagged`). IDs match entries in `ImagesDeleted`. The
+            last message contains the complete prune response in `report`, or
+            `error` if pruning fails after progress has begun. Errors before
+            the first progress message retain their normal HTTP status. When false,
+            the response is the usual single JSON report. Older API versions ignore
+            this parameter. Progress does not include an estimated total. When an authorization
+            plugin is enabled, the daemon returns the normal JSON report so the
+            plugin can inspect and authorize the complete response. A stalled
+            streaming write times out after 30 seconds and cancels pruning.
+          type: "boolean"
+          default: false
         - name: "filters"
           in: "query"
           description: |
@@ -10482,6 +10561,7 @@ paths:
           type: "string"
       produces:
         - "application/json"
+        - "application/jsonl"
       responses:
         "200":
           description: "No error"
@@ -11453,6 +11533,21 @@ paths:
       operationId: "VolumePrune"
       tags: ["Volume"]
       parameters:
+        - name: "stream"
+          in: "query"
+          description: |
+            Stream progress as JSON Lines (API v1.57 and later). Each successfully
+            deleted volume produces a message with its name in `object.id` and `object.action`
+            (`deleted`). The last message contains the complete prune response in
+            `report`, or `error` if pruning fails after progress has begun. Errors
+            before the first progress message retain their normal HTTP status. When
+            false, the response is the usual single JSON report. Older API versions
+            ignore this parameter. Progress does not include an estimated total. When an authorization
+            plugin is enabled, the daemon returns the normal JSON report so the
+            plugin can inspect and authorize the complete response. A stalled
+            streaming write times out after 30 seconds and cancels pruning.
+          type: "boolean"
+          default: false
         - name: "filters"
           in: "query"
           description: |
@@ -11464,6 +11559,7 @@ paths:
           type: "string"
       produces:
         - "application/json"
+        - "application/jsonl"
       responses:
         "200":
           description: "No error"
@@ -11838,6 +11934,21 @@ paths:
       operationId: "NetworkPrune"
       tags: ["Network"]
       parameters:
+        - name: "stream"
+          in: "query"
+          description: |
+            Stream progress as JSON Lines (API v1.57 and later). Each successfully
+            deleted network produces a message with its name in `object.id` and `object.action`
+            (`deleted`). The last message contains the complete prune response in
+            `report`, or `error` if pruning fails after progress has begun. Errors
+            before the first progress message retain their normal HTTP status. When
+            false, the response is the usual single JSON report. Older API versions
+            ignore this parameter. Progress does not include an estimated total. When an authorization
+            plugin is enabled, the daemon returns the normal JSON report so the
+            plugin can inspect and authorize the complete response. A stalled
+            streaming write times out after 30 seconds and cancels pruning.
+          type: "boolean"
+          default: false
         - name: "filters"
           in: "query"
           description: |
@@ -11849,6 +11960,7 @@ paths:
           type: "string"
       produces:
         - "application/json"
+        - "application/jsonl"
       responses:
         "200":
           description: "No error"

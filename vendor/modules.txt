@@ -1328,6 +1328,7 @@ github.com/moby/moby/api/types/jsonstream
 github.com/moby/moby/api/types/mount
 github.com/moby/moby/api/types/network
 github.com/moby/moby/api/types/plugin
+github.com/moby/moby/api/types/prune
 github.com/moby/moby/api/types/registry
 github.com/moby/moby/api/types/storage
 github.com/moby/moby/api/types/swarm
