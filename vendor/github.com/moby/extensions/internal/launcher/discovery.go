@@ -22,12 +22,14 @@ import (
 // A missing directory yields no binaries.
 //
 // Discovery is a root-code-execution boundary.
-// World-writable entries, entries owned by an untrusted user, and files without
-// valid extension ids are skipped.
-// Other trust decisions, including group policy and symlinks, belong to the
-// operator.
+// Directories, non-executable files, and files without valid extension ids are
+// skipped.
+// A world-writable or untrusted-owned dir, or an extension binary that is not a
+// regular file, is world-writable, or is owned by an untrusted user, is an
+// error: skipping it could silently drop a security extension.
+// Other trust decisions, including group policy, belong to the operator.
 func Binaries(ctx context.Context, dir string) ([]string, error) {
-	entries, err := extensionEntries(ctx, dir)
+	entries, err := extensionEntries(dir)
 	if err != nil || entries == nil {
 		return nil, err
 	}
@@ -36,14 +38,17 @@ func Binaries(ctx context.Context, dir string) ([]string, error) {
 		if entry.IsDir() {
 			continue
 		}
+
+		path := filepath.Join(dir, entry.Name())
+
 		info, err := entry.Info()
 		if err != nil {
-			return nil, fmt.Errorf("stat extension %q: %w", filepath.Join(dir, entry.Name()), err)
+			return nil, fmt.Errorf("stat extension %q: %w", path, err)
 		}
+
 		if !isExecutable(info) {
 			continue
 		}
-		path := filepath.Join(dir, entry.Name())
 		// The file name is the extension id. Validate it before launching so a
 		// shared directory cannot execute arbitrary helper binaries.
 		name := extensionName(entry.Name())
@@ -51,20 +56,25 @@ func Binaries(ctx context.Context, dir string) ([]string, error) {
 			log.G(ctx).WithError(err).Warnf("extensions: skipping %q: not a valid extension binary name", path)
 			continue
 		}
+		// A symlink target can live in a directory these checks do not cover,
+		// whose owner could replace the executed file. Other special files cannot
+		// be executed and would only fail the launch.
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("extension binary %q is not a regular file", path)
+		}
+
 		if worldWritable(info) {
-			log.G(ctx).Warnf("extensions: refusing to run world-writable extension binary %q", path)
-			continue
+			return nil, fmt.Errorf("extension binary %q is world-writable", path)
 		}
 		if uid, untrusted := untrustedOwner(info); untrusted {
-			log.G(ctx).Warnf("extensions: refusing to run extension binary %q owned by untrusted uid %d", path, uid)
-			continue
+			return nil, fmt.Errorf("extension binary %q is owned by untrusted uid %d", path, uid)
 		}
 		bins = append(bins, path)
 	}
 	return bins, nil
 }
 
-func extensionEntries(ctx context.Context, dir string) ([]os.DirEntry, error) {
+func extensionEntries(dir string) ([]os.DirEntry, error) {
 	dirInfo, err := os.Stat(dir)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -73,12 +83,10 @@ func extensionEntries(ctx context.Context, dir string) ([]os.DirEntry, error) {
 		return nil, fmt.Errorf("stat extension dir %q: %w", dir, err)
 	}
 	if worldWritable(dirInfo) {
-		log.G(ctx).Warnf("extensions: ignoring world-writable extension directory %q", dir)
-		return nil, nil
+		return nil, fmt.Errorf("extension dir %q is world-writable", dir)
 	}
 	if uid, untrusted := untrustedOwner(dirInfo); untrusted {
-		log.G(ctx).Warnf("extensions: ignoring extension directory %q owned by untrusted uid %d", dir, uid)
-		return nil, nil
+		return nil, fmt.Errorf("extension dir %q is owned by untrusted uid %d", dir, uid)
 	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {

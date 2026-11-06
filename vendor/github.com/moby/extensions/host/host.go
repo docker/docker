@@ -340,6 +340,9 @@ func New(ctx context.Context, optionList ...Option) (_ *Host, retErr error) {
 	// Put the callback path in each handshake before starting the server.
 	callbackEndpoint := ""
 	if len(opts.dependencyProviders) > 0 {
+		if opts.runtimeDir == "" {
+			return nil, errors.New("extension runtime dir is required for dependency providers")
+		}
 		callbackEndpoint = filepath.Join(opts.runtimeDir, "callback.sock")
 	}
 
@@ -702,6 +705,9 @@ func serveCallback(endpoint string, deps []serverpoint.Registration, b *broker.B
 	srv := grpc.NewServer()
 	if err := registerDependencyProviders(srv, deps, b); err != nil {
 		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Dir(endpoint), 0o700); err != nil {
+		return nil, fmt.Errorf("create extension runtime dir: %w", err)
 	}
 	if err := os.Remove(endpoint); err != nil && !os.IsNotExist(err) {
 		return nil, fmt.Errorf("remove stale dependency callback socket: %w", err)
