@@ -1,7 +1,9 @@
 package daemon
 
 import (
+	"net/http"
 	"testing"
+	"time"
 
 	"github.com/containerd/containerd/v2/core/remotes/docker"
 	"gotest.tools/v3/assert"
@@ -94,6 +96,18 @@ func TestMirrorsToHosts(t *testing.T) {
 		actual := mirrorsToRegistryHosts(tc.mirrors, tc.dhost)
 
 		assert.Check(t, is.DeepEqual(actual, tc.expected))
+	}
+}
+
+func TestRegistryHostsResponseHeaderTimeout(t *testing.T) {
+	d := &Daemon{}
+	hosts, err := d.RegistryHosts("registry.example.com")
+	assert.NilError(t, err)
+	assert.Assert(t, len(hosts) > 0)
+	for _, h := range hosts {
+		tr, ok := h.Client.Transport.(*http.Transport)
+		assert.Assert(t, ok, "unexpected transport type %T", h.Client.Transport)
+		assert.Check(t, is.Equal(tr.ResponseHeaderTimeout, time.Duration(0)))
 	}
 }
 

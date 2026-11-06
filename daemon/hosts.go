@@ -29,6 +29,15 @@ func (daemon *Daemon) RegistryHosts(host string) ([]docker.RegistryHost, error) 
 	hosts, err := hostconfig.ConfigureHosts(context.Background(), hostconfig.HostOptions{
 		// TODO: Also check containerd path when updating containerd to use multiple host directories
 		HostDir: hostconfig.HostDirFromRoot(registry.CertsDir()),
+		// Registries may take longer than containerd's default response header
+		// timeout to finalize a large blob upload. Don't impose one, to match
+		// the transport used by the graphdriver image store.
+		UpdateClient: func(c *http.Client) error {
+			if t, ok := c.Transport.(*http.Transport); ok {
+				t.ResponseHeaderTimeout = 0
+			}
+			return nil
+		},
 	})(host)
 	if err == nil {
 		// Merge in legacy configuration if provided
