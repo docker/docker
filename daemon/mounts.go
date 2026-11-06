@@ -27,8 +27,20 @@ func (daemon *Daemon) prepareMountPoints(ctr *container.Container) error {
 			if err != nil {
 				return err
 			}
-
 			config.Layer = layer
+
+			if !alive {
+				// The overlay2 merged/ directory does not survive daemon
+				// shutdown; re-mount to get a valid path. safepath.Join (used
+				// for subpath mounts) calls filepath.EvalSymlinks on
+				// config.Source and fails with ENOENT if the path is stale.
+				// Balanced by the Unmount in removeMountPoints at deletion.
+				srcPath, err := layer.Mount("")
+				if err != nil {
+					return err
+				}
+				config.Source = srcPath
+			}
 		}
 
 		if config.Volume == nil {
