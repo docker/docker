@@ -27,7 +27,7 @@ type LocalRegistry struct {
 
 func NewLocalRegistry() LocalRegistry {
 	return LocalRegistry{
-		socketsPath: defaultSocketsPath,
+		socketsPath: socketsPath(),
 		specsPaths:  specsPaths(),
 	}
 }
