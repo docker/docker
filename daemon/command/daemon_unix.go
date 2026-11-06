@@ -137,6 +137,7 @@ func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) e
 	}
 	if cli.Config.ContainerdAddr != "" {
 		// use system containerd at the given address.
+		cli.warnUnusedContainerdDropIns(ctx)
 		return nopWaitFunc, nil
 	}
 

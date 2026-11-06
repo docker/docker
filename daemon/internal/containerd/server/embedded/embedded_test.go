@@ -21,7 +21,7 @@ func TestPluginGraphResolves(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	d, err := Start(ctx, t.TempDir(), t.TempDir())
+	d, err := Start(ctx, t.TempDir(), t.TempDir(), "")
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "no plugins registered") {
 			t.Fatalf("embedded containerd plugin graph is incomplete: %v", err)
