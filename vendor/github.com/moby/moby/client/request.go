@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/moby/moby/api/types/common"
+	"github.com/moby/moby/client/internal/httperror"
 )
 
 // head sends an http request to the docker API using the method HEAD.
@@ -226,7 +227,7 @@ func checkResponseErr(serverResp *http.Response) (retErr error) {
 		return nil
 	}
 	defer func() {
-		retErr = httpErrorFromStatusCode(retErr, serverResp.StatusCode)
+		retErr = httperror.FromStatusCode(retErr, serverResp.StatusCode)
 	}()
 
 	var body []byte
