@@ -13,6 +13,9 @@ type sLM struct {
 	manager leases.Manager
 	s       *snapshotter
 
+	// Serialize durable lease mutations with the mirrored references and removal.
+	// Otherwise a new owner can exist in the database while the last mirrored
+	// reference is being removed, allowing GC to delete the shared snapshot.
 	mu         sync.Mutex
 	byLease    map[string]map[string]struct{}
 	bySnapshot map[string]map[string]struct{}
@@ -33,16 +36,16 @@ func (l *sLM) Create(ctx context.Context, opts ...leases.Opt) (leases.Lease, err
 }
 
 func (l *sLM) Delete(ctx context.Context, lease leases.Lease, opts ...leases.DeleteOpt) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if err := l.manager.Delete(ctx, lease, opts...); err != nil {
 		return err
 	}
-	l.mu.Lock()
 	if snaps, ok := l.byLease[lease.ID]; ok {
 		for sID := range snaps {
 			l.delRef(lease.ID, sID)
 		}
 	}
-	l.mu.Unlock()
 	return nil
 }
 
@@ -51,25 +54,25 @@ func (l *sLM) List(ctx context.Context, filters ...string) ([]leases.Lease, erro
 }
 
 func (l *sLM) AddResource(ctx context.Context, lease leases.Lease, resource leases.Resource) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if err := l.manager.AddResource(ctx, lease, resource); err != nil {
 		return err
 	}
 	if resource.Type == "snapshots/default" {
-		l.mu.Lock()
 		l.addRef(lease.ID, resource.ID)
-		l.mu.Unlock()
 	}
 	return nil
 }
 
 func (l *sLM) DeleteResource(ctx context.Context, lease leases.Lease, resource leases.Resource) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if err := l.manager.DeleteResource(ctx, lease, resource); err != nil {
 		return err
 	}
 	if resource.Type == "snapshots/default" {
-		l.mu.Lock()
 		l.delRef(lease.ID, resource.ID)
-		l.mu.Unlock()
 	}
 	return nil
 }
@@ -91,7 +94,7 @@ func (l *sLM) addRef(lID, sID string) {
 	leases, ok := l.bySnapshot[sID]
 	if !ok {
 		leases = map[string]struct{}{}
-		l.byLease[sID] = leases
+		l.bySnapshot[sID] = leases
 		load = true
 	}
 	if _, ok := leases[lID]; !ok {
@@ -114,14 +117,14 @@ func (l *sLM) addRef(lID, sID string) {
 
 func (l *sLM) delRef(lID, sID string) {
 	snapshots, ok := l.byLease[lID]
-	if !ok {
+	if ok {
 		delete(snapshots, sID)
 		if len(snapshots) == 0 {
 			delete(l.byLease, lID)
 		}
 	}
 	leases, ok := l.bySnapshot[sID]
-	if !ok {
+	if ok {
 		delete(leases, lID)
 		if len(leases) == 0 {
 			delete(l.bySnapshot, sID)
