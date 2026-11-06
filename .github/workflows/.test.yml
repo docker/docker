@@ -418,6 +418,10 @@ jobs:
                 'mode': 'nftables+firewalld',
                 'test': 'DockerNetworkSuite'
               });
+              matrix.include.push({
+                'mode': 'userns',
+                'test': 'DockerRegistrySuite|DockerRegistryAuthHtpasswdSuite|DockerRegistryAuthTokenSuite|DockerCLIPullSuite|DockerCLIPushSuite|DockerHubPullSuite'
+              });
             }
             await core.group(`Set matrix`, async () => {
               core.info(`matrix: ${JSON.stringify(matrix)}`);
@@ -459,6 +463,9 @@ jobs:
           fi
           if [[ "$MODE" == *"nftables"* ]]; then
             echo "DOCKER_FIREWALL_BACKEND=nftables" >> $GITHUB_ENV
+          fi
+          if [[ "$MODE" == *"userns"* ]]; then
+            echo "DOCKER_REMAP_ROOT=default" >> $GITHUB_ENV
           fi
           echo "CACHE_DEV_SCOPE=${CACHE_DEV_SCOPE}" >> $GITHUB_ENV
       -

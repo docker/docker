@@ -9,6 +9,8 @@ import (
 
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/pkg/archive"
+	"github.com/containerd/containerd/v2/pkg/epoch"
 	labelspkg "github.com/containerd/containerd/v2/pkg/labels"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/buildkit/util/bklog"
@@ -33,6 +35,36 @@ func (sr *immutableRef) tryComputeOverlayBlob(ctx context.Context, lower, upper 
 		// and let the caller fallback to another differ.
 		return emptyDesc, false, nil
 	}
+
+	return sr.writeBlob(ctx, mediaType, ref, compressorFunc, func(w io.Writer) error {
+		return overlay.WriteUpperdir(ctx, w, upperdir, lower)
+	})
+}
+
+// computeMappedWalkingBlob computes the diff between lower and upper like the
+// containerd walking differ, with the owners mapped to the container IDs.
+func (sr *immutableRef) computeMappedWalkingBlob(ctx context.Context, lower, upper []mount.Mount, mediaType string, ref string, compressorFunc compression.Compressor) (desc ocispecs.Descriptor, err error) {
+	var opts []archive.WriteDiffOpt
+	if tm := epoch.FromContext(ctx); tm != nil {
+		opts = append(opts, archive.WithSourceDateEpoch(tm))
+	}
+	err = mount.WithTempMount(ctx, lower, func(lowerRoot string) error {
+		return mount.WithReadonlyTempMount(ctx, upper, func(upperRoot string) error {
+			var err error
+			desc, _, err = sr.writeBlob(ctx, mediaType, ref, compressorFunc, func(w io.Writer) error {
+				return archive.WriteDiff(ctx, w, lowerRoot, upperRoot, opts...)
+			})
+			return err
+		})
+	})
+	return desc, err
+}
+
+// writeBlob writes the layer tar written by writeTar to the content store,
+// with the owners mapped to the container IDs if the snapshotter has an ID
+// mapping.
+func (sr *immutableRef) writeBlob(ctx context.Context, mediaType string, ref string, compressorFunc compression.Compressor, writeTar func(io.Writer) error) (_ ocispecs.Descriptor, ok bool, err error) {
+	writeTar = withIDMap(writeTar, sr.cm.IdentityMapping())
 
 	cw, err := content.OpenWriter(ctx, sr.cm.ContentStore,
 		content.WithRef(ref),
@@ -67,7 +99,7 @@ func (sr *immutableRef) tryComputeOverlayBlob(ctx context.Context, lower, upper 
 		}
 		// Close ensure compressorFunc does some finalization works.
 		defer compressed.Close()
-		if err := overlay.WriteUpperdir(ctx, io.MultiWriter(compressed, dgstr.Hash()), upperdir, lower); err != nil {
+		if err := writeTar(io.MultiWriter(compressed, dgstr.Hash())); err != nil {
 			return emptyDesc, false, errors.Wrap(err, "failed to write compressed diff")
 		}
 		if err := compressed.Close(); err != nil {
@@ -77,7 +109,7 @@ func (sr *immutableRef) tryComputeOverlayBlob(ctx context.Context, lower, upper 
 			labelspkg.LabelUncompressed: dgstr.Digest().String(),
 		}
 	} else {
-		if err = overlay.WriteUpperdir(ctx, bufW, upperdir, lower); err != nil {
+		if err = writeTar(bufW); err != nil {
 			return emptyDesc, false, errors.Wrap(err, "failed to write diff")
 		}
 	}

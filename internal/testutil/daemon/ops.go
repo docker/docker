@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"net/netip"
-	"os"
 	"os/user"
 
 	"github.com/moby/moby/v2/internal/testutil/environment"
@@ -25,21 +24,6 @@ func WithContainerdSocket(socket string) Option {
 func WithUserNsRemap(remap string) Option {
 	return func(d *Daemon) {
 		d.usernsRemap = remap
-		// The dind container used by the CI has the env var DOCKER_GRAPHDRIVER
-		// set to 'overlayfs' which is a valid driver when the containerd image
-		// store is used, but not a valid graphdriver. OTOH the test daemon
-		// started by this package uses DOCKER_GRAPHDRIVER to set the storage
-		// backend. However, the daemon doesn't enable the containerd image
-		// store automatically when userns remapping is enabled, so using the
-		// storage driver set through DOCKER_GRAPHDRIVER will cause the daemon
-		// to fail to start. This should be removed once a proper fix for [1]
-		// is implemented.
-		//
-		// [1]: https://github.com/moby/moby/issues/47377
-		d.storageDriver = ""
-		if storage := os.Getenv("DOCKER_GRAPHDRIVER"); storage == "overlayfs" {
-			d.storageDriver = "overlay2"
-		}
 	}
 }
 

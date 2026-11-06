@@ -15,7 +15,6 @@ import (
 
 func TestDefaultStorageDriver(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "Windows does not support running sub-daemons")
-	skip.If(t, testEnv.IsUserNamespace(), "containerd snapshotters are disabled with user namespace remapping")
 	t.Setenv("DOCKER_DRIVER", "")
 	t.Setenv("DOCKER_GRAPHDRIVER", "")
 	t.Setenv("TEST_INTEGRATION_USE_GRAPHDRIVER", "")
@@ -134,8 +133,6 @@ func TestInspectGraphDriverAPIBC(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			skip.If(t, tc.expContainerdSnapshotter && testEnv.IsUserNamespace(), "containerd snapshotters are disabled with user namespace remapping")
-
 			d := daemon.New(t)
 			defer d.Stop(t)
 			d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false", "--storage-driver="+tc.storageDriver)

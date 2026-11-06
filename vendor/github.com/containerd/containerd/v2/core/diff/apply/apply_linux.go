@@ -31,7 +31,7 @@ import (
 	"github.com/containerd/errdefs"
 )
 
-func apply(ctx context.Context, mounts []mount.Mount, r io.Reader, sync bool) (retErr error) {
+func apply(ctx context.Context, mounts []mount.Mount, r io.Reader, sync bool, opts ...archive.ApplyOpt) (retErr error) {
 	switch {
 	case len(mounts) == 1 && mounts[0].Type == "overlay":
 		// OverlayConvertWhiteout (mknod c 0 0) doesn't work in userns.
@@ -46,9 +46,9 @@ func apply(ctx context.Context, mounts []mount.Mount, r io.Reader, sync bool) (r
 			}
 			return err
 		}
-		opts := []archive.ApplyOpt{
+		opts := append([]archive.ApplyOpt{
 			archive.WithConvertWhiteout(archive.OverlayConvertWhiteout),
-		}
+		}, opts...)
 		if len(parents) > 0 {
 			opts = append(opts, archive.WithParents(parents))
 		}
@@ -67,7 +67,7 @@ func apply(ctx context.Context, mounts []mount.Mount, r io.Reader, sync bool) (r
 		}()
 	}
 	return mount.WithTempMount(ctx, mounts, func(root string) error {
-		_, err := archive.Apply(ctx, root, r)
+		_, err := archive.Apply(ctx, root, r, opts...)
 		return err
 	})
 }

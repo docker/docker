@@ -27,6 +27,7 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/diff"
 	"github.com/containerd/containerd/v2/core/mount"
+	"github.com/containerd/containerd/v2/pkg/archive"
 	"github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	digest "github.com/opencontainers/go-digest"
@@ -127,7 +128,11 @@ func (s *fsApplier) Apply(ctx context.Context, desc ocispec.Descriptor, mounts [
 		}
 	}
 
-	if err := apply(ctx, mounts, rc, config.SyncFs); err != nil {
+	var applyOpts []archive.ApplyOpt
+	if diff.HasIDMapping(config.UIDMap, config.GIDMap) {
+		applyOpts = append(applyOpts, archive.WithApplyIDMapping(config.UIDMap, config.GIDMap))
+	}
+	if err := apply(ctx, mounts, rc, config.SyncFs, applyOpts...); err != nil {
 		return emptyDesc, err
 	}
 

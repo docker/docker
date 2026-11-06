@@ -74,6 +74,9 @@ func (s *walkingDiff) Compare(ctx context.Context, lower, upper []mount.Mount, o
 	if config.SourceDateEpoch != nil {
 		writeDiffOpts = append(writeDiffOpts, archive.WithSourceDateEpoch(config.SourceDateEpoch))
 	}
+	if diff.HasIDMapping(config.UIDMap, config.GIDMap) {
+		writeDiffOpts = append(writeDiffOpts, archive.WithWriteDiffIDMapping(config.UIDMap, config.GIDMap))
+	}
 
 	compressionType := compression.Uncompressed
 	if config.Compressor != nil {

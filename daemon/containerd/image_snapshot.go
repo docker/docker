@@ -76,14 +76,8 @@ func (i *ImageService) createLayer(descriptor *ocispec.Descriptor, layerName str
 		parentSnapshot = layerName + "-init"
 	}
 
-	sn := i.client.SnapshotService(i.StorageDriver())
-	if !i.idMapping.Empty() {
-		err = i.remapSnapshot(ctx, sn, layerName, parentSnapshot)
-	} else {
-		_, err = sn.Prepare(ctx, layerName, parentSnapshot)
-	}
-
-	if err != nil {
+	sn := NewRemappedSnapshotter(i.client.SnapshotService(i.StorageDriver()), i.idMapping)
+	if _, err := sn.Prepare(ctx, layerName, parentSnapshot); err != nil {
 		return nil, err
 	}
 
@@ -263,7 +257,7 @@ func (i *ImageService) ReleaseLayer(rwlayer container.RWLayer) error {
 }
 
 func (i *ImageService) prepareInitLayer(ctx context.Context, id string, parent string, setupInit func(string) error) error {
-	sn := i.client.SnapshotService(i.StorageDriver())
+	sn := NewRemappedSnapshotter(i.client.SnapshotService(i.StorageDriver()), i.idMapping)
 
 	mounts, err := sn.Prepare(ctx, id+"-init-key", parent)
 	if err != nil {

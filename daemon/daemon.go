@@ -52,6 +52,7 @@ import (
 	"resenje.org/singleflight"
 	"tags.cncf.io/container-device-interface/pkg/cdi"
 
+	"github.com/containerd/containerd/v2/core/content"
 	"github.com/moby/extensions/host"
 	"github.com/moby/moby/v2/daemon/builder"
 	executorpkg "github.com/moby/moby/v2/daemon/cluster/executor"
@@ -1063,12 +1064,20 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			"address": cfgStore.ContainerdAddr,
 			"timeout": connTimeout,
 		}).Info("Creating a containerd client")
-		d.containerdClient, err = containerd.New(
-			cfgStore.ContainerdAddr,
+		clientOpts := []containerd.Opt{
 			containerd.WithDefaultNamespace(cfgStore.ContainerdNamespace),
 			containerd.WithExtraDialOpts(gopts),
 			containerd.WithTimeout(connTimeout),
-		)
+		}
+		if !idMapping.Empty() {
+			// Layers are stored with the remapped IDs, which the containerd
+			// diff service cannot apply and create.
+			diffService := ctrd.NewRemappedDiffService(func() content.Store {
+				return d.containerdClient.ContentStore()
+			}, idMapping)
+			clientOpts = append(clientOpts, containerd.WithServices(containerd.WithDiffService(diffService)))
+		}
+		d.containerdClient, err = containerd.New(cfgStore.ContainerdAddr, clientOpts...)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to dial %q", cfgStore.ContainerdAddr)
 		}

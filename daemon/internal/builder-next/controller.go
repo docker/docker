@@ -10,6 +10,7 @@ import (
 	"time"
 
 	ctd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/core/content"
 	ctdmetadata "github.com/containerd/containerd/v2/core/metadata"
 	"github.com/containerd/containerd/v2/core/snapshots"
 	"github.com/containerd/containerd/v2/plugins/content/local"
@@ -45,6 +46,7 @@ import (
 	"github.com/moby/buildkit/worker/containerd"
 	"github.com/moby/buildkit/worker/label"
 	"github.com/moby/moby/v2/daemon/config"
+	ctrd "github.com/moby/moby/v2/daemon/containerd"
 	"github.com/moby/moby/v2/daemon/graphdriver"
 	"github.com/moby/moby/v2/daemon/internal/builder-next/adapters/containerimage"
 	"github.com/moby/moby/v2/daemon/internal/builder-next/adapters/localinlinecache"
@@ -162,6 +164,23 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	wo.GCPolicy = policy
 	wo.RegistryHosts = opt.RegistryHosts
 	wo.Labels = getLabels(opt, wo.Labels)
+
+	if !opt.IdentityMapping.Empty() {
+		// Store layers with the remapped IDs like the image service does,
+		// see [ctrd.NewRemappedDiffService].
+		ctdClient, err := ctd.New(opt.ContainerdAddress, ctdOpts...)
+		if err != nil {
+			return nil, err
+		}
+		idMapping := opt.IdentityMapping
+		sn := ctrd.NewRemappedSnapshotter(ctdClient.SnapshotService(opt.Snapshotter), idMapping)
+		wo.Snapshotter = containerdsnapshot.NewSnapshotter(opt.Snapshotter, sn, opt.ContainerdNamespace, &idMapping)
+
+		cs := wo.ContentStore
+		diffService := ctrd.NewRemappedDiffService(func() content.Store { return cs }, idMapping)
+		wo.Applier = diffService
+		wo.Differ = diffService
+	}
 
 	exec, proxyProvider, err := newExecutor(executorOpts{
 		root:                opt.Root,
