@@ -190,8 +190,8 @@ func (rc *ResolvConf) Options() []string {
 //	Option("ndots") -> ("1", true)
 //	Option("edns0") -> ("", true)
 func (rc *ResolvConf) Option(search string) (string, bool) {
-	for i := len(rc.options) - 1; i >= 0; i-- {
-		k, v, _ := strings.Cut(rc.options[i], ":")
+	for _, v := range slices.Backward(rc.options) {
+		k, v, _ := strings.Cut(v, ":")
 		if k == search {
 			return v, true
 		}

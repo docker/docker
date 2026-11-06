@@ -2,6 +2,7 @@ package cleanups
 
 import (
 	"context"
+	"slices"
 
 	"github.com/moby/moby/v2/daemon/internal/multierror"
 )
@@ -36,8 +37,8 @@ func (c *Composite) Release() func(context.Context) error {
 
 func call(ctx context.Context, cleanups []func(context.Context) error) error {
 	var errs []error
-	for idx := len(cleanups) - 1; idx >= 0; idx-- {
-		c := cleanups[idx]
+	for _, c := range slices.Backward(cleanups) {
+
 		errs = append(errs, c(ctx))
 	}
 	return multierror.Join(errs...)

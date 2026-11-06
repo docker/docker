@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -232,8 +233,8 @@ func (p *pusher) pushTag(ctx context.Context, ref reference.NamedTagged, id dige
 func manifestFromBuilder(ctx context.Context, builder distribution.ManifestBuilder, descriptors []xfer.UploadDescriptor) (distribution.Manifest, error) {
 	// descriptors is in reverse order; iterate backwards to get references
 	// appended in the right order.
-	for i := len(descriptors) - 1; i >= 0; i-- {
-		if err := builder.AppendReference(descriptors[i].(*pushDescriptor)); err != nil {
+	for _, descriptor := range slices.Backward(descriptors) {
+		if err := builder.AppendReference(descriptor.(*pushDescriptor)); err != nil {
 			return nil, err
 		}
 	}
