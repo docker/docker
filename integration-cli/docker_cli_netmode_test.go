@@ -65,14 +65,26 @@ func (s *DockerCLINetmodeSuite) TestConflictContainerNetworkAndLinks(c *testing.
 	testRequires(c, DaemonIsLinux)
 
 	out := dockerCmdWithFail(c, "run", "--net=container:other", "--link=zip:zap", "busybox", "ps")
-	assert.Assert(c, is.Contains(out, "links are only supported for user-defined networks"))
+	oneOf := []string{
+		"conflicting options: container type network can't be used with links", // current CLI, daemon-side validation
+		"links are only supported for user-defined networks",                   // older CLI, client-side validation
+	}
+	if !strings.Contains(out, oneOf[0]) && !strings.Contains(out, oneOf[1]) {
+		c.Errorf("expected one of %v: %s", oneOf, out)
+	}
 }
 
 func (s *DockerCLINetmodeSuite) TestConflictContainerNetworkHostAndLinks(c *testing.T) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	out := dockerCmdWithFail(c, "run", "--net=host", "--link=zip:zap", "busybox", "ps")
-	assert.Assert(c, is.Contains(out, "links are only supported for user-defined networks"))
+	oneOf := []string{
+		"conflicting options: host type networking can't be used with links", // current CLI, daemon-side validation
+		"links are only supported for user-defined networks",                 // older CLI, client-side validation
+	}
+	if !strings.Contains(out, oneOf[0]) && !strings.Contains(out, oneOf[1]) {
+		c.Errorf("expected one of %v: %s", oneOf, out)
+	}
 }
 
 func (s *DockerCLINetmodeSuite) TestConflictNetworkModeNetHostAndOptions(c *testing.T) {

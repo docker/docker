@@ -2039,6 +2039,9 @@ func (s *DockerDaemonSuite) TestExecWithUserAfterLiveRestore(c *testing.T) {
 
 func (s *DockerDaemonSuite) TestRemoveContainerAfterLiveRestore(c *testing.T) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
+	if testEnv.UsingSnapshotter() {
+		c.Skip("FIXME(thaJeztah): test depends on GraphDriver.Data") // FIXME(thaJeztah): test depends on GraphDriver.Data, which is not available with containerd
+	}
 	s.d.StartWithBusybox(testutil.GetContext(c), c, "--live-restore")
 	out, err := s.d.Cmd("run", "-d", "--name=top", "busybox", "top")
 	assert.NilError(c, err, "Output: %s", out)

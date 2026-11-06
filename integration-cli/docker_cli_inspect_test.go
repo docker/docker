@@ -125,25 +125,32 @@ func (s *DockerCLIInspectSuite) TestInspectTypeFlagWithImage(c *testing.T) {
 }
 
 func (s *DockerCLIInspectSuite) TestInspectTypeFlagWithInvalidValue(c *testing.T) {
-	// Both the container and image are named busybox. docker inspect will fail
-	// as --type=foobar is not a valid value for the flag.
-
-	cli.DockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
-
-	out, exitCode, err := dockerCmdWithError("inspect", "--type=foobar", "busybox")
-	assert.Assert(c, err != nil, "%d", exitCode)
-	assert.Equal(c, exitCode, 1, err)
-	assert.Assert(c, is.Contains(out, "not a valid value for --type"))
+	result := cli.Docker(cli.Args("inspect", "--type=foobar", "busybox"))
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
+	oneOf := []string{
+		`unknown type: "foobar"`,
+		"not a valid value for --type",
+	}
+	out := result.Combined()
+	if !strings.Contains(out, oneOf[0]) && !strings.Contains(out, oneOf[1]) {
+		c.Errorf("exoected one of %v: %s", oneOf, out)
+	}
 }
 
+// TestInspectImageFilterInt verifies that integer image fields can be
+// compared with integer constants in inspect format templates.
+//
+// regression test for https://github.com/moby/moby/issues/11641
+//
+// FIXME(thaJeztah): this should be a unit tests in docker/cli
 func (s *DockerCLIInspectSuite) TestInspectImageFilterInt(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	imageTest := loadSpecialImage(c, specialimage.EmptyFS)
-
-	out := inspectField(c, imageTest, "Size")
-
-	size, err := strconv.Atoi(out)
-	assert.Assert(c, err == nil, "failed to inspect size of the image: %s, %v", out, err)
+	out := cli.DockerCmd(c, "inspect", "--format", "{{.Size}}", imageTest).Stdout()
+	size, err := strconv.Atoi(strings.TrimSpace(out))
+	assert.NilError(c, err)
 
 	// now see if the size turns out to be the same
 	formatStr := fmt.Sprintf("--format={{eq .Size %d}}", size)
@@ -153,18 +160,25 @@ func (s *DockerCLIInspectSuite) TestInspectImageFilterInt(c *testing.T) {
 	assert.Equal(c, result, true)
 }
 
+// TestInspectContainerFilterInt verifies that integer container fields can be
+// compared with integer constants in inspect format templates.
+//
+// regression test for https://github.com/moby/moby/issues/11641
+//
+// FIXME(thaJeztah): this should be a unit tests in docker/cli
 func (s *DockerCLIInspectSuite) TestInspectContainerFilterInt(c *testing.T) {
+	// FIXME(thaJeztah): docker CLI 28 no longer prints container-ID; check if that was intentional; https://github.com/moby/moby/pull/51361#issuecomment-5866790292
+	const name = "inspect-container-filter-int"
+
 	result := icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "run", "-i", "-a", "stdin", "busybox", "cat"},
+		Command: []string{dockerBinary, "run", "-i", "-a", "stdin", "--name", name, "busybox", "cat"},
 		Stdin:   strings.NewReader("blahblah"),
-	})
-	result.Assert(c, icmd.Success)
-	out := result.Stdout()
-	id := strings.TrimSpace(out)
+	}).Assert(c, icmd.Success)
+	out := result.Combined()
+	id := name
 
-	out = inspectField(c, id, "State.ExitCode")
-
-	exitCode, err := strconv.Atoi(out)
+	ec := inspectField(c, id, "State.ExitCode")
+	exitCode, err := strconv.Atoi(ec)
 	assert.Assert(c, err == nil, "failed to inspect exitcode of the container: %s, %v", out, err)
 
 	// now get the exit code to verify
@@ -302,11 +316,21 @@ func (s *DockerCLIInspectSuite) TestInspectTemplateError(c *testing.T) {
 }
 
 func (s *DockerCLIInspectSuite) TestInspectJSONFields(c *testing.T) {
-	runSleepingContainer(c, "--name=busybox", "-d")
-	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format={{.HostConfig.Dns}}", "busybox")
+	ctrName := "inspectjsonfields"
+	runSleepingContainer(c, "--name", ctrName, "-d")
+	out := cli.DockerCmd(c, "container", "inspect", "--format", "{{json .HostConfig.Dns}}", ctrName).Stdout()
+	out = strings.TrimSpace(out)
 
-	assert.NilError(c, err)
-	assert.Equal(c, out, "[]\n")
+	// Current versions use omit-empty, old versions returned an empty slice ({})
+	oneOf := []string{"[]", "null"}
+	var found bool
+	for _, v := range oneOf {
+		if out == v {
+			found = true
+			break
+		}
+	}
+	assert.Assert(c, found)
 }
 
 func (s *DockerCLIInspectSuite) TestInspectByPrefix(c *testing.T) {
@@ -422,8 +446,11 @@ func (s *DockerCLIInspectSuite) TestInspectPlugin(c *testing.T) {
 // Test case for 29185
 func (s *DockerCLIInspectSuite) TestInspectUnknownObject(c *testing.T) {
 	// This test should work on both Windows and Linux
-	out, _, err := dockerCmdWithError("inspect", "foobar")
-	assert.ErrorContains(c, err, "")
-	assert.Assert(c, is.Contains(out, "Error: No such object: foobar"))
-	assert.ErrorContains(c, err, "Error: No such object: foobar")
+	res := cli.Docker(cli.Args("inspect", "foobar"))
+	res.Assert(c, icmd.Expected{
+		ExitCode: 1,
+	})
+
+	expected := "no such object: foobar"
+	assert.Assert(c, is.Contains(strings.ToLower(res.Stderr()), expected))
 }

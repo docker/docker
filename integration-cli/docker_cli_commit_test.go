@@ -36,7 +36,7 @@ func (s *DockerCLICommitSuite) TestCommitWithoutPause(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 	cID := cli.DockerCmd(c, "run", "-dit", "busybox").Combined()
 	cID = strings.TrimSpace(cID)
-	imageID := cli.DockerCmd(c, "commit", "-p=false", cID).Combined()
+	imageID := cli.DockerCmd(c, "commit", "--no-pause", cID).Combined()
 	imageID = strings.TrimSpace(imageID)
 	cli.DockerCmd(c, "inspect", imageID)
 }

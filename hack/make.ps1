@@ -517,8 +517,8 @@ Try {
         if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" $ldflags }
         if ($Client) {
             # Get the Docker channel and version from the environment, or use the defaults.
-            if (-not ($channel = $env:DOCKERCLI_CHANNEL)) { $channel = "stable" }
-            if (-not ($version = $env:DOCKERCLI_VERSION)) { $version = "25.0.5" }
+            if (-not ($channel = $env:DOCKERCLI_CHANNEL)) { $channel = "test" }
+            if (-not ($version = $env:DOCKERCLI_VERSION)) { $version = "29.9.3" }
 
             # Download the zip file and extract the client executable.
             Write-Host "INFO: Downloading docker/cli version $version from $channel..."

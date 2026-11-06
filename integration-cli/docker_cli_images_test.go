@@ -190,15 +190,15 @@ func (s *DockerCLIImagesSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *te
 	cli.DockerCmd(c, "tag", "busybox", "foobox")
 
 	out := cli.DockerCmd(c, "images", "-q", "-f", "dangling=true").Stdout()
-	// Expect one dangling image
-	assert.Equal(c, strings.Count(out, imageID), 1)
+	assert.Equal(c, strings.Count(out, imageID), 1, "expected one dangling image")
 
 	out = cli.DockerCmd(c, "images", "-q", "-f", "dangling=false").Stdout()
-	// dangling=false would not include dangling images
-	assert.Assert(c, !strings.Contains(out, imageID))
+	assert.Assert(c, !strings.Contains(out, imageID), "dangling=false should not include dangling images")
 	out = cli.DockerCmd(c, "images").Stdout()
-	// docker images still include dangling images
-	assert.Assert(c, is.Contains(out, imageID))
+	assert.Assert(c, !strings.Contains(out, imageID), "should not list dangling images by default")
+
+	out = cli.DockerCmd(c, "images", "-a").Stdout()
+	assert.Assert(c, is.Contains(out, imageID), "should not list dangling images")
 }
 
 // FIXME(vdemeester) should be a unit test for `docker image ls`

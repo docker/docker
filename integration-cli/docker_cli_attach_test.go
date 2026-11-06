@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -102,6 +101,7 @@ func (s *DockerCLIAttachSuite) TestAttachMultipleAndRestart(c *testing.T) {
 	}
 }
 
+// FIXME(thaJeztah) migrate to docker/cli tests
 func (s *DockerCLIAttachSuite) TestAttachTTYWithoutStdin(c *testing.T) {
 	// TODO: Figure out how to get this running again reliable on Windows.
 	// It works by accident at the moment. Sometimes. I've gone back to v1.13.0 and see the same.
@@ -125,10 +125,7 @@ func (s *DockerCLIAttachSuite) TestAttachTTYWithoutStdin(c *testing.T) {
 			return
 		}
 
-		expected := "the input device is not a TTY"
-		if runtime.GOOS == "windows" {
-			expected += ".  If you are using mintty, try prefixing the command with 'winpty'"
-		}
+		expected := "stdin is not a terminal"
 		result := icmd.RunCmd(icmd.Cmd{
 			Command: cmd.Args,
 			Env:     cmd.Env,
