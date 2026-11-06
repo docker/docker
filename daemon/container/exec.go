@@ -11,6 +11,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 	"github.com/moby/moby/v2/daemon/internal/stream"
 	"github.com/moby/moby/v2/daemon/internal/stringid"
+	"github.com/moby/moby/v2/daemon/logger"
 )
 
 // ExecConfig holds the configurations for execs. The Daemon keeps
@@ -38,6 +39,19 @@ type ExecConfig struct {
 	Env          []string
 	Process      types.Process
 	ConsoleSize  *[2]uint
+
+	// CaptureStdout tees the exec's stdout into the container's logging
+	// driver, stamping each message with the exec's identity.
+	CaptureStdout bool
+	// CaptureStderr tees the exec's stderr into the container's logging
+	// driver, stamping each message with the exec's identity.
+	CaptureStderr bool
+	// Labels holds the user-defined metadata declared at exec create time.
+	Labels map[string]string
+	// LogCopier feeds the exec's output to the container's logging driver
+	// when CaptureStdout or CaptureStderr is set. Its copy goroutines
+	// terminate when the exec's streams are closed.
+	LogCopier *logger.Copier
 }
 
 // NewExecConfig initializes the a new exec configuration
@@ -52,6 +66,11 @@ func NewExecConfig(c *Container) *ExecConfig {
 
 // InitializeStdio is called by libcontainerd to connect the stdio.
 func (c *ExecConfig) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
+	if c.CaptureStdout || c.CaptureStderr {
+		// Attach the log-capture pipes before the process's output starts
+		// flowing, so no early output is missed.
+		c.startLogCapture()
+	}
 	c.StreamConfig.CopyToPipe(iop)
 
 	if c.StreamConfig.Stdin() == nil && !c.Tty && runtime.GOOS == "windows" {
@@ -67,7 +86,14 @@ func (c *ExecConfig) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
 
 // CloseStreams closes the stdio streams for the exec
 func (c *ExecConfig) CloseStreams() error {
-	return c.StreamConfig.CloseStreams()
+	err := c.StreamConfig.CloseStreams()
+	if c.LogCopier != nil {
+		// Streams are closed: the copy goroutines drain to EOF; wait for
+		// them so every captured line reached the driver before the exec
+		// is reported as terminated.
+		c.LogCopier.Wait()
+	}
+	return err
 }
 
 // SetExitCode sets the exec config's exit code

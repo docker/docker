@@ -45,6 +45,14 @@ func WriteJSON(ctx context.Context, w http.ResponseWriter, msgs <-chan *backend.
 				if config.ShowStderr {
 					jsonWriter.write(msg)
 				}
+			case "exec-stdout":
+				if config.ShowExecStdout {
+					jsonWriter.write(msg)
+				}
+			case "exec-stderr":
+				if config.ShowExecStderr {
+					jsonWriter.write(msg)
+				}
 			default:
 				// unknown source
 			}
@@ -77,7 +85,8 @@ type jsonLogMessage struct {
 	// When an alternate encoding is requested, this field is omitted.
 	Line string `json:"Line,omitempty"`
 
-	// Source identifies the originating stream ("stdout" or "stderr").
+	// Source identifies the originating stream ("stdout", "stderr",
+	// "exec-stdout" or "exec-stderr").
 	Source string `json:"Source,omitempty"`
 
 	// Timestamp is the time at which the log record was produced,

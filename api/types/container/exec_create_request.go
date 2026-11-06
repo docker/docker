@@ -14,4 +14,24 @@ type ExecCreateRequest struct {
 	Env          []string // Environment variables
 	WorkingDir   string   // Working directory
 	Cmd          []string // Execution commands and args
+
+	// CaptureStdout tees the exec process's stdout into the container's
+	// logging driver, recorded on the dedicated "exec-stdout" stream.
+	// Captured messages carry the exec's identity ("exec_id" and any
+	// Labels) as per-message attributes, so log readers can tell exec
+	// output apart from the container's main process output.
+	CaptureStdout bool `json:",omitempty"`
+
+	// CaptureStderr tees the exec process's stderr into the container's
+	// logging driver, recorded on the dedicated "exec-stderr" stream.
+	// Captured messages carry the exec's identity ("exec_id" and any
+	// Labels) as per-message attributes, so log readers can tell exec
+	// output apart from the container's main process output.
+	CaptureStderr bool `json:",omitempty"`
+
+	// Labels holds user-defined metadata for the exec instance. Labels are
+	// reported by exec inspect, attached to the exec's lifecycle events,
+	// and stamped on captured log messages when CaptureStdout or
+	// CaptureStderr is set.
+	Labels map[string]string `json:",omitempty"`
 }

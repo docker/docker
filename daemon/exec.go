@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"runtime"
 	"strings"
 	"time"
@@ -92,6 +93,20 @@ func (daemon *Daemon) getActiveContainer(name string) (*container.Container, err
 	return ctr, nil
 }
 
+// execEventAttributes merges the exec's labels into event attributes.
+// Reserved keys (execID, exitCode) and container labels keep precedence over
+// exec labels: LogContainerEventWithAttributes copies container labels over
+// the attributes it receives, and the reserved keys are merged last here.
+func execEventAttributes(labels, attributes map[string]string) map[string]string {
+	if len(labels) == 0 {
+		return attributes
+	}
+	merged := make(map[string]string, len(labels)+len(attributes))
+	maps.Copy(merged, labels)
+	maps.Copy(merged, attributes)
+	return merged
+}
+
 // ContainerExecCreate sets up an exec in a running container.
 func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.ExecCreateRequest) (string, error) {
 	cntr, err := daemon.getActiveContainer(name)
@@ -135,6 +150,14 @@ func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.E
 	execConfig.Privileged = options.Privileged
 	execConfig.User = options.User
 	execConfig.WorkingDir = options.WorkingDir
+	execConfig.Labels = options.Labels
+	if options.CaptureStdout || options.CaptureStderr {
+		if cntr.HostConfig.LogConfig.Type == "none" {
+			return "", errdefs.InvalidParameter(errors.New("cannot capture exec output: container has no logging driver (log driver is \"none\")"))
+		}
+		execConfig.CaptureStdout = options.CaptureStdout
+		execConfig.CaptureStderr = options.CaptureStderr
+	}
 
 	linkedEnv, err := daemon.setupLinkedContainers(cntr)
 	if err != nil {
@@ -149,9 +172,9 @@ func (daemon *Daemon) ContainerExecCreate(name string, options *containertypes.E
 	}
 
 	daemon.registerExecCommand(cntr, execConfig)
-	daemon.LogContainerEventWithAttributes(cntr, events.Action(string(events.ActionExecCreate)+": "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " ")), map[string]string{
+	daemon.LogContainerEventWithAttributes(cntr, events.Action(string(events.ActionExecCreate)+": "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " ")), execEventAttributes(execConfig.Labels, map[string]string{
 		"execID": execConfig.ID,
-	})
+	}))
 
 	return execConfig.ID, nil
 }
@@ -184,9 +207,9 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 	ec.Unlock()
 
 	log.G(ctx).Debugf("starting exec command %s in container %s", ec.ID, ec.Container.ID)
-	daemon.LogContainerEventWithAttributes(ec.Container, events.Action(string(events.ActionExecStart)+": "+ec.Entrypoint+" "+strings.Join(ec.Args, " ")), map[string]string{
+	daemon.LogContainerEventWithAttributes(ec.Container, events.Action(string(events.ActionExecStart)+": "+ec.Entrypoint+" "+strings.Join(ec.Args, " ")), execEventAttributes(ec.Labels, map[string]string{
 		"execID": ec.ID,
-	})
+	}))
 
 	defer func() {
 		if retErr != nil {
@@ -333,9 +356,9 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 			if _, ok := err.(term.EscapeError); !ok {
 				return errdefs.System(errors.Wrap(err, "exec attach failed"))
 			}
-			daemon.LogContainerEventWithAttributes(ec.Container, events.ActionExecDetach, map[string]string{
+			daemon.LogContainerEventWithAttributes(ec.Container, events.ActionExecDetach, execEventAttributes(ec.Labels, map[string]string{
 				"execID": ec.ID,
-			})
+			}))
 		}
 	}
 	return nil

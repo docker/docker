@@ -183,7 +183,19 @@ func messageToProto(msg *logger.Message, extra []*logdriver.LogAttr, proto *logd
 	} else {
 		proto.PartialLogMetadata = nil
 	}
-	proto.Attrs = extra
+	if len(msg.Attrs) > 0 {
+		// Per-message attributes (e.g. an exec's identity) are merged after
+		// the static logger-level ones. A fresh slice is required: appending
+		// to extra would mutate the shared backing array across messages.
+		attrs := make([]*logdriver.LogAttr, 0, len(extra)+len(msg.Attrs))
+		attrs = append(attrs, extra...)
+		for _, a := range msg.Attrs {
+			attrs = append(attrs, &logdriver.LogAttr{Key: a.Key, Value: a.Value})
+		}
+		proto.Attrs = attrs
+	} else {
+		proto.Attrs = extra
+	}
 }
 
 func protoToMessage(proto *logdriver.LogEntry) *logger.Message {

@@ -129,11 +129,31 @@ func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffe
 	if msg.PLogMetaData == nil || (msg.PLogMetaData != nil && msg.PLogMetaData.Last) {
 		logLine = append(msg.Line, '\n')
 	}
+	rawAttrs := extra
+	if len(msg.Attrs) > 0 {
+		// Per-message attributes (e.g. an exec's identity) are merged over
+		// the static logger-level ones. The remarshal cost is only paid for
+		// messages that actually carry attributes.
+		attrs := make(map[string]string, len(msg.Attrs))
+		if len(extra) > 0 {
+			if err := json.Unmarshal(extra, &attrs); err != nil {
+				return errors.Wrap(err, "error decoding logger attributes")
+			}
+		}
+		for _, a := range msg.Attrs {
+			attrs[a.Key] = a.Value
+		}
+		merged, err := json.Marshal(attrs)
+		if err != nil {
+			return errors.Wrap(err, "error merging message attributes")
+		}
+		rawAttrs = merged
+	}
 	err := (&jsonlog.JSONLogs{
 		Log:      logLine,
 		Stream:   msg.Source,
 		Created:  msg.Timestamp,
-		RawAttrs: extra,
+		RawAttrs: rawAttrs,
 	}).MarshalJSONBuf(buf)
 	if err != nil {
 		return errors.Wrap(err, "error writing log message to buffer")

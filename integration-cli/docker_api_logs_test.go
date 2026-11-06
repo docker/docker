@@ -65,7 +65,7 @@ func (s *DockerAPISuite) TestLogsAPINoStdoutNorStderr(c *testing.T) {
 
 	_, err = apiClient.ContainerLogs(testutil.GetContext(c), name, client.ContainerLogsOptions{})
 	assert.ErrorType(c, err, cerrdefs.IsInvalidArgument)
-	assert.ErrorContains(c, err, "must specify at least one of 'stdout' or 'stderr'")
+	assert.ErrorContains(c, err, "must specify at least one of 'stdout', 'stderr', 'exec-stdout' or 'exec-stderr'")
 }
 
 // Regression test for #12704

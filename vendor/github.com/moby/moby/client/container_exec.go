@@ -23,6 +23,19 @@ type ExecCreateOptions struct {
 	Env          []string    // Environment variables
 	WorkingDir   string      // Working directory
 	Cmd          []string    // Execution commands and args
+
+	// CaptureStdout tees the exec process's stdout into the container's
+	// logging driver, recorded on the dedicated "exec-stdout" stream and
+	// stamped with the exec's identity ("exec_id" and any Labels).
+	CaptureStdout bool
+
+	// CaptureStderr tees the exec process's stderr into the container's
+	// logging driver, recorded on the dedicated "exec-stderr" stream and
+	// stamped with the exec's identity ("exec_id" and any Labels).
+	CaptureStderr bool
+
+	// Labels holds user-defined metadata for the exec instance.
+	Labels map[string]string
 }
 
 // ExecCreateResult holds the result of creating a container exec.
@@ -43,17 +56,20 @@ func (cli *Client) ExecCreate(ctx context.Context, containerID string, options E
 	}
 
 	resp, err := cli.post(ctx, "/containers/"+containerID+"/exec", nil, nil, container.ExecCreateRequest{
-		User:         options.User,
-		Privileged:   options.Privileged,
-		Tty:          options.TTY,
-		ConsoleSize:  consoleSize,
-		AttachStdin:  options.AttachStdin,
-		AttachStderr: options.AttachStderr,
-		AttachStdout: options.AttachStdout,
-		DetachKeys:   options.DetachKeys,
-		Env:          options.Env,
-		WorkingDir:   options.WorkingDir,
-		Cmd:          options.Cmd,
+		User:          options.User,
+		Privileged:    options.Privileged,
+		Tty:           options.TTY,
+		ConsoleSize:   consoleSize,
+		AttachStdin:   options.AttachStdin,
+		AttachStderr:  options.AttachStderr,
+		AttachStdout:  options.AttachStdout,
+		DetachKeys:    options.DetachKeys,
+		Env:           options.Env,
+		WorkingDir:    options.WorkingDir,
+		Cmd:           options.Cmd,
+		CaptureStdout: options.CaptureStdout,
+		CaptureStderr: options.CaptureStderr,
+		Labels:        options.Labels,
 	})
 	defer ensureReaderClosed(resp)
 	if err != nil {
@@ -167,6 +183,9 @@ type ExecInspectResult struct {
 	Running     bool
 	ExitCode    int
 	PID         int
+
+	// Labels holds the user-defined metadata declared at exec create time.
+	Labels map[string]string
 }
 
 // ExecInspect returns information about a specific exec process on the docker host.
@@ -194,5 +213,6 @@ func (cli *Client) ExecInspect(ctx context.Context, execID string, options ExecI
 		Running:     response.Running,
 		ExitCode:    ec,
 		PID:         response.Pid,
+		Labels:      response.Labels,
 	}, nil
 }

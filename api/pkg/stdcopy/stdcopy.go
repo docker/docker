@@ -16,6 +16,9 @@ const (
 	Stdout    StdType = 1 // Stdout represents standard output stream.
 	Stderr    StdType = 2 // Stderr represents standard error steam.
 	Systemerr StdType = 3 // Systemerr represents errors originating from the system. When reading the stream with [StdCopy] it is returned as an error.
+
+	ExecStdout StdType = 4 // ExecStdout represents the standard output stream of an exec process whose output is captured in the container's logs. When reading the stream with [StdCopy] it is output on [Stdout].
+	ExecStderr StdType = 5 // ExecStderr represents the standard error stream of an exec process whose output is captured in the container's logs. When reading the stream with [StdCopy] it is output on [Stderr].
 )
 
 const (
@@ -34,11 +37,13 @@ const (
 // two streams, previously multiplexed using a writer created with
 // [NewStdWriter].
 //
-// As it reads from "multiplexedSource", StdCopy writes [Stdout] messages
-// to "destOut", and [Stderr] message to "destErr]. For backward-compatibility,
-// [Stdin] messages are output to "destOut". The [Systemerr] stream provides
-// errors produced by the daemon. It is returned as an error, and terminates
-// processing the stream.
+// As it reads from "multiplexedSource", StdCopy writes [Stdout] and
+// [ExecStdout] messages to "destOut", and [Stderr] and [ExecStderr] messages
+// to "destErr". For backward-compatibility, [Stdin] messages are output to
+// "destOut". The [Systemerr] stream provides errors produced by the daemon.
+// It is returned as an error, and terminates processing the stream. Callers
+// that need to tell exec output apart from the container's own output must
+// demultiplex the stream themselves based on the frame headers.
 //
 // StdCopy it reads until it hits [io.EOF] on "multiplexedSource", after
 // which it returns a nil error. In other words: any error returned indicates
@@ -79,10 +84,10 @@ func StdCopy(destOut, destErr io.Writer, multiplexedSource io.Reader) (written i
 		switch stream {
 		case Stdin:
 			fallthrough
-		case Stdout:
+		case Stdout, ExecStdout:
 			// Write on stdout
 			out = destOut
-		case Stderr:
+		case Stderr, ExecStderr:
 			// Write on stderr
 			out = destErr
 		case Systemerr:

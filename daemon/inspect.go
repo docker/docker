@@ -239,5 +239,6 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*containertypes.ExecInspe
 		ContainerID: e.Container.ID,
 		DetachKeys:  e.DetachKeys,
 		Pid:         pid,
+		Labels:      e.Labels,
 	}, nil
 }

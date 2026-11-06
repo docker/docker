@@ -35,7 +35,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		"container": containerName,
 	})
 
-	if !config.ShowStdout && !config.ShowStderr {
+	if !config.ShowStdout && !config.ShowStderr && !config.ShowExecStdout && !config.ShowExecStderr {
 		return nil, false, errdefs.InvalidParameter(errors.New("You must choose at least one stream"))
 	}
 	ctr, err := daemon.GetContainer(containerName)

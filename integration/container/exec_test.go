@@ -1,6 +1,7 @@
 package container
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -11,14 +12,17 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/common"
 	"github.com/moby/moby/client"
+	"github.com/moby/moby/client/pkg/versions"
 	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	req "github.com/moby/moby/v2/internal/testutil/request"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -430,4 +434,81 @@ func TestExecWithGroupAdd(t *testing.T) {
 
 	const expected = "uid=0(root) gid=0(root) groups=0(root),10(wheel),29(audio),50(staff),777"
 	assert.Check(t, is.Equal(strings.TrimSpace(result.Stdout()), expected), "exec command not keeping additional groups w/ user")
+}
+
+// TestExecCaptureLogs exercises the CaptureStdout/CaptureStderr exec
+// options: the exec's stdout and stderr are teed into the container's
+// logging driver on the dedicated exec streams, each line stamped with the
+// exec's identity, retrievable through the container logs endpoint after
+// the exec terminated.
+func TestExecCaptureLogs(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.56"), "requires API v1.56")
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	cID := container.Run(ctx, t, apiClient)
+
+	res, err := container.Exec(ctx, apiClient, cID,
+		[]string{"sh", "-c", "echo captured-stdout; echo captured-stderr >&2"},
+		func(o *client.ExecCreateOptions) {
+			o.CaptureStdout = true
+			o.CaptureStderr = true
+			o.Labels = map[string]string{"com.example.origin": "exec-capture-test"}
+		})
+	assert.NilError(t, err)
+	res.AssertSuccess(t)
+
+	// the capture copier drains asynchronously from the exec's streams:
+	// poll the logs until both captured lines landed in the driver
+	var stdout, stderr string
+	poll.WaitOn(t, func(poll.LogT) poll.Result {
+		logs, err := apiClient.ContainerLogs(ctx, cID, client.ContainerLogsOptions{
+			ShowExecStdout: true,
+			ShowExecStderr: true,
+			Details:        true,
+		})
+		if err != nil {
+			return poll.Error(err)
+		}
+		defer logs.Close()
+		var outBuf, errBuf bytes.Buffer
+		if _, err := stdcopy.StdCopy(&outBuf, &errBuf, logs); err != nil {
+			return poll.Error(err)
+		}
+		stdout, stderr = outBuf.String(), errBuf.String()
+		if strings.Contains(stdout, "captured-stdout") && strings.Contains(stderr, "captured-stderr") {
+			return poll.Success()
+		}
+		return poll.Continue("captured exec output not in container logs yet")
+	})
+
+	// with details requested, the captured lines carry the exec's identity
+	for _, line := range []string{stdout, stderr} {
+		assert.Check(t, is.Contains(line, "com.example.origin=exec-capture-test"))
+		assert.Check(t, is.Contains(line, "exec_id="))
+	}
+
+	// the exec streams are opt-in: a plain stdout/stderr request returns
+	// only the container's own output
+	logs, err := apiClient.ContainerLogs(ctx, cID, client.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+	})
+	assert.NilError(t, err)
+	defer logs.Close()
+	var outBuf, errBuf bytes.Buffer
+	_, err = stdcopy.StdCopy(&outBuf, &errBuf, logs)
+	assert.NilError(t, err)
+	assert.Check(t, !strings.Contains(outBuf.String(), "captured-stdout"))
+	assert.Check(t, !strings.Contains(errBuf.String(), "captured-stderr"))
+
+	// exec inspect reports the labels
+	created, err := apiClient.ExecCreate(ctx, cID, client.ExecCreateOptions{
+		Cmd:    []string{"true"},
+		Labels: map[string]string{"com.example.origin": "exec-capture-test"},
+	})
+	assert.NilError(t, err)
+	inspect, err := apiClient.ExecInspect(ctx, created.ID, client.ExecInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(inspect.Labels, map[string]string{"com.example.origin": "exec-capture-test"}))
 }

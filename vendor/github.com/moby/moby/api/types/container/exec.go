@@ -22,6 +22,9 @@ type ExecInspectResponse struct {
 	ContainerID   string `json:"ContainerID"`
 	DetachKeys    []byte `json:"DetachKeys"`
 	Pid           int    `json:"Pid"`
+
+	// Labels holds the user-defined metadata declared at exec create time.
+	Labels map[string]string `json:"Labels,omitempty"`
 }
 
 // ExecProcessConfig holds information about the exec process

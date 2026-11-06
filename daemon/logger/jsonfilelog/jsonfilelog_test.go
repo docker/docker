@@ -13,6 +13,7 @@ import (
 
 	"github.com/moby/moby/v2/daemon/logger"
 	"github.com/moby/moby/v2/daemon/logger/jsonfilelog/jsonlog"
+	"github.com/moby/moby/v2/daemon/server/backend"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -279,4 +280,37 @@ func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 		"dc_region": "west",
 	}
 	assert.Check(t, is.DeepEqual(extra, expected))
+}
+
+// Per-message attributes must be merged over the logger-level static ones,
+// and messages without attributes must keep the zero-cost static path.
+func TestMarshalMessageMergesPerMessageAttrs(t *testing.T) {
+	extra := json.RawMessage(`{"static":"yes"}`)
+
+	var buf bytes.Buffer
+	msg := &logger.Message{
+		Line:      []byte("captured"),
+		Source:    "stdout",
+		Timestamp: time.Unix(0, 0).UTC(),
+		Attrs: []backend.LogAttr{
+			{Key: "exec_id", Value: "abc123"},
+			{Key: "com.example.hook", Value: "post_start"},
+		},
+	}
+	assert.NilError(t, marshalMessage(msg, extra, &buf))
+
+	var entry jsonlog.JSONLog
+	assert.NilError(t, json.Unmarshal(buf.Bytes(), &entry))
+	assert.DeepEqual(t, entry.Attrs, map[string]string{
+		"static":           "yes",
+		"exec_id":          "abc123",
+		"com.example.hook": "post_start",
+	})
+
+	// without per-message attrs, the static raw attributes are passed through
+	buf.Reset()
+	assert.NilError(t, marshalMessage(&logger.Message{Line: []byte("plain"), Source: "stdout"}, extra, &buf))
+	entry = jsonlog.JSONLog{}
+	assert.NilError(t, json.Unmarshal(buf.Bytes(), &entry))
+	assert.DeepEqual(t, entry.Attrs, map[string]string{"static": "yes"})
 }

@@ -112,12 +112,20 @@ type ContainerListOptions struct {
 type ContainerLogsOptions struct {
 	ShowStdout bool
 	ShowStderr bool
-	Since      time.Time
-	Until      time.Time
-	Timestamps bool
-	Follow     bool
-	Tail       string
-	Details    bool
+	// ShowExecStdout selects the stdout stream of execs whose output was
+	// captured in the container's logs (execs created with CaptureStdout /
+	// CaptureStderr).
+	ShowExecStdout bool
+	// ShowExecStderr selects the stderr stream of execs whose output was
+	// captured in the container's logs (execs created with CaptureStdout /
+	// CaptureStderr).
+	ShowExecStderr bool
+	Since          time.Time
+	Until          time.Time
+	Timestamps     bool
+	Follow         bool
+	Tail           string
+	Details        bool
 }
 
 // ContainerStopOptions holds the options to stop or restart a container.

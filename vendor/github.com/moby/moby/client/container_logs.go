@@ -14,6 +14,19 @@ import (
 type ContainerLogsOptions struct {
 	ShowStdout bool
 	ShowStderr bool
+
+	// ShowExecStdout requests the stdout stream of execs whose output was
+	// captured in the container's logs (execs created with CaptureStdout /
+	// CaptureStderr).
+	// Requires API v1.56 or newer.
+	ShowExecStdout bool
+
+	// ShowExecStderr requests the stderr stream of execs whose output was
+	// captured in the container's logs (execs created with CaptureStdout /
+	// CaptureStderr).
+	// Requires API v1.56 or newer.
+	ShowExecStderr bool
+
 	Since      string
 	Until      string
 	Timestamps bool
@@ -45,16 +58,19 @@ type ContainerLogsResult interface {
 //
 //	[8]byte{STREAM_TYPE, 0, 0, 0, SIZE1, SIZE2, SIZE3, SIZE4}[]byte{OUTPUT}
 //
-// STREAM_TYPE can be 1 for [Stdout] and 2 for [Stderr]. Refer to [stdcopy.StdType]
-// for details. SIZE1, SIZE2, SIZE3, and SIZE4 are four bytes of uint32 encoded
-// as big endian, this is the size of OUTPUT. You can use [stdcopy.StdCopy]
-// to demultiplex this stream.
+// STREAM_TYPE can be 1 for [Stdout], 2 for [Stderr], and, when captured exec
+// output is requested (API v1.56+), 4 for [ExecStdout] and 5 for [ExecStderr].
+// Refer to [stdcopy.StdType] for details. SIZE1, SIZE2, SIZE3, and SIZE4 are
+// four bytes of uint32 encoded as big endian, this is the size of OUTPUT. You
+// can use [stdcopy.StdCopy] to demultiplex this stream.
 //
 // [stdcopy]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy
 // [stdcopy.StdCopy]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#StdCopy
 // [stdcopy.StdType]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#StdType
 // [Stdout]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#Stdout
 // [Stderr]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#Stderr
+// [ExecStdout]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#ExecStdout
+// [ExecStderr]: https://pkg.go.dev/github.com/moby/moby/api/pkg/stdcopy#ExecStderr
 func (cli *Client) ContainerLogs(ctx context.Context, containerID string, options ContainerLogsOptions) (ContainerLogsResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
@@ -68,6 +84,18 @@ func (cli *Client) ContainerLogs(ctx context.Context, containerID string, option
 
 	if options.ShowStderr {
 		query.Set("stderr", "1")
+	}
+
+	if options.ShowExecStdout || options.ShowExecStderr {
+		if err := cli.requiresVersion(ctx, "1.56", "exec log streams"); err != nil {
+			return nil, err
+		}
+		if options.ShowExecStdout {
+			query.Set("exec-stdout", "1")
+		}
+		if options.ShowExecStderr {
+			query.Set("exec-stderr", "1")
+		}
 	}
 
 	if options.Since != "" {

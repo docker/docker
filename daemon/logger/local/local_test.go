@@ -140,3 +140,30 @@ func copyLogMessage(src *logger.Message) *logger.Message {
 	}
 	return dst
 }
+
+// Per-message attributes must be merged after the logger-level static ones
+// without mutating the shared static slice.
+func TestMessageToProtoMergesPerMessageAttrs(t *testing.T) {
+	static := []*logdriver.LogAttr{{Key: "static", Value: "yes"}}
+
+	var proto logdriver.LogEntry
+	var md logdriver.PartialLogEntryMetadata
+	msg := logger.Message{
+		Line:   []byte("captured"),
+		Source: "stdout",
+		Attrs:  []backend.LogAttr{{Key: "exec_id", Value: "abc123"}},
+	}
+	messageToProto(&msg, static, &proto, &md)
+
+	assert.Assert(t, is.Len(proto.Attrs, 2))
+	assert.Check(t, is.Equal(proto.Attrs[0].Key, "static"))
+	assert.Check(t, is.Equal(proto.Attrs[1].Key, "exec_id"))
+	assert.Check(t, is.Equal(proto.Attrs[1].Value, "abc123"))
+	// the shared static slice must be left untouched
+	assert.Assert(t, is.Len(static, 1))
+
+	// without per-message attrs, the static slice is used as-is
+	var proto2 logdriver.LogEntry
+	messageToProto(&logger.Message{Line: []byte("plain"), Source: "stdout"}, static, &proto2, &md)
+	assert.Assert(t, is.Len(proto2.Attrs, 1))
+}

@@ -200,8 +200,14 @@ func (c *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	// any error after the stream starts (i.e. container not found, wrong parameters)
 	// with the appropriate status code.
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
-	if !stdout && !stderr {
-		return errdefs.InvalidParameter(errors.New("must specify at least one of 'stdout' or 'stderr'"))
+	var execStdout, execStderr bool
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.56") {
+		// Execs created with CaptureStdout / CaptureStderr record their output on dedicated
+		// "exec-stdout" / "exec-stderr" streams, returned only on request.
+		execStdout, execStderr = httputils.BoolValue(r, "exec-stdout"), httputils.BoolValue(r, "exec-stderr")
+	}
+	if !stdout && !stderr && !execStdout && !execStderr {
+		return errdefs.InvalidParameter(errors.New("must specify at least one of 'stdout', 'stderr', 'exec-stdout' or 'exec-stderr'"))
 	}
 
 	var since time.Time
@@ -241,14 +247,16 @@ func (c *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 
 	containerName := vars["name"]
 	logsConfig := &backend.ContainerLogsOptions{
-		Follow:     httputils.BoolValue(r, "follow"),
-		Timestamps: httputils.BoolValue(r, "timestamps"),
-		Since:      since,
-		Until:      until,
-		Tail:       r.Form.Get("tail"),
-		ShowStdout: stdout,
-		ShowStderr: stderr,
-		Details:    httputils.BoolValue(r, "details"),
+		Follow:         httputils.BoolValue(r, "follow"),
+		Timestamps:     httputils.BoolValue(r, "timestamps"),
+		Since:          since,
+		Until:          until,
+		Tail:           r.Form.Get("tail"),
+		ShowStdout:     stdout,
+		ShowStderr:     stderr,
+		ShowExecStdout: execStdout,
+		ShowExecStderr: execStderr,
+		Details:        httputils.BoolValue(r, "details"),
 	}
 
 	msgs, tty, err := c.backend.ContainerLogs(ctx, containerName, logsConfig)
