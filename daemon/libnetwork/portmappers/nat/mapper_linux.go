@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+	"strings"
+	"syscall"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/rlkclient"
@@ -18,6 +20,11 @@ import (
 )
 
 const driverName = "nat"
+
+// maxHostBindAttempts bounds how many times MapPorts retries the
+// allocate-and-bind cycle when the rootlesskit host-namespace bind collides
+// with a dynamic port that is already in use in the host namespace.
+const maxHostBindAttempts = 10
 
 type PortDriverClient interface {
 	ChildHostIP(proto string, hostIP netip.Addr) netip.Addr
@@ -88,31 +95,60 @@ func (pm PortMapper) MapPorts(ctx context.Context, cfg []portmapperapi.PortBindi
 	})
 
 	pa := portallocator.NewOSAllocator()
-	allocatedPort, socks, err := pa.RequestPortsInRange(addrs, proto, int(hostPort), int(hostPortEnd))
-	if err != nil {
-		return nil, err
-	}
 
-	for i := range cfg {
-		pb := portmapperapi.PortBinding{
-			PortBinding: cfg[i].PortBinding.Copy(),
-			BoundSocket: socks[i],
-			ChildHostIP: cfg[i].ChildHostIP,
+	// In rootless mode the OS allocator's bind probe runs in the daemon's
+	// (child) network namespace, while the port driver (rootlesskit) binds the
+	// same host port in the host (parent) namespace, which has a separate port
+	// table. A port that is free in the child namespace can therefore still
+	// collide in the host namespace, and the allocator's own retry does not see
+	// that. When the host port is dynamic, retry the whole allocate-and-bind
+	// cycle so a fresh port is chosen; the allocator round-robins, so each
+	// attempt picks a different port (issue #52903).
+	dynamicPort := hostPort == 0 || hostPort != hostPortEnd
+	for attempt := 0; ; attempt++ {
+		allocatedPort, socks, err := pa.RequestPortsInRange(addrs, proto, int(hostPort), int(hostPortEnd))
+		if err != nil {
+			return nil, err
 		}
-		pb.PortBinding.HostPort = uint16(allocatedPort)
-		pb.PortBinding.HostPortEnd = pb.HostPort
 
-		childHIP, _ := netip.AddrFromSlice(cfg[i].ChildHostIP)
-		pb.NAT = netip.AddrPortFrom(childHIP.Unmap(), pb.PortBinding.HostPort)
+		bindings = bindings[:0]
+		for i := range cfg {
+			pb := portmapperapi.PortBinding{
+				PortBinding: cfg[i].PortBinding.Copy(),
+				BoundSocket: socks[i],
+				ChildHostIP: cfg[i].ChildHostIP,
+			}
+			pb.PortBinding.HostPort = uint16(allocatedPort)
+			pb.PortBinding.HostPortEnd = pb.HostPort
 
-		bindings = append(bindings, pb)
+			childHIP, _ := netip.AddrFromSlice(cfg[i].ChildHostIP)
+			pb.NAT = netip.AddrPortFrom(childHIP.Unmap(), pb.PortBinding.HostPort)
+
+			bindings = append(bindings, pb)
+		}
+
+		err = configPortDriver(ctx, bindings, pm.pdc)
+		if err == nil {
+			return bindings, nil
+		}
+		if !dynamicPort || !isAddrInUse(err) || attempt >= maxHostBindAttempts-1 {
+			return nil, err
+		}
+
+		// The host-namespace bind collided on a dynamic port. Release this
+		// attempt's bindings (closing the child-namespace probe sockets and
+		// freeing the allocator reservation) and retry with a new port.
+		if uErr := pm.UnmapPorts(ctx, bindings); uErr != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"pbs":   bindings,
+				"error": uErr,
+			}).Warn("Failed to release port bindings before retry")
+		}
+		log.G(ctx).WithFields(log.Fields{
+			"port":    allocatedPort,
+			"attempt": attempt + 1,
+		}).Debug("Host-namespace port collision in rootless mode, retrying with a new port")
 	}
-
-	if err := configPortDriver(ctx, bindings, pm.pdc); err != nil {
-		return nil, err
-	}
-
-	return bindings, nil
 }
 
 func (pm PortMapper) UnmapPorts(ctx context.Context, pbs []portmapperapi.PortBinding) error {
@@ -155,6 +191,16 @@ func setChildHostIP(pdc PortDriverClient, req portmapperapi.PortBindingReq) (por
 // configPortDriver passes the port binding's details to rootlesskit, and updates the
 // port binding with callbacks to remove the rootlesskit config (or marks the binding as
 // unsupported by rootlesskit).
+// isAddrInUse reports whether err is, or wraps, an EADDRINUSE error. The
+// rootlesskit port driver communicates over IPC and flattens the errno into a
+// string, so errors.Is alone is not sufficient and the message is also matched.
+func isAddrInUse(err error) bool {
+	if errors.Is(err, syscall.EADDRINUSE) {
+		return true
+	}
+	return strings.Contains(err.Error(), "address already in use")
+}
+
 func configPortDriver(ctx context.Context, pbs []portmapperapi.PortBinding, pdc PortDriverClient) error {
 	for i := range pbs {
 		b := pbs[i]
