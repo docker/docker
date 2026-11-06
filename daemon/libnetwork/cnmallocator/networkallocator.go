@@ -192,14 +192,10 @@ func (na *cnmNetworkAllocator) Deallocate(n *api.Network) error {
 }
 
 // AllocateService allocates all the network resources such as virtual
-// IP needed by the service.
+// IP needed by the service. If it fails, it deallocates the VIPs which the
+// service had and those it allocated, as DeallocateService does, but not a
+// VIP which it failed to allocate.
 func (na *cnmNetworkAllocator) AllocateService(s *api.Service) (err error) {
-	defer func() {
-		if err != nil {
-			na.DeallocateService(s)
-		}
-	}()
-
 	if s.Endpoint == nil {
 		s.Endpoint = &api.Endpoint{}
 	}
@@ -225,11 +221,24 @@ func (na *cnmNetworkAllocator) AllocateService(s *api.Service) (err error) {
 
 	specNetworks := serviceNetworks(s)
 
-	// Allocate VIPs for all the pre-populated endpoint attachments
-	eVIPs := s.Endpoint.VirtualIPs[:0]
+	// eVIPs collects the VIPs which the service keeps or is allocated, in
+	// a new array so that it overwrites none of the VIPs in pending: those
+	// which the service had and which have not been looked at yet. If the
+	// allocation fails, the VIPs in both are deallocated.
+	eVIPs := make([]*api.Endpoint_VirtualIP, 0, len(s.Endpoint.VirtualIPs)+len(specNetworks))
+	pending := s.Endpoint.VirtualIPs
+	defer func() {
+		if err != nil {
+			s.Endpoint.VirtualIPs = append(eVIPs, pending...)
+			na.DeallocateService(s)
+		}
+	}()
 
+	// Allocate VIPs for all the pre-populated endpoint attachments
 vipLoop:
-	for _, eAttach := range s.Endpoint.VirtualIPs {
+	for len(pending) > 0 {
+		eAttach := pending[0]
+		pending = pending[1:]
 		if na.IsVIPOnIngressNetwork(eAttach) && networkallocator.IsIngressNetworkNeeded(s) {
 			if err = na.allocateVIP(eAttach); err != nil {
 				return err
@@ -255,7 +264,7 @@ vipLoop:
 
 networkLoop:
 	for _, nAttach := range specNetworks {
-		for _, vip := range s.Endpoint.VirtualIPs {
+		for _, vip := range eVIPs {
 			if vip.NetworkID == nAttach.Target {
 				continue networkLoop
 			}
