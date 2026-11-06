@@ -882,14 +882,6 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateWithName(c *testing.T) {
 	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount(ctx), checker.Equals(instances)), poll.WithTimeout(defaultReconciliationTimeout))
 }
 
-// Unlocking an unlocked swarm results in an error
-func (s *DockerSwarmSuite) TestAPISwarmUnlockNotLocked(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	d := s.AddDaemon(ctx, c, true, true)
-	err := d.SwarmUnlock(c, swarm.UnlockRequest{UnlockKey: "wrong-key"})
-	assert.ErrorContains(c, err, "swarm is not locked")
-}
-
 // #29885
 func (s *DockerSwarmSuite) TestAPISwarmErrorHandling(c *testing.T) {
 	ctx := testutil.GetContext(c)

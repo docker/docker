@@ -32,3 +32,20 @@ func TestSwarmCAHash(t *testing.T) {
 	})
 	assert.ErrorContains(t, err, "remote CA does not match fingerprint")
 }
+
+// Unlocking an unlocked swarm results in an error
+func TestAPISwarmUnlockNotLocked(t *testing.T) {
+	skip.If(t, strings.HasPrefix(testEnv.FirewallBackendDriver(), "nftables"), "swarm cannot be used with nftables")
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
+	defer d.Stop(t)
+
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	_, err := apiClient.SwarmUnlock(ctx, client.SwarmUnlockOptions{
+		Key: "wrong-key",
+	})
+	assert.ErrorContains(t, err, "swarm is not locked")
+}
