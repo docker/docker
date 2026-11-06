@@ -150,59 +150,20 @@ func (i *ImageService) createDiff(ctx context.Context, name string, sn snapshots
 	}
 
 	var upper []mount.Mount
-	if !i.idMapping.Empty() {
-		// The rootfs of the container is remapped if an id mapping exists, we
-		// need to "unremap" it before committing the snapshot
-		uid, gid := i.idMapping.RootPair()
-		usernsID := fmt.Sprintf("%s-%d-%d-%s", name, uid, gid, uniquePart())
-		remappedID := usernsID + remapSuffix
-		baseName := name
-
-		if info.Kind == snapshots.KindActive {
-			source, err := sn.Mounts(ctx, name)
-			if err != nil {
-				return nil, "", err
-			}
-
-			// No need to use parent since the whole snapshot is copied.
-			// Using parent would require doing diff/apply while starting
-			// from empty can just copy the whole snapshot.
-			// TODO: Optimize this for overlay mounts, can use parent
-			// and just copy upper directories without mounting
-			upper, err = sn.Prepare(ctx, remappedID, "")
-			if err != nil {
-				return nil, "", err
-			}
-
-			if err := i.copyAndUnremapRootFS(ctx, upper, source); err != nil {
-				return nil, "", err
-			}
-		} else {
-			upper, err = sn.Prepare(ctx, remappedID, baseName)
-			if err != nil {
-				return nil, "", err
-			}
-
-			if err := i.unremapRootFS(ctx, upper); err != nil {
-				return nil, "", err
-			}
+	if info.Kind == snapshots.KindActive {
+		upper, err = sn.Mounts(ctx, name)
+		if err != nil {
+			return nil, "", err
 		}
 	} else {
-		if info.Kind == snapshots.KindActive {
-			upper, err = sn.Mounts(ctx, name)
-			if err != nil {
-				return nil, "", err
-			}
-		} else {
-			upperKey := fmt.Sprintf("%s-view-%s", name, uniquePart())
-			upper, err = sn.View(ctx, upperKey, name)
-			if err != nil {
-				return nil, "", err
-			}
-			defer cleanup(ctx, func(ctx context.Context) {
-				sn.Remove(ctx, upperKey)
-			})
+		upperKey := fmt.Sprintf("%s-view-%s", name, uniquePart())
+		upper, err = sn.View(ctx, upperKey, name)
+		if err != nil {
+			return nil, "", err
 		}
+		defer cleanup(ctx, func(ctx context.Context) {
+			sn.Remove(ctx, upperKey)
+		})
 	}
 
 	lowerKey := fmt.Sprintf("%s-parent-view-%s", info.Parent, uniquePart())
