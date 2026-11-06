@@ -12,6 +12,7 @@ import (
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/content"
+	"github.com/containerd/containerd/v2/core/diff"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/remotes"
 	"github.com/containerd/containerd/v2/core/remotes/docker"
@@ -233,6 +234,12 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	if !i.lazyPull(i.snapshotter) {
 		opts = append(opts, containerd.WithUnpackOpts([]containerd.UnpackOpt{
 			containerd.WithUnpackFetchAllContent(),
+			// Flush the unpacked layer to stable storage before the snapshot
+			// is committed, so a committed snapshot cannot outlive its data
+			// on storage that may lose acknowledged writes inside the
+			// write-back window (e.g. consumer SD/eMMC). See containerd
+			// issue #14503.
+			containerd.WithUnpackApplyOpts(diff.WithSyncFs(true)),
 		}))
 	}
 
