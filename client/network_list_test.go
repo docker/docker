@@ -3,12 +3,21 @@ package client
 import (
 	"fmt"
 	"net/http"
+	"net/netip"
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/network"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+)
+
+const (
+	legacyCIDRPrefixedGateway = "fd05:d0ca:2::1/112"
+	legacyNetworkGateway      = "fd05:d0ca:2::1"
+	legacyNetworkName         = "test-ipv6"
+	legacyNetworkSubnet       = "fd05:d0ca:2::/112"
+	networkResponseContent    = "application/json"
 )
 
 func TestNetworkListError(t *testing.T) {
@@ -77,4 +86,25 @@ func TestNetworkList(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Check(t, is.Len(res.Items, 1))
 	}
+}
+
+func TestNetworkListAcceptsLegacyCIDRPrefixedGateway(t *testing.T) {
+	const (
+		expectedURL               = "/networks"
+		legacyNetworkListResponse = `[{"Name":"` + legacyNetworkName + `","Driver":"bridge","IPAM":{"Config":[{"Subnet":"` + legacyNetworkSubnet + `","Gateway":"` + legacyCIDRPrefixedGateway + `"}]}}]`
+	)
+
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
+		}
+		return mockResponse(http.StatusOK, http.Header{"Content-Type": {networkResponseContent}}, legacyNetworkListResponse)(req)
+	}))
+	assert.NilError(t, err)
+
+	res, err := client.NetworkList(t.Context(), NetworkListOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Items, 1))
+	assert.Assert(t, is.Len(res.Items[0].IPAM.Config, 1))
+	assert.Check(t, is.Equal(res.Items[0].IPAM.Config[0].Gateway, netip.MustParseAddr(legacyNetworkGateway)))
 }

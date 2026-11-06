@@ -2,6 +2,7 @@ package client
 
 import (
 	"net/http"
+	"net/netip"
 	"strings"
 	"testing"
 
@@ -86,4 +87,24 @@ func TestNetworkInspect(t *testing.T) {
 		_, err := client.NetworkInspect(t.Context(), "test-500-response", NetworkInspectOptions{})
 		assert.Check(t, is.ErrorType(err, cerrdefs.IsInternal))
 	})
+}
+
+func TestNetworkInspectAcceptsLegacyCIDRPrefixedGateway(t *testing.T) {
+	const (
+		expectedURL                  = "/networks/" + legacyNetworkName
+		legacyNetworkInspectResponse = `{"Name":"` + legacyNetworkName + `","Driver":"bridge","IPAM":{"Config":[{"Subnet":"` + legacyNetworkSubnet + `","Gateway":"` + legacyCIDRPrefixedGateway + `"}]}}`
+	)
+
+	client, err := New(WithMockClient(func(req *http.Request) (*http.Response, error) {
+		if err := assertRequest(req, http.MethodGet, expectedURL); err != nil {
+			return nil, err
+		}
+		return mockResponse(http.StatusOK, http.Header{"Content-Type": {networkResponseContent}}, legacyNetworkInspectResponse)(req)
+	}))
+	assert.NilError(t, err)
+
+	res, err := client.NetworkInspect(t.Context(), legacyNetworkName, NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Network.IPAM.Config, 1))
+	assert.Check(t, is.Equal(res.Network.IPAM.Config[0].Gateway, netip.MustParseAddr(legacyNetworkGateway)))
 }
