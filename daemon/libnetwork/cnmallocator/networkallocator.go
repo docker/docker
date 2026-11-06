@@ -327,10 +327,18 @@ func (na *cnmNetworkAllocator) IsTaskAllocated(t *api.Task) bool {
 
 	// Find the first global scope network
 	for _, nAttach := range t.Networks {
-		// If the network is not allocated, the task cannot be allocated.
 		localNet, ok := na.networks[nAttach.Network.ID]
 		if !ok {
-			return false
+			// The network has been deallocated while the task was still
+			// referencing it: a network can be removed as soon as its tasks
+			// are marked for removal, before they actually terminate. The
+			// task no longer holds anything on that network, but it still
+			// holds its addresses on the remaining networks (typically the
+			// ingress network), so skip this attachment rather than
+			// declaring the whole task unallocated. Doing the latter would
+			// prevent the task from ever being deallocated and leak those
+			// addresses.
+			continue
 		}
 
 		// Nothing else to check for local scope network
@@ -516,7 +524,13 @@ func (na *cnmNetworkAllocator) releaseEndpoints(networks []*api.NetworkAttachmen
 	for _, nAttach := range networks {
 		localNet := na.getNetwork(nAttach.Network.ID)
 		if localNet == nil {
-			return fmt.Errorf("could not find network allocator state for network %s", nAttach.Network.ID)
+			// The network has already been deallocated together with its
+			// address pools, so there is nothing left to release for this
+			// attachment. Keep going: the addresses held on the other
+			// networks still have to be released.
+			log.G(context.TODO()).Debugf("network %s is already deallocated, skipping its endpoints while releasing", nAttach.Network.ID)
+			nAttach.Addresses = nil
+			continue
 		}
 
 		if localNet.isNodeLocal {

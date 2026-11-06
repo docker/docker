@@ -789,3 +789,78 @@ func TestCorrectlyPassIPAMOptions(t *testing.T) {
 	assert.Check(t, is.DeepEqual(expectedIpamOptions, ipamDriver.actualIpamOptions))
 	assert.Check(t, err)
 }
+
+// TestDeallocateTaskAfterNetworkRemoval covers the sequence produced by
+// `docker stack rm`: the overlay network of a stack is removed as soon as its
+// tasks are marked for removal, i.e. before they have actually terminated.
+// When such a task finally terminates, the allocator must still recognise it
+// as allocated (otherwise the swarmkit allocator never calls DeallocateTask)
+// and DeallocateTask must release the addresses the task holds on its
+// remaining networks, notably the ingress network, which outlives every stack.
+func TestDeallocateTaskAfterNetworkRemoval(t *testing.T) {
+	na := newNetworkAllocator(t)
+
+	ingress := &api.Network{
+		ID: "ingressID",
+		Spec: api.NetworkSpec{
+			Annotations: api.Annotations{
+				Name: "ingress",
+			},
+			Ingress: true,
+			IPAM: &api.IPAMOptions{
+				Driver: &api.Driver{},
+				Configs: []*api.IPAMConfig{
+					{
+						Subnet:  "10.0.0.0/29",
+						Gateway: "10.0.0.1",
+					},
+				},
+			},
+		},
+	}
+	overlay := &api.Network{
+		ID: "overlayID",
+		Spec: api.NetworkSpec{
+			Annotations: api.Annotations{
+				Name: "overlay",
+			},
+		},
+	}
+	assert.NilError(t, na.Allocate(ingress))
+	assert.NilError(t, na.Allocate(overlay))
+
+	task := &api.Task{
+		ID: "taskID",
+		Networks: []*api.NetworkAttachment{
+			{Network: ingress},
+			{Network: overlay},
+		},
+	}
+	assert.NilError(t, na.AllocateTask(task))
+	assert.Check(t, na.IsTaskAllocated(task))
+	assert.Check(t, is.Len(task.Networks[0].Addresses, 1))
+	assert.Check(t, is.Len(task.Networks[1].Addresses, 1))
+	ingressAddr := task.Networks[0].Addresses[0]
+
+	// The overlay network is removed while the task is still shutting down.
+	assert.NilError(t, na.Deallocate(overlay))
+
+	// The task still holds an address on the ingress network, so it is
+	// still allocated, and deallocating it must release that address and
+	// clear the attachment to the removed network as well.
+	assert.Check(t, na.IsTaskAllocated(task))
+	assert.NilError(t, na.DeallocateTask(task))
+	assert.Check(t, is.Len(task.Networks[0].Addresses, 0))
+	assert.Check(t, is.Len(task.Networks[1].Addresses, 0))
+	assert.Check(t, !na.IsTaskAllocated(task))
+
+	// The ingress address must be available again.
+	task2 := &api.Task{
+		ID: "taskID2",
+		Networks: []*api.NetworkAttachment{
+			{Network: ingress, Addresses: []string{ingressAddr}},
+		},
+	}
+	assert.NilError(t, na.AllocateTask(task2))
+	assert.Check(t, is.Equal(task2.Networks[0].Addresses[0], ingressAddr))
+}
