@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sort"
 	"strings"
+	"time"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/leases"
@@ -65,14 +66,30 @@ func (i *ImageService) ImagePrune(ctx context.Context, fltrs filters.Args) (*ima
 	}
 
 	// Prune leases
+	// Filter out leases that are still valid (held by in-flight pulls).
+	// withLease creates leases with an expireLabel set to 8h in the future.
+	// Only prune expired leases to avoid deleting in-flight pull leases
+	// and corrupting concurrent pulls.
 	leaseManager := i.client.LeasesService()
 	pullLeases, err := leaseManager.List(ctx, pruneLeaseFilter)
 	if err != nil {
 		return nil, err
 	}
-	for i, lease := range pullLeases {
+	now := time.Now()
+	var expiredLeases []leases.Lease
+	for _, lease := range pullLeases {
+		if expireStr, ok := lease.Labels[expireLabel]; ok {
+			expireAt, err := time.Parse(time.RFC3339, expireStr)
+			if err == nil && now.Before(expireAt) {
+				// Lease is still valid — an in-flight pull is using it.
+				continue
+			}
+		}
+		expiredLeases = append(expiredLeases, lease)
+	}
+	for i, lease := range expiredLeases {
 		var opts []leases.DeleteOpt
-		if i == len(pullLeases)-1 {
+		if i == len(expiredLeases)-1 {
 			opts = append(opts, leases.SynchronousDelete)
 		}
 		if err := leaseManager.Delete(ctx, lease, opts...); err != nil {
