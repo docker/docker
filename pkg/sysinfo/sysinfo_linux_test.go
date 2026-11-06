@@ -69,6 +69,31 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestNewV2WithCgroup2Controllers(t *testing.T) {
+	t.Run("delegated controllers", func(t *testing.T) {
+		si := newV2(WithCgroup2Controllers("/delegated/docker.service", []string{"cpu", "memory", "pids"}))
+		if !si.CPUCfs || !si.CPUShares {
+			t.Fatal("expected CPU CFS and shares support when cpu is delegated")
+		}
+		if !si.MemoryLimit {
+			t.Fatal("expected memory limit support when memory is delegated")
+		}
+		if !si.PidsLimit {
+			t.Fatal("expected pids limit support when pids is delegated")
+		}
+		if si.BlkioWeight {
+			t.Fatal("did not expect I/O support when io is not delegated")
+		}
+	})
+
+	t.Run("explicitly empty", func(t *testing.T) {
+		si := newV2(WithCgroup2Controllers("/delegated/docker.service", []string{}))
+		if si.CPUCfs || si.MemoryLimit || si.PidsLimit {
+			t.Fatal("did not expect resource support without delegated controllers")
+		}
+	})
+}
+
 func TestIsCpusetListAvailable(t *testing.T) {
 	cases := []struct {
 		provided  string

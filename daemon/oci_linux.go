@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	cdcgroups "github.com/containerd/cgroups/v3"
 	"github.com/containerd/containerd/v2/core/containers"
 	coci "github.com/containerd/containerd/v2/pkg/oci"
 	"github.com/containerd/log"
@@ -64,23 +63,11 @@ func withRootless(_ *Daemon, daemonCfg *dconfig.Config) coci.SpecOpts {
 	return func(_ context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		var v2Controllers []string
 		if cgroupDriver(daemonCfg) == cgroupSystemdDriver {
-			if cdcgroups.Mode() != cdcgroups.Unified {
-				return errors.New("rootless systemd driver doesn't support cgroup v1")
-			}
-			rootlesskitParentEUID := os.Getenv("ROOTLESSKIT_PARENT_EUID")
-			if rootlesskitParentEUID == "" {
-				return errors.New("$ROOTLESSKIT_PARENT_EUID is not set (requires RootlessKit v0.8.0)")
-			}
-			euid, err := strconv.Atoi(rootlesskitParentEUID)
-			if err != nil {
-				return errors.Wrap(err, "invalid $ROOTLESSKIT_PARENT_EUID: must be a numeric value")
-			}
-			controllersPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice/cgroup.controllers", euid)
-			controllersFile, err := os.ReadFile(controllersPath)
+			info, err := rootlessSystemdCgroupControllerInfo()
 			if err != nil {
 				return err
 			}
-			v2Controllers = strings.Fields(string(controllersFile))
+			v2Controllers = info.controllers
 		}
 		return specconv.ToRootless(s, v2Controllers)
 	}

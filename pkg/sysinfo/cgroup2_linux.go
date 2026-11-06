@@ -29,18 +29,22 @@ func newV2(options ...Opt) *SysInfo {
 		applyTimeNsInfo,
 	}
 
-	m, err := cgroupsV2.Load(sysInfo.cg2GroupPath)
-	if err != nil {
-		log.G(context.TODO()).Warn(err)
-	} else {
-		sysInfo.cg2Controllers = make(map[string]struct{})
-		controllers, err := m.Controllers()
+	if sysInfo.cg2Controllers == nil {
+		m, err := cgroupsV2.Load(sysInfo.cg2GroupPath)
 		if err != nil {
 			log.G(context.TODO()).Warn(err)
+		} else {
+			sysInfo.cg2Controllers = make(map[string]struct{})
+			controllers, err := m.Controllers()
+			if err != nil {
+				log.G(context.TODO()).Warn(err)
+			}
+			for _, c := range controllers {
+				sysInfo.cg2Controllers[c] = struct{}{}
+			}
 		}
-		for _, c := range controllers {
-			sysInfo.cg2Controllers[c] = struct{}{}
-		}
+	}
+	if sysInfo.cg2Controllers != nil {
 		ops = append(ops,
 			applyMemoryCgroupInfoV2,
 			applyCPUCgroupInfoV2,

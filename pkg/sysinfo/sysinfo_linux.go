@@ -85,6 +85,21 @@ func WithCgroup2GroupPath(g string) Opt {
 	}
 }
 
+// WithCgroup2Controllers specifies both the cgroup v2 group path and the
+// controllers known to be available to it. An empty controller list explicitly
+// means that no controllers are available.
+func WithCgroup2Controllers(g string, controllers []string) Opt {
+	return func(o *SysInfo) {
+		if p := path.Clean(g); p != "" {
+			o.cg2GroupPath = p
+		}
+		o.cg2Controllers = make(map[string]struct{}, len(controllers))
+		for _, controller := range controllers {
+			o.cg2Controllers[controller] = struct{}{}
+		}
+	}
+}
+
 // New returns a new SysInfo, using the filesystem to detect which features
 // the kernel supports.
 func New(options ...Opt) *SysInfo {

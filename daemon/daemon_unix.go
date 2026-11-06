@@ -1632,14 +1632,14 @@ func (daemon *Daemon) setupSeccompProfile(cfg *config.Config) error {
 	return nil
 }
 
+var newSysInfo = sysinfo.New
+
 func getSysInfo(cfg *config.Config) *sysinfo.SysInfo {
-	var siOpts []sysinfo.Opt
-	if cgroupDriver(cfg) == cgroupSystemdDriver {
-		if euid := os.Getenv("ROOTLESSKIT_PARENT_EUID"); euid != "" {
-			siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath("/user.slice/user-"+euid+".slice"))
-		}
+	siOpts, cgroupDiscoveryErr := rootlessSystemdSysInfoOptions(cfg)
+	si := newSysInfo(siOpts...)
+	if cgroupDiscoveryErr != nil {
+		si.Warnings = append(si.Warnings, cgroupDiscoveryErr.Error())
 	}
-	si := sysinfo.New(siOpts...)
 
 	// The "time-namespaces" feature-flag is a (temporary) escape-hatch to disable
 	// the use of time-namespaces for containers. This allows users to return to the
