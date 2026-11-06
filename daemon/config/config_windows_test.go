@@ -21,7 +21,7 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.BoolVarP(&conf.Debug, "debug", "D", false, "")
 	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "")
-	flags.StringVar(&conf.LogConfig.Type, "log-driver", "json-file", "")
+	flags.StringVar(&conf.LogConfig.Type, "log-driver", "local", "")
 	flags.Var(opts.NewNamedMapOpts("log-opts", conf.LogConfig.Config, nil), "log-opt", "")
 	assert.Check(t, flags.Set("restart", "true"))
 	assert.Check(t, flags.Set("log-driver", "syslog"))

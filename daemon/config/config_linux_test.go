@@ -77,7 +77,7 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 	flags.BoolVarP(&conf.Debug, "debug", "D", false, "")
 	flags.BoolVarP(&conf.AutoRestart, "restart", "r", true, "")
 	flags.Var(opts.NewNamedUlimitOpt("default-ulimits", &conf.Ulimits), "default-ulimit", "")
-	flags.StringVar(&conf.LogConfig.Type, "log-driver", "json-file", "")
+	flags.StringVar(&conf.LogConfig.Type, "log-driver", "local", "")
 	flags.Var(opts.NewNamedMapOpts("log-opts", conf.LogConfig.Config, nil), "log-opt", "")
 	assert.Check(t, flags.Set("restart", "true"))
 	assert.Check(t, flags.Set("log-driver", "syslog"))

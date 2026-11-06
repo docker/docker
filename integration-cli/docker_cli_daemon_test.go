@@ -464,37 +464,16 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverDefault(c *testing.T) {
 
 	out, err := s.d.Cmd("run", "--name=test", "busybox", "echo", "testline")
 	assert.NilError(c, err, out)
-	id, err := s.d.GetIDByName("test")
-	assert.NilError(c, err)
 
-	logPath := filepath.Join(s.d.Root, "containers", id, id+"-json.log")
+	// The default log driver is "local". Verify the log output is readable via
+	// "docker logs" and that the log driver type is correctly reported.
+	out, err = s.d.Cmd("logs", "test")
+	assert.NilError(c, err, out)
+	assert.Equal(c, strings.TrimSpace(out), "testline")
 
-	if _, err := os.Stat(logPath); err != nil {
-		c.Fatal(err)
-	}
-	f, err := os.Open(logPath)
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer f.Close()
-
-	var res struct {
-		Log    string    `json:"log"`
-		Stream string    `json:"stream"`
-		Time   time.Time `json:"time"`
-	}
-	if err := json.NewDecoder(f).Decode(&res); err != nil {
-		c.Fatal(err)
-	}
-	if res.Log != "testline\n" {
-		c.Fatalf("Unexpected log line: %q, expected: %q", res.Log, "testline\n")
-	}
-	if res.Stream != "stdout" {
-		c.Fatalf("Unexpected stream: %q, expected: %q", res.Stream, "stdout")
-	}
-	if !time.Now().After(res.Time) {
-		c.Fatalf("Log time %v in future", res.Time)
-	}
+	out, err = s.d.Cmd("inspect", "-f", "{{ .HostConfig.LogConfig.Type }}", "test")
+	assert.NilError(c, err, out)
+	assert.Equal(c, strings.TrimSpace(out), "local")
 }
 
 func (s *DockerDaemonSuite) TestDaemonLoggingDriverDefaultOverride(c *testing.T) {
@@ -507,10 +486,11 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverDefaultOverride(c *testing.T)
 	id, err := s.d.GetIDByName("test")
 	assert.NilError(c, err)
 
-	logPath := filepath.Join(s.d.Root, "containers", id, id+"-json.log")
-
+	// The default driver is "local"; verify overriding it with "none" means no
+	// log file is written at the local driver's path.
+	logPath := filepath.Join(s.d.Root, "containers", id, "local-logs", "container.log")
 	if _, err := os.Stat(logPath); err == nil || !os.IsNotExist(err) {
-		c.Fatalf("%s shouldn't exits, error on Stat: %s", logPath, err)
+		c.Fatalf("%s shouldn't exist, error on Stat: %s", logPath, err)
 	}
 }
 
@@ -524,10 +504,14 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNone(c *testing.T) {
 	id, err := s.d.GetIDByName("test")
 	assert.NilError(c, err)
 
-	logPath := filepath.Join(s.d.Root, "containers", id, id+"-json.log")
-
-	if _, err := os.Stat(logPath); err == nil || !os.IsNotExist(err) {
-		c.Fatalf("%s shouldn't exits, error on Stat: %s", logPath, err)
+	// Neither the json-file nor the local driver log paths should be written.
+	for _, logPath := range []string{
+		filepath.Join(s.d.Root, "containers", id, id+"-json.log"),
+		filepath.Join(s.d.Root, "containers", id, "local-logs", "container.log"),
+	} {
+		if _, err := os.Stat(logPath); err == nil || !os.IsNotExist(err) {
+			c.Fatalf("%s shouldn't exist, error on Stat: %s", logPath, err)
+		}
 	}
 }
 
@@ -919,7 +903,7 @@ func (s *DockerDaemonSuite) TestDaemonWideLogConfig(c *testing.T) {
 
 	out, err = s.d.Cmd("inspect", "-f", "{{ .HostConfig.LogConfig.Type }}", name)
 	assert.NilError(c, err, "Output: %s", out)
-	assert.Equal(c, strings.TrimSpace(out), "json-file")
+	assert.Equal(c, strings.TrimSpace(out), "local")
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithPausedContainer(c *testing.T) {

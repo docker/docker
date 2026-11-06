@@ -262,7 +262,7 @@ func (s *DockerCLIInspectSuite) TestInspectLogConfigNoType(c *testing.T) {
 	err := json.NewDecoder(strings.NewReader(out)).Decode(&logConfig)
 	assert.Assert(c, err == nil, "%v", out)
 
-	assert.Equal(c, logConfig.Type, "json-file")
+	assert.Equal(c, logConfig.Type, "local")
 	assert.Equal(c, logConfig.Config["max-file"], "42", fmt.Sprint(logConfig))
 }
 

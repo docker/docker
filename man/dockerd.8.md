@@ -404,9 +404,9 @@ unix://[/path/to/socket] to use.
   are not restarted. This option is applicable only for docker daemon running
   on Linux host.
 
-**--log-driver**="**json-file**|**syslog**|**journald**|**gelf**|**fluentd**|**awslogs**|**splunk**|**etwlogs**|**gcplogs**|**none**"
-  Default driver for container logs. Default is **json-file**.
-  **Warning**: **docker logs** command works only for **json-file** logging driver.
+**--log-driver**="**local**|**json-file**|**syslog**|**journald**|**gelf**|**fluentd**|**awslogs**|**splunk**|**etwlogs**|**gcplogs**|**none**"
+  Default driver for container logs. Default is **local**.
+  **Warning**: **docker logs** command works only for logging drivers that implement log reading, such as **local**, **json-file**, and **journald**.
 
 **--log-format**="*text*|*json*"
   Set the format for logs produced by the daemon. Default is "text".
