@@ -77,22 +77,27 @@ func (daemon *Daemon) killWithSignal(ctx context.Context, container *containerpk
 		return err
 	}
 
-	var unpause bool
+	var isStopSignal bool
 	if container.Config.StopSignal != "" && stopSignal != syscall.SIGKILL {
 		containerStopSignal, err := signal.ParseSignal(container.Config.StopSignal)
 		if err != nil {
 			return err
 		}
-		if containerStopSignal == stopSignal {
-			container.ExitOnNext()
-			unpause = container.State.Paused
-		}
+		isStopSignal = containerStopSignal == stopSignal
 	} else {
+		// Without a configured StopSignal, the container is stopped with the
+		// default one, so anything else (e.g. SIGHUP for a config reload) is
+		// not a stop either.
+		isStopSignal = stopSignal == syscall.SIGKILL || stopSignal == container.StopSignal()
+	}
+
+	var unpause bool
+	if isStopSignal {
 		container.ExitOnNext()
 		unpause = container.State.Paused
 	}
 
-	if !daemon.IsShuttingDown() {
+	if isStopSignal && !daemon.IsShuttingDown() {
 		container.HasBeenManuallyStopped = true
 		if err := container.CheckpointTo(ctx, daemon.containersReplica); err != nil {
 			log.G(ctx).WithFields(log.Fields{
