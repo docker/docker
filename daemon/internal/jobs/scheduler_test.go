@@ -258,37 +258,42 @@ func TestSchedulerCreateRejectsNeverFiringCron(t *testing.T) {
 	assert.Check(t, cerrdefs.IsInvalidArgument(err), "want invalid-argument, got %v", err)
 }
 
-// TestSchedulerStartKeepsRescheduledOccurrence checks that a restart keeps the
-// occurrence a reschedule persisted instead of firing the one it skipped, and
-// keeps no later one.
+// TestSchedulerStartKeepsRescheduledOccurrence checks that a restart does not
+// replay occurrences replaced by one or more manual runs.
 func TestSchedulerStartKeepsRescheduledOccurrence(t *testing.T) {
-	schedule, err := parseCron("0 3 * * *")
-	assert.NilError(t, err)
-
-	upcoming, _ := schedule.next(time.Now(), time.UTC)
-	rescheduled, _ := schedule.next(upcoming, time.UTC)
-
 	for _, tc := range []struct {
-		doc      string
-		stored   time.Time
-		expected time.Time
+		doc  string
+		runs int
 	}{
-		{doc: "the occurrence after the upcoming one is kept", stored: rescheduled, expected: rescheduled},
-		{doc: "a later occurrence is recomputed", stored: rescheduled.Add(24 * time.Hour), expected: upcoming},
+		{doc: "one reschedule", runs: 1},
+		{doc: "repeated reschedules", runs: 2},
 	} {
 		t.Run(tc.doc, func(t *testing.T) {
-			store, _ := newTestStore(t)
-			job := makeJob("job1", "nightly")
-			job.NextFireAtNano = tc.stored.UnixNano()
-			assert.NilError(t, store.CreateJob(t.Context(), job))
+			synctest.Test(t, func(t *testing.T) {
+				start := time.Now()
+				m, fake, kv := newRestartableManager(t)
+				job, _, err := m.Create(t.Context(), "nightly", scheduleSpec(""))
+				assert.NilError(t, err)
 
-			m := NewManager(store, newFakeBackend(), testNameGenerator)
-			m.Start(t.Context())
-			t.Cleanup(func() { assert.Check(t, m.Shutdown(shutdownCtx(t))) })
+				for range tc.runs {
+					run, err := m.Run(t.Context(), job.ID, true)
+					assert.NilError(t, err)
+					fake.exit(run.ContainerID, 0, nil)
+					waitTerminal(t, m, job.ID, run.ID)
+					waitJobSettled(t, m, job.ID, func(j *jobsv0.Job) bool { return j.State == jobsv0.JobStateIdle })
+				}
 
-			next, armed := m.sched.nextFor(job.ID)
-			assert.Assert(t, armed)
-			assert.Check(t, is.Equal(next.UnixNano(), tc.expected.UnixNano()))
+				expected := start.Add(3*time.Hour + time.Duration(tc.runs)*24*time.Hour).UnixNano()
+				before, err := m.Inspect(t.Context(), job.ID)
+				assert.NilError(t, err)
+				assert.Equal(t, before.NextFireAtNano, expected)
+
+				restarted := restartManager(t, m, kv, fake)
+				restarted.Start(t.Context())
+				after, err := restarted.Inspect(t.Context(), job.ID)
+				assert.NilError(t, err)
+				assert.Equal(t, after.NextFireAtNano, expected)
+			})
 		})
 	}
 }

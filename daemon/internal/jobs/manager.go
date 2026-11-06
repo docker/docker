@@ -191,14 +191,11 @@ func (m *Manager) Start(ctx context.Context) {
 			!m.firedFor(job.ID, missed)
 
 		if next, ok := schedule.next(now, loc); ok {
-			// A reschedule persisted the occurrence after the upcoming one;
-			// keep it rather than fire the occurrence it skipped. Only that
-			// exact occurrence is kept, so a clock stepped back cannot
-			// postpone the job any further.
+			// Each manual reschedule replaces an upcoming occurrence, so
+			// repeated reschedules can move the cursor several occurrences
+			// ahead. Keep it rather than replay any replaced occurrences.
 			if job.NextFireAtNano > next.UnixNano() {
-				if after, ok := schedule.next(next, loc); ok && after.UnixNano() == job.NextFireAtNano {
-					next = after
-				}
+				next = time.Unix(0, job.NextFireAtNano)
 			}
 
 			m.sched.arm(job.ID, schedule, loc, next)
