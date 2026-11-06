@@ -10,6 +10,32 @@ import (
 	"gotest.tools/v3/fs"
 )
 
+// TestBuilderProxyNetwork verifies that the proxy-network builder option is
+// correctly parsed from daemon configuration.
+func TestBuilderProxyNetwork(t *testing.T) {
+	tests := []struct {
+		doc      string
+		config   string
+		expected bool
+	}{
+		{doc: "omitted", config: `{}`, expected: false},
+		{doc: "empty builder", config: `{"builder": {}}`, expected: false},
+		{doc: "explicit false", config: `{"builder": {"proxy-network": false}}`, expected: false},
+		{doc: "explicit true", config: `{"builder": {"proxy-network": true}}`, expected: true},
+		{doc: "with other fields", config: `{"builder": {"gc": {"enabled": true}, "proxy-network": true}}`, expected: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			tempFile := fs.NewFile(t, "config", fs.WithContent(tc.config))
+			defer tempFile.Remove()
+
+			cfg, err := MergeDaemonConfigurations(&Config{}, nil, tempFile.Path())
+			assert.NilError(t, err)
+			assert.Equal(t, cfg.Builder.ProxyNetwork, tc.expected)
+		})
+	}
+}
+
 func TestBuilderGC(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{
   "builder": {

@@ -143,4 +143,5 @@ type BuilderConfig struct {
 	GC           BuilderGCConfig
 	Entitlements BuilderEntitlements
 	History      *BuilderHistoryConfig `json:",omitempty"`
+	ProxyNetwork bool                  `json:"proxy-network,omitempty"`
 }
