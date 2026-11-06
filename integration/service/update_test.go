@@ -16,6 +16,53 @@ import (
 	"gotest.tools/v3/skip"
 )
 
+func TestServiceUpdatePort(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	ctx := setupTest(t)
+
+	d := swarm.NewSwarm(ctx, t, testEnv)
+	defer d.Stop(t)
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	// Create a service with a port mapping of 8080:8081.
+	serviceName := "TestServiceUpdatePort_" + t.Name()
+	serviceID := swarm.CreateService(ctx, t, d,
+		swarm.ServiceWithName(serviceName),
+		swarm.ServiceWithReplicas(1),
+		swarm.ServiceWithEndpoint(&swarmtypes.EndpointSpec{
+			Ports: []swarmtypes.PortConfig{
+				{TargetPort: 8081, PublishedPort: 8080},
+			},
+		}),
+	)
+	defer func() {
+		_, err := apiClient.ServiceRemove(ctx, serviceID, client.ServiceRemoveOptions{})
+		assert.NilError(t, err)
+	}()
+
+	poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 1), swarm.ServicePoll)
+
+	// Update the service: changed the port mapping from 8080:8081 to 8082:8083.
+	service := getService(ctx, t, apiClient, serviceID)
+	service.Spec.EndpointSpec.Ports = []swarmtypes.PortConfig{
+		{TargetPort: 8083, PublishedPort: 8082},
+	}
+	_, err := apiClient.ServiceUpdate(ctx, serviceID, client.ServiceUpdateOptions{
+		Version: service.Version,
+		Spec:    service.Spec,
+	})
+	assert.NilError(t, err)
+	poll.WaitOn(t, serviceSpecIsUpdated(ctx, apiClient, serviceID, service.Version.Index), swarm.ServicePoll)
+
+	// Inspect the service and verify port mapping.
+	updatedService := getService(ctx, t, apiClient, serviceID)
+	assert.Assert(t, updatedService.Spec.EndpointSpec != nil)
+	assert.Equal(t, len(updatedService.Spec.EndpointSpec.Ports), 1)
+	assert.Equal(t, updatedService.Spec.EndpointSpec.Ports[0].TargetPort, uint32(8083))
+	assert.Equal(t, updatedService.Spec.EndpointSpec.Ports[0].PublishedPort, uint32(8082))
+}
+
 func TestServiceUpdateLabel(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	ctx := setupTest(t)

@@ -16,44 +16,12 @@ import (
 	"github.com/moby/moby/v2/integration-cli/cli/build"
 	"github.com/moby/moby/v2/integration-cli/daemon"
 	"github.com/moby/moby/v2/internal/testutil"
-	testdaemon "github.com/moby/moby/v2/internal/testutil/daemon"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/poll"
 )
-
-func setPortConfig(portConfig []swarm.PortConfig) testdaemon.ServiceConstructor {
-	return func(s *swarm.Service) {
-		if s.Spec.EndpointSpec == nil {
-			s.Spec.EndpointSpec = &swarm.EndpointSpec{}
-		}
-		s.Spec.EndpointSpec.Ports = portConfig
-	}
-}
-
-func (s *DockerSwarmSuite) TestAPIServiceUpdatePort(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	d := s.AddDaemon(ctx, c, true, true)
-
-	// Create a service with a port mapping of 8080:8081.
-	portConfig := []swarm.PortConfig{{TargetPort: 8081, PublishedPort: 8080}}
-	serviceID := d.CreateService(ctx, c, simpleTestService, setInstances(1), setPortConfig(portConfig))
-	poll.WaitOn(c, pollCheck(c, d.CheckActiveContainerCount(ctx), checker.Equals(1)), poll.WithTimeout(defaultReconciliationTimeout))
-
-	// Update the service: changed the port mapping from 8080:8081 to 8082:8083.
-	updatedPortConfig := []swarm.PortConfig{{TargetPort: 8083, PublishedPort: 8082}}
-	remoteService := d.GetService(ctx, c, serviceID)
-	d.UpdateService(ctx, c, remoteService, setPortConfig(updatedPortConfig))
-
-	// Inspect the service and verify port mapping.
-	updatedService := d.GetService(ctx, c, serviceID)
-	assert.Assert(c, updatedService.Spec.EndpointSpec != nil)
-	assert.Equal(c, len(updatedService.Spec.EndpointSpec.Ports), 1)
-	assert.Equal(c, updatedService.Spec.EndpointSpec.Ports[0].TargetPort, uint32(8083))
-	assert.Equal(c, updatedService.Spec.EndpointSpec.Ports[0].PublishedPort, uint32(8082))
-}
 
 func (s *DockerSwarmSuite) TestAPISwarmServicesEmptyList(c *testing.T) {
 	ctx := testutil.GetContext(c)
