@@ -2,6 +2,7 @@ package stream
 
 import (
 	"io"
+	"slices"
 	"sync"
 )
 
@@ -20,19 +21,30 @@ func (w *unbuffered) Add(writer io.WriteCloser) {
 
 // Write writes bytes to all writers. Failed writers will be evicted during
 // this call.
+//
+// The actual writes happen with mu released: a writer can legitimately block
+// (e.g. a bytespipe applying backpressure to a client that stopped reading),
+// and holding mu across that would make Clean unable to ever acquire it, since
+// Clean is what closes the writer that would otherwise unblock the write.
 func (w *unbuffered) Write(p []byte) (int, error) {
 	w.mu.Lock()
-	var evict []int
-	for i, sw := range w.writers {
+	writers := slices.Clone(w.writers)
+	w.mu.Unlock()
+
+	var failed []io.WriteCloser
+	for _, sw := range writers {
 		if n, err := sw.Write(p); err != nil || n != len(p) {
 			// On error, evict the writer
-			evict = append(evict, i)
+			failed = append(failed, sw)
 		}
 	}
-	for n, i := range evict {
-		w.writers = append(w.writers[:i-n], w.writers[i-n+1:]...)
+	if len(failed) > 0 {
+		w.mu.Lock()
+		w.writers = slices.DeleteFunc(w.writers, func(sw io.WriteCloser) bool {
+			return slices.Contains(failed, sw)
+		})
+		w.mu.Unlock()
 	}
-	w.mu.Unlock()
 	return len(p), nil
 }
 
@@ -40,10 +52,12 @@ func (w *unbuffered) Write(p []byte) (int, error) {
 // will be saved.
 func (w *unbuffered) Clean() error {
 	w.mu.Lock()
-	for _, sw := range w.writers {
-		sw.Close()
-	}
+	writers := w.writers
 	w.writers = nil
 	w.mu.Unlock()
+
+	for _, sw := range writers {
+		sw.Close()
+	}
 	return nil
 }

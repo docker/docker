@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 type dummyWriter struct {
@@ -160,5 +162,75 @@ func BenchmarkUnbuffered(b *testing.B) {
 		b.StopTimer()
 		writer.Clean()
 		b.StartTimer()
+	}
+}
+
+// blockingWriter's Write blocks until Close is called, mirroring how
+// bytespipe.BytesPipe's Write blocks under backpressure until its Close
+// broadcasts the writer's condition variable and unblocks it.
+type blockingWriter struct {
+	started     chan struct{}
+	startedOnce sync.Once
+	closed      chan struct{}
+	closeOnce   sync.Once
+}
+
+func newBlockingWriter() *blockingWriter {
+	return &blockingWriter{
+		started: make(chan struct{}),
+		closed:  make(chan struct{}),
+	}
+}
+
+func (w *blockingWriter) Write(p []byte) (int, error) {
+	w.startedOnce.Do(func() { close(w.started) })
+	<-w.closed
+	return 0, errors.New("write to closed writer")
+}
+
+func (w *blockingWriter) Close() error {
+	w.closeOnce.Do(func() { close(w.closed) })
+	return nil
+}
+
+// TestUnbufferedCleanUnblocksDuringBlockedWrite guards against Clean deadlocking
+// forever while a concurrent Write is blocked inside one of the writers (e.g. a
+// bytespipe applying backpressure to a client that stopped reading). Clean is
+// what closes that writer and would unblock it, so Clean must be able to
+// acquire the broadcaster's lock even while such a Write is in progress.
+// See https://github.com/moby/moby/issues/53614.
+func TestUnbufferedCleanUnblocksDuringBlockedWrite(t *testing.T) {
+	writer := new(unbuffered)
+	bw := newBlockingWriter()
+	writer.Add(bw)
+
+	writeDone := make(chan struct{})
+	go func() {
+		_, _ = writer.Write([]byte("x"))
+		close(writeDone)
+	}()
+
+	select {
+	case <-bw.started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("blockingWriter.Write was never entered")
+	}
+
+	cleanDone := make(chan struct{})
+	go func() {
+		_ = writer.Clean()
+		close(cleanDone)
+	}()
+
+	select {
+	case <-cleanDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Clean() did not return: it deadlocked waiting for the lock held by a blocked Write() call")
+	}
+
+	select {
+	case <-writeDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Write() never returned after Clean() closed its writer")
 	}
 }
