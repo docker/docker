@@ -39,6 +39,16 @@ func getNVIDIADeviceDrivers() map[string]*deviceDriver {
 	var composite firstSuccessfulUpdater
 	nvidiaDrivers := make(map[string]*deviceDriver)
 
+	if _, err := exec.LookPath(nvidiaContainerRuntimeHookExecutableName); err == nil {
+		// Register a driver specific to the nvidia-container-runtime-hook if present.
+		// This has no capabilities associated to not inadvertently match requests.
+		runtimeHookDeviceDriver := &deviceDriver{
+			updateSpec: injectNVIDIARuntimeHook,
+		}
+		nvidiaDrivers["nvidia.runtime-hook"] = runtimeHookDeviceDriver
+		composite = append(composite, runtimeHookDeviceDriver.updateSpec)
+	}
+
 	if _, err := exec.LookPath(nvidiaCDIHookExecutableName); err == nil {
 		// Register a driver specific to CDI if present.
 		// This has no capabilities associated to not inadvertently match requests.
@@ -49,16 +59,6 @@ func getNVIDIADeviceDrivers() map[string]*deviceDriver {
 		}
 		nvidiaDrivers["nvidia.cdi"] = cdiDeviceDriver
 		composite = append(composite, cdiDeviceDriver.updateSpec)
-	}
-
-	if _, err := exec.LookPath(nvidiaContainerRuntimeHookExecutableName); err == nil {
-		// Register a driver specific to the nvidia-container-runtime-hook if present.
-		// This has no capabilities associated to not inadvertently match requests.
-		runtimeHookDeviceDriver := &deviceDriver{
-			updateSpec: injectNVIDIARuntimeHook,
-		}
-		nvidiaDrivers["nvidia.runtime-hook"] = runtimeHookDeviceDriver
-		composite = append(composite, runtimeHookDeviceDriver.updateSpec)
 	}
 
 	if len(nvidiaDrivers) == 0 {
