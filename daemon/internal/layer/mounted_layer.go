@@ -1,6 +1,7 @@
 package layer
 
 import (
+	"context"
 	"io"
 	"sync"
 
@@ -46,8 +47,12 @@ func (ml *mountedLayer) Parent() Layer {
 	return nil
 }
 
+func (ml *mountedLayer) SizeWithContext(ctx context.Context) (int64, error) {
+	return ml.layerStore.driver.DiffSize(ctx, ml.mountID, ml.cacheParent())
+}
+
 func (ml *mountedLayer) Size() (int64, error) {
-	return ml.layerStore.driver.DiffSize(ml.mountID, ml.cacheParent())
+	return ml.SizeWithContext(context.Background())
 }
 
 func (ml *mountedLayer) Changes() ([]archive.Change, error) {

@@ -3,6 +3,7 @@
 package fuseoverlayfs
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/moby/moby/v2/daemon/graphdriver"
 	"github.com/moby/moby/v2/daemon/graphdriver/graphtest"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func init() {
@@ -94,6 +96,35 @@ func TestRemoveInvalidLink(t *testing.T) {
 			assert.NilError(t, err)
 		})
 	}
+}
+
+func TestFUSEOverlayFSDiffSize(t *testing.T) {
+	driver := graphtest.GetDriver(t, driverName)
+	defer graphtest.PutDriver(t)
+
+	d := driver.(*graphtest.Driver).Driver.(*Driver)
+
+	baseID := "fuse-diffsize-base"
+	upperID := "fuse-diffsize-upper"
+
+	assert.NilError(t, d.Create(baseID, "", nil))
+	defer func() { _ = d.Remove(baseID) }()
+
+	assert.NilError(t, d.CreateReadWrite(upperID, baseID, nil))
+	defer func() { _ = d.Remove(upperID) }()
+
+	diffPath := d.getDiffPath(upperID)
+	content := []byte("fuse-overlayfs diff size content")
+	assert.NilError(t, os.WriteFile(filepath.Join(diffPath, "testfile.txt"), content, 0o644))
+
+	size, err := d.DiffSize(t.Context(), upperID, baseID)
+	assert.NilError(t, err)
+	assert.Check(t, size == int64(len(content)))
+
+	canceledCtx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err = d.DiffSize(canceledCtx, upperID, baseID)
+	assert.Check(t, is.ErrorIs(err, context.Canceled))
 }
 
 // Benchmarks should always setup new driver

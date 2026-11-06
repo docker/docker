@@ -483,7 +483,7 @@ func (s *snapshotter) Usage(ctx context.Context, key string) (us snapshots.Usage
 		}
 	}
 
-	diffSize, err := s.opt.GraphDriver.DiffSize(id, parent)
+	diffSize, err := s.opt.GraphDriver.DiffSize(ctx, id, parent)
 	if err != nil {
 		return usage, err
 	}

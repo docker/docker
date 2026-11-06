@@ -157,11 +157,19 @@ func (gdw *NaiveDiffDriver) ApplyDiff(id, parent string, diff io.Reader) (size i
 // DiffSize calculates the changes between the specified layer
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
-func (gdw *NaiveDiffDriver) DiffSize(id, parent string) (size int64, _ error) {
+func (gdw *NaiveDiffDriver) DiffSize(ctx context.Context, id, parent string) (size int64, _ error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+
 	driver := gdw.ProtoDriver
 
 	changes, err := gdw.Changes(id, parent)
 	if err != nil {
+		return 0, err
+	}
+
+	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
 
@@ -170,6 +178,10 @@ func (gdw *NaiveDiffDriver) DiffSize(id, parent string) (size int64, _ error) {
 		return 0, err
 	}
 	defer driver.Put(id)
+
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
 
 	return archive.ChangesSize(layerFs, changes), nil
 }

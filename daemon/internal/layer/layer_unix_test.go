@@ -3,16 +3,17 @@
 package layer
 
 import (
+	"context"
 	"testing"
 )
 
-func graphDiffSize(ls Store, l Layer) (int64, error) {
+func graphDiffSize(ctx context.Context, ls Store, l Layer) (int64, error) {
 	cl := getCachedLayer(l)
 	var parent string
 	if cl.parent != nil {
 		parent = cl.parent.cacheID
 	}
-	return ls.(*layerStore).driver.DiffSize(cl.cacheID, parent)
+	return ls.(*layerStore).driver.DiffSize(ctx, cl.cacheID, parent)
 }
 
 // Unix as Windows graph driver does not support Changes which is indirectly
@@ -33,7 +34,7 @@ func TestLayerSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1DiffSize, err := graphDiffSize(ls, layer1)
+	layer1DiffSize, err := graphDiffSize(t.Context(), ls, layer1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +48,7 @@ func TestLayerSize(t *testing.T) {
 		t.Fatalf("Unexpected size %d, expected %d", layer1Size, expected)
 	}
 
-	layer2DiffSize, err := graphDiffSize(ls, layer2)
+	layer2DiffSize, err := graphDiffSize(t.Context(), ls, layer2)
 	if err != nil {
 		t.Fatal(err)
 	}

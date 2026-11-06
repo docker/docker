@@ -116,6 +116,10 @@ type RWLayer interface {
 	// changed in the mutable layer.
 	Size() (int64, error)
 
+	// SizeWithContext represents the size of the writable layer
+	// respecting context cancellation.
+	SizeWithContext(ctx context.Context) (int64, error)
+
 	// Changes returns the set of changes for the mutable layer
 	// from the base layer.
 	Changes() ([]archive.Change, error)

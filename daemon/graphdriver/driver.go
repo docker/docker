@@ -85,7 +85,7 @@ type DiffDriver interface {
 	// DiffSize calculates the changes between the specified id
 	// and its parent and returns the size in bytes of the changes
 	// relative to its base filesystem directory.
-	DiffSize(id, parent string) (size int64, err error)
+	DiffSize(ctx context.Context, id, parent string) (size int64, err error)
 }
 
 // Driver is the interface for layered/snapshot file system drivers.

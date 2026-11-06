@@ -484,8 +484,11 @@ func (d *Driver) getDiffPath(id string) string {
 // DiffSize calculates the changes between the specified id
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
-func (d *Driver) DiffSize(id, parent string) (int64, error) {
-	return d.naiveDiff.DiffSize(id, parent)
+func (d *Driver) DiffSize(ctx context.Context, id, parent string) (int64, error) {
+	if !d.isParent(id, parent) {
+		return d.naiveDiff.DiffSize(ctx, id, parent)
+	}
+	return directory.Size(ctx, d.getDiffPath(id))
 }
 
 // Diff produces an archive of the changes between the specified

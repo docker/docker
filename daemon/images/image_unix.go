@@ -4,6 +4,7 @@ package images
 
 import (
 	"context"
+	"errors"
 
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/container"
@@ -18,6 +19,10 @@ func (i *ImageService) GetLayerFolders(img *image.Image, rwLayer container.RWLay
 
 // GetContainerLayerSize returns the real size & virtual size of the container.
 func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, 0, err
+	}
+
 	var (
 		sizeRw, sizeRootfs int64
 		err                error
@@ -32,13 +37,26 @@ func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID st
 	}
 	defer i.layerStore.ReleaseRWLayer(rwlayer)
 
-	sizeRw, err = rwlayer.Size()
+	if cLayer, ok := rwlayer.(interface {
+		SizeWithContext(context.Context) (int64, error)
+	}); ok {
+		sizeRw, err = cLayer.SizeWithContext(ctx)
+	} else {
+		sizeRw, err = rwlayer.Size()
+	}
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return 0, 0, err
+		}
 		log.G(ctx).Errorf("Driver %s couldn't return diff size of container %s: %s",
 			i.layerStore.DriverName(), containerID, err)
 		// FIXME: GetSize should return an error. Not changing it now in case
 		// there is a side-effect.
 		sizeRw = -1
+	}
+
+	if err := ctx.Err(); err != nil {
+		return 0, 0, err
 	}
 
 	if parent := rwlayer.Parent(); parent != nil {

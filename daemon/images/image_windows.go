@@ -11,6 +11,9 @@ import (
 
 // GetContainerLayerSize returns real size & virtual size
 func (i *ImageService) GetContainerLayerSize(ctx context.Context, containerID string) (int64, int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, 0, err
+	}
 	// TODO Windows
 	return 0, 0, nil
 }

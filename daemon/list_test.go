@@ -299,7 +299,10 @@ type layerSizeErrImageService struct {
 	failIDs map[string]struct{}
 }
 
-func (s *layerSizeErrImageService) GetContainerLayerSize(_ context.Context, id string) (int64, int64, error) {
+func (s *layerSizeErrImageService) GetContainerLayerSize(ctx context.Context, id string) (int64, int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, 0, err
+	}
 	if _, ok := s.failIDs[id]; ok {
 		return 0, 0, errors.New("snapshotter.Usage failed: lstat: no such file or directory")
 	}
@@ -332,4 +335,22 @@ func TestContainerList_SizeError(t *testing.T) {
 			assert.Check(t, is.Equal(c.SizeRootFs, int64(20)))
 		}
 	}
+}
+
+func TestContainerList_SizeContextCancellation(t *testing.T) {
+	db, err := container.NewViewDB()
+	assert.NilError(t, err)
+	imgSvc := &layerSizeErrImageService{failIDs: map[string]struct{}{}}
+	d := &Daemon{
+		containersReplica: db,
+		imageService:      imgSvc,
+	}
+
+	setupContainerWithName(t, "ok-cancel", d)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_, err = d.Containers(ctx, &backend.ContainerListOptions{All: true, Size: true})
+	assert.Check(t, is.ErrorIs(err, context.Canceled))
 }
