@@ -655,52 +655,6 @@ func (s *DockerAPISuite) TestContainerAPIVerifyHeader(c *testing.T) {
 	_ = body.Close()
 }
 
-// Issue 7941 - test to make sure a "null" in JSON is just ignored.
-// W/o this fix a null in JSON would be parsed into a string var as "null"
-func (s *DockerAPISuite) TestContainerAPIPostCreateNull(c *testing.T) {
-	const config = `{
-		"Hostname":"",
-		"Domainname":"",
-		"Memory":0,
-		"MemorySwap":0,
-		"CpuShares":0,
-		"Cpuset":null,
-		"AttachStdin":true,
-		"AttachStdout":true,
-		"AttachStderr":true,
-		"ExposedPorts":{},
-		"Tty":true,
-		"OpenStdin":true,
-		"StdinOnce":true,
-		"Env":[],
-		"Cmd":["ls"],
-		"Image":"busybox",
-		"Volumes":{},
-		"WorkingDir":"",
-		"Entrypoint":null,
-		"NetworkDisabled":false,
-		"OnBuild":null}`
-
-	res, body, err := request.Post(testutil.GetContext(c), "/containers/create", request.RawString(config), request.JSON)
-	assert.NilError(c, err)
-	assert.Equal(c, res.StatusCode, http.StatusCreated)
-
-	b, err := request.ReadBody(body)
-	assert.NilError(c, err)
-	type createResp struct {
-		ID string
-	}
-	var ctr createResp
-	assert.NilError(c, json.Unmarshal(b, &ctr))
-	out := inspectField(c, ctr.ID, "HostConfig.CpusetCpus")
-	assert.Equal(c, out, "")
-
-	outMemory := inspectField(c, ctr.ID, "HostConfig.Memory")
-	assert.Equal(c, outMemory, "0")
-	outMemorySwap := inspectField(c, ctr.ID, "HostConfig.MemorySwap")
-	assert.Equal(c, outMemorySwap, "0")
-}
-
 func (s *DockerAPISuite) TestContainerAPIRestart(c *testing.T) {
 	const name = "test-api-restart"
 	runSleepingContainer(c, "-di", "--name", name)

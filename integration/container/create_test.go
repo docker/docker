@@ -722,6 +722,54 @@ func TestCreateValidation(t *testing.T) {
 	}
 }
 
+// Issue 7941 - test to make sure a "null" in JSON is just ignored.
+// W/o this fix a null in JSON would be parsed into a string var as "null"
+func TestCreateWithNullValues(t *testing.T) {
+	ctx := setupTest(t)
+
+	const config = `{
+		"Hostname":"",
+		"Domainname":"",
+		"Memory":0,
+		"MemorySwap":0,
+		"CpuShares":0,
+		"Cpuset":null,
+		"AttachStdin":true,
+		"AttachStdout":true,
+		"AttachStderr":true,
+		"ExposedPorts":{},
+		"Tty":true,
+		"OpenStdin":true,
+		"StdinOnce":true,
+		"Env":[],
+		"Cmd":["ls"],
+		"Image":"busybox",
+		"Volumes":{},
+		"WorkingDir":"",
+		"Entrypoint":null,
+		"NetworkDisabled":false,
+		"OnBuild":null}`
+
+	res, _, err := request.Post(ctx, "/containers/create", request.RawString(config), request.JSON)
+	assert.NilError(t, err)
+	assert.Equal(t, res.StatusCode, http.StatusCreated)
+
+	var resp container.CreateResponse
+	assert.NilError(t, request.ReadJSONResponse(res, &resp))
+	assert.Assert(t, resp.ID != "")
+
+	apiClient := testEnv.APIClient()
+	t.Cleanup(func() {
+		testContainer.Remove(ctx, t, apiClient, resp.ID, client.ContainerRemoveOptions{Force: true})
+	})
+
+	inspect, err := apiClient.ContainerInspect(ctx, resp.ID, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, inspect.Container.HostConfig.CpusetCpus, "")
+	assert.Equal(t, inspect.Container.HostConfig.Memory, int64(0))
+	assert.Equal(t, inspect.Container.HostConfig.MemorySwap, int64(0))
+}
+
 func TestCreateWithMultipleEndpointSettings(t *testing.T) {
 	ctx := setupTest(t)
 
