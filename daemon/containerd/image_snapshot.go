@@ -2,9 +2,13 @@ package containerd
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/core/leases"
@@ -91,6 +95,7 @@ func (i *ImageService) createLayer(descriptor *ocispec.Descriptor, layerName str
 		id:              layerName,
 		snapshotterName: i.StorageDriver(),
 		snapshotter:     sn,
+		mountManager:    i.client.MountManager(),
 		refCountMounter: i.refCountMounter,
 		lease:           lease,
 	}, nil
@@ -140,6 +145,7 @@ type rwLayer struct {
 	id              string
 	snapshotter     snapshots.Snapshotter
 	snapshotterName string
+	mountManager    mount.Manager
 	refCountMounter snapshotter.Mounter
 	root            string
 	lease           leases.Lease
@@ -157,6 +163,28 @@ func (l *rwLayer) Mount(mountLabel string) (string, error) {
 	mounts, err := l.mounts(ctx)
 	if err != nil {
 		return "", err
+	}
+
+	activateOpts := []mount.ActivateOpt{
+		mount.WithLabels(map[string]string{
+			"containerd.io/gc.bref.snapshot." + l.snapshotterName: l.id,
+		}),
+	}
+	key := "moby-" + l.snapshotterName + "-sn-" + l.id
+	if active, err := l.mountManager.Activate(ctx, key, mounts, activateOpts...); err == nil {
+		mounts = active.System
+	} else if cerrdefs.IsAlreadyExists(err) {
+		// Reuse the activation keyed by the container's snapshot when the container is
+		// mounted again (restart, docker cp, export or diff while running). It lives
+		// until that snapshot is removed, when the gc.bref back reference lets
+		// containerd GC deactivate it.
+		active, err = l.mountManager.Info(ctx, key)
+		if err != nil {
+			return "", fmt.Errorf("failed to get info on already active mount: %w", err)
+		}
+		mounts = active.System
+	} else if !cerrdefs.IsNotImplemented(err) {
+		return "", fmt.Errorf("failed to activate mounts: %w", err)
 	}
 
 	var root string
@@ -211,6 +239,7 @@ func (i *ImageService) GetLayerByID(cid string) (container.RWLayer, error) {
 		id:              cid,
 		snapshotterName: i.StorageDriver(),
 		snapshotter:     sn,
+		mountManager:    i.client.MountManager(),
 		refCountMounter: i.refCountMounter,
 		lease:           lss[0],
 		root:            root,
@@ -271,14 +300,36 @@ func (i *ImageService) prepareInitLayer(ctx context.Context, id string, parent s
 	}
 
 	if setupInit != nil {
-		if err := mount.WithTempMount(ctx, mounts, func(root string) error {
-			return setupInit(root)
-		}); err != nil {
+		if err := setupInitLayer(ctx, i.client.MountManager(), mounts, setupInit); err != nil {
 			return err
 		}
 	}
 
 	return sn.Commit(ctx, id+"-init", id+"-init-key")
+}
+
+// setupInitLayer mounts the init layer and calls setupInit on its root.
+// The mounts are deactivated before it returns, so that the init layer can be committed;
+// a deactivation failure is returned so that the caller does not commit it.
+func setupInitLayer(ctx context.Context, mm mount.Manager, mounts []mount.Mount, setupInit func(string) error) (retErr error) {
+	var b [3]byte
+	// Ignore read failures, just decreases uniqueness
+	rand.Read(b[:])
+	mountkey := fmt.Sprintf("moby-init-%d-%s", time.Now().Nanosecond(), base64.URLEncoding.EncodeToString(b[:]))
+
+	active, err := mm.Activate(ctx, mountkey, mounts)
+	if err == nil {
+		defer func() {
+			if err := mm.Deactivate(context.WithoutCancel(ctx), mountkey); err != nil {
+				retErr = stderrors.Join(retErr, fmt.Errorf("failed to deactivate mounts: %w", err))
+			}
+		}()
+		mounts = active.System
+	} else if !cerrdefs.IsNotImplemented(err) {
+		return fmt.Errorf("failed to activate mounts: %w", err)
+	}
+
+	return mount.WithTempMount(ctx, mounts, setupInit)
 }
 
 // calculateSnapshotParentUsage returns the usage of all ancestors of the
