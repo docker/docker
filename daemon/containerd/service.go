@@ -42,6 +42,12 @@ type ImageService struct {
 	registryService     distribution.RegistryResolver
 	eventsService       *daemonevents.Events
 	pruneRunning        atomic.Bool
+	// activeLeasesMu guards activeLeases. Leases created by withLease that
+	// are still in use (e.g. an in-flight pull) are tracked so that
+	// ImagePrune can skip them, avoiding deletion of leases that protect
+	// content being written.
+	activeLeasesMu sync.Mutex
+	activeLeases   map[string]struct{}
 	refCountMounter     snapshotter.Mounter
 	idMapping           user.IdentityMapping
 	policyVerifier      func() (*policyverifier.Verifier, error)
@@ -119,6 +125,7 @@ func NewService(config ImageServiceConfig) *ImageService {
 				return identitycache.NewNopBackend()
 			}(),
 		},
+		activeLeases: map[string]struct{}{},
 	}
 	service.setTransferLimits(config.MaxConcurrentDownloads, config.MaxConcurrentUploads)
 	service.startImageIdentityCacheRefresh()
@@ -129,6 +136,38 @@ func (i *ImageService) setTransferLimits(maxDownloads, maxUploads int) {
 	i.maxConcurrentDownloads = maxDownloads
 	i.downloadLimiter = newTransferLimiter(maxDownloads)
 	i.uploadLimiter = newTransferLimiter(maxUploads)
+}
+
+// trackLease adds a lease ID to the set of active leases.
+// It is safe to call even if activeLeases has not been initialized
+// (e.g. in tests that construct ImageService directly).
+func (i *ImageService) trackLease(id string) {
+	i.activeLeasesMu.Lock()
+	defer i.activeLeasesMu.Unlock()
+	if i.activeLeases == nil {
+		i.activeLeases = make(map[string]struct{})
+	}
+	i.activeLeases[id] = struct{}{}
+}
+
+// untrackLease removes a lease ID from the set of active leases.
+func (i *ImageService) untrackLease(id string) {
+	i.activeLeasesMu.Lock()
+	defer i.activeLeasesMu.Unlock()
+	if i.activeLeases != nil {
+		delete(i.activeLeases, id)
+	}
+}
+
+// activeLeaseSnapshot returns a snapshot of the current active lease IDs.
+func (i *ImageService) activeLeaseSnapshot() map[string]struct{} {
+	i.activeLeasesMu.Lock()
+	defer i.activeLeasesMu.Unlock()
+	active := make(map[string]struct{}, len(i.activeLeases))
+	for id := range i.activeLeases {
+		active[id] = struct{}{}
+	}
+	return active
 }
 
 func (i *ImageService) snapshotterService(snapshotter string) snapshots.Snapshotter {

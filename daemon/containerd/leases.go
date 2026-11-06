@@ -40,7 +40,16 @@ func (i *ImageService) withLease(ctx context.Context, cancellable bool) (context
 	}
 
 	ctx = leases.WithLease(ctx, l.ID)
+
+	// Track the lease as active so that ImagePrune does not delete it while
+	// it is protecting content being written (e.g. an in-flight pull).
+	i.trackLease(l.ID)
+
 	return ctx, func() {
+		// Mark the lease as inactive so it becomes eligible for pruning
+		// once the operation that created it has finished.
+		i.untrackLease(l.ID)
+
 		if ctx.Err() != nil && cancellable {
 			log.G(ctx).WithFields(log.Fields{"lease": l.ID, "expires_at": expireAt}).Info("Cancel with lease, leased resources will remain until expiration")
 			return

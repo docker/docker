@@ -70,7 +70,18 @@ func (i *ImageService) ImagePrune(ctx context.Context, fltrs filters.Args) (*ima
 	if err != nil {
 		return nil, err
 	}
+
+	// Take a snapshot of active leases. Leases that are still in use by
+	// an in-flight operation must not be deleted, otherwise the GC triggered
+	// by SynchronousDelete will remove content that is still being written,
+	// corrupting concurrent operations.
+	activeLeases := i.activeLeaseSnapshot()
+
 	for i, lease := range pullLeases {
+		if _, active := activeLeases[lease.ID]; active {
+			log.G(ctx).WithFields(log.Fields{"lease": lease.ID}).Debug("Skipping lease in use by an active operation")
+			continue
+		}
 		var opts []leases.DeleteOpt
 		if i == len(pullLeases)-1 {
 			opts = append(opts, leases.SynchronousDelete)
