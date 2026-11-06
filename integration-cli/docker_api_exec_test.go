@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -190,7 +191,11 @@ func (s *DockerAPISuite) TestExecStateCleanup(c *testing.T) {
 	cid := cli.DockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh").Stdout()
 	cid = strings.TrimSpace(cid)
 
-	stateDir := "/var/run/docker/containerd/" + cid
+	// Per-run runtime IDs preserve the first half of the Docker container ID.
+	stateDirs, err := filepath.Glob("/var/run/docker/containerd/" + cid[:32] + "*")
+	assert.NilError(c, err)
+	assert.Assert(c, is.Len(stateDirs, 1))
+	stateDir := stateDirs[0]
 
 	checkReadDir := func(t *testing.T) (any, string) {
 		fi, err := os.ReadDir(stateDir)

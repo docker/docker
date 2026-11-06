@@ -827,13 +827,56 @@ func TestContainerdContainerImageInfo(t *testing.T) {
 	assert.NilError(t, err)
 	defer c8dClient.Close()
 
-	ctr, err := c8dClient.ContainerService().Get(ctx, id)
+	runtimeContainers, err := c8dClient.ContainerService().List(ctx)
 	assert.NilError(t, err)
 
+	var runtimeContainerImage string
+	var matches int
+	for _, ctr := range runtimeContainers {
+		if strings.HasPrefix(ctr.ID, id[:32]) {
+			matches++
+			runtimeContainerImage = ctr.Image
+		}
+	}
+	assert.Equal(t, matches, 1)
+
 	if testEnv.UsingSnapshotter() {
-		assert.Equal(t, ctr.Image, "docker.io/library/busybox:latest")
+		assert.Equal(t, runtimeContainerImage, "docker.io/library/busybox:latest")
 	} else {
 		// This field is not set when not using containerd backed storage.
-		assert.Equal(t, ctr.Image, "")
+		assert.Equal(t, runtimeContainerImage, "")
 	}
+}
+
+func TestStartRemovesStaleContainerdContainer(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+	defer apiClient.Close()
+
+	result, err := apiClient.Info(ctx, client.InfoOptions{})
+	assert.NilError(t, err)
+	skip.If(t, result.Info.Containerd == nil, "requires containerd")
+
+	id := testContainer.Create(ctx, t, apiClient)
+	defer testContainer.Remove(ctx, t, apiClient, id, client.ContainerRemoveOptions{Force: true})
+
+	c8dClient, err := containerd.New(result.Info.Containerd.Address, containerd.WithDefaultNamespace(result.Info.Containerd.Namespaces.Containers))
+	assert.NilError(t, err)
+	defer c8dClient.Close()
+
+	staleContainer, err := c8dClient.NewContainer(ctx, id)
+	assert.NilError(t, err)
+	defer func() {
+		if err := staleContainer.Delete(context.WithoutCancel(ctx)); err != nil && !cerrdefs.IsNotFound(err) {
+			t.Errorf("failed to remove stale containerd container: %v", err)
+		}
+	}()
+
+	_, err = apiClient.ContainerStart(ctx, id, client.ContainerStartOptions{})
+	assert.NilError(t, err)
+
+	_, err = c8dClient.ContainerService().Get(ctx, id)
+	assert.Check(t, cerrdefs.IsNotFound(err))
 }

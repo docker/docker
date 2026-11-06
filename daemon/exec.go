@@ -235,7 +235,10 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, optio
 		// TODO(thaJeztah): also enable on Windows;
 		//  This was added in https://github.com/moby/moby/commit/7603c22c7365d7d7150597fe396e0707d6e561da,
 		//  which mentions that it failed on Windows "Probably needs to wait for container to be in running state"
-		ctr, err := daemon.containerdClient.LoadContainer(ctx, ec.Container.ID)
+		ec.Container.Lock()
+		c8dContainerID := ec.Container.C8dContainerID()
+		ec.Container.Unlock()
+		ctr, err := daemon.containerdClient.LoadContainer(ctx, c8dContainerID)
 		if err != nil {
 			return err
 		}

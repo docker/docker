@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"math"
 	"time"
 
 	containerd "github.com/containerd/containerd/v2/client"
@@ -200,7 +201,22 @@ func (daemon *Daemon) containerStart(ctx context.Context, daemonCfg *configStore
 		return err
 	}
 
-	ctr, err := libcontainerd.ReplaceContainer(ctx, daemon.containerd, container.ID, spec, shim, createOptions, func(ctx context.Context, client *containerd.Client, c *containers.Container) error {
+	// Remove the previous run before recording a new sequence.
+	if err := libcontainerd.DeleteContainer(ctx, daemon.containerd, container.C8dContainerID()); err != nil {
+		return err
+	}
+	if container.State.RunID == math.MaxUint64 {
+		container.State.RunID = 1
+	} else {
+		container.State.RunID++
+	}
+	c8dContainerID := container.C8dContainerID()
+	// Save the sequence first so the next start can clean up after a crash.
+	if err := container.CheckpointTo(context.WithoutCancel(ctx), daemon.containersReplica); err != nil {
+		return errors.Wrap(err, "persisting container run sequence")
+	}
+
+	ctr, err := libcontainerd.ReplaceContainer(ctx, daemon.containerd, c8dContainerID, spec, shim, createOptions, func(ctx context.Context, client *containerd.Client, c *containers.Container) error {
 		// Only set the image if we are using containerd for image storage.
 		// This is for metadata purposes only.
 		// Other lower-level components may make use of this information.

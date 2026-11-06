@@ -45,6 +45,12 @@ type State struct {
 	FinishedAt        time.Time
 	Health            *Health
 
+	// RunID identifies the current container run.
+	// It is zero for runs started before per-run IDs existed.
+	// Older daemons address the task by [Container.ID], so they cannot reach
+	// a running task after a downgrade.
+	RunID uint64 `json:",omitempty"`
+
 	removed           bool // used internally for container.WaitConditionRemoved
 	stopWaiters       []chan<- StateStatus
 	removeOnlyWaiters []chan<- StateStatus

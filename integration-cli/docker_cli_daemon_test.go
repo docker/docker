@@ -798,6 +798,24 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithSocketAsVolume(c *testing.T) {
 	s.d.Restart(c)
 }
 
+// c8dContainerID finds the current runtime ID by its Docker ID prefix.
+func c8dContainerID(t *testing.T, d *daemon.Daemon, cid string) string {
+	t.Helper()
+
+	result := icmd.RunCommand(ctrBinary, "--address", containerdSocket,
+		"--namespace", d.ContainersNamespace(), "containers", "list", "-q")
+	result.Assert(t, icmd.Success)
+
+	var matches []string
+	for _, id := range strings.Fields(result.Stdout()) {
+		if strings.HasPrefix(id, cid[:32]) {
+			matches = append(matches, id)
+		}
+	}
+	assert.Equal(t, len(matches), 1, "expected exactly one containerd container for %s, got %v", cid, matches)
+	return matches[0]
+}
+
 // os.Kill should kill daemon ungracefully, leaving behind container mounts.
 // A subsequent daemon restart should clean up said mounts.
 func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *testing.T) {
@@ -819,12 +837,14 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *test
 		c.Skip("no container mounts visible in host ns")
 	}
 
+	c8dID := c8dContainerID(c, d, id)
+
 	// kill the daemon
 	assert.NilError(c, d.Kill())
 
 	// kill the container
 	icmd.RunCommand(ctrBinary, "--address", containerdSocket,
-		"--namespace", d.ContainersNamespace(), "tasks", "kill", id).Assert(c, icmd.Success)
+		"--namespace", d.ContainersNamespace(), "tasks", "kill", c8dID).Assert(c, icmd.Success)
 
 	// restart daemon.
 	d.Restart(c)
@@ -1327,6 +1347,8 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *testi
 	assert.NilError(t, err)
 	pid = strings.TrimSpace(pid)
 
+	c8dID := c8dContainerID(t, s.d, cid)
+
 	// Kill the daemon
 	if err := s.d.Kill(); err != nil {
 		t.Fatal(err)
@@ -1334,7 +1356,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *testi
 
 	// kill the container
 	icmd.RunCommand(ctrBinary, "--address", containerdSocket,
-		"--namespace", s.d.ContainersNamespace(), "tasks", "kill", cid).Assert(t, icmd.Success)
+		"--namespace", s.d.ContainersNamespace(), "tasks", "kill", c8dID).Assert(t, icmd.Success)
 
 	// Give time to containerd to process the command if we don't
 	// the exit event might be received after we do the inspect
@@ -1422,6 +1444,8 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *tes
 	pid, err := s.d.Cmd("inspect", "-f", "{{.State.Pid}}", cid)
 	assert.NilError(t, err)
 
+	c8dID := c8dContainerID(t, s.d, cid)
+
 	// pause the container
 	if _, err := s.d.Cmd("pause", cid); err != nil {
 		t.Fatal(cid, err)
@@ -1437,7 +1461,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *tes
 		ctrBinary,
 		"--address", containerdSocket,
 		"--namespace", s.d.ContainersNamespace(),
-		"tasks", "resume", cid)
+		"tasks", "resume", c8dID)
 	result.Assert(t, icmd.Success)
 
 	// Give time to containerd to process the command if we don't

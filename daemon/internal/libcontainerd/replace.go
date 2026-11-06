@@ -24,15 +24,21 @@ func ReplaceContainer(ctx context.Context, client types.Client, id string, spec 
 	}
 
 	log.G(ctx).WithContext(ctx).WithField("container", id).Debug("A container already exists with the same ID. Attempting to clean up the old container.")
-	ctr, err = client.LoadContainer(ctx, id)
+	if err := DeleteContainer(ctx, client, id); err != nil {
+		return nil, err
+	}
+	return newContainer()
+}
+
+// DeleteContainer deletes a containerd container and any task it still owns.
+// It returns no error if the container does not exist.
+func DeleteContainer(ctx context.Context, client types.Client, id string) error {
+	ctr, err := client.LoadContainer(ctx, id)
 	if err != nil {
 		if cerrdefs.IsNotFound(err) {
-			// Task failed successfully: the container no longer exists,
-			// despite us not doing anything. May as well try to create
-			// the container again. It might succeed.
-			return newContainer()
+			return nil
 		}
-		return nil, errors.Wrap(err, "could not load stale containerd container object")
+		return errors.Wrap(err, "could not load containerd container object")
 	}
 	tsk, err := ctr.Task(ctx)
 	if err != nil {
@@ -43,19 +49,18 @@ func ReplaceContainer(ctx context.Context, client types.Client, id string, spec 
 		// cannot determine whether or not it has a task. The containerd
 		// client would just try to load the task itself, get the same
 		// error, and give up.
-		return nil, errors.Wrap(err, "could not load stale containerd task object")
+		return errors.Wrap(err, "could not load containerd task object")
 	}
 	if err := tsk.ForceDelete(ctx); err != nil {
 		if !cerrdefs.IsNotFound(err) {
-			return nil, errors.Wrap(err, "could not delete stale containerd task object")
+			return errors.Wrap(err, "could not delete containerd task object")
 		}
 		// The task might have exited on its own. Proceed with
 		// attempting to delete the container.
 	}
 deleteContainer:
 	if err := ctr.Delete(ctx); err != nil && !cerrdefs.IsNotFound(err) {
-		return nil, errors.Wrap(err, "could not delete stale containerd container object")
+		return errors.Wrap(err, "could not delete containerd container object")
 	}
-
-	return newContainer()
+	return nil
 }

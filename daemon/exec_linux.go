@@ -12,7 +12,10 @@ import (
 )
 
 func getUserFromContainerd(ctx context.Context, containerdCli *containerd.Client, ec *container.ExecConfig) (specs.User, error) {
-	ctr, err := containerdCli.LoadContainer(ctx, ec.Container.ID)
+	ec.Container.Lock()
+	c8dContainerID := ec.Container.C8dContainerID()
+	ec.Container.Unlock()
+	ctr, err := containerdCli.LoadContainer(ctx, c8dContainerID)
 	if err != nil {
 		return specs.User{}, err
 	}

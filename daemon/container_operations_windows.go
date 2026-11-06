@@ -179,7 +179,10 @@ func (daemon *Daemon) initializeNetworkingPaths(ctr *container.Container, nc *co
 		return fmt.Errorf("sharing of hyperv containers network is not supported")
 	}
 
-	ctr.NetworkSharedContainerID = nc.ID
+	// HCS identifies the donor compute system by its current runtime ID.
+	nc.Lock()
+	ctr.NetworkSharedContainerID = nc.C8dContainerID()
+	nc.Unlock()
 
 	if nc.NetworkSettings != nil {
 		for n := range nc.NetworkSettings.Networks {

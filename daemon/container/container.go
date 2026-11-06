@@ -846,7 +846,7 @@ func (container *Container) RestoreTask(ctx context.Context, client libcontainer
 	container.Lock()
 	defer container.Unlock()
 	var err error
-	container.State.ctr, err = client.LoadContainer(ctx, container.ID)
+	container.State.ctr, err = client.LoadContainer(ctx, container.C8dContainerID())
 	if err != nil {
 		return err
 	}
@@ -855,6 +855,16 @@ func (container *Container) RestoreTask(ctx context.Context, client libcontainer
 		return err
 	}
 	return nil
+}
+
+// C8dContainerID returns the current runtime ID, or the Docker ID for a
+// legacy run.
+// The caller must hold the container lock.
+func (container *Container) C8dContainerID() string {
+	if container.State.RunID != 0 {
+		return fmt.Sprintf("%.32s%032x", container.ID, container.State.RunID)
+	}
+	return container.ID
 }
 
 // GetRunningTask asserts that the container is running and returns the Task for
