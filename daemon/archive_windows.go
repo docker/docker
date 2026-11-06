@@ -22,6 +22,10 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 	container.Lock()
 	defer container.Unlock()
 
+	if err := checkContainerFSAvailable(container); err != nil {
+		return nil, err
+	}
+
 	// Make sure an online file-system operation is permitted.
 	if err := daemon.isOnlineFSOperationPermitted(container); err != nil {
 		return nil, err
@@ -63,6 +67,10 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 			container.Unlock()
 		}
 	}()
+
+	if err := checkContainerFSAvailable(container); err != nil {
+		return nil, nil, err
+	}
 
 	// Make sure an online file-system operation is permitted.
 	if err := daemon.isOnlineFSOperationPermitted(container); err != nil {
@@ -152,6 +160,10 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, allowOverwriteDirWithFile bool, content io.Reader) error {
 	container.Lock()
 	defer container.Unlock()
+
+	if err := checkContainerFSAvailable(container); err != nil {
+		return err
+	}
 
 	// Make sure an online file-system operation is permitted.
 	if err := daemon.isOnlineFSOperationPermitted(container); err != nil {

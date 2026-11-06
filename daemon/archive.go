@@ -1,13 +1,39 @@
 package daemon
 
 import (
+	"fmt"
 	"io"
 	"os"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/container"
+	daemoncontainer "github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/errdefs"
 )
+
+// checkContainerFSAvailable returns an error if the container's rootfs can no
+// longer be used because the container is being removed or has been marked
+// dead.
+//
+// This can occur when a filesystem operation races with the container being
+// removed; for example a container created with "--rm" exiting while content
+// is being copied into it. The container still resolves by name at that point,
+// but its RW layer has already been released, so without this check the
+// operation fails with an internal "RWLayer ... is unexpectedly nil" error.
+//
+// The container lock MUST be held when calling this function. Note that
+// [container.Container] embeds [container.State], whose mutex is used as the
+// lock for both, so the state must be read directly instead of through the
+// locking accessors on State.
+func checkContainerFSAvailable(ctr *daemoncontainer.Container) error {
+	if ctr.State.RemovalInProgress {
+		return errdefs.Conflict(fmt.Errorf("container %s is being removed", ctr.ID))
+	}
+	if ctr.State.Dead {
+		return errdefs.Conflict(fmt.Errorf("container %s is dead", ctr.ID))
+	}
+	return nil
+}
 
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
@@ -23,7 +49,7 @@ func (daemon *Daemon) ContainerStatPath(name string, path string) (*container.Pa
 			return nil, containerFileNotFound{path, name}
 		}
 		// TODO(thaJeztah): check if daemon.containerStatPath returns any errors that are not typed; if not, then return as-is
-		if cerrdefs.IsInvalidArgument(err) {
+		if cerrdefs.IsConflict(err) || cerrdefs.IsInvalidArgument(err) {
 			return nil, err
 		}
 		return nil, errdefs.System(err)
@@ -46,7 +72,7 @@ func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io
 			return nil, nil, containerFileNotFound{path, name}
 		}
 		// TODO(thaJeztah): check if daemon.containerArchivePath returns any errors that are not typed; if not, then return as-is
-		if cerrdefs.IsInvalidArgument(err) {
+		if cerrdefs.IsConflict(err) || cerrdefs.IsInvalidArgument(err) {
 			return nil, nil, err
 		}
 		return nil, nil, errdefs.System(err)
@@ -72,7 +98,7 @@ func (daemon *Daemon) ContainerExtractToDir(name, path string, copyUIDGID, allow
 			return containerFileNotFound{path, name}
 		}
 		// TODO(thaJeztah): check if daemon.containerExtractToDir returns any errors that are not typed; if not, then return as-is
-		if cerrdefs.IsInvalidArgument(err) {
+		if cerrdefs.IsConflict(err) || cerrdefs.IsInvalidArgument(err) {
 			return err
 		}
 		return errdefs.System(err)

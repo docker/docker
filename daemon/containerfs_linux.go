@@ -54,8 +54,16 @@ type containerFSView struct {
 }
 
 // openContainerFS opens a new view of the container's filesystem.
+//
+// The container lock MUST be held when calling this function: the container's
+// state is checked before the filesystem is opened, and [container.Container]
+// embeds [container.State], whose mutex is the lock for both.
 func (daemon *Daemon) openContainerFS(ctr *container.Container) (_ *containerFSView, retErr error) {
 	ctx := context.TODO()
+
+	if err := checkContainerFSAvailable(ctr); err != nil {
+		return nil, err
+	}
 
 	if err := daemon.Mount(ctr); err != nil {
 		return nil, err
