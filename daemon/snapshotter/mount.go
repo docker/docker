@@ -3,7 +3,10 @@ package snapshotter
 import (
 	"context"
 	"os"
+	"path"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/log"
@@ -127,6 +130,18 @@ func (m mounter) Mount(mounts []mount.Mount, containerID string) (string, error)
 		return "", err
 	}
 
+	for _, mount := range mounts {
+		if slices.Contains(mount.Options, "volatile") {
+			if workDirIndex := slices.IndexFunc(mount.Options, func(s string) bool {
+				return strings.HasPrefix(s, "workdir=")
+			}); workDirIndex >= 0 {
+				workDir := strings.TrimPrefix(mount.Options[workDirIndex], "workdir=")
+				// overlay has a check in place to prevent mounting "volatile" system twice
+				volatileIncompatFile := path.Join(workDir, "work", "incompat", "volatile")
+				_ = os.RemoveAll(volatileIncompatFile)
+			}
+		}
+	}
 	return target, mount.All(mounts, target)
 }
 
