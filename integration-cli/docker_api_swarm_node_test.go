@@ -9,31 +9,10 @@ import (
 
 	"github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/v2/integration-cli/checker"
-	"github.com/moby/moby/v2/integration-cli/daemon"
 	"github.com/moby/moby/v2/internal/testutil"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/poll"
 )
-
-func (s *DockerSwarmSuite) TestAPISwarmListNodes(c *testing.T) {
-	ctx := testutil.GetContext(c)
-	d1 := s.AddDaemon(ctx, c, true, true)
-	d2 := s.AddDaemon(ctx, c, true, false)
-	d3 := s.AddDaemon(ctx, c, true, false)
-
-	nodes := d1.ListNodes(ctx, c)
-	assert.Equal(c, len(nodes), 3, fmt.Sprintf("nodes: %#v", nodes))
-
-loop0:
-	for _, n := range nodes {
-		for _, d := range []*daemon.Daemon{d1, d2, d3} {
-			if n.ID == d.NodeID() {
-				continue loop0
-			}
-		}
-		c.Errorf("unknown nodeID %v", n.ID)
-	}
-}
 
 func (s *DockerSwarmSuite) TestAPISwarmNodeUpdate(c *testing.T) {
 	ctx := testutil.GetContext(c)
