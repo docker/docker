@@ -14,3 +14,7 @@ import (
 func (sr *immutableRef) tryComputeOverlayBlob(_ context.Context, _, _ []mount.Mount, _ string, _ string, _ compression.Compressor) (_ ocispecs.Descriptor, ok bool, err error) {
 	return ocispecs.Descriptor{}, true, errors.Errorf("overlayfs-based diff computing is unsupported")
 }
+
+func (sr *immutableRef) computeMappedWalkingBlob(_ context.Context, _, _ []mount.Mount, _ string, _ string, _ compression.Compressor) (ocispecs.Descriptor, error) {
+	return ocispecs.Descriptor{}, errors.Errorf("ID-mapped diff computing is unsupported")
+}

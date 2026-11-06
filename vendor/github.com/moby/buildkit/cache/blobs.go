@@ -234,11 +234,15 @@ func computeBlobChain(ctx context.Context, sr *immutableRef, createIfNeeded bool
 					// This case can be happen on containerd worker + non-overlayfs snapshotter (e.g. native).
 					// See also: https://github.com/containerd/containerd/issues/4263
 					compressorFunc, attemptFinalize := comp.Type.Compress(ctx, comp)
-					desc, err = walking.NewWalkingDiff(openWriterStore{Store: sr.cm.ContentStore}).Compare(ctx, lower, upper,
-						diff.WithMediaType(mediaType),
-						diff.WithReference(ref),
-						diff.WithCompressor(compressorFunc),
-					)
+					if idmap := sr.cm.IdentityMapping(); idmap != nil && !idmap.Empty() {
+						desc, err = sr.computeMappedWalkingBlob(ctx, lower, upper, mediaType, ref, compressorFunc)
+					} else {
+						desc, err = walking.NewWalkingDiff(openWriterStore{Store: sr.cm.ContentStore}).Compare(ctx, lower, upper,
+							diff.WithMediaType(mediaType),
+							diff.WithReference(ref),
+							diff.WithCompressor(compressorFunc),
+						)
+					}
 					if err != nil {
 						bklog.G(ctx).WithError(err).Warnf("failed to compute blob by buildkit differ")
 					} else {
