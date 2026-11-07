@@ -813,19 +813,30 @@ func TestDefaultBridgeIPv6(t *testing.T) {
 			inspect := container.Inspect(ctx, t, c, cID)
 			gIPv6 := inspect.NetworkSettings.Networks[networkName].GlobalIPv6Address
 
-			attachCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-			res := container.RunAttach(attachCtx, t, c,
-				container.WithImage("busybox:latest"),
-				container.WithCmd("ping", "-c1", "-W3", gIPv6.String()),
-			)
-			defer c.ContainerRemove(ctx, res.ContainerID, client.ContainerRemoveOptions{
-				Force: true,
-			})
+			pingCmd := []string{"ping", "-c1", "-W3", gIPv6.String()}
+
+			var res container.ExecResult
+			poll.WaitOn(t, func(_ poll.LogT) poll.Result {
+				execCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+				defer cancel()
+
+				var err error
+				res, err = container.Exec(execCtx, c, cID, pingCmd)
+				if err != nil {
+					return poll.Error(err)
+				}
+				if res.ExitCode != 0 {
+					return poll.Continue(
+						"ping failed with exit code %d, stdout: %s, stderr: %s",
+						res.ExitCode, res.Stdout(), res.Stderr(),
+					)
+				}
+				return poll.Success()
+			}, poll.WithTimeout(15*time.Second))
 
 			assert.Check(t, is.Equal(res.ExitCode, 0))
-			assert.Check(t, is.Equal(res.Stderr.String(), ""))
-			assert.Check(t, is.Contains(res.Stdout.String(), "1 packets transmitted, 1 packets received"))
+			assert.Check(t, is.Equal(res.Stderr(), ""))
+			assert.Check(t, is.Contains(res.Stdout(), "1 packets transmitted, 1 packets received"))
 		})
 	}
 }
