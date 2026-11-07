@@ -10,4 +10,5 @@ type CreateRequest struct {
 	*Config
 	HostConfig       *HostConfig               `json:"HostConfig,omitempty"`
 	NetworkingConfig *network.NetworkingConfig `json:"NetworkingConfig,omitempty"`
+	Profile          string                    `json:"Profile,omitempty"`
 }

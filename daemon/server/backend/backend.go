@@ -20,6 +20,7 @@ type ContainerCreateConfig struct {
 	NetworkingConfig            *network.NetworkingConfig
 	Platform                    *ocispec.Platform
 	DefaultReadOnlyNonRecursive bool
+	Profile                     string
 }
 
 // ContainerRmConfig holds arguments for the container remove

@@ -194,6 +194,8 @@ type ContainerDefaults struct {
 	// DefaultStopTimeout is the timeout, in seconds, used for containers that
 	// do not have a container-specific timeout set.
 	DefaultStopTimeout int `json:"default-stop-timeout,omitempty"`
+	// DefaultContainerProfile is applied when a container does not select a profile.
+	DefaultContainerProfile string `json:"default-container-profile,omitempty"`
 }
 
 // CommonConfig defines the configuration of a docker daemon which is

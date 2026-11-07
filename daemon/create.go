@@ -17,6 +17,7 @@ import (
 	networktypes "github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/containerprofile"
 	"github.com/moby/moby/v2/daemon/images"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
@@ -76,6 +77,20 @@ func (daemon *Daemon) containerCreate(ctx context.Context, daemonCfg *configStor
 	start := time.Now()
 	if opts.params.Config == nil {
 		return containertypes.CreateResponse{}, errdefs.InvalidParameter(errors.New("config cannot be empty in order to create a container"))
+	}
+	profileName := opts.params.Profile
+	if profileName == "" {
+		profileName = daemonCfg.Config.ContainerDefaults.DefaultContainerProfile
+	}
+	if profileName != "" {
+		p, err := containerprofile.Load(
+			containerprofile.DefaultDir,
+			profileName,
+		)
+		if err != nil {
+			return containertypes.CreateResponse{}, errdefs.InvalidParameter(err)
+		}
+		containerprofile.Apply(p, opts.params.Config, opts.params.HostConfig)
 	}
 
 	// Normalize some defaults. Doing this "ad-hoc" here for now, as there's

@@ -13,6 +13,7 @@ type ContainerCreateOptions struct {
 	NetworkingConfig *network.NetworkingConfig
 	Platform         *ocispec.Platform
 	Name             string
+	Profile          string
 
 	// Image is a shortcut for Config.Image - only one of Image or Config.Image should be set.
 	Image string

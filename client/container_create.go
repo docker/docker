@@ -50,6 +50,7 @@ func (cli *Client) ContainerCreate(ctx context.Context, options ContainerCreateO
 		Config:           cfg,
 		HostConfig:       normalizeHostConfig(options.HostConfig),
 		NetworkingConfig: options.NetworkingConfig,
+		Profile:          options.Profile,
 	})
 	defer ensureReaderClosed(resp)
 	if err != nil {
