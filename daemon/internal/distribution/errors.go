@@ -202,7 +202,7 @@ type invalidManifestClassError struct {
 }
 
 func (e invalidManifestClassError) Error() string {
-	return fmt.Sprintf("Encountered remote %q(%s) when fetching", e.mediaType, e.class)
+	return fmt.Sprintf("unsupported remote descriptor: %s config (%q)", e.class, e.mediaType)
 }
 
 func (e invalidManifestClassError) InvalidParameter() {}

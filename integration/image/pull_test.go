@@ -19,8 +19,10 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/moby/moby/client"
+	v2 "github.com/moby/moby/v2/daemon/pkg/plugin/v2"
 	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil/daemon"
+	"github.com/moby/moby/v2/internal/testutil/fixtures/plugin"
 	"github.com/moby/moby/v2/internal/testutil/registry"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
 	"github.com/opencontainers/go-digest"
@@ -258,6 +260,35 @@ func TestImagePullStoredDigestForOtherRepo(t *testing.T) {
 	assert.Assert(t, err != nil, "Expected error, got none: %v", err)
 	assert.Assert(t, cerrdefs.IsNotFound(err), err)
 	assert.Check(t, is.ErrorType(err, cerrdefs.IsNotFound))
+}
+
+func TestImagePullPluginConfigReturnsUnsupportedRemoteError(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, !testEnv.UsingSnapshotter(), "only relevant to containerd image store")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "We don't run a test registry on Windows")
+	ctx := setupTest(t)
+
+	reg := registry.NewV2(t, registry.WithStdout(os.Stdout), registry.WithStderr(os.Stderr))
+	defer reg.Close()
+	reg.WaitReady(t)
+
+	remote := path.Join(registry.DefaultURL, "test-plugin:latest")
+	assert.NilError(t, plugin.CreateInRegistry(ctx, remote, nil))
+
+	apiClient := testEnv.APIClient()
+	rdr, pullErr := apiClient.ImagePull(ctx, remote, client.ImagePullOptions{})
+	if rdr != nil {
+		defer rdr.Close()
+		body, err := io.ReadAll(rdr)
+		assert.NilError(t, err)
+		assert.Check(t, is.Contains(string(body), v2.MediaTypePluginConfig))
+		assert.Check(t, is.Contains(string(body), "remote descriptor is a Docker plugin config"))
+		return
+	}
+
+	assert.Assert(t, pullErr != nil)
+	assert.Check(t, is.ErrorContains(pullErr, `cannot pull image: remote descriptor is a Docker plugin config ("application/vnd.docker.plugin.v1+json")`))
+	assert.Check(t, is.ErrorType(pullErr, cerrdefs.IsInvalidArgument))
 }
 
 // TestImagePullNonExisting pulls non-existing images from the central registry, with different

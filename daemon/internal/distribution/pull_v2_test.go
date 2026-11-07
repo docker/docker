@@ -32,6 +32,11 @@ func TestNoMatchesErr(t *testing.T) {
 	assert.Check(t, is.Error(err, "no matching manifest for windows(10.0.17763)/arm64/v8 in the manifest list entries"))
 }
 
+func TestInvalidManifestClassErr(t *testing.T) {
+	err := invalidManifestClassError{mediaType: "application/vnd.docker.container.image.v1+json", class: "image"}
+	assert.Check(t, is.Error(err, `unsupported remote descriptor: image config ("application/vnd.docker.container.image.v1+json")`))
+}
+
 func TestPullSchema2Config(t *testing.T) {
 	ctx := t.Context()
 

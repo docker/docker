@@ -178,6 +178,9 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 
 	var sentPullingFrom, sentModelNotSupported atomic.Bool
 	ah := c8dimages.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		if err := checkPullDescriptorMediaType(desc); err != nil {
+			return nil, err
+		}
 		if desc.MediaType == c8dimages.MediaTypeDockerSchema1Manifest {
 			return nil, distribution.DeprecatedSchema1ImageError(ref)
 		}
@@ -294,6 +297,15 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	i.warmImageIdentityCache(ctx, img.Metadata())
 	outNewImg = img
 
+	return nil
+}
+
+// checkPullDescriptorMediaType returns an error if desc describes content that
+// cannot be pulled into the image store, such as a Docker plugin config.
+func checkPullDescriptorMediaType(desc ocispec.Descriptor) error {
+	if strings.HasPrefix(strings.ToLower(desc.MediaType), "application/vnd.docker.plugin.") {
+		return errdefs.InvalidParameter(fmt.Errorf("cannot pull image: remote descriptor is a Docker plugin config (%q)", desc.MediaType))
+	}
 	return nil
 }
 
