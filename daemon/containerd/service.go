@@ -28,6 +28,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/singleflight"
 )
 
 // ImageService implements daemon.ImageService
@@ -47,6 +48,7 @@ type ImageService struct {
 	policyVerifier      func() (*policyverifier.Verifier, error)
 	identity            imageIdentityState
 	features            featuresProvider
+	imagesFlight        singleflight.Group
 
 	// transferLimitMu keeps limiter pointers and their settings consistent while
 	// configuration reload replaces them.

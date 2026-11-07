@@ -7,6 +7,8 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -538,4 +540,139 @@ func TestComputeSharedSizeIncludesSharedContentBlobs(t *testing.T) {
 
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(sharedSize, int64(120)))
+}
+
+type countingC8dImageStore struct {
+	c8dimages.Store
+	calls   atomic.Int32
+	started chan struct{}
+	wait    chan struct{}
+}
+
+func (c *countingC8dImageStore) List(ctx context.Context, filters ...string) ([]c8dimages.Image, error) {
+	c.calls.Add(1)
+	if c.started != nil {
+		select {
+		case c.started <- struct{}{}:
+		default:
+		}
+	}
+	if c.wait != nil {
+		select {
+		case <-c.wait:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	return c.Store.List(ctx, filters...)
+}
+
+func TestImageListSingleflight(t *testing.T) {
+	ctx := namespaces.WithNamespace(t.Context(), "testing")
+	blobsDir := t.TempDir()
+	cs := &blobsDirContentStore{blobs: filepath.Join(blobsDir, "blobs/sha256")}
+
+	imgDesc, _, err := specialimage.MultiPlatform(blobsDir, "test:latest", []ocispec.Platform{
+		{OS: "linux", Architecture: "amd64"},
+	})
+	assert.NilError(t, err)
+
+	ctx = logtest.WithT(ctx, t)
+	service := fakeImageService(t, ctx, cs)
+
+	_, err = service.images.Create(ctx, imagesFromIndex(imgDesc)[0])
+	assert.NilError(t, err)
+
+	countingStore := &countingC8dImageStore{
+		Store:   service.images,
+		started: make(chan struct{}, 1),
+		wait:    make(chan struct{}),
+	}
+	service.images = countingStore
+
+	const concurrency = 8
+	var wg sync.WaitGroup
+	wg.Add(concurrency)
+
+	results := make([][]imagetypes.Summary, concurrency)
+	errs := make([]error, concurrency)
+
+	for i := range concurrency {
+		go func(idx int) {
+			defer wg.Done()
+			results[idx], errs[idx] = service.Images(ctx, imagebackend.ListOptions{})
+		}(i)
+	}
+
+	select {
+	case <-countingStore.started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for store.List to be called")
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	close(countingStore.wait)
+	wg.Wait()
+
+	for i := range concurrency {
+		assert.NilError(t, errs[i])
+		assert.Check(t, is.Equal(len(results[i]), 1))
+	}
+
+	// Verify that concurrent identical queries collapsed into exactly 1 underlying List call.
+	assert.Check(t, is.Equal(countingStore.calls.Load(), int32(1)))
+
+	// Verify isolation: mutating the result from one caller must not affect other callers.
+	results[0][0].RepoTags = append(results[0][0].RepoTags, "mutated:tag")
+	for i := 1; i < concurrency; i++ {
+		assert.Check(t, !slices.Contains(results[i][0].RepoTags, "mutated:tag"))
+	}
+
+	// Verify distinct query parameters trigger separate singleflights.
+	countingStore.started = nil
+	countingStore.wait = nil
+	_, err = service.Images(ctx, imagebackend.ListOptions{All: true})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(countingStore.calls.Load(), int32(2)))
+
+	// Verify context cancellation on one caller does not abort concurrent callers.
+	started2 := make(chan struct{}, 1)
+	wait2 := make(chan struct{})
+	countingStore.started = started2
+	countingStore.wait = wait2
+
+	cancelingCtx, cancel := context.WithCancel(ctx)
+	errCh1 := make(chan error, 1)
+	errCh2 := make(chan error, 1)
+
+	go func() {
+		_, e := service.Images(cancelingCtx, imagebackend.ListOptions{})
+		errCh1 <- e
+	}()
+
+	select {
+	case <-started2:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for second in-flight flight")
+	}
+
+	go func() {
+		_, e := service.Images(ctx, imagebackend.ListOptions{})
+		errCh2 <- e
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Cancel the first caller's context while in flight.
+	cancel()
+
+	e1 := <-errCh1
+	assert.Check(t, is.ErrorIs(e1, context.Canceled))
+
+	// Release the underlying store wait to let the shared operation finish for caller 2.
+	close(wait2)
+
+	e2 := <-errCh2
+	assert.NilError(t, e2)
 }

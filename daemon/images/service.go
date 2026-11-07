@@ -19,6 +19,7 @@ import (
 	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/singleflight"
 )
 
 type containerStore interface {
@@ -85,6 +86,7 @@ type ImageService struct {
 	leases                    leases.Manager
 	content                   content.Store
 	contentNamespace          string
+	imagesFlight              singleflight.Group
 }
 
 // DistributionServices provides daemon image storage services

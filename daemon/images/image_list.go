@@ -4,13 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"path"
+	"slices"
 	"sort"
 	"time"
 
 	"github.com/distribution/reference"
 	imagetypes "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/v2/daemon/container"
+	"github.com/moby/moby/v2/daemon/internal/filters"
 	"github.com/moby/moby/v2/daemon/internal/image"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
@@ -41,6 +44,33 @@ func (i *ImageService) Images(ctx context.Context, opts imagebackend.ListOptions
 		return nil, err
 	}
 
+	filterJSON, err := filters.ToJSON(opts.Filters)
+	if err != nil {
+		return nil, err
+	}
+
+	key := fmt.Sprintf("all=%t;shared=%t;manifests=%t;identity=%t;filters=%s",
+		opts.All, opts.SharedSize, opts.Manifests, opts.Identity, filterJSON)
+
+	ch := i.imagesFlight.DoChan(key, func() (any, error) {
+		return i.listImages(context.WithoutCancel(ctx), opts)
+	})
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case res := <-ch:
+		if res.Err != nil {
+			return nil, res.Err
+		}
+		if res.Val == nil {
+			return nil, nil
+		}
+		return cloneSummaries(res.Val.([]imagetypes.Summary)), nil
+	}
+}
+
+func (i *ImageService) listImages(ctx context.Context, opts imagebackend.ListOptions) ([]imagetypes.Summary, error) {
 	danglingOnly, err := opts.Filters.GetBoolOrDefault("dangling", false)
 	if err != nil {
 		return nil, err
@@ -300,4 +330,41 @@ func newImageSummary(image *image.Image, size int64) *imagetypes.Summary {
 		summary.Labels = image.Config.Labels
 	}
 	return summary
+}
+
+func cloneSummaries(summaries []imagetypes.Summary) []imagetypes.Summary {
+	if summaries == nil {
+		return nil
+	}
+	cp := make([]imagetypes.Summary, len(summaries))
+	for i, s := range summaries {
+		cp[i] = s
+		if s.RepoDigests != nil {
+			cp[i].RepoDigests = slices.Clone(s.RepoDigests)
+		}
+		if s.RepoTags != nil {
+			cp[i].RepoTags = slices.Clone(s.RepoTags)
+		}
+		if s.Labels != nil {
+			cp[i].Labels = maps.Clone(s.Labels)
+		}
+		if s.Descriptor != nil {
+			desc := *s.Descriptor
+			cp[i].Descriptor = &desc
+		}
+		if s.Manifests != nil {
+			cp[i].Manifests = make([]imagetypes.ManifestSummary, len(s.Manifests))
+			for j, m := range s.Manifests {
+				cp[i].Manifests[j] = m
+				if m.ImageData != nil {
+					imgData := *m.ImageData
+					if m.ImageData.Containers != nil {
+						imgData.Containers = slices.Clone(m.ImageData.Containers)
+					}
+					cp[i].Manifests[j].ImageData = &imgData
+				}
+			}
+		}
+	}
+	return cp
 }
