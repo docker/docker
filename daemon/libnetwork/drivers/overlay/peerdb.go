@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"syscall"
 
 	"github.com/containerd/log"
@@ -21,7 +22,7 @@ type peerEntry struct {
 	vtep netip.Addr
 }
 
-func (p *peerEntry) isLocal() bool {
+func (p peerEntry) isLocal() bool {
 	return !p.vtep.IsValid()
 }
 
@@ -44,6 +45,12 @@ func (pm *peerMap) Get(peerIP netip.Prefix) (peerEntry, bool) {
 		return peerEntry{}, false
 	}
 	return c[0], true
+}
+
+// hasLocal reports whether a local endpoint has the IP address peerIP.
+func (pm *peerMap) hasLocal(peerIP netip.Prefix) bool {
+	entries, _ := pm.mp.Get(peerIP)
+	return slices.ContainsFunc(entries, peerEntry.isLocal)
 }
 
 func (pm *peerMap) Add(eid string, peerIP netip.Prefix, peerMac hashable.MACAddr, vtep netip.Addr) (bool, int) {
@@ -96,7 +103,7 @@ func (pm *peerMap) Delete(eid string, peerIP netip.Prefix, peerMac hashable.MACA
 func (n *network) initSandboxPeerDB() error {
 	var errs []error
 	n.peerdb.Walk(func(peerIP netip.Prefix, pEntry peerEntry) {
-		if !pEntry.isLocal() {
+		if !pEntry.isLocal() && !n.peerdb.hasLocal(peerIP) {
 			if err := n.addNeighbor(peerIP, pEntry.mac, pEntry.vtep); err != nil {
 				errs = append(errs, fmt.Errorf("failed to add neighbor entries for %s: %w", peerIP, err))
 			}
@@ -123,7 +130,11 @@ func (n *network) peerAdd(eid string, peerIP netip.Prefix, peerMac hashable.MACA
 			"vtep":    vtep,
 		}).Warn("peerAdd: entry already present in db")
 	}
-	if vtep.IsValid() {
+	if !vtep.IsValid() {
+		// The IP address is in use on this node now, so it must not be
+		// reached through the VXLAN tunnel.
+		n.deleteRemoteNeighbors(peerIP)
+	} else if !n.peerdb.hasLocal(peerIP) {
 		if err := n.addNeighbor(peerIP, peerMac, vtep); err != nil {
 			var nserr osl.NeighborSearchError
 			if dbEntries > 1 && errors.As(err, &nserr) && nserr.Present {
@@ -222,7 +233,7 @@ func (n *network) peerDelete(eid string, peerIP netip.Prefix, peerMac hashable.M
 		}
 	}
 
-	if dbEntries > 0 {
+	if dbEntries > 0 && !n.peerdb.hasLocal(peerIP) {
 		// If there is still an entry into the database and the deletion went through without errors means that there is now no
 		// configuration active in the kernel.
 		// Restore one configuration for the ip directly from the database, note that is guaranteed that there is one
@@ -235,6 +246,28 @@ func (n *network) peerDelete(eid string, peerIP netip.Prefix, peerMac hashable.M
 		}
 	}
 	return nil
+}
+
+// deleteRemoteNeighbors removes the entries of the remote peer with the IP
+// address peerIP, if one is programmed into the kernel.
+func (n *network) deleteRemoteNeighbors(peerIP netip.Prefix) {
+	entries, _ := n.peerdb.mp.Get(peerIP)
+	for _, e := range entries {
+		if e.isLocal() {
+			continue
+		}
+		// deleteNeighbor returns a NeighborSearchError for a peer which is
+		// not programmed.
+		if err := n.deleteNeighbor(peerIP, e.mac, e.vtep); err != nil && !errors.As(err, &osl.NeighborSearchError{}) {
+			log.G(context.TODO()).WithFields(log.Fields{
+				"nid":  n.id,
+				"eid":  e.eid,
+				"ip":   peerIP,
+				"mac":  e.mac,
+				"vtep": e.vtep,
+			}).WithError(err).Warn("Failed to delete the entries of a remote peer for a local IP address")
+		}
+	}
 }
 
 // deleteNeighbor removes programming from the kernel for the given peer to be
