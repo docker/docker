@@ -110,7 +110,7 @@ func (i *ImageService) pullTag(ctx context.Context, ref reference.Named, platfor
 	}
 	opts := []containerd.RemoteOpt{containerd.WithPlatform(platforms.FormatAll(pullPlatform))}
 
-	resolver, _ := i.newResolverFromAuthConfig(ctx, authConfig, ref, metaHeaders)
+	resolver, _ := i.newResolverFromAuthConfig(ctx, authConfig, ref, metaHeaders, credsLenient)
 	opts = append(opts, containerd.WithResolver(resolver))
 
 	oldImage, err := i.resolveImage(ctx, ref.String())

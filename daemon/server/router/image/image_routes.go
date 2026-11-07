@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/log"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/moby/moby/api/pkg/authconfig"
@@ -103,7 +104,10 @@ func (ir *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrit
 		// AuthConfig to increase compatibility with the existing API.
 		//
 		// TODO(thaJeztah): accept empty values but return an error when failing to decode.
-		authConfig, _ := authconfig.Decode(r.Header.Get(registry.AuthHeader))
+		authConfig, authErr := authconfig.Decode(r.Header.Get(registry.AuthHeader))
+		if authErr != nil {
+			log.G(ctx).WithError(authErr).Warn("invalid X-Registry-Auth header; continuing without registry credentials")
+		}
 		pullOptions := imagebackend.PullOptions{
 			AuthConfig:  authConfig,
 			MetaHeaders: metaHeaders,
@@ -180,7 +184,12 @@ func (ir *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter
 	// to increase compatibility with the existing API.
 	//
 	// TODO(thaJeztah): accept empty values but return an error when failing to decode.
-	authConfig, _ := authconfig.Decode(r.Header.Get(registry.AuthHeader))
+	authConfig, authErr := authconfig.Decode(r.Header.Get(registry.AuthHeader))
+	if authErr != nil {
+		// Keep ignoring for API compatibility, but surface it: a failed
+		// decode silently turns the whole request anonymous.
+		log.G(ctx).WithError(authErr).Warn("invalid X-Registry-Auth header; continuing without registry credentials")
+	}
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()

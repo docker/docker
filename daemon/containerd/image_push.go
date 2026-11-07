@@ -45,6 +45,9 @@ func (i *ImageService) PushImage(ctx context.Context, sourceRef reference.Named,
 		// TODO(thaJeztah): add support for pushing multiple platforms
 		return cerrdefs.ErrInvalidArgument.WithMessage("multiple platforms is not supported")
 	}
+	if ac := options.AuthConfig; ac == nil || (ac.Username == "" && ac.Password == "" && ac.IdentityToken == "" && ac.RegistryToken == "") {
+		log.G(ctx).WithField("image", sourceRef).Info("no registry credentials provided for image push; pushing unauthenticated (ensure `docker login` was run for this registry)")
+	}
 	start := time.Now()
 	defer func() {
 		if retErr == nil {
@@ -124,7 +127,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 	}
 
 	store := i.content
-	resolver, tracker := i.newResolverFromAuthConfig(ctx, authConfig, targetRef, metaHeaders)
+	resolver, tracker := i.newResolverFromAuthConfig(ctx, authConfig, targetRef, metaHeaders, credsStrict)
 	pp := pushProgress{Tracker: tracker}
 	jobsQueue := newJobs()
 	finishProgress := jobsQueue.showProgress(ctx, out, combinedProgress([]progressUpdater{
