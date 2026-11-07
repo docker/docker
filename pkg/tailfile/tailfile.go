@@ -40,8 +40,12 @@ func TailFile(f *os.File, n int) ([][]byte, error) {
 	return buf, nil
 }
 
-// SizeReaderAt is an interface used to get a ReaderAt as well as the size of the underlying reader.
-// Note that the size of the underlying reader should not change when using this interface.
+// SizeReaderAt provides a ReaderAt and the size of its underlying data.
+// The reported size may be stale if the underlying data is truncated.
+// If truncation is detected while locating the tail, scanning restarts at the
+// shortened end.
+// Other concurrent mutations are not supported.
+// The returned tail reader is not a snapshot of the underlying data.
 type SizeReaderAt interface {
 	io.ReaderAt
 	Size() int64
@@ -63,42 +67,46 @@ func NewTailReaderWithDelimiter(ctx context.Context, r SizeReaderAt, reqLines in
 	if len(delimiter) == 0 {
 		return nil, 0, errors.New("must provide a delimiter")
 	}
-	var (
-		size      = r.Size()
-		tailStart int64
-		tailEnd   = size
-		found     int
-	)
-
-	if int64(len(delimiter)) >= size {
+	if int64(len(delimiter)) >= r.Size() {
 		return io.NewSectionReader(bytes.NewReader(nil), 0, 0), 0, nil
 	}
 
 	s := newScanner(r, delimiter)
-	for s.Scan(ctx) {
-		if err := s.Err(); err != nil {
-			return nil, 0, s.Err()
+	for {
+		size := s.end
+		s.pos = size
+		s.idx = 0
+		var (
+			tailEnd int64
+			found   int
+		)
+		for s.Scan(ctx) {
+			found++
+			if found == 1 {
+				tailEnd = s.End()
+			}
+			if found == reqLines {
+				break
+			}
 		}
-
-		found++
-		if found == 1 {
-			tailEnd = s.End()
-		}
+		var tailStart int64
 		if found == reqLines {
-			break
+			tailStart = s.Start(ctx)
 		}
-	}
+		if err := s.Err(); err != nil {
+			return nil, 0, err
+		}
+		// Truncation invalidates the recorded delimiters. Each retry starts
+		// at a strictly smaller end, so a stale Size cannot prevent progress.
+		if s.end < size {
+			continue
+		}
+		if found == 0 {
+			return io.NewSectionReader(bytes.NewReader(nil), 0, 0), 0, nil
+		}
 
-	tailStart = s.Start(ctx)
-
-	if found == 0 {
-		return io.NewSectionReader(bytes.NewReader(nil), 0, 0), 0, nil
+		return io.NewSectionReader(r, tailStart, tailEnd-tailStart), found, nil
 	}
-
-	if found < reqLines && tailStart != 0 {
-		tailStart = 0
-	}
-	return io.NewSectionReader(r, tailStart, tailEnd-tailStart), found, nil
 }
 
 func newScanner(r SizeReaderAt, delim []byte) *scanner {
@@ -112,6 +120,7 @@ func newScanner(r SizeReaderAt, delim []byte) *scanner {
 	return &scanner{
 		r:     r,
 		pos:   size,
+		end:   size,
 		buf:   make([]byte, readSize),
 		delim: delim,
 	}
@@ -120,12 +129,14 @@ func newScanner(r SizeReaderAt, delim []byte) *scanner {
 type scanner struct {
 	r     SizeReaderAt
 	pos   int64
+	end   int64
 	buf   []byte
 	delim []byte
 	err   error
 	idx   int
 }
 
+// Start locates the start of the current record, advancing the scanner if needed.
 func (s *scanner) Start(ctx context.Context) int64 {
 	if s.idx > 0 {
 		idx := bytes.LastIndex(s.buf[:s.idx], s.delim)
@@ -134,22 +145,10 @@ func (s *scanner) Start(ctx context.Context) int64 {
 		}
 	}
 
-	// slow path
-	buf := make([]byte, len(s.buf))
-	copy(buf, s.buf)
-
-	readAhead := &scanner{
-		r:     s.r,
-		pos:   s.pos,
-		delim: s.delim,
-		idx:   s.idx,
-		buf:   buf,
-	}
-
-	if !readAhead.Scan(ctx) {
+	if !s.Scan(ctx) {
 		return 0
 	}
-	return readAhead.End()
+	return s.End()
 }
 
 func (s *scanner) End() int64 {
@@ -187,8 +186,21 @@ func (s *scanner) Scan(ctx context.Context) bool {
 				s.err = err
 				return false
 			}
+			if n < readSize {
+				end := offset + int64(n)
+				if n == 0 && offset > 0 {
+					// Probe for the new end instead of stepping one empty block at a time.
+					end, err = s.findEnd(ctx, offset)
+					if err != nil {
+						s.err = err
+						return false
+					}
+				}
+				s.end = end
+				return false
+			}
 
-			s.pos -= int64(n)
+			s.pos = offset
 			idx = n
 		}
 
@@ -211,4 +223,30 @@ func (s *scanner) Scan(ctx context.Context) bool {
 			s.pos += int64(len(s.delim)) - 1
 		}
 	}
+}
+
+// findEnd returns the current end of the data, given that a read at hi
+// returned nothing. It binary searches for the last readable byte, so a large
+// truncation costs O(log n) reads rather than one read per block.
+func (s *scanner) findEnd(ctx context.Context, hi int64) (int64, error) {
+	var (
+		lo int64
+		b  [1]byte
+	)
+	for lo < hi {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
+		mid := lo + (hi-lo)/2
+		n, err := s.r.ReadAt(b[:], mid)
+		if err != nil && !errors.Is(err, io.EOF) {
+			return 0, err
+		}
+		if n == 0 {
+			hi = mid
+		} else {
+			lo = mid + 1
+		}
+	}
+	return lo, nil
 }

@@ -134,6 +134,227 @@ truncated line`)
 	}
 }
 
+func TestNewTailReaderWithDelimiterAfterTruncation(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name        string
+		data        string
+		sectionSize int64
+		delimiter   string
+		reqLines    int
+		want        string
+		wantLines   int
+	}{
+		{
+			name:        "empty backing",
+			sectionSize: blockSize + 7,
+			delimiter:   "\n",
+			reqLines:    3,
+		},
+		{
+			name:        "large truncation",
+			data:        "one\ntwo\npartial",
+			sectionSize: 1000 * blockSize,
+			delimiter:   "\n",
+			reqLines:    10,
+			want:        "one\ntwo\n",
+			wantLines:   2,
+		},
+		{
+			name:        "partial read limited records",
+			data:        "a\nbb\nccc\npartial",
+			sectionSize: int64(len("a\nbb\nccc\npartial") + 4),
+			delimiter:   "\n",
+			reqLines:    2,
+			want:        "bb\nccc\n",
+			wantLines:   2,
+		},
+		{
+			name:        "short read matching overlap length",
+			data:        "###",
+			sectionSize: 20,
+			delimiter:   "####",
+			reqLines:    2,
+		},
+		{
+			name:        "boundary spanning delimiter",
+			data:        "aaaa####",
+			sectionSize: blockSize + 6,
+			delimiter:   "####",
+			reqLines:    3,
+			want:        "aaaa####",
+			wantLines:   1,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			section := io.NewSectionReader(strings.NewReader(tc.data), 0, tc.sectionSize)
+			r := &boundedSizeReaderAt{t: t, SectionReader: section}
+
+			tail, lines, err := NewTailReaderWithDelimiter(context.Background(), r, tc.reqLines, []byte(tc.delimiter))
+			assert.NilError(t, err)
+			assert.Equal(t, lines, tc.wantLines)
+			assert.Equal(t, tail.Size(), int64(len(tc.want)))
+
+			got, err := io.ReadAll(tail)
+			assert.NilError(t, err)
+			assert.Equal(t, string(got), tc.want)
+		})
+	}
+}
+
+func TestNewTailReaderReadError(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name        string
+		data        string
+		sectionSize int64
+		failRead    int
+	}{
+		{name: "scan", sectionSize: 2 * blockSize, failRead: 1},
+		{name: "end probe", sectionSize: 2 * blockSize, failRead: 2},
+		{
+			name:     "read ahead",
+			data:     "one\n" + strings.Repeat("a", 2*blockSize) + "\n",
+			failRead: 2,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			wantErr := errors.New("read failed")
+			data := strings.NewReader(tc.data)
+			var reads int
+			r := io.NewSectionReader(readerAtFunc(func(p []byte, off int64) (int, error) {
+				reads++
+				if reads >= tc.failRead {
+					return 0, wantErr
+				}
+				return data.ReadAt(p, off)
+			}), 0, max(tc.sectionSize, data.Size()))
+
+			_, _, err := NewTailReader(context.Background(), r, 1)
+			assert.ErrorIs(t, err, wantErr)
+		})
+	}
+}
+
+func TestNewTailReaderCancelEndSearch(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	r := io.NewSectionReader(readerAtFunc(func(p []byte, off int64) (int, error) {
+		if ctx.Err() != nil {
+			t.Fatal("read after cancellation")
+		}
+		if len(p) == 1 {
+			cancel()
+		}
+		return 0, io.EOF
+	}), 0, 1<<30)
+
+	_, _, err := NewTailReader(ctx, r, 1)
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestNewTailReaderTruncateDuringScan(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		delimiter string
+		surviving string
+		suffix    string
+		wantLast  string
+		wantAll   string
+		wantLines int
+	}{
+		{
+			name: "before counting records", delimiter: "\n",
+			surviving: "one\ntwo\npartial", suffix: strings.Repeat("x", 4*blockSize),
+			wantLast: "two\n", wantAll: "one\ntwo\n", wantLines: 2,
+		},
+		{
+			name: "zero read after counting records", delimiter: "\n",
+			surviving: "one\ntwo\npartial", suffix: strings.Repeat("x", 4*blockSize) + "\n",
+			wantLast: "two\n", wantAll: "one\ntwo\n", wantLines: 2,
+		},
+		{
+			name: "partial read after counting records", delimiter: "\n",
+			surviving: "one\ntwo\npartial", suffix: strings.Repeat("x", blockSize) + "\n",
+			wantLast: "two\n", wantAll: "one\ntwo\n", wantLines: 2,
+		},
+		{
+			name: "empty after counting records", delimiter: "\n",
+			suffix: strings.Repeat("x", 4*blockSize) + "\n",
+		},
+		{
+			name: "no complete records remain", delimiter: "\n",
+			surviving: "partial", suffix: strings.Repeat("x", 4*blockSize) + "\n",
+		},
+		{
+			name: "multibyte delimiter", delimiter: "####",
+			surviving: "first####second####partial", suffix: strings.Repeat("x", 4*blockSize) + "####",
+			wantLast: "second####", wantAll: "first####second####", wantLines: 2,
+		},
+	} {
+		for _, reqLines := range []int{1, 10} {
+			t.Run(fmt.Sprintf("%s/%d", tc.name, reqLines), func(t *testing.T) {
+				t.Parallel()
+				data := strings.NewReader(tc.surviving + tc.suffix)
+				size := data.Size()
+				var truncated bool
+				r := &boundedSizeReaderAt{
+					t: t,
+					SectionReader: io.NewSectionReader(readerAtFunc(func(p []byte, off int64) (int, error) {
+						n, err := data.ReadAt(p, off)
+						if !truncated {
+							assert.NilError(t, err)
+							assert.Equal(t, n, len(p))
+							data = strings.NewReader(tc.surviving)
+							truncated = true
+						}
+						return n, err
+					}), 0, size),
+				}
+
+				tail, lines, err := NewTailReaderWithDelimiter(context.Background(), r, reqLines, []byte(tc.delimiter))
+				assert.NilError(t, err)
+				assert.Equal(t, lines, min(reqLines, tc.wantLines))
+				want := tc.wantAll
+				if reqLines == 1 {
+					want = tc.wantLast
+				}
+				assert.Equal(t, tail.Size(), int64(len(want)))
+				got, err := io.ReadAll(tail)
+				assert.NilError(t, err)
+				assert.Equal(t, string(got), want)
+			})
+		}
+	}
+}
+
+type readerAtFunc func([]byte, int64) (int, error)
+
+func (f readerAtFunc) ReadAt(p []byte, off int64) (int, error) {
+	return f(p, off)
+}
+
+type boundedSizeReaderAt struct {
+	t *testing.T
+	*io.SectionReader
+	reads int
+}
+
+func (r *boundedSizeReaderAt) ReadAt(p []byte, off int64) (int, error) {
+	r.t.Helper()
+	r.reads++
+	if r.reads > 100 {
+		r.t.Fatal("tail reader did not terminate after source truncation")
+	}
+	return r.SectionReader.ReadAt(p, off)
+}
+
 func BenchmarkTail(b *testing.B) {
 	f, err := os.CreateTemp(b.TempDir(), "tail-test")
 	if err != nil {
