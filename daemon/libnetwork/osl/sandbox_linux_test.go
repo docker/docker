@@ -224,7 +224,9 @@ func TestApplyOSTweaksNFTablesForwarding(t *testing.T) {
 			if ferr = os.WriteFile(ipForward, []byte("0"), 0o644); ferr != nil {
 				return
 			}
-			n.ApplyOSTweaks([]SandboxType{typ})
+			if ferr = n.ApplyOSTweaks([]SandboxType{typ}); ferr != nil {
+				return
+			}
 			got, ferr = os.ReadFile(ipForward)
 		}); err != nil {
 			t.Fatal(err)
