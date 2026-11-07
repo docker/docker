@@ -9,9 +9,16 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+)
+
+const (
+	testExposedPortRange      = "33060-33061/tcp"
+	testExposedPortRangeStart = "33060/tcp"
+	testExposedPortRangeEnd   = "33061/tcp"
 )
 
 const sampleImageJSON = `{
@@ -28,6 +35,28 @@ func TestNewFromJSON(t *testing.T) {
 	img, err := NewFromJSON([]byte(sampleImageJSON))
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(sampleImageJSON, string(img.RawJSON())))
+}
+
+func TestNewFromJSONWithExposedPortRange(t *testing.T) {
+	imageJSON := `{
+		"architecture": "amd64",
+		"os": "linux",
+		"config": {
+			"ExposedPorts": {
+				"` + testExposedPortRange + `": {}
+			}
+		},
+		"rootfs": {
+			"type": "layers",
+			"diff_ids": []
+		}
+	}`
+
+	img, err := NewFromJSON([]byte(imageJSON))
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(imageJSON, string(img.RawJSON())))
+	assert.Check(t, is.Contains(img.Config.ExposedPorts, network.MustParsePort(testExposedPortRangeStart)))
+	assert.Check(t, is.Contains(img.Config.ExposedPorts, network.MustParsePort(testExposedPortRangeEnd)))
 }
 
 func TestNewFromJSONWithInvalidJSON(t *testing.T) {

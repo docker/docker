@@ -10,9 +10,17 @@ import (
 	"time"
 
 	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+)
+
+const (
+	imageConfigJSONKey          = "config"
+	imageContainerConfigJSONKey = "container_config"
+	exposedPortsJSONKey         = "ExposedPorts"
+	jsonNullValue               = "null"
 )
 
 // ID is the content-addressable ID of an image.
@@ -293,7 +301,12 @@ type Exporter interface {
 func NewFromJSON(src []byte) (*Image, error) {
 	img := &Image{}
 
-	if err := json.Unmarshal(src, img); err != nil {
+	normalized, err := normalizeConfigExposedPortRanges(src)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(normalized, img); err != nil {
 		return nil, err
 	}
 	if img.RootFS == nil {
@@ -303,4 +316,87 @@ func NewFromJSON(src []byte) (*Image, error) {
 	img.rawJSON = src
 
 	return img, nil
+}
+
+func normalizeConfigExposedPortRanges(src []byte) ([]byte, error) {
+	var config map[string]json.RawMessage
+	if err := json.Unmarshal(src, &config); err != nil {
+		return nil, err
+	}
+
+	changed := false
+	for _, key := range []string{imageConfigJSONKey, imageContainerConfigJSONKey} {
+		normalized, ok, err := normalizeExposedPortRanges(config[key])
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			config[key] = normalized
+			changed = true
+		}
+	}
+
+	if !changed {
+		return src, nil
+	}
+	return json.Marshal(config)
+}
+
+func normalizeExposedPortRanges(src json.RawMessage) (json.RawMessage, bool, error) {
+	if len(src) == 0 || string(src) == jsonNullValue {
+		return nil, false, nil
+	}
+
+	var config map[string]json.RawMessage
+	if err := json.Unmarshal(src, &config); err != nil {
+		return nil, false, err
+	}
+
+	exposedPortsJSON, ok := config[exposedPortsJSONKey]
+	if !ok || string(exposedPortsJSON) == jsonNullValue {
+		return nil, false, nil
+	}
+
+	var exposedPorts map[string]json.RawMessage
+	if err := json.Unmarshal(exposedPortsJSON, &exposedPorts); err != nil {
+		return nil, false, err
+	}
+
+	normalizedPorts := make(map[string]json.RawMessage, len(exposedPorts))
+	changed := false
+	for port, value := range exposedPorts {
+		if parsedPort, err := network.ParsePort(port); err == nil {
+			normalizedPorts[parsedPort.String()] = value
+			if parsedPort.String() != port {
+				changed = true
+			}
+			continue
+		}
+
+		portRange, err := network.ParsePortRange(port)
+		if err != nil {
+			normalizedPorts[port] = value
+			continue
+		}
+		changed = true
+		for p := range portRange.All() {
+			normalizedPorts[p.String()] = value
+		}
+	}
+
+	if !changed {
+		return nil, false, nil
+	}
+
+	normalizedExposedPorts, err := json.Marshal(normalizedPorts)
+	if err != nil {
+		return nil, false, err
+	}
+	config[exposedPortsJSONKey] = normalizedExposedPorts
+
+	normalizedConfig, err := json.Marshal(config)
+	if err != nil {
+		return nil, false, err
+	}
+	return normalizedConfig, true, nil
 }

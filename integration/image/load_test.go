@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	cerrdefs "github.com/containerd/errdefs"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
 	iimage "github.com/moby/moby/v2/integration/internal/image"
 	"github.com/moby/moby/v2/internal/testutil/specialimage"
@@ -13,6 +15,11 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
+)
+
+const (
+	exposedPortRangeStart = "33060/tcp"
+	exposedPortRangeEnd   = "33061/tcp"
 )
 
 func TestLoadDanglingImages(t *testing.T) {
@@ -75,4 +82,29 @@ func TestLoadDanglingImages(t *testing.T) {
 	danglingImage, err := findImageById(imageList.Items, oldImage.ID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(danglingImage.RepoTags, 0))
+}
+
+func TestLoadImageWithExposedPortRange(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	imageRef := iimage.Load(ctx, t, apiClient, specialimage.ExposedPortRange)
+
+	createResp, err := apiClient.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:           &containertypes.Config{Image: imageRef},
+		HostConfig:       &containertypes.HostConfig{},
+		NetworkingConfig: &network.NetworkingConfig{},
+	})
+	assert.NilError(t, err)
+	t.Cleanup(func() {
+		_, err := apiClient.ContainerRemove(ctx, createResp.ID, client.ContainerRemoveOptions{Force: true})
+		assert.Check(t, err)
+	})
+
+	inspect, err := apiClient.ContainerInspect(ctx, createResp.ID, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Contains(inspect.Container.Config.ExposedPorts, network.MustParsePort(exposedPortRangeStart)))
+	assert.Check(t, is.Contains(inspect.Container.Config.ExposedPorts, network.MustParsePort(exposedPortRangeEnd)))
 }
