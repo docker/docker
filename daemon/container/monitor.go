@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/containerd/log"
+	"github.com/moby/moby/v2/daemon/logger"
 )
 
 const (
@@ -31,10 +32,30 @@ func (container *Container) Reset() {
 		return
 	}
 
-	if container.LogCopier != nil {
+	// Detach the log driver from the container under the lock, then
+	// close it asynchronously. Closing can block for a long time if
+	// the underlying driver is unresponsive (e.g. a stuck fluentd or
+	// syslog backend). Holding the container lock during that time
+	// would prevent any other operation on this container, and also
+	// stall startup of other containers that share the same log
+	// driver configuration.
+	logDriver := container.LogDriver
+	logCopier := container.LogCopier
+	container.LogDriver = nil
+	container.LogCopier = nil
+
+	go closeLogger(container.ID, logDriver, logCopier)
+}
+
+// closeLogger waits for the log copier to finish (with a timeout) and
+// then closes the log driver. It runs in its own goroutine because the
+// driver's Close method may block indefinitely when the underlying
+// logging backend is unresponsive.
+func closeLogger(containerID string, logDriver logger.Logger, logCopier *logger.Copier) {
+	if logCopier != nil {
 		exit := make(chan struct{})
 		go func() {
-			container.LogCopier.Wait()
+			logCopier.Wait()
 			close(exit)
 		}()
 
@@ -43,17 +64,15 @@ func (container *Container) Reset() {
 		select {
 		case <-timer.C:
 			log.G(context.TODO()).WithFields(log.Fields{
-				"container": container.ID,
+				"container": containerID,
 			}).Warn("logger didn't exit in time: logs may be truncated")
 		case <-exit:
 		}
 	}
-	if err := container.LogDriver.Close(); err != nil {
+	if err := logDriver.Close(); err != nil {
 		log.G(context.TODO()).WithFields(log.Fields{
-			"container": container.ID,
+			"container": containerID,
 			"error":     err,
 		}).Warn("error closing log driver")
 	}
-	container.LogCopier = nil
-	container.LogDriver = nil
 }
