@@ -1,10 +1,12 @@
 package cnmallocator
 
 import (
+	"errors"
 	"net"
 	"net/netip"
 	"testing"
 
+	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
@@ -788,4 +790,240 @@ func TestCorrectlyPassIPAMOptions(t *testing.T) {
 
 	assert.Check(t, is.DeepEqual(expectedIpamOptions, ipamDriver.actualIpamOptions))
 	assert.Check(t, err)
+}
+
+// fakeDriver is a global-scope network driver whose NetworkAllocate
+// fails while err is set.
+type fakeDriver struct {
+	err error
+}
+
+func (d *fakeDriver) NetworkAllocate(string, map[string]string, []driverapi.IPAMData, []driverapi.IPAMData) (map[string]string, error) {
+	return nil, d.err
+}
+
+func (d *fakeDriver) NetworkFree(string) error {
+	return nil
+}
+
+func (d *fakeDriver) IsBuiltIn() bool {
+	return true
+}
+
+const fakeDriverName = "fakedriver"
+
+// driverFailures sets up the fake driver in an allocator so that the
+// driver step of Allocate fails. Each returns a function which makes
+// the driver step succeed.
+var driverFailures = []struct {
+	name  string
+	setup func(t *testing.T, na *cnmNetworkAllocator) (fix func())
+}{
+	{
+		name: "driver not found",
+		setup: func(t *testing.T, na *cnmNetworkAllocator) func() {
+			return func() {
+				err := na.networkRegistry.RegisterNetworkAllocator(fakeDriverName, &fakeDriver{})
+				assert.NilError(t, err)
+			}
+		},
+	},
+	{
+		name: "driver state",
+		setup: func(t *testing.T, na *cnmNetworkAllocator) func() {
+			d := &fakeDriver{err: errors.New("injected failure")}
+			err := na.networkRegistry.RegisterNetworkAllocator(fakeDriverName, d)
+			assert.NilError(t, err)
+			return func() { d.err = nil }
+		},
+	},
+}
+
+func newFakeDriverNetwork(id string) *api.Network {
+	return &api.Network{
+		ID: id,
+		Spec: api.NetworkSpec{
+			Annotations:  api.Annotations{Name: id},
+			DriverConfig: &api.Driver{Name: fakeDriverName},
+		},
+	}
+}
+
+// recordedNetwork returns a network with the state recorded by the
+// allocator of a previous leader.
+func recordedNetwork(t *testing.T, id string) *api.Network {
+	t.Helper()
+	na := newNetworkAllocator(t).(*cnmNetworkAllocator)
+	err := na.networkRegistry.RegisterNetworkAllocator(fakeDriverName, &fakeDriver{})
+	assert.NilError(t, err)
+	n := newFakeDriverNetwork(id)
+	assert.NilError(t, na.Allocate(n))
+	assert.Assert(t, is.Len(n.IPAM.Configs, 1))
+	return n.Copy()
+}
+
+// newOverlayNetwork returns an overlay network with no recorded state.
+// If subnet is not empty, the network spec requests that subnet.
+func newOverlayNetwork(id, subnet string) *api.Network {
+	n := &api.Network{
+		ID: id,
+		Spec: api.NetworkSpec{
+			Annotations: api.Annotations{Name: id},
+		},
+	}
+	if subnet != "" {
+		n.Spec.IPAM = &api.IPAMOptions{
+			Configs: []*api.IPAMConfig{{Subnet: subnet}},
+		}
+	}
+	return n
+}
+
+func TestAllocateRestoreKeepsPools(t *testing.T) {
+	for _, tc := range driverFailures {
+		t.Run(tc.name, func(t *testing.T) {
+			na := newNetworkAllocator(t).(*cnmNetworkAllocator)
+			fix := tc.setup(t, na)
+
+			n := recordedNetwork(t, "recorded")
+			recorded := n.IPAM.Configs[0].Copy()
+
+			assert.Check(t, is.ErrorContains(na.Allocate(n), ""))
+			assert.Check(t, !na.IsAllocated(n))
+
+			// The recorded subnet stays reserved while the driver
+			// step fails.
+			other := newOverlayNetwork("other", "")
+			assert.NilError(t, na.Allocate(other))
+			assert.Check(t, other.IPAM.Configs[0].Subnet != recorded.Subnet)
+			assert.Check(t, is.ErrorContains(na.Allocate(newOverlayNetwork("clash", recorded.Subnet)), ""))
+
+			// A retry of the driver step allocates the network with
+			// its recorded subnet.
+			fix()
+			assert.NilError(t, na.Allocate(n))
+			assert.Check(t, na.IsAllocated(n))
+			assert.Check(t, is.DeepEqual(n.IPAM.Configs, []*api.IPAMConfig{recorded}))
+
+			// The retry reused the reserved pools, so one Deallocate
+			// frees the subnet.
+			assert.NilError(t, na.Deallocate(n))
+			assert.NilError(t, na.Allocate(newOverlayNetwork("reuse", recorded.Subnet)))
+		})
+	}
+}
+
+func TestDeallocatePendingNetwork(t *testing.T) {
+	for _, tc := range driverFailures {
+		t.Run(tc.name, func(t *testing.T) {
+			na := newNetworkAllocator(t).(*cnmNetworkAllocator)
+			tc.setup(t, na)
+
+			n := recordedNetwork(t, "recorded")
+			subnet := n.IPAM.Configs[0].Subnet
+			assert.Check(t, is.ErrorContains(na.Allocate(n), ""))
+
+			assert.NilError(t, na.Deallocate(n))
+			assert.Check(t, !na.IsAllocated(n))
+			assert.NilError(t, na.Allocate(newOverlayNetwork("reuse", subnet)))
+		})
+	}
+}
+
+func TestAllocateRestoreReportsDriverError(t *testing.T) {
+	na := newNetworkAllocator(t).(*cnmNetworkAllocator)
+	n := recordedNetwork(t, "recorded")
+	_, driverErr := na.resolveDriver(n)
+	assert.Assert(t, driverErr != nil)
+
+	// Another network holds the recorded subnet.
+	assert.NilError(t, na.Allocate(newOverlayNetwork("other", n.IPAM.Configs[0].Subnet)))
+
+	err := na.Allocate(n)
+	assert.Check(t, is.ErrorContains(err, driverErr.Error()))
+	assert.Check(t, is.ErrorContains(err, "Pool overlaps"))
+}
+
+func TestAllocateNewNetworkFailureReleasesPools(t *testing.T) {
+	const subnet = "10.20.0.0/24"
+	for _, tc := range driverFailures {
+		t.Run(tc.name, func(t *testing.T) {
+			na := newNetworkAllocator(t).(*cnmNetworkAllocator)
+			tc.setup(t, na)
+
+			n := newFakeDriverNetwork("new")
+			n.Spec.IPAM = &api.IPAMOptions{
+				Configs: []*api.IPAMConfig{{Subnet: subnet}},
+			}
+			// The allocator retries with the object which the failed
+			// attempt updated.
+			for range 2 {
+				assert.Check(t, is.ErrorContains(na.Allocate(n), ""))
+				assert.Check(t, !na.IsAllocated(n))
+
+				probe := newOverlayNetwork("probe", subnet)
+				assert.NilError(t, na.Allocate(probe))
+				assert.NilError(t, na.Deallocate(probe))
+			}
+		})
+	}
+}
+
+func TestAllocateRestoreRetryWithOtherCopy(t *testing.T) {
+	for _, tc := range driverFailures {
+		t.Run(tc.name, func(t *testing.T) {
+			na := newNetworkAllocator(t).(*cnmNetworkAllocator)
+			fix := tc.setup(t, na)
+
+			// A record with no gateway is given one by the first
+			// attempt.
+			record := recordedNetwork(t, "recorded")
+			record.IPAM.Configs[0].Gateway = ""
+			first := record.Copy()
+			assert.Check(t, is.ErrorContains(na.Allocate(first), ""))
+			assert.Assert(t, first.IPAM.Configs[0].Gateway != "")
+
+			// The retry uses the IPAM state of the reserved pools.
+			fix()
+			retry := record.Copy()
+			assert.NilError(t, na.Allocate(retry))
+			assert.Check(t, is.DeepEqual(retry.IPAM, first.IPAM))
+
+			assert.NilError(t, na.Deallocate(retry))
+			assert.NilError(t, na.Allocate(newOverlayNetwork("reuse", record.IPAM.Configs[0].Subnet)))
+		})
+	}
+}
+
+func TestAllocateRestoreNodeLocal(t *testing.T) {
+	// The state recorded for a node-local network has no IPAM configs.
+	recorded := func(driver string) *api.Network {
+		n := newOverlayNetwork("local", "")
+		n.Spec.DriverConfig = &api.Driver{Name: driver}
+		n.DriverState = &api.Driver{Name: driver}
+		n.IPAM = &api.IPAMOptions{Driver: &api.Driver{}}
+		return n
+	}
+	na := newNetworkAllocator(t).(*cnmNetworkAllocator)
+
+	// No pools are reserved for a network whose driver is not found.
+	n := recorded(fakeDriverName)
+	assert.Check(t, is.ErrorContains(na.Allocate(n), ""))
+	assert.Check(t, is.Len(na.pendingNetworks, 0))
+
+	n = recorded(localDrivers[0])
+	assert.NilError(t, na.Allocate(n))
+	assert.Check(t, is.Len(na.networks[n.ID].pools, 0))
+	assert.Check(t, is.Len(n.IPAM.Configs, 0))
+	assert.NilError(t, na.Deallocate(n))
+
+	// The pools recorded for a network whose driver is now node-local
+	// are released.
+	const subnet = "10.20.0.0/24"
+	n = recorded(localDrivers[0])
+	n.IPAM.Configs = []*api.IPAMConfig{{Subnet: subnet, Gateway: "10.20.0.1"}}
+	assert.NilError(t, na.Allocate(n))
+	assert.Check(t, is.Len(na.pendingNetworks, 0))
+	assert.Check(t, is.Len(na.networks[n.ID].pools, 0))
+	assert.NilError(t, na.Allocate(newOverlayNetwork("reuse", subnet)))
 }
