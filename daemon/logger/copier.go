@@ -93,7 +93,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 				n += read
 			}
 			// If we have no data to log, and there's no more coming, we're done.
-			if n == 0 && eof {
+			if n == 0 && eof && !hasMorePartial {
 				return
 			}
 			// Break up the data that we've buffered up into lines, and log each in turn.
@@ -134,7 +134,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 			// has no newlines, log whatever we haven't logged yet,
 			// noting that it's a partial log line.
 			if eof || (p == 0 && n == len(buf)) {
-				if p < n {
+				if p < n || (eof && hasMorePartial) {
 					msg := NewMessage()
 					msg.Source = name
 					msg.Line = append(msg.Line, buf[p:n]...)
@@ -152,9 +152,9 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 					} else {
 						msg.Timestamp = partialTS
 					}
-					msg.PLogMetaData = &types.PartialLogMetaData{ID: partialid, Ordinal: ordinal, Last: false}
+					msg.PLogMetaData = &types.PartialLogMetaData{ID: partialid, Ordinal: ordinal, Last: eof}
 					ordinal++
-					hasMorePartial = true
+					hasMorePartial = !eof
 
 					if logErr := c.dst.Log(msg); logErr != nil {
 						logDriverError(c.dst.Name(), string(msg.Line), logErr)

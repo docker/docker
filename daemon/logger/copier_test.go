@@ -263,15 +263,19 @@ func testCopierWithSized(t *testing.T, loggerFactory func(SizedLogger) SizedLogg
 			t.Fatal(err)
 		}
 		if msg.Source != "stdout" {
-			t.Fatalf("Wrong Source: %q, should be %q", msg.Source, "stdout")
+			t.Errorf("Line %d: wrong Source: %q, should be %q", recvdMsgs, msg.Source, "stdout")
+		}
+		if recvdMsgs == expectedMsgs && len(msg.Line) == 0 && msg.PLogMetaData != nil && msg.PLogMetaData.Last {
+			// Don't count the empty message that terminates the partial sequence.
+			continue
 		}
 		if len(msg.Line) != sizedLogger.BufSize() {
-			t.Fatalf("Line was not of expected max length %d, was %d", sizedLogger.BufSize(), len(msg.Line))
+			t.Errorf("Line %d was not of expected max length %d, was %d", recvdMsgs, sizedLogger.BufSize(), len(msg.Line))
 		}
 		recvdMsgs++
 	}
 	if recvdMsgs != expectedMsgs {
-		t.Fatalf("expected to receive %d messages, actually received %d %q", expectedMsgs, recvdMsgs, jsonBuf.String())
+		t.Errorf("expected to receive %d messages, actually received %d %q", expectedMsgs, recvdMsgs, jsonBuf.String())
 	}
 }
 
@@ -404,6 +408,97 @@ func TestCopierWithPartial(t *testing.T) {
 
 	if expectedMsgs != recvMsgs {
 		t.Fatalf("Expected msgs: %d Recv msgs: %d", expectedMsgs, recvMsgs)
+	}
+}
+
+// TestCopierPartialLastOnEOF tests that the last partial message has
+// PLogMetaData.Last set to true when the stream ends with EOF and there
+// is no trailing newline.
+func TestCopierPartialLastOnEOF(t *testing.T) {
+	tests := []struct {
+		name         string
+		trailingData string
+	}{
+		{
+			name:         "with trailing data",
+			trailingData: "trailing-no-newline",
+		},
+		{
+			name:         "exact buffer boundary",
+			trailingData: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a long line that exceeds the buffer size so it gets split
+			// into partials, but do NOT end with a newline so the last chunk
+			// is triggered by EOF.
+			longLine := strings.Repeat("x", defaultBufSize)
+
+			var input bytes.Buffer
+			// Write enough data to produce multiple partial messages.
+			for range 2 {
+				input.WriteString(longLine)
+			}
+			input.WriteString(tc.trailingData)
+
+			// Deliberately no trailing '\n'.
+
+			var jsonBuf bytes.Buffer
+			jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf)}
+			c := NewCopier(map[string]io.Reader{"stdout": &input}, jsonLog)
+			c.Run()
+
+			wait := make(chan struct{})
+			go func() {
+				c.Wait()
+				close(wait)
+			}()
+
+			select {
+			case <-time.After(1 * time.Second):
+				t.Fatal("Copier failed to do its work in 1 second")
+			case <-wait:
+			}
+
+			dec := json.NewDecoder(&jsonBuf)
+			var msgs []Message
+			for {
+				var msg Message
+				if err := dec.Decode(&msg); err != nil {
+					if err == io.EOF {
+						break
+					}
+					t.Fatal(err)
+				}
+				msgs = append(msgs, msg)
+			}
+
+			if len(msgs) < 2 {
+				t.Fatalf("Expected at least 2 partial messages, got %d", len(msgs))
+			}
+
+			// All messages should be partial.
+			for i, msg := range msgs {
+				if msg.PLogMetaData == nil {
+					t.Errorf("Message %d: expected PLogMetaData to be set", i)
+				}
+			}
+
+			// All messages except the last should have Last == false.
+			for i := 0; i < len(msgs)-1; i++ {
+				if msgs[i].PLogMetaData.Last {
+					t.Errorf("Message %d: expected Last to be false, got true", i)
+				}
+			}
+
+			// The last message should have Last == true.
+			last := msgs[len(msgs)-1]
+			if !last.PLogMetaData.Last {
+				t.Errorf("Last message: expected Last to be true, got false (line=%q)", last.Line)
+			}
+		})
 	}
 }
 
