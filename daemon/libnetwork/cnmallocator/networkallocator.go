@@ -46,6 +46,12 @@ type cnmNetworkAllocator struct {
 	// Local network state used by cnmNetworkAllocator to do network management.
 	networks map[string]*network
 
+	// Networks with recorded driver state and IPAM configs whose
+	// address pools are reserved, but whose driver step has not
+	// succeeded. Allocate retries the driver step; Deallocate releases
+	// the pools.
+	pendingNetworks map[string]*network
+
 	// Allocator state to indicate if allocation has been
 	// successfully completed for this service.
 	services map[string]struct{}
@@ -92,11 +98,12 @@ type networkDriver struct {
 // NewAllocator returns a new NetworkAllocator handle
 func (p *Provider) NewAllocator(netConfig *networkallocator.Config) (networkallocator.NetworkAllocator, error) {
 	na := &cnmNetworkAllocator{
-		networks: make(map[string]*network),
-		services: make(map[string]struct{}),
-		tasks:    make(map[string]struct{}),
-		nodes:    make(map[string]map[string]struct{}),
-		pg:       p.pg,
+		networks:        make(map[string]*network),
+		pendingNetworks: make(map[string]*network),
+		services:        make(map[string]struct{}),
+		tasks:           make(map[string]struct{}),
+		nodes:           make(map[string]map[string]struct{}),
+		pg:              p.pg,
 	}
 
 	for ntype, i := range globalDrivers {
@@ -126,20 +133,47 @@ func (na *cnmNetworkAllocator) Allocate(n *api.Network) error {
 	}
 
 	d, err := na.resolveDriver(n)
+
+	// Reserve the recorded address pools of a network even if its
+	// driver is not found, and keep them reserved while the driver step
+	// fails. Otherwise another network could be given the recorded
+	// subnets while this network waits for its driver. A network has
+	// recorded pools if it has driver state, which Allocate sets only
+	// on success, and IPAM configs, which node-local networks lack.
+	nw, restoring := na.pendingNetworks[n.ID]
+	if restoring {
+		// Use the IPAM state which the pools were reserved for.
+		n.IPAM = nw.nw.IPAM.Copy()
+		nw.nw = n
+	} else if n.DriverState != nil && n.IPAM != nil && len(n.IPAM.Configs) > 0 {
+		pools, perr := na.allocatePools(n)
+		if perr != nil {
+			perr = errors.Wrapf(perr, "failed allocating pools and gateway IP for network %s", n.ID)
+			if err != nil {
+				return fmt.Errorf("%w; %w", err, perr)
+			}
+			return perr
+		}
+		nw = &network{nw: n, pools: pools, endpoints: make(map[string]string)}
+		na.pendingNetworks[n.ID] = nw
+		restoring = true
+	} else {
+		nw = &network{nw: n, endpoints: make(map[string]string)}
+	}
+
 	if err != nil {
 		return err
 	}
-
-	nw := &network{
-		nw:          n,
-		endpoints:   make(map[string]string),
-		isNodeLocal: d.isNodeLocal,
-	}
+	nw.isNodeLocal = d.isNodeLocal
 
 	// No swarm-level allocation can be provided by the network driver for
 	// node-local networks. Only thing needed is populating the driver's name
 	// in the driver's state.
 	if nw.isNodeLocal {
+		if restoring {
+			na.freePools(n, nw.pools)
+			nw.pools = nil
+		}
 		n.DriverState = &api.Driver{
 			Name: d.name,
 		}
@@ -148,17 +182,22 @@ func (na *cnmNetworkAllocator) Allocate(n *api.Network) error {
 		// non nil IPAM attribute, passing an empty object
 		n.IPAM = &api.IPAMOptions{Driver: &api.Driver{}}
 	} else {
-		nw.pools, err = na.allocatePools(n)
-		if err != nil {
-			return errors.Wrapf(err, "failed allocating pools and gateway IP for network %s", n.ID)
+		if !restoring {
+			nw.pools, err = na.allocatePools(n)
+			if err != nil {
+				return errors.Wrapf(err, "failed allocating pools and gateway IP for network %s", n.ID)
+			}
 		}
 
 		if err := na.allocateDriverState(d, n); err != nil {
-			na.freePools(n, nw.pools)
+			if !restoring {
+				na.freePools(n, nw.pools)
+			}
 			return errors.Wrapf(err, "failed while allocating driver state for network %s", n.ID)
 		}
 	}
 
+	delete(na.pendingNetworks, n.ID)
 	na.networks[n.ID] = nw
 
 	return nil
@@ -171,9 +210,17 @@ func (na *cnmNetworkAllocator) getNetwork(id string) *network {
 // Deallocate frees all the general and driver specific resources
 // which were assigned to the passed network.
 func (na *cnmNetworkAllocator) Deallocate(n *api.Network) error {
+	// The driver step of a pending network has not succeeded, so it
+	// holds only its reserved pools.
+	if nw, ok := na.pendingNetworks[n.ID]; ok {
+		delete(na.pendingNetworks, n.ID)
+		return na.freePools(nw.nw, nw.pools)
+	}
+
 	localNet := na.getNetwork(n.ID)
 	if localNet == nil {
-		return fmt.Errorf("could not get networker state for network %s", n.ID)
+		// The network was not allocated, so it holds no resources.
+		return nil
 	}
 
 	// No swarm-level resource deallocation needed for node-local networks
@@ -925,6 +972,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[netip.Prefix]s
 		)
 		if gws, ok := alloc.Meta[netlabel.Gateway]; ok {
 			if ip, gwIP, err = net.ParseCIDR(gws); err != nil {
+				releasePools(ipam, ipamConfigs[:i], pools)
 				return nil, fmt.Errorf("failed to parse gateway address (%v) returned by ipam driver: %v", gws, err)
 			}
 			gwIP.IP = ip
