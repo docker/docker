@@ -96,7 +96,19 @@ func dispatchAdd(ctx context.Context, d dispatchRequest, c *instructions.AddComm
 	if c.Chmod != "" {
 		return errors.New("the --chmod option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
 	}
+	if c.KeepGitDir != nil {
+		return errors.New("the --keep-git-dir option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
+	}
+	if len(c.ExcludePatterns) > 0 {
+		return errors.New("the --exclude option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
+	}
+	if len(c.SourceContents) > 0 {
+		return errors.New("heredoc syntax in ADD requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
+	}
 	downloader := newRemoteSourceDownloader(d.builder.Output, d.builder.Stdout)
+	if c.Checksum != "" {
+		downloader = newChecksummedSourceDownloader(d.builder.Output, d.builder.Stdout, c.Checksum)
+	}
 	cpr := copierFromDispatchRequest(d, downloader, nil)
 	defer cpr.Cleanup()
 
@@ -105,7 +117,7 @@ func dispatchAdd(ctx context.Context, d dispatchRequest, c *instructions.AddComm
 		return err
 	}
 	instruction.chownStr = c.Chown
-	instruction.allowLocalDecompression = true
+	instruction.allowLocalDecompression = c.Unpack == nil || *c.Unpack
 
 	return d.builder.performCopy(ctx, d, instruction)
 }
@@ -116,6 +128,18 @@ func dispatchAdd(ctx context.Context, d dispatchRequest, c *instructions.AddComm
 func dispatchCopy(ctx context.Context, d dispatchRequest, c *instructions.CopyCommand) error {
 	if c.Chmod != "" {
 		return errors.New("the --chmod option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
+	}
+	if len(c.SourceContents) > 0 {
+		return errors.New("heredoc syntax in COPY requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
+	}
+	if c.Link {
+		fmt.Fprintf(d.builder.Stderr, "[Warning] --link is not supported by the classic builder and will be ignored; the copy will proceed normally\n")
+	}
+	if c.Parents {
+		return errors.New("the --parents option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
+	}
+	if len(c.ExcludePatterns) > 0 {
+		return errors.New("the --exclude option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
 	}
 	var im *imageMount
 	var err error
@@ -343,6 +367,9 @@ func dispatchRun(ctx context.Context, d dispatchRequest, c *instructions.RunComm
 	if len(c.FlagsUsed) > 0 {
 		// classic builder RUN currently does not support any flags, so fail on the first one
 		return errors.Errorf("the --%s option requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled", c.FlagsUsed[0])
+	}
+	if len(c.Files) > 0 {
+		return errors.New("heredoc syntax in RUN requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled")
 	}
 
 	stateRunConfig := d.state.runConfig

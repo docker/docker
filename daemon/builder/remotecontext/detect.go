@@ -141,11 +141,15 @@ func removeDockerfile(c modifiableContext, filesToRemove ...string) error {
 
 func readAndParseDockerfile(name string, rc io.Reader) (*parser.Result, error) {
 	br := bufio.NewReader(rc)
-	if _, err := br.Peek(1); err != nil {
-		if err == io.EOF {
+	peeked, err := br.Peek(512)
+	if len(peeked) == 0 {
+		if errors.Is(err, io.EOF) {
 			return nil, errdefs.InvalidParameter(errors.Errorf("the Dockerfile (%s) cannot be empty", name))
 		}
 		return nil, errors.Wrap(err, "unexpected error reading Dockerfile")
+	}
+	if syntaxImage, _, _, ok := parser.DetectSyntax(peeked); ok {
+		return nil, errdefs.InvalidParameter(errors.Errorf("the Dockerfile uses a custom syntax (%s) which requires BuildKit. Refer to https://docs.docker.com/go/buildkit/ to learn how to build images with BuildKit enabled", syntaxImage))
 	}
 
 	dockerfile, err := parser.Parse(br)

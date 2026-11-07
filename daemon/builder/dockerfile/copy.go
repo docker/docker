@@ -25,6 +25,7 @@ import (
 	"github.com/moby/moby/v2/pkg/longpath"
 	"github.com/moby/sys/symlink"
 	"github.com/moby/sys/user"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -341,6 +342,37 @@ type sourceDownloader func(string) (builder.Source, string, error)
 func newRemoteSourceDownloader(output, stdout io.Writer) sourceDownloader {
 	return func(url string) (builder.Source, string, error) {
 		return downloadSource(output, stdout, url)
+	}
+}
+
+func newChecksummedSourceDownloader(output, stdout io.Writer, checksum string) sourceDownloader {
+	inner := newRemoteSourceDownloader(output, stdout)
+	return func(srcURL string) (builder.Source, string, error) {
+		expected, err := digest.Parse(checksum)
+		if err != nil {
+			return nil, "", errors.Wrapf(err, "invalid --checksum %q", checksum)
+		}
+		remote, path, err := inner(srcURL)
+		if err != nil {
+			return nil, "", err
+		}
+		filename := path
+		if filename == "" {
+			filename = unnamedFilename
+		}
+		f, err := os.Open(filepath.Join(remote.Root(), filename))
+		if err != nil {
+			return nil, "", err
+		}
+		defer f.Close()
+		v := expected.Verifier()
+		if _, err := io.Copy(v, f); err != nil {
+			return nil, "", err
+		}
+		if !v.Verified() {
+			return nil, "", errors.Errorf("checksum mismatch for %s: expected %s", srcURL, checksum)
+		}
+		return remote, path, nil
 	}
 }
 

@@ -224,6 +224,22 @@ func emitImageID(aux buildbackend.AuxEmitter, state *dispatchState) error {
 	return aux.Emit("", build.Result{ID: state.imageID})
 }
 
+func injectPredefinedBuildArgs(buildArgs *BuildArgs, targetPlatform *ocispec.Platform) {
+	buildSpec := platforms.DefaultSpec()
+	if targetPlatform == nil {
+		targetPlatform = &buildSpec
+	}
+	strPtr := func(s string) *string { return &s }
+	buildArgs.AddMetaArg("TARGETPLATFORM", strPtr(platforms.Format(*targetPlatform)))
+	buildArgs.AddMetaArg("TARGETOS", strPtr(targetPlatform.OS))
+	buildArgs.AddMetaArg("TARGETARCH", strPtr(targetPlatform.Architecture))
+	buildArgs.AddMetaArg("TARGETVARIANT", strPtr(targetPlatform.Variant))
+	buildArgs.AddMetaArg("BUILDPLATFORM", strPtr(platforms.Format(buildSpec)))
+	buildArgs.AddMetaArg("BUILDOS", strPtr(buildSpec.OS))
+	buildArgs.AddMetaArg("BUILDARCH", strPtr(buildSpec.Architecture))
+	buildArgs.AddMetaArg("BUILDVARIANT", strPtr(buildSpec.Variant))
+}
+
 func processMetaArg(meta instructions.ArgCommand, shlex *shell.Lex, args *BuildArgs) error {
 	// shell.Lex currently only support the concatenated string format
 	envs := shell.EnvsFromSlice(convertMapToEnvList(args.GetAllAllowed()))
@@ -254,6 +270,8 @@ func (b *Builder) dispatchDockerfileWithCancellation(ctx context.Context, parseR
 	for _, stage := range parseResult {
 		totalCommands += len(stage.Commands)
 	}
+	injectPredefinedBuildArgs(buildArgs, b.platform)
+
 	shlex := shell.NewLex(escapeToken)
 	for i := range metaArgs {
 		currentCommandIndex = printCommand(b.Stdout, currentCommandIndex, totalCommands, &metaArgs[i])
