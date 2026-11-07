@@ -784,19 +784,13 @@ func withCgroups(daemon *Daemon, daemonCfg *dconfig.Config, c *container.Contain
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		var cgroupsPath string
 		scopePrefix := "docker"
-		parent := "/docker"
 		useSystemd := UsingSystemd(daemonCfg)
-		if useSystemd {
-			parent = "system.slice"
-			if daemonCfg.Rootless {
-				parent = "user.slice"
-			}
-		}
+		// Get parent cgroup from daemon configuration
+		parent := getCgroupParent(daemonCfg)
 
 		if c.HostConfig.CgroupParent != "" {
+			// Override parent cgroup from container configuration
 			parent = c.HostConfig.CgroupParent
-		} else if daemonCfg.CgroupParent != "" {
-			parent = daemonCfg.CgroupParent
 		}
 
 		if useSystemd {

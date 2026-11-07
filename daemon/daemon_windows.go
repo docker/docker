@@ -583,3 +583,5 @@ func getSysInfo(*config.Config) *sysinfo.SysInfo {
 func (daemon *Daemon) runInNetNS(f func() error) error {
 	return f()
 }
+
+func createCGroup2Root(_ context.Context, _ *config.Config) {}

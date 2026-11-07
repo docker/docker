@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/netip"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/containerd/cgroups/v3"
+	"github.com/containerd/cgroups/v3/cgroup2"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/log"
 	"github.com/moby/moby/api/types/blkiodev"
@@ -1634,10 +1636,11 @@ func (daemon *Daemon) setupSeccompProfile(cfg *config.Config) error {
 
 func getSysInfo(cfg *config.Config) *sysinfo.SysInfo {
 	var siOpts []sysinfo.Opt
-	if cgroupDriver(cfg) == cgroupSystemdDriver {
-		if euid := os.Getenv("ROOTLESSKIT_PARENT_EUID"); euid != "" {
-			siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath("/user.slice/user-"+euid+".slice"))
-		}
+	if euid := os.Getenv("ROOTLESSKIT_PARENT_EUID"); cgroupDriver(cfg) == cgroupSystemdDriver && euid != "" {
+		siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath("/user.slice/user-"+euid+".slice"))
+	} else {
+		// Use container cgroup parent for effective capabilities detection
+		siOpts = append(siOpts, sysinfo.WithCgroup2GroupPath(getCgroupParent(cfg)))
 	}
 	si := sysinfo.New(siOpts...)
 
@@ -1657,4 +1660,68 @@ func getSysInfo(cfg *config.Config) *sysinfo.SysInfo {
 
 func recursiveUnmount(target string) error {
 	return mount.RecursiveUnmount(target)
+}
+
+// Create cgroup v2 parent group based on daemon configuration
+func createCGroup2Root(ctx context.Context, daemonConfiguration *config.Config) {
+	if cgroups.Mode() != cgroups.Unified || UsingSystemd(daemonConfiguration) {
+		return
+	}
+
+	cGroup2Parent := getCgroupParent(daemonConfiguration)
+	cGroupManager, err := cgroup2.Load(cGroup2Parent)
+	if err != nil {
+		log.G(ctx).Errorf("Error loading cgroup v2 manager for group %s: %s", cGroup2Parent, err)
+		return
+	}
+
+	// cgroup2.Load does not check for cgroup v2 existence
+	// Cf. https://github.com/containerd/cgroups/pull/384
+	// Checking controllers will do so
+	_, err = cGroupManager.Controllers()
+	if err == nil {
+		log.G(ctx).Debugf("cgroup v2 already exists: %s", cGroup2Parent)
+	} else {
+		if !errors.Is(err, fs.ErrNotExist) {
+			log.G(ctx).Errorf("Error checking cgroup v2 %s existence: %s", cGroup2Parent, err)
+			return
+		}
+		cGroupResources := cgroup2.Resources{}
+		cGroupManager, err = cgroup2.NewManager(
+			"/sys/fs/cgroup",
+			cGroup2Parent,
+			&cGroupResources,
+		)
+		if err != nil {
+			log.G(ctx).Errorf("Error creating cgroup v2 %s: %s", cGroup2Parent, err)
+			return
+		} else {
+			log.G(ctx).Infof("Created cgroup v2: %s", cGroup2Parent)
+		}
+
+		rootControllers, err := cGroupManager.RootControllers()
+		if err != nil {
+			log.G(ctx).Errorf("Error gathering cgroup v2 hierarchy root controllers: %s", err)
+			return
+		}
+		err = cGroupManager.ToggleControllers(rootControllers, cgroup2.Enable)
+		if err != nil {
+			log.G(ctx).Errorf("Error activating controllers on cgroup v2 %s: %s", cGroup2Parent, err)
+		}
+	}
+}
+
+// Returns the cgroup parent cgroup
+func getCgroupParent(config *config.Config) string {
+	parent := "/docker"
+	if UsingSystemd(config) {
+		parent = "system.slice"
+		if config.Rootless {
+			parent = "user.slice"
+		}
+	}
+	if config.CgroupParent != "" {
+		parent = config.CgroupParent
+	}
+	return parent
 }

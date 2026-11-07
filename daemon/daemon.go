@@ -1128,6 +1128,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
+	createCGroup2Root(ctx, &cfgStore.Config)
+
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux.
 	//

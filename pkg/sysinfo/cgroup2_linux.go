@@ -6,7 +6,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/containerd/cgroups/v3"
 	cgroupsV2 "github.com/containerd/cgroups/v3/cgroup2"
 	"github.com/containerd/log"
 	"github.com/moby/sys/userns"
@@ -57,18 +56,15 @@ func newV2(options ...Opt) *SysInfo {
 	return sysInfo
 }
 
-func getSwapLimitV2() bool {
-	_, g, err := cgroups.ParseCgroupFileUnified("/proc/self/cgroup")
-	if err != nil {
-		return false
-	}
+func getSwapLimitV2(info *SysInfo) bool {
+	g := info.cg2GroupPath
 
 	if g == "" {
 		return false
 	}
 
 	cGroupPath := path.Join("/sys/fs/cgroup", g, "memory.swap.max")
-	if _, err = os.Stat(cGroupPath); os.IsNotExist(err) {
+	if _, err := os.Stat(cGroupPath); os.IsNotExist(err) {
 		return false
 	}
 	return true
@@ -81,7 +77,7 @@ func applyMemoryCgroupInfoV2(info *SysInfo) {
 	}
 
 	info.MemoryLimit = true
-	info.SwapLimit = getSwapLimitV2()
+	info.SwapLimit = getSwapLimitV2(info)
 	info.MemoryReservation = true
 	info.OomKillDisable = false
 	info.MemorySwappiness = false
