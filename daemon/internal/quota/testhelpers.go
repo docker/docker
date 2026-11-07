@@ -10,17 +10,40 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// CanTestQuota - checks if xfs prjquota can be tested
-// returns a reason if not
-func CanTestQuota() (string, bool) {
+// RequireSupported - checks if xfs prjquota can be tested
+// and skips the test with a reason if not.
+func RequireSupported(t *testing.T) {
 	if os.Getuid() != 0 {
-		return "requires mounts", false
+		t.Skip("requires mounts")
 	}
 	_, err := exec.LookPath("mkfs.xfs")
 	if err != nil {
-		return "mkfs.xfs not found in PATH", false
+		t.Skip("mkfs.xfs not found in PATH")
 	}
-	return "", true
+
+	requireQuotaSupport(t)
+}
+
+// requireQuotaSupport - checks if XFS project quotas are supported
+// by attempting to mount a test XFS filesystem using the prjquota option.
+// If mounting fails, it is assumed that the kernel does not support
+// XFS project quotas, and the test is skipped.
+func requireQuotaSupport(t *testing.T) {
+	imageFile, err := PrepareQuotaTestImage(t)
+	if err != nil {
+		t.Skip("failed to prepare test XFS image")
+	}
+
+	mountPoint := t.TempDir()
+
+	// Try to mount the XFS filesystem with project quota enabled.
+	// This is the actual test - this will fail if pquota is not supported
+	out, err := exec.Command("mount", "-o", "loop,prjquota", imageFile, mountPoint).CombinedOutput()
+	if err != nil {
+		t.Skipf("unable to mount with prjquota option: %s", out)
+	}
+
+	unix.Unmount(mountPoint, 0)
 }
 
 // PrepareQuotaTestImage - prepares an xfs prjquota test image

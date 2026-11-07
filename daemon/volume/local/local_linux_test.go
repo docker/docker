@@ -22,9 +22,8 @@ const (
 )
 
 func TestQuota(t *testing.T) {
-	if msg, ok := quota.CanTestQuota(); !ok {
-		t.Skip(msg)
-	}
+	// Check if the test can be run
+	quota.RequireSupported(t)
 
 	// get sparse xfs test image
 	imageFileName, err := quota.PrepareQuotaTestImage(t)

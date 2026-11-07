@@ -17,9 +17,8 @@ import (
 const testQuotaSize = 10 * 1024 * 1024
 
 func TestBlockDev(t *testing.T) {
-	if msg, ok := CanTestQuota(); !ok {
-		t.Skip(msg)
-	}
+	// Check if the test can be run
+	RequireSupported(t)
 
 	// get sparse xfs test image
 	imageFileName, err := PrepareQuotaTestImage(t)
