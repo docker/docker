@@ -46,11 +46,13 @@ func (cli *Client) ContainerStatPath(ctx context.Context, containerID string, op
 	return ContainerStatPathResult{Stat: stat}, nil
 }
 
-// CopyToContainerOptions holds information
-// about files to copy into a container
+// CopyToContainerOptions holds information about files to copy into a container.
 type CopyToContainerOptions struct {
-	DestinationPath           string
-	Content                   io.Reader
+	// DestinationPath is the path inside the container where Content is extracted.
+	DestinationPath string
+	// Content is a tar archive stream to extract into DestinationPath.
+	Content io.Reader
+
 	AllowOverwriteDirWithFile bool
 	CopyUIDGID                bool
 }
@@ -58,8 +60,8 @@ type CopyToContainerOptions struct {
 // CopyToContainerResult holds the result of [Client.CopyToContainer].
 type CopyToContainerResult struct{}
 
-// CopyToContainer copies content into the container filesystem.
-// Note that `content` must be a Reader for a TAR archive
+// CopyToContainer copies a tar archive into the container filesystem.
+// The archive in options.Content is extracted to options.DestinationPath.
 func (cli *Client) CopyToContainer(ctx context.Context, containerID string, options CopyToContainerOptions) (CopyToContainerResult, error) {
 	containerID, err := trimID("container", containerID)
 	if err != nil {
