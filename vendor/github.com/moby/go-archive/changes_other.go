@@ -3,6 +3,7 @@
 package archive
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,35 +11,56 @@ import (
 	"strings"
 )
 
-func collectFileInfoForChanges(oldDir, newDir string) (*FileInfo, *FileInfo, error) {
-	var (
-		oldRoot, newRoot *FileInfo
-		err1, err2       error
-		errs             = make(chan error, 2)
-	)
+func collectFileInfoForChanges(ctx context.Context, oldDir, newDir string) (*FileInfo, *FileInfo, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	type treeResult struct {
+		old  bool
+		root *FileInfo
+		err  error
+	}
+	results := make(chan treeResult, 2)
 	go func() {
-		oldRoot, err1 = collectFileInfo(oldDir)
-		errs <- err1
+		root, err := collectFileInfo(ctx, oldDir)
+		results <- treeResult{old: true, root: root, err: err}
 	}()
 	go func() {
-		newRoot, err2 = collectFileInfo(newDir)
-		errs <- err2
+		root, err := collectFileInfo(ctx, newDir)
+		results <- treeResult{root: root, err: err}
 	}()
 
-	// block until both routines have returned
+	var oldRoot, newRoot *FileInfo
+	var firstErr error
 	for range 2 {
-		if err := <-errs; err != nil {
-			return nil, nil, err
+		result := <-results
+		if result.err != nil {
+			if firstErr == nil {
+				firstErr = result.err
+				cancel()
+			}
+			continue
+		}
+		if result.old {
+			oldRoot = result.root
+		} else {
+			newRoot = result.root
 		}
 	}
+	if firstErr != nil {
+		return nil, nil, firstErr
+	}
 
-	return oldRoot, newRoot, nil
+	return oldRoot, newRoot, ctx.Err()
 }
 
-func collectFileInfo(sourceDir string) (*FileInfo, error) {
+func collectFileInfo(ctx context.Context, sourceDir string) (*FileInfo, error) {
 	root := newRootFileInfo()
 
 	err := filepath.WalkDir(sourceDir, func(path string, _ os.DirEntry, err error) error {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
 		if err != nil {
 			return err
 		}

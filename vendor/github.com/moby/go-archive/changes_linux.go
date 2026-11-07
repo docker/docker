@@ -1,6 +1,7 @@
 package archive
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,6 +22,7 @@ import (
 // directly. Eliminating stat calls in this way can save up to seconds on large
 // images.
 type walker struct {
+	ctx   context.Context
 	dir1  string
 	dir2  string
 	root1 *FileInfo
@@ -33,8 +35,13 @@ type walker struct {
 // and dir2 will be pruned from the results. This method is *only* to be used
 // to generating a list of changes between the two directories, as it does not
 // reflect the full contents.
-func collectFileInfoForChanges(dir1, dir2 string) (*FileInfo, *FileInfo, error) {
+func collectFileInfoForChanges(ctx context.Context, dir1, dir2 string) (*FileInfo, *FileInfo, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+
 	w := &walker{
+		ctx:   ctx,
 		dir1:  dir1,
 		dir2:  dir2,
 		root1: newRootFileInfo(),
@@ -45,8 +52,15 @@ func collectFileInfoForChanges(dir1, dir2 string) (*FileInfo, *FileInfo, error) 
 	if err != nil {
 		return nil, nil, err
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
 	i2, err := os.Lstat(w.dir2)
 	if err != nil {
+		return nil, nil, err
+	}
+
+	if err := ctx.Err(); err != nil {
 		return nil, nil, err
 	}
 
@@ -82,6 +96,10 @@ func walkchunk(path string, fi os.FileInfo, dir string, root *FileInfo) error {
 // Walk a subtree rooted at the same path in both trees being iterated. For
 // example, /docker/overlay/1234/a/b/c/d and /docker/overlay/8888/a/b/c/d
 func (w *walker) walk(path string, i1, i2 os.FileInfo) (err error) {
+	if err := w.ctx.Err(); err != nil {
+		return err
+	}
+
 	// Register these nodes with the return trees, unless we're still at the
 	// (already-created) roots:
 	if path != "/" {
@@ -113,13 +131,13 @@ func (w *walker) walk(path string, i1, i2 os.FileInfo) (err error) {
 	// Fetch the names of all the files contained in both directories being walked:
 	var names1, names2 []nameIno
 	if is1Dir {
-		names1, err = readdirnames(filepath.Join(w.dir1, path)) // getdents(2): fs access
+		names1, err = readdirnames(w.ctx, filepath.Join(w.dir1, path)) // getdents(2): fs access
 		if err != nil {
 			return err
 		}
 	}
 	if is2Dir {
-		names2, err = readdirnames(filepath.Join(w.dir2, path)) // getdents(2): fs access
+		names2, err = readdirnames(w.ctx, filepath.Join(w.dir2, path)) // getdents(2): fs access
 		if err != nil {
 			return err
 		}
@@ -165,6 +183,10 @@ func (w *walker) walk(path string, i1, i2 os.FileInfo) (err error) {
 	// For each of the names present in either or both of the directories being
 	// iterated, stat the name under each root, and recurse the pair of them:
 	for _, name := range names {
+		if err := w.ctx.Err(); err != nil {
+			return err
+		}
+
 		fname := filepath.Join(path, name)
 		var cInfo1, cInfo2 os.FileInfo
 		if is1Dir {
@@ -202,7 +224,11 @@ func (s nameInoSlice) Less(i, j int) bool { return s[i].name < s[j].name }
 // numbers further up the stack when reading directory contents. Unlike
 // os.Readdirnames, which returns a list of filenames, this function returns a
 // list of {filename,inode} pairs.
-func readdirnames(dirname string) (names []nameIno, err error) {
+func readdirnames(ctx context.Context, dirname string) (names []nameIno, err error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	var (
 		size = 100
 		buf  = make([]byte, 4096)
@@ -219,6 +245,10 @@ func readdirnames(dirname string) (names []nameIno, err error) {
 
 	names = make([]nameIno, 0, size) // Empty with room to grow.
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		// Refill the buffer if necessary
 		if bufp >= nbuf {
 			bufp = 0
@@ -239,9 +269,13 @@ func readdirnames(dirname string) (names []nameIno, err error) {
 		bufp += nb
 	}
 
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	sl := nameInoSlice(names)
 	sort.Sort(sl)
-	return sl, nil
+	return sl, ctx.Err()
 }
 
 // parseDirent is a minor modification of unix.ParseDirent (linux version)

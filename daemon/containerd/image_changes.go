@@ -3,6 +3,7 @@ package containerd
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/containerd/containerd/v2/core/mount"
 	"github.com/containerd/log"
@@ -16,6 +17,11 @@ func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) ([
 	if rwl == nil {
 		return nil, fmt.Errorf("RWLayer is unexpectedly nil for container %s", ctr.ID)
 	}
+	release, err := i.acquireChanges(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	snapshotter := i.client.SnapshotService(ctr.Driver)
 	info, err := snapshotter.Stat(ctx, ctr.ID)
 	if err != nil {
@@ -27,7 +33,9 @@ func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) ([
 	imageMounts, _ := snapshotter.View(ctx, parentViewKey, info.Parent)
 
 	defer func() {
-		if err := snapshotter.Remove(ctx, parentViewKey); err != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancel()
+		if err := snapshotter.Remove(cleanupCtx, parentViewKey); err != nil {
 			log.G(ctx).WithError(err).Warn("error removing the parent view snapshot")
 		}
 	}()
@@ -43,8 +51,21 @@ func (i *ImageService) Changes(ctx context.Context, ctr *container.Container) ([
 	}()
 	var changes []archive.Change
 	err = mount.WithReadonlyTempMount(ctx, imageMounts, func(imageRoot string) error {
-		changes, err = archive.ChangesDirs(containerRoot, imageRoot)
+		changes, err = archive.ChangesDirsContext(ctx, containerRoot, imageRoot)
 		return err
 	})
 	return changes, err
+}
+
+// acquireChanges reserves one slot for a potentially memory-intensive filesystem
+// comparison. A nil limiter is allowed for ImageService values constructed
+// directly in tests.
+func (i *ImageService) acquireChanges(ctx context.Context) (func(), error) {
+	if i.changesLimiter == nil {
+		return func() {}, nil
+	}
+	if err := i.changesLimiter.Acquire(ctx, 1); err != nil {
+		return nil, err
+	}
+	return func() { i.changesLimiter.Release(1) }, nil
 }

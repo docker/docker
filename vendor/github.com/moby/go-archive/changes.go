@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -239,7 +238,11 @@ func (info *FileInfo) path() string {
 	return filepath.Join(info.parent.path(), info.name)
 }
 
-func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
+func (info *FileInfo) addChanges(ctx context.Context, oldInfo *FileInfo, changes *[]Change) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	sizeAtEntry := len(*changes)
 
 	if oldInfo == nil {
@@ -257,10 +260,19 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 	// otherwise any previous delete/change is considered recursive
 	oldChildren := make(map[string]*FileInfo)
 	if oldInfo != nil && info.isDir() {
-		maps.Copy(oldChildren, oldInfo.children)
+		for name, child := range oldInfo.children {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			oldChildren[name] = child
+		}
 	}
 
 	for name, newChild := range info.children {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		oldChild := oldChildren[name]
 		if oldChild != nil {
 			// change?
@@ -286,9 +298,15 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 			delete(oldChildren, name)
 		}
 
-		newChild.addChanges(oldChild, changes)
+		if err := newChild.addChanges(ctx, oldChild, changes); err != nil {
+			return err
+		}
 	}
 	for _, oldChild := range oldChildren {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		// delete
 		change := Change{
 			Path: oldChild.path(),
@@ -310,15 +328,24 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 		copy((*changes)[sizeAtEntry+1:], (*changes)[sizeAtEntry:])
 		(*changes)[sizeAtEntry] = change
 	}
+
+	return nil
 }
 
 // Changes add changes to file information.
 func (info *FileInfo) Changes(oldInfo *FileInfo) []Change {
+	changes, _ := info.changes(context.Background(), oldInfo)
+	return changes
+}
+
+func (info *FileInfo) changes(ctx context.Context, oldInfo *FileInfo) ([]Change, error) {
 	var changes []Change
 
-	info.addChanges(oldInfo, &changes)
+	if err := info.addChanges(ctx, oldInfo, &changes); err != nil {
+		return nil, err
+	}
 
-	return changes
+	return changes, nil
 }
 
 func newRootFileInfo() *FileInfo {
@@ -333,6 +360,17 @@ func newRootFileInfo() *FileInfo {
 // ChangesDirs compares two directories and generates an array of Change objects describing the changes.
 // If oldDir is "", then all files in newDir will be Add-Changes.
 func ChangesDirs(newDir, oldDir string) ([]Change, error) {
+	return ChangesDirsContext(context.Background(), newDir, oldDir)
+}
+
+// ChangesDirsContext compares two directories and generates an array of changes.
+// If oldDir is "", then all files in newDir will be Add-Changes.
+// The operation stops and returns ctx.Err() when ctx is canceled.
+func ChangesDirsContext(ctx context.Context, newDir, oldDir string) ([]Change, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	var oldRoot, newRoot *FileInfo
 	if oldDir == "" {
 		emptyDir, err := os.MkdirTemp("", "empty")
@@ -342,12 +380,19 @@ func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 		defer os.Remove(emptyDir)
 		oldDir = emptyDir
 	}
-	oldRoot, newRoot, err := collectFileInfoForChanges(oldDir, newDir)
+	oldRoot, newRoot, err := collectFileInfoForChanges(ctx, oldDir, newDir)
 	if err != nil {
 		return nil, err
 	}
 
-	return newRoot.Changes(oldRoot), nil
+	changes, err := newRoot.changes(ctx, oldRoot)
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return changes, nil
 }
 
 // ChangesSize calculates the size in bytes of the provided changes, based on newDir.

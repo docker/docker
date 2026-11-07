@@ -30,6 +30,11 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
+// maxConcurrentContainerDiffs bounds the memory used by concurrent containerd
+// filesystem comparisons. Each comparison walks and retains filesystem metadata
+// for both trees until it has collected the complete change list.
+const maxConcurrentContainerDiffs = 2
+
 // ImageService implements daemon.ImageService
 type ImageService struct {
 	client              *containerd.Client
@@ -42,6 +47,7 @@ type ImageService struct {
 	registryService     distribution.RegistryResolver
 	eventsService       *daemonevents.Events
 	pruneRunning        atomic.Bool
+	changesLimiter      *semaphore.Weighted
 	refCountMounter     snapshotter.Mounter
 	idMapping           user.IdentityMapping
 	policyVerifier      func() (*policyverifier.Verifier, error)
@@ -110,6 +116,7 @@ func NewService(config ImageServiceConfig) *ImageService {
 		idMapping:       config.IDMapping,
 		policyVerifier:  config.PolicyVerifierProvider,
 		features:        config.Features,
+		changesLimiter:  semaphore.NewWeighted(maxConcurrentContainerDiffs),
 		identity: imageIdentityState{
 			cache: make(map[string]imageIdentityCacheEntry),
 			cacheStore: func() identitycache.Backend {
