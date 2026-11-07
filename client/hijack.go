@@ -100,8 +100,10 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (retConn net
 	if err != nil {
 		return nil, "", err
 	}
+	// Closing the body ends the otelhttp span. A 101 response has no body,
+	// so this does not close the connection.
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusSwitchingProtocols {
-		_ = resp.Body.Close()
 		return nil, "", fmt.Errorf("unable to upgrade to %s, received %d", proto, resp.StatusCode)
 	}
 

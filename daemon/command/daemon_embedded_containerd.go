@@ -21,10 +21,15 @@ func (cli *daemonCLI) initEmbeddedContainerd(ctx context.Context) (func(time.Dur
 		return nil, err
 	}
 	log.G(ctx).Warn("Running with experimental embedded-containerd mode")
+	dropInDir, err := cli.containerdConfigDropInDir()
+	if err != nil {
+		return nil, err
+	}
 	d, err := embedded.Start(
 		ctx,
 		rootDir,
 		filepath.Join(cli.Config.ExecRoot, "containerd"),
+		dropInDir,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start embedded containerd")

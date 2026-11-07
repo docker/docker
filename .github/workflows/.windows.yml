@@ -24,12 +24,9 @@ on:
         required: false
         type: string
         default: external
-    secrets:
-      CODECOV_TOKEN:
-        required: false
 
 env:
-  GO_VERSION: "1.26.10"
+  GO_VERSION: "1.27.3"
   GOTESTLIST_VERSION: v0.3.1
   TESTSTAT_VERSION: v0.1.25
   WINDOWS_BASE_IMAGE: mcr.microsoft.com/windows/servercore
@@ -105,6 +102,9 @@ jobs:
           retention-days: 2
 
   unit-test:
+    permissions:
+      contents: read
+      id-token: write # needed for CodeCov; https://github.com/codecov/codecov-action/blob/v7.1.1/README.md#using-oidc
     runs-on: ${{ inputs.os }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     env:
@@ -156,7 +156,7 @@ jobs:
           directory: bundles
           env_vars: RUNNER_OS
           flags: unit
-          token: ${{ secrets.CODECOV_TOKEN }}  # used to upload coverage reports: https://github.com/moby/buildkit/pull/4660#issue-2142122533
+          use_oidc: true
       -
         name: Upload reports
         if: always()
@@ -229,6 +229,9 @@ jobs:
           echo "$matrix"
 
   integration-test:
+    permissions:
+      contents: read
+      id-token: write # needed for CodeCov; https://github.com/codecov/codecov-action/blob/v7.1.1/README.md#using-oidc
     runs-on: ${{ inputs.os }}
     timeout-minutes: 120 # guardrails timeout for the whole job
     continue-on-error: ${{ inputs.storage == 'snapshotter' && github.event_name != 'pull_request' }}
@@ -375,7 +378,7 @@ jobs:
           directory: bundles
           env_vars: RUNNER_OS
           flags: integration,${{ matrix.runtime }}
-          token: ${{ secrets.CODECOV_TOKEN }}  # used to upload coverage reports: https://github.com/moby/buildkit/pull/4660#issue-2142122533
+          use_oidc: true
       -
         name: Docker info
         run: |

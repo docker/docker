@@ -130,6 +130,12 @@ var operationAuthOptions = map[string]func(*AuthResolverParameters) []*smithyaut
 			{SchemeID: smithyauth.SchemeIDAnonymous},
 		}
 	},
+
+	"CreateOAuth2TokenWithTokenExchange": func(params *AuthResolverParameters) []*smithyauth.Option {
+		return []*smithyauth.Option{
+			{SchemeID: smithyauth.SchemeIDAnonymous},
+		}
+	},
 }
 
 func serviceAuthOptions(params *AuthResolverParameters) []*smithyauth.Option {

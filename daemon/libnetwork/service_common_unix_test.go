@@ -18,7 +18,6 @@ func TestCleanupServiceDiscovery(t *testing.T) {
 	c, err := New(t.Context(),
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	assert.NilError(t, err)
-	defer c.Stop()
 
 	cleanup := func(n *Network) {
 		if err := n.Delete(); err != nil {
@@ -72,7 +71,6 @@ func TestServiceAliasRefCounting(t *testing.T) {
 	c, err := New(ctx,
 		config.OptionDefaultAddressPoolConfig(ipamutils.GetLocalScopeDefaultNetworks()))
 	assert.NilError(t, err)
-	defer c.Stop()
 
 	n1, err := c.NewNetwork(ctx, "bridge", "net1", "", NetworkOptionEnableIPv4(true))
 	assert.NilError(t, err)

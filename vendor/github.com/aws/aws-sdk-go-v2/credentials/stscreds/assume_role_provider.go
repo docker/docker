@@ -311,6 +311,9 @@ func (p *AssumeRoleProvider) Retrieve(ctx context.Context) (aws.Credentials, err
 	if err != nil {
 		return aws.Credentials{Source: ProviderName}, err
 	}
+	if err := validateCredentials(resp.Credentials); err != nil {
+		return aws.Credentials{Source: ProviderName}, fmt.Errorf("validate credentials, %w", err)
+	}
 
 	var accountID string
 	if resp.AssumedRoleUser != nil {
@@ -318,13 +321,13 @@ func (p *AssumeRoleProvider) Retrieve(ctx context.Context) (aws.Credentials, err
 	}
 
 	return aws.Credentials{
-		AccessKeyID:     *resp.Credentials.AccessKeyId,
-		SecretAccessKey: *resp.Credentials.SecretAccessKey,
-		SessionToken:    *resp.Credentials.SessionToken,
+		AccessKeyID:     aws.ToString(resp.Credentials.AccessKeyId),
+		SecretAccessKey: aws.ToString(resp.Credentials.SecretAccessKey),
+		SessionToken:    aws.ToString(resp.Credentials.SessionToken),
 		Source:          ProviderName,
 
 		CanExpire: true,
-		Expires:   *resp.Credentials.Expiration,
+		Expires:   aws.ToTime(resp.Credentials.Expiration),
 		AccountID: accountID,
 	}, nil
 }

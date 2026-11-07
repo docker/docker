@@ -128,7 +128,9 @@ func (v *DescribeLogGroupsInput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeLogGroupsInput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeAccountIds(s, schemas.DescribeLogGroupsRequest_accountIdentifiers, v.AccountIdentifiers)
+	if v.AccountIdentifiers != nil {
+		serializeAccountIds(s, schemas.DescribeLogGroupsRequest_accountIdentifiers, v.AccountIdentifiers)
+	}
 	if v.IncludeLinkedAccounts != nil {
 		s.WriteBool(schemas.DescribeLogGroupsRequest_includeLinkedAccounts, *v.IncludeLinkedAccounts)
 	}
@@ -138,7 +140,9 @@ func (v *DescribeLogGroupsInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.LogGroupClass != "" {
 		s.WriteString(schemas.DescribeLogGroupsRequest_logGroupClass, string(v.LogGroupClass))
 	}
-	serializeDescribeLogGroupsLogGroupIdentifiers(s, schemas.DescribeLogGroupsRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	if v.LogGroupIdentifiers != nil {
+		serializeDescribeLogGroupsLogGroupIdentifiers(s, schemas.DescribeLogGroupsRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	}
 	if v.LogGroupNamePattern != nil {
 		s.WriteString(schemas.DescribeLogGroupsRequest_logGroupNamePattern, *v.LogGroupNamePattern)
 	}
@@ -172,7 +176,9 @@ func (v *DescribeLogGroupsOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeLogGroupsOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeLogGroups(s, schemas.DescribeLogGroupsResponse_logGroups, v.LogGroups)
+	if v.LogGroups != nil {
+		serializeLogGroups(s, schemas.DescribeLogGroupsResponse_logGroups, v.LogGroups)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeLogGroupsResponse_nextToken, *v.NextToken)
 	}

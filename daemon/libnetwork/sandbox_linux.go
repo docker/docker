@@ -459,7 +459,9 @@ func (sb *Sandbox) populateNetworkResourcesOS(ctx context.Context, ep *Endpoint)
 	// information including gateway and other routes so that
 	// loadbalancers are populated all the network state is in
 	// place in the sandbox.
-	sb.populateLoadBalancers(ep)
+	if err := sb.populateLoadBalancers(ep); err != nil {
+		return err
+	}
 
 	// Only update the store if we did not come here as part of
 	// sandbox delete. If we came here as part of delete then do

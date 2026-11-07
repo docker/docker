@@ -38,13 +38,17 @@ func (c *payloadHandler) ReadFrom(b []byte) (n int, cm *ControlMessage, src net.
 			return 0, nil, nil, &net.OpError{Op: "read", Net: c.PacketConn.LocalAddr().Network(), Source: c.PacketConn.LocalAddr(), Err: err}
 		}
 		hdrlen := int(h[0]&0x0f) << 2
+		if m.N < HeaderLen || hdrlen < HeaderLen {
+			return 0, nil, nil, &net.OpError{Op: "read", Net: c.PacketConn.LocalAddr().Network(), Source: c.PacketConn.LocalAddr(), Err: errHeaderTooShort}
+		}
+		if m.N < hdrlen {
+			return 0, nil, nil, &net.OpError{Op: "read", Net: c.PacketConn.LocalAddr().Network(), Source: c.PacketConn.LocalAddr(), Err: errExtHeaderTooShort}
+		}
 		if hdrlen > len(h) {
 			d := hdrlen - len(h)
 			copy(b, b[d:])
-			m.N -= d
-		} else {
-			m.N -= hdrlen
 		}
+		m.N -= hdrlen
 	default:
 		return 0, nil, nil, &net.OpError{Op: "read", Net: c.PacketConn.LocalAddr().Network(), Source: c.PacketConn.LocalAddr(), Err: errInvalidConnType}
 	}

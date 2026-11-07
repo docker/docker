@@ -160,11 +160,14 @@ func (ei *edgeIndex) enforceIndexID(k *CacheKey) {
 
 	matches := ei.getAllMatches(k)
 
+	// TraceFields reads indexIDs under the cache-key lock.
+	k.mu.Lock()
 	if len(matches) > 0 {
 		k.indexIDs = matches
 	} else {
 		k.indexIDs = []string{identity.NewID()}
 	}
+	k.mu.Unlock()
 
 	for _, id := range k.indexIDs {
 		ei.enforceLinked(id, k)

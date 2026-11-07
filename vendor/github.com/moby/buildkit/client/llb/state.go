@@ -326,6 +326,12 @@ func (s State) AddEnvf(key, value string, v ...any) State {
 	return AddEnvf(key, value, v...)(s)
 }
 
+// DelEnv returns a new [State] with the provided environment variable removed.
+// See [DelEnv]
+func (s State) DelEnv(key string) State {
+	return DelEnv(key)(s)
+}
+
 // Dir returns a new [State] with the provided working directory set.
 // See [Dir]
 func (s State) Dir(str string) State {

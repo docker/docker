@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	srvconfig "github.com/containerd/containerd/v2/cmd/containerd/server/config"
 	"github.com/containerd/containerd/v2/defaults"
 	"github.com/containerd/containerd/v2/version"
 	"github.com/containerd/log"
@@ -50,11 +51,23 @@ import (
 // Start initializes and runs the embedded containerd server, using rootDir for
 // persistent state (bolt DB, content store) and the daemon subdirectory under
 // stateDir for runtime state.
+// If configDropInDir is not empty, the plugins, disabled_plugins, and
+// required_plugins settings of the containerd configuration files (*.toml)
+// in that directory apply to the server, excluding server plugin settings.
 // See the package doc for the transport layout.
 // Plugins self-register via the blank imports above and in the platform-specific
 // files.
-func Start(ctx context.Context, rootDir, stateDir string) (*Daemon, error) {
+func Start(ctx context.Context, rootDir, stateDir, configDropInDir string) (*Daemon, error) {
 	setContainerdVersion()
+
+	var containerdConfig srvconfig.Config
+	if configDropInDir != "" {
+		var err error
+		containerdConfig, err = loadConfigDropIns(ctx, configDropInDir)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	address := defaultAddress(stateDir)
 	cfg := &serverConfig{
@@ -64,6 +77,7 @@ func Start(ctx context.Context, rootDir, stateDir string) (*Daemon, error) {
 		ttrpcAddress:       address + ".ttrpc",
 		maxRecvMessageSize: defaults.DefaultMaxRecvMsgSize,
 		maxSendMessageSize: defaults.DefaultMaxSendMsgSize,
+		containerd:         containerdConfig,
 	}
 
 	// Create the root and state directories with the permissions containerd
@@ -141,10 +155,10 @@ func Start(ctx context.Context, rootDir, stateDir string) (*Daemon, error) {
 }
 
 // setContainerdVersion makes the embedded server report the vendored containerd
-// version in "docker info" instead of the source default ("2.2.4+unknown").
+// version in "docker info" and "docker version" instead of the source default.
 //
-// The version comes from the build's module info. The git commit is not
-// recorded there, so only the version is set.
+// The version comes from the build's module info.
+// The git commit is not recorded there, so only the version is set.
 func setContainerdVersion() {
 	bi, ok := debug.ReadBuildInfo()
 	if !ok {

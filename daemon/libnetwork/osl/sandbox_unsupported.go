@@ -12,9 +12,3 @@ var ErrNotImplemented = errors.New("not implemented")
 func NewSandbox(key string, osCreate, isRestore bool) (*Namespace, error) {
 	return nil, ErrNotImplemented
 }
-
-// GenerateKey generates a sandbox key based on the passed
-// container id.
-func GenerateKey(containerID string) string {
-	return ""
-}

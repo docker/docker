@@ -90,7 +90,9 @@ func (v *DescribeExportTasksOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeExportTasksOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeExportTasks(s, schemas.DescribeExportTasksResponse_exportTasks, v.ExportTasks)
+	if v.ExportTasks != nil {
+		serializeExportTasks(s, schemas.DescribeExportTasksResponse_exportTasks, v.ExportTasks)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeExportTasksResponse_nextToken, *v.NextToken)
 	}

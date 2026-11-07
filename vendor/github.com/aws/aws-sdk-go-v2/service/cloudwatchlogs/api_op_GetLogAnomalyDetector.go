@@ -130,7 +130,9 @@ func (v *GetLogAnomalyDetectorOutput) SerializeMembers(s smithy.ShapeSerializer)
 	if v.LastModifiedTimeStamp != 0 {
 		s.WriteInt64(schemas.GetLogAnomalyDetectorResponse_lastModifiedTimeStamp, v.LastModifiedTimeStamp)
 	}
-	serializeLogGroupArnList(s, schemas.GetLogAnomalyDetectorResponse_logGroupArnList, v.LogGroupArnList)
+	if v.LogGroupArnList != nil {
+		serializeLogGroupArnList(s, schemas.GetLogAnomalyDetectorResponse_logGroupArnList, v.LogGroupArnList)
+	}
 }
 func (v *GetLogAnomalyDetectorOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.GetLogAnomalyDetectorResponse, func(s *smithy.Schema) error {

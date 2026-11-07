@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
@@ -230,8 +231,8 @@ func buildAttestationImage(t *testing.T, dir string, imageRef string, platform o
 	}
 	innerIdxDesc := writeJSON(t, dir, ocispec.MediaTypeImageIndex, innerIdx)
 	innerIdxDesc.Annotations = map[string]string{
-		"io.containerd.image.name": ref.String(),
-		ocispec.AnnotationRefName:  ref.(reference.Tagged).Tag(),
+		c8dimages.AnnotationImageName: ref.String(),
+		ocispec.AnnotationRefName:     ref.(reference.Tagged).Tag(),
 	}
 
 	outerIdx := &ocispec.Index{

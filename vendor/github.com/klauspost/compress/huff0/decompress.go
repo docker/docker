@@ -54,6 +54,10 @@ func ReadTable(in []byte, s *Scratch) (s2 *Scratch, remain []byte, err error) {
 		if len(in) < int(iSize) {
 			return s, nil, fmt.Errorf("input too small for table, want %d bytes, have %d", iSize, len(in))
 		}
+		// The low nibble is the weights' FSE tableLog - 5, which the format limits to 6.
+		if in[0]&15+5 > 6 {
+			return s, nil, errors.New("corrupt input: weights tableLog too big")
+		}
 		// FSE compressed weights
 		s.fse.DecompressLimit = 255
 		hw := s.huffWeight[:]

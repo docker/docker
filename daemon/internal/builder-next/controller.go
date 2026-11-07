@@ -166,6 +166,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 	exec, proxyProvider, err := newExecutor(executorOpts{
 		root:                opt.Root,
 		networkController:   opt.NetworkController,
+		ociHooks:            opt.OCIHooks,
 		dnsConfig:           dnsConfig,
 		cdiManager:          cdiManager,
 		cgroupParent:        opt.DefaultCgroupParent,
@@ -386,6 +387,7 @@ func newGraphDriverController(ctx context.Context, rt http.RoundTripper, opt Opt
 	exec, proxyProvider, err := newExecutorGD(executorOpts{
 		root:              root,
 		networkController: opt.NetworkController,
+		ociHooks:          opt.OCIHooks,
 		dnsConfig:         getDNSConfig(opt.DNSConfig),
 		cdiManager:        cdiManager,
 		cgroupParent:      opt.DefaultCgroupParent,

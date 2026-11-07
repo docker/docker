@@ -72,7 +72,9 @@ func (v *ListTagsLogGroupOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *ListTagsLogGroupOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeTags(s, schemas.ListTagsLogGroupResponse_tags, v.Tags)
+	if v.Tags != nil {
+		serializeTags(s, schemas.ListTagsLogGroupResponse_tags, v.Tags)
+	}
 }
 func (v *ListTagsLogGroupOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.ListTagsLogGroupResponse, func(s *smithy.Schema) error {

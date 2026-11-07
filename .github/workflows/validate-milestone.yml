@@ -5,8 +5,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
-  pull-requests: read
+  issues: read
 
 on:
   pull_request:
@@ -22,40 +21,44 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           MILESTONE: ${{ github.event.pull_request.milestone.title }}
+          # Pinned "[Branch status]" issue with a "json docker-versions" block
+          # mapping each branch to its next and last version.
+          BRANCH_STATUS_ISSUE: 50221
         with:
           script: |
-            const files = await github.paginate(github.rest.pulls.listFiles, {
+            const issueNumber = Number(process.env.BRANCH_STATUS_ISSUE);
+            const source = `issue #${issueNumber}`;
+            const baseBranch = context.payload.pull_request.base.ref;
+            core.info(`Base branch: ${baseBranch}`);
+
+            const {data: issue} = await github.rest.issues.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number,
+              issue_number: issueNumber,
             });
-            core.info(`Modified files: ${files.map(f => f.filename).join(', ')}`);
-
-            const touchesVersions = files.some(f => f.filename === 'releases/versions.yaml');
-            core.info(`Touches version: ${touchesVersions}`);
-
-            // Use the PR's version when it bumps the file, base branch otherwise.
-            // It's fine to trust the author in this case, it's not meant to be
-            // a security gate, just a helpful check for maintainers.
-            const ref = touchesVersions
-              ? context.payload.pull_request.head.sha
-              : context.payload.pull_request.base.ref;
-
-            core.info(`Version ref: ${ref}`);
-
-            const resp = await github.rest.repos.getContent({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              path: 'releases/versions.yaml',
-              ref,
-            });
-            const content = Buffer.from(resp.data.content, resp.data.encoding).toString('utf8');
-            const line = content.split('\n').find(l => l.includes('next:'));
-            if (!line) {
-              core.setFailed('Could not find docker.next in releases/versions.yaml');
+            const lines = (issue.body ?? '').split('\n').map(line => line.trimEnd());
+            const start = lines.indexOf('```json docker-versions') + 1;
+            const end = lines.indexOf('```', start);
+            if (start === 0 || end === -1) {
+              core.setFailed(`Could not find a 'json docker-versions' block in ${source}`);
               return;
             }
-            const expected = line.trim().replace('next: ', '').replaceAll('"', '');
+
+            // For example: {"master": {"next": "29.10.0", "last": "29.9.1"}}
+            let versions;
+            try {
+              versions = JSON.parse(lines.slice(start, end).join('\n'));
+            } catch (err) {
+              core.setFailed(`Invalid 'json docker-versions' block in ${source}: ${err.message}`);
+              return;
+            }
+            core.info(`Versions: ${JSON.stringify(versions)}`);
+
+            const expected = versions?.[baseBranch]?.next;
+            if (!expected) {
+              core.setFailed(`Could not find the next version for branch '${baseBranch}' in ${source}`);
+              return;
+            }
             const milestone = process.env.MILESTONE;
 
             if (!milestone) {
@@ -75,11 +78,7 @@ jobs:
                   ],
                   [milestone, expected],
                 ])
-                .addRaw(
-                  touchesVersions
-                    ? 'The expected version comes from releases/versions.yaml in this PR.'
-                    : 'The expected version comes from the target branch.'
-                )
+                .addRaw(`The expected version for the '${baseBranch}' branch comes from ${source}.`)
                 .addEOL()
                 .addRaw(guidance)
                 .write();

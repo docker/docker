@@ -2,10 +2,10 @@ package buildkit
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/containerd/log"
@@ -15,7 +15,6 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
 	"github.com/moby/buildkit/util/network/proxyprovider"
-	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
@@ -25,7 +24,7 @@ const networkName = "bridge"
 func newExecutor(opts executorOpts) (executor.Executor, network.ProxyProvider, error) {
 	netRoot := filepath.Join(opts.root, "net")
 	networkProviders := map[pb.NetMode]network.Provider{
-		pb.NetMode_UNSET: &bridgeProvider{Controller: opts.networkController, Root: netRoot},
+		pb.NetMode_UNSET: &bridgeProvider{Controller: opts.networkController, Hooks: opts.ociHooks, Root: netRoot},
 		pb.NetMode_HOST:  network.NewHostProvider(),
 		pb.NetMode_NONE:  network.NewNoneProvider(),
 	}
@@ -166,13 +165,16 @@ func (iface *lnInterface) Set(s *specs.Spec) error {
 		log.G(context.TODO()).WithError(iface.err).Error("failed to set networking spec")
 		return iface.err
 	}
-	shortNetCtlrID := stringid.TruncateID(iface.provider.Controller.ID())
-	// attach netns to bridge within the container namespace, using reexec in a prestart hook
+	if iface.unregisterHook != nil {
+		iface.unregisterHook()
+	}
+	// attach netns to bridge within the container namespace, in a prestart hook
+	hook, unregister := iface.provider.Hooks.Register(iface.ctx, func(ctx context.Context, st specs.State) error {
+		return iface.sbx.SetKey(ctx, fmt.Sprintf("/proc/%d/ns/net", st.Pid))
+	})
+	iface.unregisterHook = unregister
 	s.Hooks = &specs.Hooks{
-		Prestart: []specs.Hook{{ //nolint:staticcheck // ignore SA1019 (Prestart is deprecated); FIXME(thaJeztah): see https://github.com/moby/moby/issues/52488
-			Path: filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe"),
-			Args: []string{"libnetwork-setkey", "-exec-root=" + iface.provider.Config().ExecRoot, iface.sbx.ContainerID(), shortNetCtlrID},
-		}},
+		Prestart: []specs.Hook{hook}, //nolint:staticcheck // ignore SA1019 (Prestart is deprecated); FIXME(thaJeztah): see https://github.com/moby/moby/issues/52488
 	}
 	return nil
 }

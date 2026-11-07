@@ -5,11 +5,15 @@ import (
 	"net"
 	"net/netip"
 	"slices"
+	"sync"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 
+	"github.com/moby/moby/v2/daemon/libnetwork/cluster"
+	"github.com/moby/moby/v2/daemon/libnetwork/config"
 	"github.com/moby/moby/v2/daemon/libnetwork/networkdb"
 )
 
@@ -413,4 +417,69 @@ func TestHandleEPTableEvent(t *testing.T) {
 			assert.DeepEqual(t, tt.expectedActions, msb.actions)
 		})
 	}
+}
+
+// clusterProviderStub answers GetRemoteAddressList and nothing else: every
+// other method of the interface is left to the nil embedded value, so a test
+// which reaches one panics rather than quietly passing.
+type clusterProviderStub struct {
+	cluster.Provider
+	mu      sync.Mutex
+	remotes []string
+	calls   int
+}
+
+func (p *clusterProviderStub) GetRemoteAddressList() []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.calls++
+	return slices.Clone(p.remotes)
+}
+
+func TestRemoteAddrs(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		reported []string
+		want     []string
+	}{
+		{name: "none", reported: nil, want: []string{}},
+		{name: "host and port", reported: []string{"10.0.0.1:2377"}, want: []string{"10.0.0.1"}},
+		// The daemon's own providers report these, and SplitHostPort leaves
+		// the empty string behind for them, which is not an address at all.
+		{name: "no port", reported: []string{"10.0.0.1"}, want: []string{"10.0.0.1"}},
+		{name: "ipv6", reported: []string{"[fd00::1]:2377"}, want: []string{"fd00::1"}},
+		{name: "mixed", reported: []string{"10.0.0.1:2377", "10.0.0.2"}, want: []string{"10.0.0.1", "10.0.0.2"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Check(t, is.DeepEqual(remoteAddrs(&clusterProviderStub{remotes: tc.reported}), tc.want))
+		})
+	}
+}
+
+// TestRemoteAddrListIsLastKnownGood pins the half of the bootstrap-peer
+// contract which is libnetwork's: the list is asked for afresh on every call
+// and passed on as the provider reported it, with nothing cached, dropped or
+// second-guessed here. A node which has lost the Swarm control plane therefore
+// keeps bootstrapping off the managers it last saw, which is what lets gossip
+// carry on without one.
+//
+// Swarmkit holds up the other half: its manager list lives in memory and on
+// disk, a failed connection only re-weights an entry, and the one path which
+// removes one runs off a dispatcher session message -- so an outage freezes
+// the list rather than draining it.
+func TestRemoteAddrListIsLastKnownGood(t *testing.T) {
+	cp := &clusterProviderStub{remotes: []string{"10.0.0.1:2377", "10.0.0.2:2377"}}
+	c := &Controller{cfg: &config.Config{ClusterProvider: cp}}
+
+	want := []string{"10.0.0.1", "10.0.0.2"}
+	for i := range 3 {
+		assert.Check(t, is.DeepEqual(c.remoteAddrList(), want), "call %d", i)
+	}
+	assert.Check(t, is.Equal(cp.calls, 3), "the peers must be asked for every time, not snapshotted")
+
+	// Once the node leaves the cluster the provider goes with it, and NetworkDB
+	// is told there is nothing to bootstrap from rather than being handed a
+	// list which can no longer be answered for.
+	c.cfg.ClusterProvider = nil
+	assert.Check(t, is.Nil(c.remoteAddrList()))
 }

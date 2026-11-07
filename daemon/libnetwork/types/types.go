@@ -56,6 +56,11 @@ type PortBinding struct {
 	HostIP      net.IP
 	HostPort    uint16
 	HostPortEnd uint16
+	// NoSelfConnect is a hint that nothing behind the endpoint connects to
+	// its own published port through the host. Packets from other endpoints
+	// on the same network can then be DNATed to the port without hairpin
+	// mode or masquerading, instead of being left for the userland proxy.
+	NoSelfConnect bool `json:",omitempty"`
 }
 
 // PublishedPort is a request to publish a single container port on the host.
@@ -67,16 +72,20 @@ type PublishedPort struct {
 	Proto    Protocol
 	Port     uint16 // container port
 	HostPort uint16 // single host port - there is no range
+	// NoSelfConnect is a hint that nothing behind the endpoint connects to
+	// its own published port through the host. See [PortBinding.NoSelfConnect].
+	NoSelfConnect bool
 }
 
 // PortBinding returns the single-port [PortBinding] equivalent of p, with
 // HostPortEnd pinned to HostPort so it can never denote a range.
 func (p PublishedPort) PortBinding() PortBinding {
 	return PortBinding{
-		Proto:       p.Proto,
-		Port:        p.Port,
-		HostPort:    p.HostPort,
-		HostPortEnd: p.HostPort,
+		Proto:         p.Proto,
+		Port:          p.Port,
+		HostPort:      p.HostPort,
+		HostPortEnd:   p.HostPort,
+		NoSelfConnect: p.NoSelfConnect,
 	}
 }
 
@@ -97,12 +106,13 @@ func (p PortBinding) HostAddr() (net.Addr, error) {
 // Copy returns a deep copy of the PortBinding.
 func (p PortBinding) Copy() PortBinding {
 	return PortBinding{
-		Proto:       p.Proto,
-		IP:          slices.Clone(p.IP),
-		Port:        p.Port,
-		HostIP:      slices.Clone(p.HostIP),
-		HostPort:    p.HostPort,
-		HostPortEnd: p.HostPortEnd,
+		Proto:         p.Proto,
+		IP:            slices.Clone(p.IP),
+		Port:          p.Port,
+		HostIP:        slices.Clone(p.HostIP),
+		HostPort:      p.HostPort,
+		HostPortEnd:   p.HostPortEnd,
+		NoSelfConnect: p.NoSelfConnect,
 	}
 }
 
@@ -113,7 +123,8 @@ func (p PortBinding) Equal(o PortBinding) bool {
 		p.Port == o.Port &&
 		p.HostIP.Equal(o.HostIP) &&
 		p.HostPort == o.HostPort &&
-		p.HostPortEnd == o.HostPortEnd
+		p.HostPortEnd == o.HostPortEnd &&
+		p.NoSelfConnect == o.NoSelfConnect
 }
 
 // String returns the PortBinding structure in the form "HostIP:HostPort:IP:Port/Proto",

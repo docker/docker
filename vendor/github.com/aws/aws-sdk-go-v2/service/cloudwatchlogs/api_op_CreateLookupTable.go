@@ -93,7 +93,9 @@ func (v *CreateLookupTableInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.TableBody != nil {
 		s.WriteString(schemas.CreateLookupTableRequest_tableBody, *v.TableBody)
 	}
-	serializeTags(s, schemas.CreateLookupTableRequest_tags, v.Tags)
+	if v.Tags != nil {
+		serializeTags(s, schemas.CreateLookupTableRequest_tags, v.Tags)
+	}
 }
 
 type CreateLookupTableOutput struct {

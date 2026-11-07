@@ -2176,6 +2176,11 @@ func (c *configRESTClient) ListBuckets(ctx context.Context, req *loggingpb.ListB
 		if err != nil {
 			return nil, "", err
 		}
+		if err = gax.ValidatePathExpressions(
+			req.GetParent(),
+		); err != nil {
+			return nil, "", err
+		}
 		baseUrl.Path += fmt.Sprintf("/v2/%v/buckets", req.GetParent())
 
 		params := url.Values{}
@@ -2241,6 +2246,11 @@ func (c *configRESTClient) GetBucket(ctx context.Context, req *loggingpb.GetBuck
 	if err != nil {
 		return nil, err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
 
 	params := url.Values{}
@@ -2302,6 +2312,11 @@ func (c *configRESTClient) CreateBucketAsync(ctx context.Context, req *loggingpb
 
 	baseUrl, err := url.Parse(c.endpoint)
 	if err != nil {
+		return nil, err
+	}
+	if err = gax.ValidatePathExpressions(
+		req.GetParent(),
+	); err != nil {
 		return nil, err
 	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v/buckets:createAsync", req.GetParent())
@@ -2376,6 +2391,11 @@ func (c *configRESTClient) UpdateBucketAsync(ctx context.Context, req *loggingpb
 
 	baseUrl, err := url.Parse(c.endpoint)
 	if err != nil {
+		return nil, err
+	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
 		return nil, err
 	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v:updateAsync", req.GetName())
@@ -2454,6 +2474,11 @@ func (c *configRESTClient) CreateBucket(ctx context.Context, req *loggingpb.Crea
 	if err != nil {
 		return nil, err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetParent(),
+	); err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v/buckets", req.GetParent())
 
 	params := url.Values{}
@@ -2521,6 +2546,11 @@ func (c *configRESTClient) UpdateBucket(ctx context.Context, req *loggingpb.Upda
 	if err != nil {
 		return nil, err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
 
 	params := url.Values{}
@@ -2586,6 +2616,11 @@ func (c *configRESTClient) DeleteBucket(ctx context.Context, req *loggingpb.Dele
 	if err != nil {
 		return err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
+		return err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
 
 	params := url.Values{}
@@ -2630,6 +2665,11 @@ func (c *configRESTClient) UndeleteBucket(ctx context.Context, req *loggingpb.Un
 
 	baseUrl, err := url.Parse(c.endpoint)
 	if err != nil {
+		return err
+	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
 		return err
 	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v:undelete", req.GetName())
@@ -2682,6 +2722,11 @@ func (c *configRESTClient) ListViews(ctx context.Context, req *loggingpb.ListVie
 		}
 		baseUrl, err := url.Parse(c.endpoint)
 		if err != nil {
+			return nil, "", err
+		}
+		if err = gax.ValidatePathExpressions(
+			req.GetParent(),
+		); err != nil {
 			return nil, "", err
 		}
 		baseUrl.Path += fmt.Sprintf("/v2/%v/views", req.GetParent())
@@ -2749,6 +2794,11 @@ func (c *configRESTClient) GetView(ctx context.Context, req *loggingpb.GetViewRe
 	if err != nil {
 		return nil, err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
 
 	params := url.Values{}
@@ -2809,6 +2859,11 @@ func (c *configRESTClient) CreateView(ctx context.Context, req *loggingpb.Create
 
 	baseUrl, err := url.Parse(c.endpoint)
 	if err != nil {
+		return nil, err
+	}
+	if err = gax.ValidatePathExpressions(
+		req.GetParent(),
+	); err != nil {
 		return nil, err
 	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v/views", req.GetParent())
@@ -2877,6 +2932,11 @@ func (c *configRESTClient) UpdateView(ctx context.Context, req *loggingpb.Update
 	if err != nil {
 		return nil, err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
 
 	params := url.Values{}
@@ -2941,6 +3001,11 @@ func (c *configRESTClient) DeleteView(ctx context.Context, req *loggingpb.Delete
 	if err != nil {
 		return err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
+		return err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
 
 	params := url.Values{}
@@ -2991,6 +3056,11 @@ func (c *configRESTClient) ListSinks(ctx context.Context, req *loggingpb.ListSin
 		}
 		baseUrl, err := url.Parse(c.endpoint)
 		if err != nil {
+			return nil, "", err
+		}
+		if err = gax.ValidatePathExpressions(
+			req.GetParent(),
+		); err != nil {
 			return nil, "", err
 		}
 		baseUrl.Path += fmt.Sprintf("/v2/%v/sinks", req.GetParent())
@@ -3058,6 +3128,11 @@ func (c *configRESTClient) GetSink(ctx context.Context, req *loggingpb.GetSinkRe
 	if err != nil {
 		return nil, err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetSinkName(),
+	); err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetSinkName())
 
 	params := url.Values{}
@@ -3120,6 +3195,11 @@ func (c *configRESTClient) CreateSink(ctx context.Context, req *loggingpb.Create
 
 	baseUrl, err := url.Parse(c.endpoint)
 	if err != nil {
+		return nil, err
+	}
+	if err = gax.ValidatePathExpressions(
+		req.GetParent(),
+	); err != nil {
 		return nil, err
 	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v/sinks", req.GetParent())
@@ -3190,6 +3270,11 @@ func (c *configRESTClient) UpdateSink(ctx context.Context, req *loggingpb.Update
 	if err != nil {
 		return nil, err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetSinkName(),
+	); err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetSinkName())
 
 	params := url.Values{}
@@ -3255,6 +3340,11 @@ func (c *configRESTClient) DeleteSink(ctx context.Context, req *loggingpb.Delete
 	if err != nil {
 		return err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetSinkName(),
+	); err != nil {
+		return err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetSinkName())
 
 	params := url.Values{}
@@ -3301,6 +3391,11 @@ func (c *configRESTClient) CreateLink(ctx context.Context, req *loggingpb.Create
 
 	baseUrl, err := url.Parse(c.endpoint)
 	if err != nil {
+		return nil, err
+	}
+	if err = gax.ValidatePathExpressions(
+		req.GetParent(),
+	); err != nil {
 		return nil, err
 	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v/links", req.GetParent())
@@ -3364,6 +3459,11 @@ func (c *configRESTClient) CreateLink(ctx context.Context, req *loggingpb.Create
 func (c *configRESTClient) DeleteLink(ctx context.Context, req *loggingpb.DeleteLinkRequest, opts ...gax.CallOption) (*DeleteLinkOperation, error) {
 	baseUrl, err := url.Parse(c.endpoint)
 	if err != nil {
+		return nil, err
+	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
 		return nil, err
 	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
@@ -3440,6 +3540,11 @@ func (c *configRESTClient) ListLinks(ctx context.Context, req *loggingpb.ListLin
 		if err != nil {
 			return nil, "", err
 		}
+		if err = gax.ValidatePathExpressions(
+			req.GetParent(),
+		); err != nil {
+			return nil, "", err
+		}
 		baseUrl.Path += fmt.Sprintf("/v2/%v/links", req.GetParent())
 
 		params := url.Values{}
@@ -3503,6 +3608,11 @@ func (c *configRESTClient) ListLinks(ctx context.Context, req *loggingpb.ListLin
 func (c *configRESTClient) GetLink(ctx context.Context, req *loggingpb.GetLinkRequest, opts ...gax.CallOption) (*loggingpb.Link, error) {
 	baseUrl, err := url.Parse(c.endpoint)
 	if err != nil {
+		return nil, err
+	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
 		return nil, err
 	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
@@ -3572,6 +3682,11 @@ func (c *configRESTClient) ListExclusions(ctx context.Context, req *loggingpb.Li
 		if err != nil {
 			return nil, "", err
 		}
+		if err = gax.ValidatePathExpressions(
+			req.GetParent(),
+		); err != nil {
+			return nil, "", err
+		}
 		baseUrl.Path += fmt.Sprintf("/v2/%v/exclusions", req.GetParent())
 
 		params := url.Values{}
@@ -3637,6 +3752,11 @@ func (c *configRESTClient) GetExclusion(ctx context.Context, req *loggingpb.GetE
 	if err != nil {
 		return nil, err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
 
 	params := url.Values{}
@@ -3698,6 +3818,11 @@ func (c *configRESTClient) CreateExclusion(ctx context.Context, req *loggingpb.C
 
 	baseUrl, err := url.Parse(c.endpoint)
 	if err != nil {
+		return nil, err
+	}
+	if err = gax.ValidatePathExpressions(
+		req.GetParent(),
+	); err != nil {
 		return nil, err
 	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v/exclusions", req.GetParent())
@@ -3762,6 +3887,11 @@ func (c *configRESTClient) UpdateExclusion(ctx context.Context, req *loggingpb.U
 	if err != nil {
 		return nil, err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
 
 	params := url.Values{}
@@ -3823,6 +3953,11 @@ func (c *configRESTClient) DeleteExclusion(ctx context.Context, req *loggingpb.D
 	if err != nil {
 		return err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
+		return err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
 
 	params := url.Values{}
@@ -3869,6 +4004,11 @@ func (c *configRESTClient) DeleteExclusion(ctx context.Context, req *loggingpb.D
 func (c *configRESTClient) GetCmekSettings(ctx context.Context, req *loggingpb.GetCmekSettingsRequest, opts ...gax.CallOption) (*loggingpb.CmekSettings, error) {
 	baseUrl, err := url.Parse(c.endpoint)
 	if err != nil {
+		return nil, err
+	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
 		return nil, err
 	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v/cmekSettings", req.GetName())
@@ -3946,6 +4086,11 @@ func (c *configRESTClient) UpdateCmekSettings(ctx context.Context, req *loggingp
 	if err != nil {
 		return nil, err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v/cmekSettings", req.GetName())
 
 	params := url.Values{}
@@ -4014,6 +4159,11 @@ func (c *configRESTClient) UpdateCmekSettings(ctx context.Context, req *loggingp
 func (c *configRESTClient) GetSettings(ctx context.Context, req *loggingpb.GetSettingsRequest, opts ...gax.CallOption) (*loggingpb.Settings, error) {
 	baseUrl, err := url.Parse(c.endpoint)
 	if err != nil {
+		return nil, err
+	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
 		return nil, err
 	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v/settings", req.GetName())
@@ -4090,6 +4240,11 @@ func (c *configRESTClient) UpdateSettings(ctx context.Context, req *loggingpb.Up
 
 	baseUrl, err := url.Parse(c.endpoint)
 	if err != nil {
+		return nil, err
+	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
 		return nil, err
 	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v/settings", req.GetName())
@@ -4223,6 +4378,11 @@ func (c *configRESTClient) CancelOperation(ctx context.Context, req *longrunning
 	if err != nil {
 		return err
 	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
+		return err
+	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v:cancel", req.GetName())
 
 	params := url.Values{}
@@ -4260,6 +4420,11 @@ func (c *configRESTClient) CancelOperation(ctx context.Context, req *longrunning
 func (c *configRESTClient) GetOperation(ctx context.Context, req *longrunningpb.GetOperationRequest, opts ...gax.CallOption) (*longrunningpb.Operation, error) {
 	baseUrl, err := url.Parse(c.endpoint)
 	if err != nil {
+		return nil, err
+	}
+	if err = gax.ValidatePathExpressions(
+		req.GetName(),
+	); err != nil {
 		return nil, err
 	}
 	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
@@ -4327,6 +4492,11 @@ func (c *configRESTClient) ListOperations(ctx context.Context, req *longrunningp
 		}
 		baseUrl, err := url.Parse(c.endpoint)
 		if err != nil {
+			return nil, "", err
+		}
+		if err = gax.ValidatePathExpressions(
+			req.GetName(),
+		); err != nil {
 			return nil, "", err
 		}
 		baseUrl.Path += fmt.Sprintf("/v2/%v/operations", req.GetName())

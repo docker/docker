@@ -150,6 +150,8 @@ func (gs *Source) Identifier(scheme, ref string, attrs map[string]string, platfo
 			id.MTime = v
 		case pb.AttrGitAdvice:
 			id.Advice = v == "true"
+		case pb.AttrGitDebugCommands:
+			id.DebugCommands = v == "true"
 		case pb.AttrGitFetchByCommit:
 			id.FetchByCommit = v == "true"
 		case pb.AttrGitBundle:
@@ -173,7 +175,7 @@ func (gs *Source) Identifier(scheme, ref string, attrs map[string]string, platfo
 }
 
 // needs to be called with repo lock
-func (gs *Source) mountRemote(ctx context.Context, remote string, authArgs []string, gitAdvice bool, sha256 bool, reset bool, g session.Group) (target string, release func() error, retErr error) {
+func (gs *Source) mountRemote(ctx context.Context, remote string, authArgs []string, gitAdvice bool, debugCommands bool, sha256 bool, reset bool, g session.Group) (target string, release func() error, retErr error) {
 	sis, err := searchGitRemote(ctx, gs.cache, remote)
 	if err != nil {
 		return "", nil, errors.Wrapf(err, "failed to search metadata for %s", urlutil.RedactCredentials(remote))
@@ -237,6 +239,7 @@ func (gs *Source) mountRemote(ctx context.Context, remote string, authArgs []str
 
 	git := gitCLI(
 		gitutil.WithGitAdvice(gitAdvice),
+		gitutil.WithGitDebugCommands(debugCommands),
 		gitutil.WithGitDir(dir),
 		gitutil.WithArgs(authArgs...),
 	)
@@ -597,9 +600,10 @@ func (gs *gitSourceHandler) resolveMetadata(ctx context.Context, jobCtx solver.J
 			}
 			saveResolved := true
 			defer func() {
-				v := md
-				if retErr != nil || !saveResolved {
-					v = nil
+				// untyped nil, a nil *Metadata would be stored as a value
+				var v any
+				if retErr == nil && saveResolved {
+					v = md
 				}
 				if err := release(v); err != nil {
 					bklog.G(ctx).Warnf("failed to release resolver cache lock for %s: %v", gs.remoteKey(), err)
@@ -975,7 +979,7 @@ func (gs *gitSourceHandler) tryRemoteFetch(ctx context.Context, jobCtx solver.Jo
 		}
 	}
 
-	gitDir, unmountGitDir, err := gs.mountRemote(ctx, gs.src.Remote, authArgs, gs.src.Advice, gs.sha256, reset, g)
+	gitDir, unmountGitDir, err := gs.mountRemote(ctx, gs.src.Remote, authArgs, gs.src.Advice, gs.src.DebugCommands, gs.sha256, reset, g)
 	if err != nil {
 		return nil, err
 	}
@@ -1533,6 +1537,7 @@ func (gs *gitSourceHandler) emptyGitCli(ctx context.Context, g session.Group, op
 
 	opts = append([]gitutil.Option{
 		gitutil.WithGitAdvice(gs.src.Advice),
+		gitutil.WithGitDebugCommands(gs.src.DebugCommands),
 		gitutil.WithArgs(gs.authArgs...),
 		gitutil.WithSSHAuthSock(sock),
 		gitutil.WithSSHKnownHosts(knownHosts),

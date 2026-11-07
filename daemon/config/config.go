@@ -92,7 +92,6 @@ var flatOptions = map[string]bool{
 	"features":             true,
 	"builder":              true,
 	"nri-opts":             true,
-	"extension-config":     true,
 }
 
 // skipValidateOptions contains configuration keys
@@ -103,8 +102,8 @@ var skipValidateOptions = map[string]bool{
 	"builder":  true,
 
 	// Only available in daemon.json, no flags
-	"min-api-version":  true,
-	"extension-config": true,
+	"min-api-version":    true,
+	"extensions.configs": true,
 
 	// Deprecated options that are safe to ignore if present.
 	"deprecated-key-path":              true,
@@ -207,19 +206,15 @@ type CommonConfig struct {
 	DisableBridge        bool     `json:"-"`
 	ExecOptions          []string `json:"exec-opts,omitempty"`
 	// TODO: Should be renamed to StorageDriver
-	GraphDriver           string   `json:"storage-driver,omitempty"`
-	GraphOptions          []string `json:"storage-opts,omitempty"`
-	Labels                []string `json:"labels,omitempty"`
-	NetworkDiagnosticPort int      `json:"network-diagnostic-port,omitempty"`
-	Pidfile               string   `json:"pidfile,omitempty"`
-	Root                  string   `json:"data-root,omitempty"`
-	ExecRoot              string   `json:"exec-root,omitempty"`
-	ExtensionDirs         []string `json:"extension-dirs,omitempty"`
-	// ExtensionConfig holds per-extension configuration keyed by extension ID.
-	// The entry reaches in-process Init directly or a launched binary through the
-	// startup handshake.
-	ExtensionConfig ExtensionConfigs `json:"extension-config,omitempty"`
-	SocketGroup     string           `json:"group,omitempty"`
+	GraphDriver           string           `json:"storage-driver,omitempty"`
+	GraphOptions          []string         `json:"storage-opts,omitempty"`
+	Labels                []string         `json:"labels,omitempty"`
+	NetworkDiagnosticPort int              `json:"network-diagnostic-port,omitempty"`
+	Pidfile               string           `json:"pidfile,omitempty"`
+	Root                  string           `json:"data-root,omitempty"`
+	ExecRoot              string           `json:"exec-root,omitempty"`
+	Extensions            ExtensionsConfig `json:"extensions,omitempty"`
+	SocketGroup           string           `json:"group,omitempty"`
 
 	// Proxies holds the proxies that are configured for the daemon.
 	Proxies `json:"proxies"`
@@ -562,12 +557,18 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		return &config, nil // early return on empty config
 	}
 
-	if flags != nil {
-		var jsonConfig map[string]any
-		if err := json.Unmarshal(b, &jsonConfig); err != nil {
-			return nil, fmt.Errorf("invalid JSON: %w", err)
+	var jsonConfig map[string]any
+	if err := json.Unmarshal(b, &jsonConfig); err != nil {
+		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+	// CLI spellings and internal dotted extension keys are not JSON fields.
+	for key := range jsonConfig {
+		if strings.HasPrefix(key, "extensions.") || key == "extension-enable" || key == "extension-disable" {
+			return nil, fmt.Errorf("invalid configuration directive %q: use the nested \"extensions\" object", key)
 		}
+	}
 
+	if flags != nil {
 		configSet := configValuesSet(jsonConfig)
 
 		if err := findConfigurationConflicts(configSet, flags); err != nil {
@@ -622,6 +623,14 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 func configValuesSet(config map[string]any) map[string]any {
 	flatten := make(map[string]any)
 	for k, v := range config {
+		if k == "extensions" {
+			if m, ok := v.(map[string]any); ok {
+				for name, value := range m {
+					flatten["extensions."+name] = value
+				}
+				continue
+			}
+		}
 		if m, isMap := v.(map[string]any); isMap && !flatOptions[k] {
 			maps.Copy(flatten, m)
 			continue
@@ -738,6 +747,10 @@ func ValidateMinAPIVersion(ver string) error {
 // such as config.DNS, config.Labels, config.DNSSearch,
 // as well as config.MaxConcurrentDownloads, config.MaxConcurrentUploads and config.MaxDownloadAttempts.
 func Validate(config *Config) error {
+	if err := config.Extensions.Validate(); err != nil {
+		return err
+	}
+
 	if err := validateDaemonLogConfig(config.DaemonLogConfig); err != nil {
 		return err
 	}
@@ -884,6 +897,6 @@ func Sanitize(cfg Config) Config {
 		HTTPSProxy: MaskCredentials(cfg.HTTPSProxy),
 		NoProxy:    MaskCredentials(cfg.NoProxy),
 	}
-	cfg.CommonConfig.ExtensionConfig = nil
+	cfg.Extensions.Configs = nil
 	return cfg
 }

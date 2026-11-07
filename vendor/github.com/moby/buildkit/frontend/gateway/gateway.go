@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -280,6 +281,10 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 	lbf, ctx := serveLLBBridgeForwarder(ctx, llbBridge, exec, gf.workers, inputs, sid, sm)
 	defer lbf.Discard()
 	defer lbf.conn.Close()
+	// The executor may pass these fds directly to the frontend process, so
+	// close them only after Run has returned and no fork can still use them.
+	defer lbf.Stdin.Close()
+	defer lbf.Stdout.Close()
 
 	mdmnt, release, err := metadataMount(frontendDef)
 	if err != nil {
@@ -327,12 +332,12 @@ func metadataMount(def *opspb.Definition) (*executor.Mount, func(), error) {
 	}
 
 	return &executor.Mount{
-			Src:      &bind{dir},
-			Dest:     "/run/config/buildkit/metadata",
-			Readonly: true,
-		}, func() {
-			os.RemoveAll(dir)
-		}, nil
+		Src:      &bind{dir},
+		Dest:     "/run/config/buildkit/metadata",
+		Readonly: true,
+	}, func() {
+		os.RemoveAll(dir)
+	}, nil
 }
 
 type bind struct {
@@ -394,6 +399,10 @@ func (lbf *llbBridgeForwarder) discard() {
 	lbf.mountsMu.Unlock()
 
 	lbf.discarded = true
+	for _, ee := range lbf.execErrors {
+		ee.Release()
+	}
+	lbf.execErrors = nil
 	for id, res := range lbf.resultByID {
 		res.Release(context.TODO())
 		delete(lbf.resultByID, id)
@@ -474,7 +483,6 @@ func newBridgeForwarder(ctx context.Context, llbBridge frontend.FrontendLLBBridg
 		refs:               map[string]solver.ResultProxy{},
 		resultByID:         map[string]solver.Result{},
 		doneCh:             make(chan struct{}),
-		pipe:               newPipe(),
 		workers:            workers,
 		inputs:             inputs,
 		sid:                sid,
@@ -489,6 +497,7 @@ func newBridgeForwarder(ctx context.Context, llbBridge frontend.FrontendLLBBridg
 func serveLLBBridgeForwarder(ctx context.Context, llbBridge frontend.FrontendLLBBridge, exec executor.Executor, workers worker.Infos, inputs map[string]*opspb.Definition, sid string, sm *session.Manager) (*llbBridgeForwarder, context.Context) {
 	ctx, cancel := context.WithCancelCause(ctx)
 	lbf := newBridgeForwarder(ctx, llbBridge, exec, workers, inputs, sid, sm)
+	lbf.pipe = newPipe()
 	serverOpt := []grpc.ServerOption{
 		grpc.UnaryInterceptor(grpcerrors.UnaryServerInterceptor),
 		grpc.StreamInterceptor(grpcerrors.StreamServerInterceptor),
@@ -525,9 +534,9 @@ func newPipe() *pipe {
 		Stdin:  pr1,
 		Stdout: pw2,
 		conn: &conn{
-			Reader: pr2,
-			Writer: pw1,
-			Closer: pw2,
+			Reader:  pr2,
+			Writer:  pw1,
+			closers: []io.Closer{pr2, pw1},
 		},
 	}
 }
@@ -535,7 +544,17 @@ func newPipe() *pipe {
 type conn struct {
 	io.Reader
 	io.Writer
-	io.Closer
+	closers []io.Closer
+}
+
+func (s *conn) Close() error {
+	var err error
+	for _, closer := range s.closers {
+		if closeErr := closer.Close(); err == nil {
+			err = closeErr
+		}
+	}
+	return errors.WithStack(err)
 }
 
 func (s *conn) LocalAddr() net.Addr {
@@ -589,6 +608,7 @@ type llbBridgeForwarder struct {
 	refs         map[string]solver.ResultProxy
 	resultByID   map[string]solver.Result
 	discarded    bool
+	execErrors   []*llberrdefs.ExecError
 	// lastRef      solver.CachedResult
 	// lastRefs     map[string]solver.CachedResult
 	// err          error
@@ -715,6 +735,13 @@ func (lbf *llbBridgeForwarder) wrapSolveError(solveErr error) error {
 		subject  errdefs.IsSolve_Subject
 	)
 	if errors.As(solveErr, &ee) {
+		lbf.mu.Lock()
+		if lbf.discarded {
+			ee.Release()
+		} else if !slices.Contains(lbf.execErrors, ee) {
+			lbf.execErrors = append(lbf.execErrors, ee)
+		}
+		lbf.mu.Unlock()
 		var err error
 		inputIDs, err = lbf.registerResultIDs(ee.Inputs...)
 		if err != nil {
@@ -730,7 +757,7 @@ func (lbf *llbBridgeForwarder) wrapSolveError(solveErr error) error {
 	}
 	if errors.As(solveErr, &sce) {
 		var err error
-		inputIDs, err = lbf.registerSlowCacheResult(sce.Result)
+		inputIDs, err = lbf.registerResultIDs(sce.Result)
 		if err != nil {
 			return err
 		}
@@ -739,32 +766,14 @@ func (lbf *llbBridgeForwarder) wrapSolveError(solveErr error) error {
 	return errdefs.WithSolveError(solveErr, subject, inputIDs, mountIDs)
 }
 
+// registerResultIDs retains gateway-owned clones of error refs until discard.
 func (lbf *llbBridgeForwarder) registerResultIDs(results ...solver.Result) (ids []string, err error) {
-	lbf.mu.Lock()
-	defer lbf.mu.Unlock()
-
-	return lbf.registerResultIDsLocked(results...)
-}
-
-// registerSlowCacheResult registers a clone of a result borrowed from the
-// solver job. The clone is only taken before the forwarder is discarded, as the
-// job may be released after that.
-func (lbf *llbBridgeForwarder) registerSlowCacheResult(res solver.Result) ([]string, error) {
 	lbf.mu.Lock()
 	defer lbf.mu.Unlock()
 
 	if lbf.discarded {
 		return nil, nil
 	}
-	// Validate before cloning so a type error can't leak the clone. Once
-	// cloned, registerResultIDsLocked either keeps or releases it.
-	if _, ok := res.Sys().(*worker.WorkerRef); !ok {
-		return nil, errors.Errorf("unexpected type for result, got %T", res.Sys())
-	}
-	return lbf.registerResultIDsLocked(res.Clone())
-}
-
-func (lbf *llbBridgeForwarder) registerResultIDsLocked(results ...solver.Result) (ids []string, err error) {
 	ids = make([]string, len(results))
 	for i, res := range results {
 		if res == nil {
@@ -776,16 +785,11 @@ func (lbf *llbBridgeForwarder) registerResultIDsLocked(results ...solver.Result)
 		}
 		id := workerRef.ID()
 		ids[i] = id
-		if existing, ok := lbf.resultByID[id]; ok {
-			if existing != res {
-				if err := res.Release(context.TODO()); err != nil {
-					return ids, errors.WithStack(err)
-				}
-			}
-			continue
+		if _, ok := lbf.resultByID[id]; !ok {
+			// Cached sharedOp.Exec errors have snapshots pinned by the active
+			// solver state, even after the original error refs are released.
+			lbf.resultByID[id] = res.Clone()
 		}
-		// Keep the result wrapper so Release balances split-result ownership.
-		lbf.resultByID[id] = res
 	}
 	return ids, nil
 }
@@ -833,6 +837,16 @@ func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) 
 	var defaultID string
 
 	lbf.mu.Lock()
+
+	if lbf.discarded {
+		// A solve that finished after Discard has no one to release its refs.
+		lbf.mu.Unlock()
+		res.EachRef(func(r solver.ResultProxy) error {
+			r.Release(context.TODO())
+			return nil
+		})
+		return nil, stack.Enable(status.Error(codes.Unavailable, "gateway forwarder is closing"))
+	}
 
 	if res.Refs != nil {
 		ids := make(map[string]string, len(res.Refs))
@@ -1869,13 +1883,28 @@ func (lbf *llbBridgeForwarder) cloneRef(id string) (solver.ResultProxy, error) {
 	return s2, nil
 }
 
+type bufferedConn struct {
+	net.Conn
+	reader *bufio.Reader
+}
+
+func (c *bufferedConn) Read(p []byte) (int, error) {
+	return c.reader.Read(p)
+}
+
 func serve(ctx context.Context, grpcServer *grpc.Server, conn net.Conn) {
-	go func() {
-		<-ctx.Done()
-		conn.Close()
-	}()
+	stop := context.AfterFunc(ctx, func() { conn.Close() })
+	defer stop()
+	defer conn.Close()
+
+	// The frontend container may take a while to start. Start HTTP/2's
+	// client preface timeout only once the frontend begins communicating.
+	reader := bufio.NewReader(conn)
+	if _, err := reader.Peek(1); err != nil {
+		return
+	}
 	bklog.G(ctx).Debugf("serving grpc connection")
-	(&http2.Server{}).ServeConn(conn, &http2.ServeConnOpts{Handler: grpcServer}) //nolint:staticcheck // This existing HTTP/2 connection is already established.
+	(&http2.Server{}).ServeConn(&bufferedConn{Conn: conn, reader: reader}, &http2.ServeConnOpts{Handler: grpcServer}) //nolint:staticcheck // This existing HTTP/2 connection is already established.
 }
 
 type markTypeFrontend struct{}

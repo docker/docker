@@ -1,19 +1,25 @@
 package networkdb
 
 import (
+	"context"
 	"iter"
 	"maps"
 	"math"
 	"math/bits"
 	"math/rand/v2"
+	"net"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
 
+	"github.com/hashicorp/memberlist"
+	"github.com/moby/moby/v2/daemon/internal/stringid"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"pgregory.net/rapid"
 )
 
@@ -257,4 +263,91 @@ func distributionStats(vals iter.Seq[int]) (mean, stdev, minv, maxv float64) {
 	mean = sum / float64(n)
 	stdev = math.Sqrt(sumSq/float64(n) - mean*mean)
 	return mean, stdev, minv, maxv
+}
+
+// TestBootstrapPeersToRejoin covers how a bootstrap address is read before it
+// is compared with the cluster's peers. Both readings are load-bearing and
+// neither is exercised by the tests which drive a real cluster: those name
+// their bootstrap nodes as ip:port and set BindPort explicitly, so the address
+// arrives in the one form which needs no interpretation.
+func TestBootstrapPeersToRejoin(t *testing.T) {
+	// A node gossiping on 7946 with config.BindPort left zero, which is what
+	// the daemon does: it never sets BindPort, so memberlist picks its own
+	// default and the port we gossip on is not the one in the config.
+	db := newNetworkDB(DefaultConfig())
+	defer db.broadcaster.Close()
+	assert.Assert(t, is.Equal(db.config.BindPort, 0), "the point of the test is that BindPort is unset")
+
+	db.config.NodeID = "self"
+	// net.ParseIP yields the 4-in-6 form, which is how memberlist holds an
+	// IPv4 peer address.
+	db.nodes["self"] = &node{Node: memberlist.Node{Name: "self", Addr: net.ParseIP("192.0.2.1"), Port: 7946}}
+	db.nodes["peer"] = &node{Node: memberlist.Node{Name: "peer", Addr: net.ParseIP("192.0.2.2"), Port: 7946}}
+
+	for _, tc := range []struct {
+		name  string
+		peers []string
+		want  []string
+	}{
+		{name: "none known", peers: nil, want: []string{}},
+		{name: "peer by ip:port", peers: []string{"192.0.2.2:7946"}, want: []string{}},
+		// Read on the port we gossip on. Read on config.BindPort instead and
+		// this is 192.0.2.2:0, which matches nothing and is rejoined forever.
+		{name: "peer without a port", peers: []string{"192.0.2.2"}, want: []string{}},
+		// The peer side is unmapped before it is compared, so the bootstrap
+		// side has to be too, or these never match.
+		{name: "peer as 4-in-6 with port", peers: []string{"[::ffff:192.0.2.2]:7946"}, want: []string{}},
+		{name: "peer as 4-in-6 without a port", peers: []string{"::ffff:192.0.2.2"}, want: []string{}},
+		{name: "ourselves", peers: []string{"192.0.2.1"}, want: []string{}},
+		{name: "unparseable", peers: []string{"not-an-address"}, want: []string{}},
+		{name: "an absent bootstrap node", peers: []string{"192.0.2.9:7946"}, want: []string{"192.0.2.9:7946"}},
+		{name: "a peer on another port", peers: []string{"192.0.2.2:9999"}, want: []string{"192.0.2.2:9999"}},
+		// Being attached to one bootstrap node says nothing about the others.
+		{
+			name:  "only the ones which are absent",
+			peers: []string{"192.0.2.2", "192.0.2.9:7946", "192.0.2.1"},
+			want:  []string{"192.0.2.9:7946"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Check(t, is.DeepEqual(db.bootstrapPeersToRejoin(tc.peers), tc.want))
+		})
+	}
+}
+
+// TestRetryJoinAttemptsBeforeTicking pins that retryJoin makes its first
+// attempt straight away. Waiting out a tick first makes the whole call a no-op
+// for any caller whose budget is shorter than retryInterval, and no test which
+// drives a real cluster would notice: they all allow a budget several ticks
+// long.
+func TestRetryJoinAttemptsBeforeTicking(t *testing.T) {
+	conf := DefaultConfig()
+	conf.BindAddr = "127.0.0.1"
+	conf.AdvertiseAddr = conf.BindAddr
+
+	launch := func(name string) *NetworkDB {
+		t.Helper()
+		c := *conf
+		c.Hostname = name
+		c.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
+		c.BindPort = int(dbPort.Add(1))
+		return launchNode(t, c)
+	}
+	// Deliberately not joined to each other: retryJoin is the only thing which
+	// puts them in touch.
+	a, b := launch("node1"), launch("node2")
+	defer closeNetworkDBInstances(t, []*NetworkDB{a, b})
+
+	ctx, cancel := context.WithTimeout(t.Context(), retryInterval/10)
+	defer cancel()
+	a.retryJoin(ctx, []string{net.JoinHostPort(b.config.AdvertiseAddr, strconv.Itoa(b.config.BindPort))})
+
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		a.RLock()
+		defer a.RUnlock()
+		if _, ok := a.nodes[b.config.NodeID]; ok {
+			return poll.Success()
+		}
+		return poll.Continue("waiting for the join made inside the budget to have taken")
+	}, poll.WithDelay(100*time.Millisecond), poll.WithTimeout(30*time.Second))
 }

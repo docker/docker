@@ -10,6 +10,7 @@ import (
 	cerrdefs "github.com/containerd/errdefs"
 	cacheimporttypes "github.com/moby/buildkit/cache/remotecache/v1/types"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/util/bklog"
 	"github.com/moby/buildkit/util/compression"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -136,48 +137,40 @@ func marshalRemote(ctx context.Context, r *solver.Remote, state *marshalState) s
 
 	if r.Provider != nil {
 		for _, d := range r.Descriptors {
-			if _, err := r.Provider.Info(ctx, d.Digest); err != nil {
-				if !cerrdefs.IsNotImplemented(err) {
-					return ""
-				}
+			if _, err := r.Provider.Info(ctx, d.Digest); err != nil && !cerrdefs.IsNotImplemented(err) {
+				bklog.G(ctx).WithError(err).Warnf("skipping cache result: blob %s is not available", d.Digest)
+				return ""
 			}
 		}
 	}
 
 	var parentID string
-	if len(r.Descriptors) > 1 {
-		r2 := &solver.Remote{
-			Descriptors: r.Descriptors[:len(r.Descriptors)-1],
-			Provider:    r.Provider,
+	for _, desc := range r.Descriptors {
+		if desc.MediaType != "" {
+			desc = compression.ConvertAllLayerMediaTypes(ctx, true, desc)[0]
 		}
-		parentID = marshalRemote(ctx, r2, state)
-	}
-	desc := r.Descriptors[len(r.Descriptors)-1]
-	if desc.MediaType != "" {
-		desc = compression.ConvertAllLayerMediaTypes(ctx, true, desc)[0]
-	}
 
-	state.descriptors[desc.Digest] = DescriptorProviderPair{
-		Descriptor: desc,
-		Provider:   r.Provider,
-	}
+		state.descriptors[desc.Digest] = DescriptorProviderPair{
+			Descriptor: desc,
+			Provider:   r.Provider,
+		}
 
-	id := desc.Digest.String() + parentID
+		id := desc.Digest.String() + parentID
 
-	if _, ok := state.chainsByID[id]; ok {
-		return id
+		if _, ok := state.chainsByID[id]; !ok {
+			state.chainsByID[id] = len(state.layers)
+			l := cacheimporttypes.CacheLayer{
+				Blob:        desc.Digest,
+				ParentIndex: -1,
+			}
+			if parentID != "" {
+				l.ParentIndex = state.chainsByID[parentID]
+			}
+			state.layers = append(state.layers, l)
+		}
+		parentID = id
 	}
-
-	state.chainsByID[id] = len(state.layers)
-	l := cacheimporttypes.CacheLayer{
-		Blob:        desc.Digest,
-		ParentIndex: -1,
-	}
-	if parentID != "" {
-		l.ParentIndex = state.chainsByID[parentID]
-	}
-	state.layers = append(state.layers, l)
-	return id
+	return parentID
 }
 
 func marshalItem(ctx context.Context, it *item, state *marshalState) error {

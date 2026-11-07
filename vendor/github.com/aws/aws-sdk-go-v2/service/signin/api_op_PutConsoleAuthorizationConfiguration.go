@@ -4,6 +4,8 @@ package signin
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/signin/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 	"github.com/aws/smithy-go/ptr"
 )
@@ -33,6 +35,17 @@ type PutConsoleAuthorizationConfigurationInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutConsoleAuthorizationConfigurationInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutConsoleAuthorizationConfigurationInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutConsoleAuthorizationConfigurationInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.TargetId != nil {
+		s.WriteString(schemas.PutConsoleAuthorizationConfigurationInput_targetId, *v.TargetId)
+	}
+}
 func (in *PutConsoleAuthorizationConfigurationInput) bindEndpointParams(p *EndpointParameters) {
 
 	p.IsControlPlane = ptr.Bool(true)
@@ -62,13 +75,44 @@ type PutConsoleAuthorizationConfigurationOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *PutConsoleAuthorizationConfigurationOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.PutConsoleAuthorizationConfigurationOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *PutConsoleAuthorizationConfigurationOutput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ConsoleAuthorizationEnabled != nil {
+		s.WriteBool(schemas.PutConsoleAuthorizationConfigurationOutput_consoleAuthorizationEnabled, *v.ConsoleAuthorizationEnabled)
+	}
+	if v.Scope != nil {
+		s.WriteString(schemas.PutConsoleAuthorizationConfigurationOutput_scope, *v.Scope)
+	}
+	if v.TargetId != nil {
+		s.WriteString(schemas.PutConsoleAuthorizationConfigurationOutput_targetId, *v.TargetId)
+	}
+}
+func (v *PutConsoleAuthorizationConfigurationOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.PutConsoleAuthorizationConfigurationOutput, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.PutConsoleAuthorizationConfigurationOutput_consoleAuthorizationEnabled:
+			v.ConsoleAuthorizationEnabled = new(bool)
+			return d.ReadBool(schemas.PutConsoleAuthorizationConfigurationOutput_consoleAuthorizationEnabled, v.ConsoleAuthorizationEnabled)
+		case schemas.PutConsoleAuthorizationConfigurationOutput_scope:
+			v.Scope = new(string)
+			return d.ReadString(schemas.PutConsoleAuthorizationConfigurationOutput_scope, v.Scope)
+		case schemas.PutConsoleAuthorizationConfigurationOutput_targetId:
+			v.TargetId = new(string)
+			return d.ReadString(schemas.PutConsoleAuthorizationConfigurationOutput_targetId, v.TargetId)
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationPutConsoleAuthorizationConfigurationMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsRestjson1_serializeOpPutConsoleAuthorizationConfiguration{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutConsoleAuthorizationConfiguration, schemas.PutConsoleAuthorizationConfigurationInput, schemas.PutConsoleAuthorizationConfigurationOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsRestjson1_deserializeOpPutConsoleAuthorizationConfiguration{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.PutConsoleAuthorizationConfiguration, schemas.PutConsoleAuthorizationConfigurationInput, schemas.PutConsoleAuthorizationConfigurationOutput), output: &PutConsoleAuthorizationConfigurationOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

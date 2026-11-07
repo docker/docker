@@ -17,6 +17,7 @@ api_diff=$(
 		':(exclude)api/Dockerfile' \
 		':(exclude)api/README.md' \
 		':(exclude)api/swagger.yaml' \
+		':(exclude)api/openapi.yaml' \
 		':(exclude)api/docs/' \
 		| filter_diff \
 		|| true

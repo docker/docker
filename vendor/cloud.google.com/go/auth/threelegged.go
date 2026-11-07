@@ -67,6 +67,9 @@ type Options3LO struct {
 	// refreshed. If not set the default value is 3 minutes and 45 seconds.
 	// Optional.
 	EarlyTokenExpiry time.Duration
+	// DisableAsyncRefresh configures a synchronous workflow that refreshes
+	// stale tokens while blocking. The default is false. Optional.
+	DisableAsyncRefresh bool
 
 	// AuthHandlerOpts provides a set of options for doing a
 	// 3-legged OAuth2 flow with a custom [AuthorizationHandler]. Optional.
@@ -192,7 +195,8 @@ func New3LOTokenProvider(opts *Options3LO) (TokenProvider, error) {
 		return new3LOTokenProviderWithAuthHandler(opts), nil
 	}
 	return NewCachedTokenProvider(&tokenProvider3LO{opts: opts, refreshToken: opts.RefreshToken, client: opts.client()}, &CachedTokenProviderOptions{
-		ExpireEarly: opts.EarlyTokenExpiry,
+		ExpireEarly:         opts.EarlyTokenExpiry,
+		DisableAsyncRefresh: opts.DisableAsyncRefresh,
 	}), nil
 }
 
@@ -211,7 +215,8 @@ type AuthorizationHandlerOptions struct {
 
 func new3LOTokenProviderWithAuthHandler(opts *Options3LO) TokenProvider {
 	return NewCachedTokenProvider(&tokenProviderWithHandler{opts: opts, state: opts.AuthHandlerOpts.State}, &CachedTokenProviderOptions{
-		ExpireEarly: opts.EarlyTokenExpiry,
+		ExpireEarly:         opts.EarlyTokenExpiry,
+		DisableAsyncRefresh: opts.DisableAsyncRefresh,
 	})
 }
 

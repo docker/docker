@@ -21,9 +21,104 @@ jobs:
     steps:
       -
         name: Labels
-        uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
-          sync-labels: false
+          script: |
+            const pr = context.payload.pull_request;
+            const files = await github.paginate(
+              github.rest.pulls.listFiles,
+              { ...context.repo, pull_number: pr.number, per_page: 100 },
+              (res) => res.data.map((f) => f.filename),
+            );
+            if (files.length === 0) {
+              return;
+            }
+
+            // Only * and ** wildcards are used; include dotfiles and hidden directories.
+            const matches = (f, globs) => globs.some((g) => {
+              const pattern = g.split(/(\*\*\/|\*\*|\*)/).map((part) => {
+                if (part === '**/') return '(?:.*/)?';
+                if (part === '**') return '.*';
+                if (part === '*') return '[^/]*';
+                return RegExp.escape(part);
+              }).join('');
+              return new RegExp(`^${pattern}$`).test(f);
+            });
+            const nonVendor = (f) => !f.startsWith('vendor/');
+            const anyFile = (...globs) => files.some((f) => matches(f, globs));
+            const anyNonVendorFile = (...globs) => files.some((f) => nonVendor(f) && matches(f, globs));
+            const allNonVendorFiles = (...globs) => files.every((f) => nonVendor(f) && matches(f, globs));
+
+            const buildkit = anyFile('daemon/internal/builder-next/**', 'vendor/github.com/moby/buildkit/**');
+            const classicBuilder = anyFile('daemon/images/*_build*', 'daemon/builder/**');
+            const current = new Set(pr.labels.map((l) => l.name));
+
+            const areas = {
+              'area/builder/buildkit': buildkit,
+              'area/builder/classic-builder': classicBuilder,
+              'area/builder': buildkit || classicBuilder,
+              'area/networking': anyFile(
+                'api/types/network/**',
+                'daemon/network*',
+                'daemon/network/**',
+                'daemon/libnetwork/**',
+                'integration/network/**',
+                'integration/networking/**',
+              ),
+              'area/volumes': anyFile('api/types/volume/**', 'daemon/volume/**', 'integration/volume/**'),
+              'area/swarm': anyFile('api/types/swarm/**', 'daemon/cluster/**'),
+              'area/images': anyFile('api/types/image/**', 'daemon/images/**', 'daemon/internal/image/**', 'integration/image/**'),
+              'area/plugins': anyFile('api/types/plugin/**', 'daemon/pkg/plugin/**'),
+              'area/extensions': anyFile('extpoints/**'),
+              'area/logging': anyFile('daemon/logger/**') || anyNonVendorFile('**/*logs*', '**/*logdriver*', '**/*logging*'),
+              'area/security': anyNonVendorFile('**/*apparmor*', '**/*seccomp*', '**/*selinux*'),
+              'area/security/apparmor': anyFile('contrib/apparmor/**') || anyNonVendorFile('**/*apparmor*'),
+              'area/security/selinux': anyFile('contrib/selinux/**') || anyNonVendorFile('**/*selinux*'),
+              'area/security/seccomp': anyNonVendorFile('**/*seccomp*'),
+              'containerd-integration': anyFile('daemon/containerd/**'),
+              'area/rootless': anyFile('contrib/dockerd-rootless*') || anyNonVendorFile('**/*rootless*'),
+            };
+
+            let labels = Object.entries({
+              'module/client': anyFile('client/**'),
+              'module/api': anyFile('api/**'),
+              'area/daemon': anyFile('daemon/**') && !Object.entries(areas).some(([label, matched]) => matched || current.has(label)),
+              ...areas,
+              'area/systemd': anyFile('contrib/init/systemd/**') || anyNonVendorFile('**/*systemd*'),
+              'area/contrib': anyFile('contrib/**'),
+              'area/packaging': anyFile(
+                'contrib/dockerd-rootless.sh',
+                'contrib/dockerd-rootless-setuptool.sh',
+                'contrib/init/systemd/**',
+              ),
+              'area/testing': anyNonVendorFile('integration/**', 'integration-cli/**', 'internal/test*', 'internal/testutil/**'),
+              'area/docs': anyNonVendorFile('api/docs/*.yaml', 'docs/**', '**/*.md', 'man/**'),
+              'area/dependencies': files.every((f) => matches(f, ['go.mod', 'go.sum', 'vendor/**'])),
+              'area/ci': anyFile('.github/**', 'hack/validate/**', '.golangci.yml'),
+              'platform/windows': allNonVendorFiles('**/*_windows.go', 'Dockerfile.windows'),
+              'impact/changelog': anyFile('api/docs/CHANGELOG.md'),
+            }).filter(([label, matched]) => matched && !current.has(label)).map(([label]) => label);
+            if (labels.length === 0) {
+              return;
+            }
+
+            // Labels are only ever added here, so any removal was deliberate
+            // and must not be undone on the next push.
+            const removed = new Set(await github.paginate(
+              github.rest.issues.listEvents,
+              { ...context.repo, issue_number: pr.number, per_page: 100 },
+              (res) => res.data.filter((e) => e.event === 'unlabeled').map((e) => e.label.name),
+            ));
+            labels = labels.filter((label) => !removed.has(label));
+            if (labels.length === 0) {
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: pr.number,
+              labels,
+            });
 
   ai-assisted:
     if: github.repository == 'moby/moby'

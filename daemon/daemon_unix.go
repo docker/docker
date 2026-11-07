@@ -28,6 +28,7 @@ import (
 	"github.com/moby/moby/v2/daemon/config"
 	"github.com/moby/moby/v2/daemon/container"
 	"github.com/moby/moby/v2/daemon/initlayer"
+	"github.com/moby/moby/v2/daemon/internal/ocihook"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/internal/usergroup"
 	"github.com/moby/moby/v2/daemon/libnetwork"
@@ -827,6 +828,17 @@ func configureKernelSecuritySupport(config *config.Config, driverName string) er
 	return nil
 }
 
+// initOCIHooks starts the server for OCI hooks the daemon installs in
+// containers it does not start itself.
+func (daemon *Daemon) initOCIHooks(cfg *config.Config) error {
+	s, err := ocihook.Listen(filepath.Join(cfg.GetExecRoot(), "oci-hook.sock"))
+	if err != nil {
+		return fmt.Errorf("error starting OCI hook server: %w", err)
+	}
+	daemon.ociHooks = s
+	return nil
+}
+
 // initNetworkController initializes the libnetwork controller and configures
 // network settings. If there's active sandboxes, configuration changes will not
 // take effect.
@@ -915,6 +927,7 @@ func setHostGatewayIP(controller *libnetwork.Controller, config *config.Config) 
 // options.
 func networkPlatformOptions(conf *config.Config) []nwconfig.Option {
 	return []nwconfig.Option{
+		nwconfig.OptionNetnsDir(filepath.Join(conf.GetExecRoot(), "netns")),
 		nwconfig.OptionRootless(conf.Rootless),
 		nwconfig.OptionUserlandProxy(conf.EnableUserlandProxy, conf.UserlandProxyPath),
 		nwconfig.OptionBridgeConfig(bridge.Configuration{

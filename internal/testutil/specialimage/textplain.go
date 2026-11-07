@@ -3,6 +3,7 @@ package specialimage
 import (
 	"strings"
 
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -35,7 +36,7 @@ func TextPlain(dir string) (*ocispec.Index, error) {
 		return nil, err
 	}
 	desc.Annotations = map[string]string{
-		"io.containerd.image.name": ref.String(),
+		c8dimages.AnnotationImageName: ref.String(),
 	}
 
 	return ociImage(dir, nil, desc)

@@ -85,14 +85,12 @@ type NetworkWalker func(nw *Network) bool
 
 // Controller manages networks.
 type Controller struct {
-	id               string
 	drvRegistry      drvregistry.Networks
 	ipamRegistry     drvregistry.IPAMs
 	pmRegistry       drvregistry.PortMappers
 	sandboxes        map[string]*Sandbox
 	cfg              *config.Config
 	store            *datastore.Store
-	extKeyListener   net.Listener
 	svcRecords       map[string]*svcInfo
 	serviceBindings  map[serviceKey]*service
 	ingressSandbox   *Sandbox
@@ -158,7 +156,6 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 	}
 
 	c := &Controller{
-		id:               stringid.GenerateRandomID(),
 		cfg:              cfg,
 		store:            datastore.New(kv),
 		sandboxes:        map[string]*Sandbox{},
@@ -169,6 +166,10 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 		agentInitDone:    make(chan struct{}),
 		networkLocker:    locker.New(),
 		diagnosticServer: diagnostic.New(),
+	}
+
+	if err := c.createNetnsDir(); err != nil {
+		return nil, err
 	}
 
 	if err := c.selectFirewallBackend(); err != nil {
@@ -199,7 +200,7 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 
 	c.WalkNetworks(func(nw *Network) bool {
 		if n := nw; n.hasSpecialDriver() && !n.ConfigOnly() {
-			if err := n.getController().addNetwork(ctx, n); err != nil {
+			if err := n.controller.addNetwork(ctx, n); err != nil {
 				log.G(ctx).Warnf("Failed to populate network %q with driver %q", nw.Name(), nw.Type())
 			}
 		}
@@ -220,10 +221,6 @@ func New(ctx context.Context, cfgOptions ...config.Option) (_ *Controller, retEr
 		log.G(ctx).WithError(err).Warnf("error during endpoint cleanup")
 	}
 	c.networkCleanup()
-
-	if err := c.startExternalKeyListener(); err != nil {
-		return nil, err
-	}
 
 	c.setupPlatformFirewall()
 	return c, nil
@@ -385,11 +382,6 @@ func (c *Controller) agentStopComplete() {
 	c.mu.Unlock()
 }
 
-// ID returns the controller's unique identity.
-func (c *Controller) ID() string {
-	return c.id
-}
-
 // BuiltinDrivers returns the list of builtin network drivers.
 func (c *Controller) BuiltinDrivers() []string {
 	drivers := []string{}
@@ -539,7 +531,7 @@ func (c *Controller) NewNetwork(ctx context.Context, networkType, name string, i
 		enableIPv4:       true,
 		id:               id,
 		created:          time.Now(),
-		ctrlr:            c,
+		controller:       c,
 		persist:          true,
 		drvOnce:          &sync.Once{},
 		loadBalancerMode: loadBalancerModeDefault,
@@ -768,7 +760,7 @@ func (c *Controller) reservePools() {
 			log.G(context.TODO()).Warnf("Failed to allocate ipam pool(s) for network %q (%s): %v", n.Name(), n.ID(), err)
 		}
 		// Reserve existing endpoints' addresses
-		ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+		ipam, _, err := n.controller.getIPAMDriver(n.ipamType)
 		if err != nil {
 			log.G(context.TODO()).Warnf("Failed to retrieve ipam driver for network %q (%s) during address reservation", n.Name(), n.ID())
 			continue
@@ -792,7 +784,7 @@ func (c *Controller) reservePools() {
 }
 
 func doReplayPoolReserve(n *Network) bool {
-	_, caps, err := n.getController().getIPAMDriver(n.ipamType)
+	_, caps, err := n.controller.getIPAMDriver(n.ipamType)
 	if err != nil {
 		log.G(context.TODO()).Warnf("Failed to retrieve ipam driver for network %q (%s): %v", n.Name(), n.ID(), err)
 		return false
@@ -873,6 +865,9 @@ func (c *Controller) NetworkByID(id string) (*Network, error) {
 func (c *Controller) NewSandbox(ctx context.Context, containerID string, options ...SandboxOption) (_ *Sandbox, retErr error) {
 	if containerID == "" {
 		return nil, types.InvalidParameterErrorf("invalid container ID")
+	}
+	if err := c.requireNetnsDir(); err != nil {
+		return nil, err
 	}
 
 	ctx, span := otel.Tracer("").Start(ctx, "libnetwork.Controller.NewSandbox")
@@ -1112,11 +1107,6 @@ func (c *Controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 	}
 
 	return id, caps, nil
-}
-
-// Stop stops the network controller.
-func (c *Controller) Stop() {
-	c.stopExternalKeyListener()
 }
 
 // StartDiagnostic starts the network diagnostic server listening on port.

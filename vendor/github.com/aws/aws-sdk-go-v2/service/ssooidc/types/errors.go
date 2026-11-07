@@ -4,6 +4,7 @@ package types
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/ssooidc/schemas"
 	smithy "github.com/aws/smithy-go"
 )
 
@@ -36,6 +37,43 @@ func (e *AccessDeniedException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *AccessDeniedException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *AccessDeniedException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AccessDeniedException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AccessDeniedException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != nil {
+		s.WriteString(schemas.AccessDeniedException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.AccessDeniedException_error_description, *v.Error_description)
+	}
+	if v.Reason != "" {
+		s.WriteString(schemas.AccessDeniedException_reason, string(v.Reason))
+	}
+}
+func (v *AccessDeniedException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.AccessDeniedException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.AccessDeniedException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.AccessDeniedException_error, v.Error_)
+		case schemas.AccessDeniedException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.AccessDeniedException_error_description, v.Error_description)
+		case schemas.AccessDeniedException_reason:
+			var ev string
+			if err := d.ReadString(schemas.AccessDeniedException_reason, &ev); err != nil {
+				return err
+			}
+			v.Reason = AccessDeniedExceptionReason(ev)
+			return nil
+		}
+		return nil
+	})
+}
 
 // Indicates that a request to authorize a client with an access user session
 // token is pending.
@@ -66,6 +104,33 @@ func (e *AuthorizationPendingException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *AuthorizationPendingException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *AuthorizationPendingException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AuthorizationPendingException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AuthorizationPendingException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != nil {
+		s.WriteString(schemas.AuthorizationPendingException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.AuthorizationPendingException_error_description, *v.Error_description)
+	}
+}
+func (v *AuthorizationPendingException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.AuthorizationPendingException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.AuthorizationPendingException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.AuthorizationPendingException_error, v.Error_)
+		case schemas.AuthorizationPendingException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.AuthorizationPendingException_error_description, v.Error_description)
+		}
+		return nil
+	})
+}
 
 // Indicates that the token issued by the service is expired and is no longer
 // valid.
@@ -96,6 +161,33 @@ func (e *ExpiredTokenException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *ExpiredTokenException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *ExpiredTokenException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.ExpiredTokenException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *ExpiredTokenException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != nil {
+		s.WriteString(schemas.ExpiredTokenException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.ExpiredTokenException_error_description, *v.Error_description)
+	}
+}
+func (v *ExpiredTokenException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.ExpiredTokenException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.ExpiredTokenException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.ExpiredTokenException_error, v.Error_)
+		case schemas.ExpiredTokenException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.ExpiredTokenException_error_description, v.Error_description)
+		}
+		return nil
+	})
+}
 
 // Indicates that an error from the service occurred while trying to process a
 // request.
@@ -126,6 +218,33 @@ func (e *InternalServerException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *InternalServerException) ErrorFault() smithy.ErrorFault { return smithy.FaultServer }
+func (v *InternalServerException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InternalServerException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InternalServerException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != nil {
+		s.WriteString(schemas.InternalServerException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.InternalServerException_error_description, *v.Error_description)
+	}
+}
+func (v *InternalServerException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InternalServerException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InternalServerException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.InternalServerException_error, v.Error_)
+		case schemas.InternalServerException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.InternalServerException_error_description, v.Error_description)
+		}
+		return nil
+	})
+}
 
 // Indicates that the clientId or clientSecret in the request is invalid. For
 // example, this can occur when a client sends an incorrect clientId or an expired
@@ -157,6 +276,33 @@ func (e *InvalidClientException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *InvalidClientException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *InvalidClientException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InvalidClientException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InvalidClientException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != nil {
+		s.WriteString(schemas.InvalidClientException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.InvalidClientException_error_description, *v.Error_description)
+	}
+}
+func (v *InvalidClientException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InvalidClientException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InvalidClientException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.InvalidClientException_error, v.Error_)
+		case schemas.InvalidClientException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.InvalidClientException_error_description, v.Error_description)
+		}
+		return nil
+	})
+}
 
 // Indicates that the client information sent in the request during registration
 // is invalid.
@@ -187,6 +333,33 @@ func (e *InvalidClientMetadataException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *InvalidClientMetadataException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *InvalidClientMetadataException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InvalidClientMetadataException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InvalidClientMetadataException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != nil {
+		s.WriteString(schemas.InvalidClientMetadataException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.InvalidClientMetadataException_error_description, *v.Error_description)
+	}
+}
+func (v *InvalidClientMetadataException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InvalidClientMetadataException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InvalidClientMetadataException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.InvalidClientMetadataException_error, v.Error_)
+		case schemas.InvalidClientMetadataException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.InvalidClientMetadataException_error_description, v.Error_description)
+		}
+		return nil
+	})
+}
 
 // Indicates that a request contains an invalid grant. This can occur if a client
 // makes a CreateTokenrequest with an invalid grant type.
@@ -217,6 +390,33 @@ func (e *InvalidGrantException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *InvalidGrantException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *InvalidGrantException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InvalidGrantException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InvalidGrantException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != nil {
+		s.WriteString(schemas.InvalidGrantException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.InvalidGrantException_error_description, *v.Error_description)
+	}
+}
+func (v *InvalidGrantException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InvalidGrantException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InvalidGrantException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.InvalidGrantException_error, v.Error_)
+		case schemas.InvalidGrantException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.InvalidGrantException_error_description, v.Error_description)
+		}
+		return nil
+	})
+}
 
 // Indicates that one or more redirect URI in the request is not supported for
 // this operation.
@@ -247,6 +447,33 @@ func (e *InvalidRedirectUriException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *InvalidRedirectUriException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *InvalidRedirectUriException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InvalidRedirectUriException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InvalidRedirectUriException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != nil {
+		s.WriteString(schemas.InvalidRedirectUriException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.InvalidRedirectUriException_error_description, *v.Error_description)
+	}
+}
+func (v *InvalidRedirectUriException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InvalidRedirectUriException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InvalidRedirectUriException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.InvalidRedirectUriException_error, v.Error_)
+		case schemas.InvalidRedirectUriException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.InvalidRedirectUriException_error_description, v.Error_description)
+		}
+		return nil
+	})
+}
 
 // Indicates that something is wrong with the input to the request. For example, a
 // required parameter might be missing or out of range.
@@ -278,6 +505,43 @@ func (e *InvalidRequestException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *InvalidRequestException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *InvalidRequestException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InvalidRequestException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InvalidRequestException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != nil {
+		s.WriteString(schemas.InvalidRequestException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.InvalidRequestException_error_description, *v.Error_description)
+	}
+	if v.Reason != "" {
+		s.WriteString(schemas.InvalidRequestException_reason, string(v.Reason))
+	}
+}
+func (v *InvalidRequestException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InvalidRequestException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InvalidRequestException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.InvalidRequestException_error, v.Error_)
+		case schemas.InvalidRequestException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.InvalidRequestException_error_description, v.Error_description)
+		case schemas.InvalidRequestException_reason:
+			var ev string
+			if err := d.ReadString(schemas.InvalidRequestException_reason, &ev); err != nil {
+				return err
+			}
+			v.Reason = InvalidRequestExceptionReason(ev)
+			return nil
+		}
+		return nil
+	})
+}
 
 // Indicates that a token provided as input to the request was issued by and is
 // only usable by calling IAM Identity Center endpoints in another region.
@@ -310,6 +574,45 @@ func (e *InvalidRequestRegionException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *InvalidRequestRegionException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *InvalidRequestRegionException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InvalidRequestRegionException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InvalidRequestRegionException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Endpoint != nil {
+		s.WriteString(schemas.InvalidRequestRegionException_endpoint, *v.Endpoint)
+	}
+	if v.Error_ != nil {
+		s.WriteString(schemas.InvalidRequestRegionException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.InvalidRequestRegionException_error_description, *v.Error_description)
+	}
+	if v.Region != nil {
+		s.WriteString(schemas.InvalidRequestRegionException_region, *v.Region)
+	}
+}
+func (v *InvalidRequestRegionException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InvalidRequestRegionException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InvalidRequestRegionException_endpoint:
+			v.Endpoint = new(string)
+			return d.ReadString(schemas.InvalidRequestRegionException_endpoint, v.Endpoint)
+		case schemas.InvalidRequestRegionException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.InvalidRequestRegionException_error, v.Error_)
+		case schemas.InvalidRequestRegionException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.InvalidRequestRegionException_error_description, v.Error_description)
+		case schemas.InvalidRequestRegionException_region:
+			v.Region = new(string)
+			return d.ReadString(schemas.InvalidRequestRegionException_region, v.Region)
+		}
+		return nil
+	})
+}
 
 // Indicates that the scope provided in the request is invalid.
 type InvalidScopeException struct {
@@ -339,6 +642,33 @@ func (e *InvalidScopeException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *InvalidScopeException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *InvalidScopeException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.InvalidScopeException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *InvalidScopeException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != nil {
+		s.WriteString(schemas.InvalidScopeException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.InvalidScopeException_error_description, *v.Error_description)
+	}
+}
+func (v *InvalidScopeException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.InvalidScopeException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.InvalidScopeException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.InvalidScopeException_error, v.Error_)
+		case schemas.InvalidScopeException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.InvalidScopeException_error_description, v.Error_description)
+		}
+		return nil
+	})
+}
 
 // Indicates that the client is making the request too frequently and is more than
 // the service can handle.
@@ -369,6 +699,33 @@ func (e *SlowDownException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *SlowDownException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *SlowDownException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.SlowDownException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *SlowDownException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != nil {
+		s.WriteString(schemas.SlowDownException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.SlowDownException_error_description, *v.Error_description)
+	}
+}
+func (v *SlowDownException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.SlowDownException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.SlowDownException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.SlowDownException_error, v.Error_)
+		case schemas.SlowDownException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.SlowDownException_error_description, v.Error_description)
+		}
+		return nil
+	})
+}
 
 // Indicates that the client is not currently authorized to make the request. This
 // can happen when a clientId is not issued for a public client.
@@ -399,6 +756,33 @@ func (e *UnauthorizedClientException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *UnauthorizedClientException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *UnauthorizedClientException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.UnauthorizedClientException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *UnauthorizedClientException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != nil {
+		s.WriteString(schemas.UnauthorizedClientException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.UnauthorizedClientException_error_description, *v.Error_description)
+	}
+}
+func (v *UnauthorizedClientException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.UnauthorizedClientException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.UnauthorizedClientException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.UnauthorizedClientException_error, v.Error_)
+		case schemas.UnauthorizedClientException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.UnauthorizedClientException_error_description, v.Error_description)
+		}
+		return nil
+	})
+}
 
 // Indicates that the grant type in the request is not supported by the service.
 type UnsupportedGrantTypeException struct {
@@ -428,3 +812,30 @@ func (e *UnsupportedGrantTypeException) ErrorCode() string {
 	return *e.ErrorCodeOverride
 }
 func (e *UnsupportedGrantTypeException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
+func (v *UnsupportedGrantTypeException) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.UnsupportedGrantTypeException)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *UnsupportedGrantTypeException) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.Error_ != nil {
+		s.WriteString(schemas.UnsupportedGrantTypeException_error, *v.Error_)
+	}
+	if v.Error_description != nil {
+		s.WriteString(schemas.UnsupportedGrantTypeException_error_description, *v.Error_description)
+	}
+}
+func (v *UnsupportedGrantTypeException) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.UnsupportedGrantTypeException, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.UnsupportedGrantTypeException_error:
+			v.Error_ = new(string)
+			return d.ReadString(schemas.UnsupportedGrantTypeException_error, v.Error_)
+		case schemas.UnsupportedGrantTypeException_error_description:
+			v.Error_description = new(string)
+			return d.ReadString(schemas.UnsupportedGrantTypeException_error_description, v.Error_description)
+		}
+		return nil
+	})
+}

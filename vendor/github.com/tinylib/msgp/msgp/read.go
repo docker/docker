@@ -152,6 +152,10 @@ type Reader struct {
 	R              *fwd.Reader
 	scratch        []byte
 	recursionDepth int
+
+	maxRecursionDepth int    // maximum recursion depth
+	maxElements       uint32 // maximum number of elements in arrays and maps
+	maxStrLen         uint64 // maximum number of bytes in any string
 }
 
 // Read implements `io.Reader`
@@ -214,10 +218,53 @@ func (m *Reader) CopyNext(w io.Writer) (int64, error) {
 	return n, nil
 }
 
+// SetMaxRecursionDepth sets the maximum recursion depth.
+func (m *Reader) SetMaxRecursionDepth(d int) {
+	m.maxRecursionDepth = d
+}
+
+// GetMaxRecursionDepth returns the maximum recursion depth.
+// Set to 0 to use the default value of 100000.
+func (m *Reader) GetMaxRecursionDepth() int {
+	if m.maxRecursionDepth <= 0 {
+		return recursionLimit
+	}
+	return m.maxRecursionDepth
+}
+
+// SetMaxElements sets the maximum number of elements to allow in map, bin, array or extension payload.
+// Setting this to 0 will allow any number of elements - math.MaxUint32.
+// This does currently apply to generated code.
+func (m *Reader) SetMaxElements(d uint32) {
+	m.maxElements = d
+}
+
+// GetMaxElements will return the maximum number of elements in a map, bin, array or extension payload.
+func (m *Reader) GetMaxElements() uint32 {
+	if m.maxElements <= 0 {
+		return math.MaxUint32
+	}
+	return m.maxElements
+}
+
+// SetMaxStringLength sets the maximum number of bytes to allow in strings.
+// Setting this == 0 will allow any number of elements - math.MaxUint64.
+func (m *Reader) SetMaxStringLength(d uint64) {
+	m.maxStrLen = d
+}
+
+// GetMaxStringLength will return the current string length limit.
+func (m *Reader) GetMaxStringLength() uint64 {
+	if m.maxStrLen <= 0 {
+		return math.MaxUint64
+	}
+	return min(m.maxStrLen, math.MaxUint64)
+}
+
 // recursiveCall will increment the recursion depth and return an error if it is exceeded.
 // If a nil error is returned, done must be called to decrement the counter.
 func (m *Reader) recursiveCall() (done func(), err error) {
-	if m.recursionDepth >= recursionLimit {
+	if m.recursionDepth >= m.GetMaxRecursionDepth() {
 		return func() {}, ErrRecursion
 	}
 	m.recursionDepth++
@@ -415,7 +462,11 @@ func (m *Reader) ReadMapKey(scratch []byte) ([]byte, error) {
 	out, err := m.ReadStringAsBytes(scratch)
 	if err != nil {
 		if tperr, ok := err.(TypeError); ok && tperr.Encoded == BinType {
-			return m.ReadBytes(scratch)
+			key, err := m.ReadBytes(scratch)
+			if uint64(len(key)) > m.GetMaxStringLength() {
+				return nil, ErrLimitExceeded
+			}
+			return key, err
 		}
 		return nil, err
 	}
@@ -467,6 +518,9 @@ func (m *Reader) ReadMapKeyPtr() ([]byte, error) {
 fill:
 	if read == 0 {
 		return nil, ErrShortBytes
+	}
+	if uint64(read) > m.GetMaxStringLength() {
+		return nil, ErrLimitExceeded
 	}
 	return m.R.Next(read)
 }
@@ -941,6 +995,10 @@ func (m *Reader) ReadBytes(scratch []byte) (b []byte, err error) {
 		return
 	}
 	if int64(cap(scratch)) < read {
+		if read > int64(m.GetMaxElements()) {
+			err = ErrLimitExceeded
+			return
+		}
 		b = make([]byte, read)
 	} else {
 		b = scratch[0:read]
@@ -983,7 +1041,7 @@ func (m *Reader) ReadBytesHeader() (sz uint32, err error) {
 		sz = uint32(big.Uint32(p[1:]))
 		return
 	default:
-		err = badPrefix(BinType, p[0])
+		err = badPrefix(BinType, lead)
 		return
 	}
 }
@@ -1070,6 +1128,10 @@ func (m *Reader) ReadStringAsBytes(scratch []byte) (b []byte, err error) {
 		return
 	}
 fill:
+	if uint64(read) > m.GetMaxStringLength() {
+		err = ErrLimitExceeded
+		return
+	}
 	if int64(cap(scratch)) < read {
 		b = make([]byte, read)
 	} else {
@@ -1165,6 +1227,11 @@ fill:
 		s, err = "", nil
 		return
 	}
+	if uint64(read) > m.GetMaxStringLength() {
+		err = ErrLimitExceeded
+		return
+	}
+
 	// reading into the memory
 	// that will become the string
 	// itself has vastly superior
@@ -1243,6 +1310,10 @@ func (m *Reader) ReadMapStrIntf(mp map[string]interface{}) (err error) {
 	}
 	for key := range mp {
 		delete(mp, key)
+	}
+	if sz > m.GetMaxElements() {
+		err = ErrLimitExceeded
+		return
 	}
 	for i := uint32(0); i < sz; i++ {
 		var key string
@@ -1476,6 +1547,10 @@ func (m *Reader) ReadIntf() (i interface{}, err error) {
 			return nil, err
 		} else {
 			defer done()
+		}
+		if sz > m.GetMaxElements() {
+			err = ErrLimitExceeded
+			return
 		}
 
 		out := make([]interface{}, int(sz))

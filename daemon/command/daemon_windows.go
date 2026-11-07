@@ -135,11 +135,13 @@ func (cli *daemonCLI) initContainerd(ctx context.Context) (func(time.Duration) e
 	}
 	if cli.Config.ContainerdAddr != "" {
 		// use system containerd at the given address.
+		cli.warnUnusedContainerdDropIns(ctx)
 		return nopWaitFunc, nil
 	}
 
 	if cli.Config.DefaultRuntime == "" || cli.Config.DefaultRuntime == config.WindowsV1RuntimeName {
 		// Legacy non-containerd runtime is used
+		cli.warnUnusedContainerdDropIns(ctx)
 		return nopWaitFunc, nil
 	}
 

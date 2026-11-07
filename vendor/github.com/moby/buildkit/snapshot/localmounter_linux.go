@@ -37,6 +37,8 @@ func (lm *localMounter) Mount() (string, error) {
 		}
 	}
 
+	lm.mounts = mount.RemoveVolatileOption(lm.mounts)
+
 	var isFile bool
 	if len(lm.mounts) == 1 && (lm.mounts[0].Type == "bind" || lm.mounts[0].Type == "rbind") {
 		if !lm.forceRemount {

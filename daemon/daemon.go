@@ -38,6 +38,7 @@ import (
 	networktypes "github.com/moby/moby/api/types/network"
 	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/v2/daemon/internal/apisocket"
 	"github.com/moby/moby/v2/daemon/internal/nri"
 	"github.com/moby/sys/user"
 	"github.com/moby/sys/userns"
@@ -70,6 +71,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/libcontainerd"
 	libcontainerdtypes "github.com/moby/moby/v2/daemon/internal/libcontainerd/types"
 	"github.com/moby/moby/v2/daemon/internal/metrics"
+	"github.com/moby/moby/v2/daemon/internal/ocihook"
 	pluginexec "github.com/moby/moby/v2/daemon/internal/plugin/executor/containerd"
 	refstore "github.com/moby/moby/v2/daemon/internal/refstore"
 	"github.com/moby/moby/v2/daemon/libnetwork"
@@ -123,6 +125,7 @@ type Daemon struct {
 	EventsService     *events.Events
 	netController     *libnetwork.Controller
 	netStore          *boltdb.BoltDB
+	ociHooks          *ocihook.Server
 	volumes           *volumesservice.VolumesService
 	root              string
 	sysInfoOnce       sync.Once
@@ -134,6 +137,7 @@ type Daemon struct {
 	nri               *nri.NRI
 	pluginManager     *plugin.Manager
 	extensionHost     *host.Host
+	apiSockets        *apisocket.Manager
 	linkIndex         *linkIndex
 	containerdClient  *containerd.Client
 	containerd        libcontainerdtypes.Client
@@ -502,7 +506,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 					default:
 						// running
 						c.Lock()
-						c.State.Paused = false
+						c.State.SetPaused(false)
 						daemon.setStateCounter(c)
 						daemon.initHealthMonitor(c)
 						if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
@@ -599,7 +603,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 				// be removed. So we put the container in the "dead"
 				// state and leave further processing up to them.
 				c.State.RemovalInProgress = false
-				c.State.Dead = true
+				c.State.SetDead()
 				if err := c.CheckpointTo(context.TODO(), daemon.containersReplica); err != nil {
 					baseLogger.WithError(err).Error("failed to update RemovalInProgress container state")
 				} else {
@@ -931,6 +935,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d := &Daemon{
 		PluginStore: pluginStore,
 		startupDone: make(chan struct{}),
+		apiSockets:  apisocket.NewManager(),
 	}
 	cfgStore := &configStore{
 		Config:   *config,
@@ -1032,6 +1037,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	dlogger.RegisterPluginGetter(d.PluginStore)
 
 	if err := metrics.RegisterPlugin(d.PluginStore, filepath.Join(cfgStore.ExecRoot, "metrics.sock")); err != nil {
+		return nil, err
+	}
+
+	if err := d.initOCIHooks(&cfgStore.Config); err != nil {
 		return nil, err
 	}
 
@@ -1550,6 +1559,11 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 			log.G(ctx).WithError(err).Error("failed to shut down extensions")
 		}
 	}
+	// Close the API sockets only after extensions have shut down, so they can
+	// still use the API while shutting down.
+	if err := daemon.apiSockets.Close(); err != nil {
+		log.G(ctx).WithError(err).Error("failed to close API sockets")
+	}
 
 	// Keep mounts and networking running on daemon shutdown if
 	// we are to keep containers running and restore them.
@@ -1611,10 +1625,14 @@ func (daemon *Daemon) Shutdown(ctx context.Context) error {
 		daemon.nri.Shutdown(ctx)
 	}
 
-	// trigger libnetwork Stop only if it's initialized
-	if daemon.netController != nil {
-		daemon.netController.Stop()
+	// Hook callbacks may use the network controller, so wait for them to
+	// return before closing its store.
+	if daemon.ociHooks != nil {
+		if err := daemon.ociHooks.Shutdown(ctx); err != nil {
+			log.G(ctx).WithError(err).Warn("error shutting down OCI hook server")
+		}
 	}
+
 	if daemon.netStore != nil {
 		daemon.netStore.Close()
 	}
@@ -1764,7 +1782,6 @@ func (daemon *Daemon) newNetworkController(ctx context.Context, conf *config.Con
 
 func (daemon *Daemon) networkOptions(conf *config.Config, pg plugingetter.PluginGetter, hostID string, activeSandboxes map[string]any) ([]nwconfig.Option, error) {
 	options := []nwconfig.Option{
-		nwconfig.OptionExecRoot(conf.GetExecRoot()),
 		nwconfig.OptionDefaultDriver(network.DefaultNetwork),
 		nwconfig.OptionDefaultNetwork(network.DefaultNetwork),
 		nwconfig.OptionNetworkControlPlaneMTU(conf.NetworkControlPlaneMTU),

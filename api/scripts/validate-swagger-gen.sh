@@ -20,6 +20,7 @@ for f in "${GEN_FILES[@]}"; do
 	cp "$f" "${TMP_DIR}/${f#${API_DIR}/}"
 done
 
+cp "${API_DIR}/openapi.yaml" "${TMP_DIR}/"
 cp "${API_DIR}/swagger.yaml" "${TMP_DIR}/"
 cp "${API_DIR}/swagger-gen.yaml" "${TMP_DIR}/"
 cp "${API_DIR}/go.mod" "${TMP_DIR}/"

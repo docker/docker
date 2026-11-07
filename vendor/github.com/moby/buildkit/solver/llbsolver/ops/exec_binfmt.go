@@ -71,12 +71,12 @@ func (m *staticEmulatorMount) Mount() ([]mount.Mount, func() error, error) {
 
 	ret = true
 	return []mount.Mount{{
-			Type:    "bind",
-			Source:  filepath.Join(tmpdir, qemuMountName),
-			Options: []string{"ro", "bind"},
-		}}, func() error {
-			return os.RemoveAll(tmpdir)
-		}, nil
+		Type:    "bind",
+		Source:  filepath.Join(tmpdir, qemuMountName),
+		Options: []string{"ro", "bind"},
+	}}, func() error {
+		return os.RemoveAll(tmpdir)
+	}, nil
 }
 
 func (m *staticEmulatorMount) IdentityMapping() *user.IdentityMapping {

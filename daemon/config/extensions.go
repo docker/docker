@@ -5,9 +5,41 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/moby/extensions"
 )
+
+// ExtensionsConfig controls extension activation and startup configuration.
+// Changes take effect on the next daemon start.
+type ExtensionsConfig struct {
+	Enable  []string `json:"enable,omitempty"`
+	Disable []string `json:"disable,omitempty"`
+	Dirs    []string `json:"dirs,omitempty"`
+	// Configs holds opaque configuration keyed by extension ID.
+	// Configuration alone does not enable an extension.
+	// The entry reaches in-process Init directly or a launched binary through
+	// the startup handshake.
+	Configs ExtensionConfigs `json:"configs,omitempty"`
+}
+
+// Validate checks extension IDs and conflicting activation settings.
+func (c ExtensionsConfig) Validate() error {
+	for _, id := range c.Enable {
+		if err := extensions.ValidateExtensionID(extensions.ExtensionID(id)); err != nil {
+			return fmt.Errorf("extensions.enable: %w", err)
+		}
+		if slices.Contains(c.Disable, id) {
+			return fmt.Errorf("extension %q is listed in both extensions.enable and extensions.disable", id)
+		}
+	}
+	for _, id := range c.Disable {
+		if err := extensions.ValidateExtensionID(extensions.ExtensionID(id)); err != nil {
+			return fmt.Errorf("extensions.disable: %w", err)
+		}
+	}
+	return nil
+}
 
 // ExtensionConfig holds the opaque configuration for one extension.
 type ExtensionConfig struct {
@@ -32,7 +64,7 @@ func (c *ExtensionConfigs) UnmarshalJSON(data []byte) error {
 
 	delim, ok := token.(json.Delim)
 	if !ok || delim != '{' {
-		return errors.New("extension-config must be a JSON object")
+		return errors.New("extensions.configs must be a JSON object")
 	}
 
 	configs := make(ExtensionConfigs, 0)
@@ -43,11 +75,11 @@ func (c *ExtensionConfigs) UnmarshalJSON(data []byte) error {
 		}
 		id, ok := token.(string)
 		if !ok {
-			return errors.New("extension-config key must be a string")
+			return errors.New("extensions.configs key must be a string")
 		}
 		extensionID := extensions.ExtensionID(id)
 		if err := extensions.ValidateExtensionID(extensionID); err != nil {
-			return fmt.Errorf("invalid extension-config key %q: %w", id, err)
+			return fmt.Errorf("invalid extensions.configs key %q: %w", id, err)
 		}
 
 		var extensionConfig map[string]any
@@ -78,7 +110,7 @@ func (c ExtensionConfigs) MarshalJSON() ([]byte, error) {
 		}
 
 		if err := extensions.ValidateExtensionID(extensionConfig.ID); err != nil {
-			return nil, fmt.Errorf("invalid extension-config key %q: %w", extensionConfig.ID, err)
+			return nil, fmt.Errorf("invalid extensions.configs key %q: %w", extensionConfig.ID, err)
 		}
 		id, err := json.Marshal(extensionConfig.ID)
 		if err != nil {

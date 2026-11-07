@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/containerd/platforms"
@@ -22,12 +23,14 @@ import (
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/jsonmessage"
 	"github.com/moby/moby/v2/integration/internal/build"
+	"github.com/moby/moby/v2/integration/internal/container"
 	"github.com/moby/moby/v2/internal/testutil"
 	"github.com/moby/moby/v2/internal/testutil/fakecontext"
 	"github.com/moby/moby/v2/internal/testutil/request"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 	"gotest.tools/v3/skip"
 )
 
@@ -706,6 +709,54 @@ func TestBuildWorkdirNoCacheMiss(t *testing.T) {
 			assert.Check(t, is.Equal(firstId, secondId), "expected cache to be used")
 		})
 	}
+}
+
+// TestBuildNetworkModeContainer checks that RUN steps can reach a server
+// listening on localhost in the container named by a "container:<id>"
+// network mode.
+func TestBuildNetworkModeContainer(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "container network mode is not supported on Windows")
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	const hostname = "foobar"
+
+	netCtr := container.Run(ctx, t, apiClient,
+		container.WithHostname(hostname),
+		// Reply with shell builtins: exec'ing /bin/hostname can pick up a host
+		// AppArmor "hostname" profile (seen with stacked docker-default//&unconfined
+		// confinement in CI), which denies writing to the inherited socket.
+		container.WithCmd("nc", "-ll", "-p", "1234", "-e", "sh", "-c", "echo $HOSTNAME"),
+	)
+
+	// The container starts before nc is listening; wait for it to serve
+	// the hostname so that the build doesn't race the listener.
+	poll.WaitOn(t, func(poll.LogT) poll.Result {
+		res, err := container.Exec(ctx, apiClient, netCtr, []string{"nc", "localhost", "1234"})
+		if err != nil {
+			return poll.Error(err)
+		}
+
+		if out := strings.TrimSpace(res.Stdout()); out != hostname {
+			return poll.Continue("waiting for listener: %q", out)
+		}
+
+		return poll.Success()
+	}, poll.WithTimeout(10*time.Second))
+
+	source := fakecontext.New(t, "", fakecontext.WithDockerfile(`FROM busybox
+RUN nc localhost 1234 > /otherhost
+`))
+	defer source.Close()
+
+	img := build.Do(ctx, t, apiClient, source, client.ImageBuildOptions{
+		Version:     buildtypes.BuilderV1,
+		NetworkMode: "container:" + netCtr,
+	})
+
+	run := container.RunAttach(ctx, t, apiClient, container.WithImage(img), container.WithCmd("cat", "/otherhost"))
+	assert.Check(t, is.Equal(run.ExitCode, 0), run.Stderr.String())
+	assert.Check(t, is.Equal(strings.TrimSpace(run.Stdout.String()), hostname))
 }
 
 func TestBuildEmitsEvents(t *testing.T) {

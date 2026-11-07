@@ -188,7 +188,7 @@ func buildAttestationIndex(t *testing.T, dir string, stmts []attestationLayer, w
 	}
 	idxDesc := provJSON(t, dir, ocispec.MediaTypeImageIndex, idx)
 	idxDesc.Annotations = map[string]string{
-		"io.containerd.image.name": "test:latest",
+		c8dimages.AnnotationImageName: "test:latest",
 	}
 
 	return idxDesc, platformDigest

@@ -158,7 +158,9 @@ func (v *GetQueryResultsOutput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.QueryLanguage != "" {
 		s.WriteString(schemas.GetQueryResultsResponse_queryLanguage, string(v.QueryLanguage))
 	}
-	serializeQueryResults(s, schemas.GetQueryResultsResponse_results, v.Results)
+	if v.Results != nil {
+		serializeQueryResults(s, schemas.GetQueryResultsResponse_results, v.Results)
+	}
 	if v.Statistics != nil {
 		s.WriteStruct(schemas.GetQueryResultsResponse_statistics)
 		v.Statistics.SerializeMembers(s)

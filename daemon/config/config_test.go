@@ -49,15 +49,17 @@ func TestDaemonConfigurationMalformedJSON(t *testing.T) {
 
 func TestDaemonConfigurationExtensionConfig(t *testing.T) {
 	configFile := makeConfigFile(t, `{
-		"extension-config": {
-			"org.example.foo.v1": {"plugin_path": "/opt/foo", "enabled": true},
-			"com.docker.compose.v1": {"workers": 4}
+		"extensions": {
+			"configs": {
+				"org.example.foo.v1": {"plugin_path": "/opt/foo", "enabled": true},
+				"com.docker.compose.v1": {"workers": 4}
+			}
 		}
 	}`)
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	cfg, err := MergeDaemonConfigurations(&Config{}, flags, configFile)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, cfg.ExtensionConfig, ExtensionConfigs{
+	assert.DeepEqual(t, cfg.Extensions.Configs, ExtensionConfigs{
 		{ID: "org.example.foo.v1", Config: map[string]any{
 			"plugin_path": "/opt/foo",
 			"enabled":     true,
@@ -66,6 +68,58 @@ func TestDaemonConfigurationExtensionConfig(t *testing.T) {
 			"workers": float64(4),
 		}},
 	})
+}
+
+func TestDaemonConfigurationRejectsTopLevelExtensionKeys(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		config string
+		key    string
+	}{
+		{
+			name: "activation", key: "extensions.disable",
+			config: `{"extensions.disable": ["org.mobyproject.namesgenerator.legacy.v1"]}`,
+		},
+		{
+			name: "enable flag spelling", key: "extension-enable",
+			config: `{"extension-enable": ["org.example.optional.v1"]}`,
+		},
+		{
+			name: "disable flag spelling", key: "extension-disable",
+			config: `{"extension-disable": ["org.mobyproject.namesgenerator.legacy.v1"]}`,
+		},
+		{
+			name: "configuration", key: "extensions.configs",
+			config: `{"extensions.configs": {"org.example.test.v1": {"workers": 4}}}`,
+		},
+		{
+			name: "unknown empty object", key: "extensions.unknown",
+			config: `{"extensions.unknown": {}}`,
+		},
+		{
+			name: "mixed nested and dotted settings", key: "extensions.disable",
+			config: `{"extensions": {"disable": []}, "extensions.disable": ["org.mobyproject.namesgenerator.legacy.v1"]}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			configFile := makeConfigFile(t, tc.config)
+			cfg := &Config{}
+			var enabled, disabled []string
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			flags.Var(opts.NewNamedListOptsRef("extensions.enable", &enabled, nil), "extension-enable", "")
+			flags.Var(opts.NewNamedListOptsRef("extensions.disable", &disabled, nil), "extension-disable", "")
+			for name, flagSet := range map[string]*pflag.FlagSet{"with flags": flags, "without flags": nil} {
+				t.Run(name, func(t *testing.T) {
+					_, err := MergeDaemonConfigurations(cfg, flagSet, configFile)
+					assert.ErrorContains(t, err, `invalid configuration directive "`+tc.key+`": use the nested "extensions" object`)
+				})
+			}
+		})
+	}
 }
 
 func TestExtensionConfigsMarshalOrder(t *testing.T) {
@@ -100,23 +154,27 @@ func TestExtensionConfigsNullAndEmpty(t *testing.T) {
 
 func TestDaemonConfigurationInvalidExtensionConfigID(t *testing.T) {
 	configFile := makeConfigFile(t, `{
-		"extension-config": {
-			"org.example.foo": {"enabled": true}
+		"extensions": {
+			"configs": {
+				"org.example.foo": {"enabled": true}
+			}
 		}
 	}`)
 
 	_, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
-	assert.ErrorContains(t, err, `invalid extension-config key "org.example.foo"`)
+	assert.ErrorContains(t, err, `invalid extensions.configs key "org.example.foo"`)
 }
 
 func TestDaemonConfigurationExtensionDirs(t *testing.T) {
 	configFile := makeConfigFile(t, `{
-		"extension-dirs": ["/opt/extensions/one", "/opt/extensions/two"]
+		"extensions": {
+			"dirs": ["/opt/extensions/one", "/opt/extensions/two"]
+		}
 	}`)
 
 	cfg, err := MergeDaemonConfigurations(&Config{}, nil, configFile)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, cfg.ExtensionDirs, []string{"/opt/extensions/one", "/opt/extensions/two"})
+	assert.DeepEqual(t, cfg.Extensions.Dirs, []string{"/opt/extensions/one", "/opt/extensions/two"})
 }
 
 // TestDaemonConfigurationUnicodeVariations feeds various variations of Unicode into the JSON parser, ensuring that we
@@ -989,12 +1047,14 @@ func TestSanitize(t *testing.T) {
 				HTTPSProxy: proxyRawURL,
 				NoProxy:    proxyRawURL,
 			},
-			ExtensionConfig: ExtensionConfigs{{
-				ID: extensionID,
-				Config: map[string]any{
-					"secret": extensionSecret,
-				},
-			}},
+			Extensions: ExtensionsConfig{
+				Configs: ExtensionConfigs{{
+					ID: extensionID,
+					Config: map[string]any{
+						"secret": extensionSecret,
+					},
+				}},
+			},
 		},
 	}
 	sanitizedCfg := Sanitize(cfg)
@@ -1008,8 +1068,8 @@ func TestSanitize(t *testing.T) {
 	sanitizedJSON, err := json.Marshal(sanitizedCfg)
 	assert.NilError(t, err)
 	assert.Assert(t, !strings.Contains(string(sanitizedJSON), extensionSecret))
-	assert.Assert(t, !strings.Contains(string(sanitizedJSON), `"extension-config"`))
-	assert.Check(t, is.DeepEqual(cfg.ExtensionConfig[0].Config, map[string]any{
+	assert.Assert(t, !strings.Contains(string(sanitizedJSON), `"configs"`))
+	assert.Check(t, is.DeepEqual(cfg.Extensions.Configs[0].Config, map[string]any{
 		"secret": extensionSecret,
 	}))
 }

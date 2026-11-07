@@ -110,8 +110,9 @@ type (
 	User                     = api.User
 	Image                    = api.Image
 
-	Event     = api.Event
-	EventMask = api.EventMask
+	Event         = api.Event
+	EventMask     = api.EventMask
+	FailurePolicy = api.FailurePolicy
 )
 
 // Aliased consts for api/api.proto.

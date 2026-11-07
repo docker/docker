@@ -6,3 +6,8 @@ Dockerfile* linguist-language=Dockerfile
 *.md   diff=markdown
 *.py   diff=python
 *.sh   diff=bash
+
+*.pb.go linguist-generated=true
+
+/extpoints/**/*.proto linguist-generated=true
+/extpoints/**/protogen/** linguist-generated=true

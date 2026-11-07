@@ -241,7 +241,7 @@ additional daemons and modify host networking and other system configuration.
 For rootless coverage, add `DOCKER_ROOTLESS=1` to the command. The test runner
 still runs as root and starts the rootless daemons as `unprivilegeduser`, which
 the provisioning script creates. Use `DOCKER_GRAPHDRIVER=fuse-overlayfs` when
-SELinux is enabled or the kernel predates 5.11. Reports and daemon logs are
+the kernel predates 5.11. Reports and daemon logs are
 written under `bundles/test-integration/`.
 
 ## Test the Windows binary against a Linux daemon

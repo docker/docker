@@ -40,12 +40,6 @@ func TestGraphDriverPersistence(t *testing.T) {
 	t.Setenv("DOCKER_GRAPHDRIVER", "")
 	t.Setenv("TEST_INTEGRATION_USE_GRAPHDRIVER", "")
 
-	graphdriver := "overlay2"
-	// overlay2 doesn't work rootless with SELinux enforcing; use fuse-overlayfs instead.
-	if testEnv.IsRootless() && testEnv.IsSELinuxEnforcing() {
-		graphdriver = "fuse-overlayfs"
-	}
-
 	ctx := testutil.StartSpan(baseContext, t)
 
 	// Phase 1: Start daemon with explicit graphdriver (overlay2)
@@ -55,7 +49,8 @@ func TestGraphDriverPersistence(t *testing.T) {
 	})
 
 	const testImage = "busybox:latest"
-	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false", "--storage-driver="+graphdriver)
+
+	d.StartWithBusybox(ctx, t, "--iptables=false", "--ip6tables=false", "--storage-driver=overlay2")
 	c := d.NewClientT(t)
 
 	// Verify we're using graphdriver

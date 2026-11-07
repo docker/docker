@@ -100,21 +100,52 @@ func (gc *GzipCompressor) WriteTOCAndFooter(w io.Writer, off int64, toc *JTOC, d
 
 // gzipFooterBytes returns the 51 bytes footer.
 func gzipFooterBytes(tocOff int64) []byte {
-	buf := bytes.NewBuffer(make([]byte, 0, FooterSize))
-	gz, _ := gzip.NewWriterLevel(buf, gzip.NoCompression) // MUST be NoCompression to keep 51 bytes
-
 	// Extra header indicating the offset of TOCJSON
 	// https://tools.ietf.org/html/rfc1952#section-2.3.1.1
 	header := make([]byte, 4)
 	header[0], header[1] = 'S', 'G'
 	subfield := fmt.Sprintf("%016xSTARGZ", tocOff)
 	binary.LittleEndian.PutUint16(header[2:4], uint16(len(subfield))) // little-endian per RFC1952
-	gz.Extra = append(header, []byte(subfield)...)
-	gz.Close()
-	if buf.Len() != FooterSize {
-		panic(fmt.Sprintf("footer buffer = %d, not %d", buf.Len(), FooterSize))
+	extra := append(header, []byte(subfield)...)
+
+	buf := CreateGzipFooter(extra)
+	if len(buf) != FooterSize {
+		panic(fmt.Sprintf("footer buffer = %d, not %d", len(buf), FooterSize))
 	}
-	return buf.Bytes()
+	return buf
+}
+
+// CreateGzipFooter creates eStargz's footer with the specified extra field.
+func CreateGzipFooter(extra []byte) []byte {
+	// Gzip header (10 bytes)
+	// https://datatracker.ietf.org/doc/html/rfc1952
+	buf := make([]byte, 10)
+	buf[0] = 0x1f // ID1
+	buf[1] = 0x8b // ID2
+	buf[2] = 8    // "deflate"
+	buf[3] = 0x4  // FEXTRA
+	// MTIME = 0
+	// XFL = 0
+	buf[9] = 255 // unknown
+
+	// Extra field
+	xlen := make([]byte, 2)
+	binary.LittleEndian.PutUint16(xlen, uint16(len(extra)))
+	buf = append(buf, append(xlen, extra...)...)
+
+	// Flate header (5 bytes)
+	// https://datatracker.ietf.org/doc/html/rfc1951
+	flateHeader := []byte{
+		1,    // BFINAL = 1 (last block), BFTYPE = 0 (no compression), remaining bits are ignored
+		0, 0, // LEN = 0
+		0xff, 0xff, // NLEN (the one's complement of LEN)
+	}
+	buf = append(buf, flateHeader...)
+
+	// Gzip footer (8 bytes): CRC32 = 0, ISIZE = 0
+	buf = append(buf, make([]byte, 8)...)
+
+	return buf
 }
 
 type GzipDecompressor struct{}
@@ -137,6 +168,9 @@ func (gz *GzipDecompressor) ParseFooter(p []byte) (blobPayloadSize, tocOffset, t
 	}
 	defer zr.Close()
 	extra := zr.Extra
+	if len(extra) < 4 {
+		return 0, 0, 0, fmt.Errorf("invalid extra field length %d; expected >= 4", len(extra))
+	}
 	si1, si2, subfieldlen, subfield := extra[0], extra[1], extra[2:4], extra[4:]
 	if si1 != 'S' || si2 != 'G' {
 		return 0, 0, 0, fmt.Errorf("invalid subfield IDs: %q, %q; want E, S", si1, si2)

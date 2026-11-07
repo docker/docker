@@ -233,6 +233,11 @@ func configureMaxThreads(_ context.Context) error {
 	return nil
 }
 
+// initOCIHooks is a no-op on Windows, where nothing installs OCI hooks.
+func (daemon *Daemon) initOCIHooks(*config.Config) error {
+	return nil
+}
+
 func (daemon *Daemon) initNetworkController(daemonCfg *config.Config, activeSandboxes map[string]any) error {
 	netOptions, err := daemon.networkOptions(daemonCfg, nil, daemon.id, nil)
 	if err != nil {

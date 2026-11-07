@@ -141,7 +141,9 @@ func (v *DescribeLogStreamsOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeLogStreamsOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeLogStreams(s, schemas.DescribeLogStreamsResponse_logStreams, v.LogStreams)
+	if v.LogStreams != nil {
+		serializeLogStreams(s, schemas.DescribeLogStreamsResponse_logStreams, v.LogStreams)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeLogStreamsResponse_nextToken, *v.NextToken)
 	}

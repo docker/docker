@@ -45,12 +45,13 @@ type Puller struct {
 var _ content.Provider = &provider{}
 
 type PulledManifests struct {
-	Ref              string
-	MainManifestDesc ocispecs.Descriptor
-	ConfigDesc       ocispecs.Descriptor
-	Nonlayers        []ocispecs.Descriptor
-	Descriptors      []ocispecs.Descriptor
-	Provider         func(session.Group) content.Provider
+	Ref               string
+	RootManifestDesc  ocispecs.Descriptor
+	ImageManifestDesc ocispecs.Descriptor // Platform-specific manifest selected from RootManifestDesc.
+	ConfigDesc        ocispecs.Descriptor
+	Nonlayers         []ocispecs.Descriptor
+	Descriptors       []ocispecs.Descriptor
+	Provider          func(session.Group) content.Provider
 }
 
 func (p *Puller) resolve(ctx context.Context, resolver remotes.Resolver) error {
@@ -144,6 +145,18 @@ func (p *Puller) PullManifests(ctx context.Context, getResolver SessionResolver)
 	// Limit manifests pulled to the best match in an index
 	childrenHandler = images.LimitManifests(childrenHandler, platform, 1)
 
+	var manifestDesc ocispecs.Descriptor
+	var manifestOnce sync.Once
+	manifestHandler := images.HandlerFunc(func(ctx context.Context, desc ocispecs.Descriptor) ([]ocispecs.Descriptor, error) {
+		if images.IsManifestType(desc.MediaType) {
+			// Each index yields one child, so the first manifest is the
+			// selected image, including through nested indexes. Do not let
+			// malformed config or layer descriptors replace it later.
+			manifestOnce.Do(func() { manifestDesc = desc })
+		}
+		return nil, nil
+	})
+
 	dslHandler, err := docker.AppendDistributionSourceLabel(p.ContentStore, p.ref)
 	if err != nil {
 		return nil, err
@@ -152,6 +165,7 @@ func (p *Puller) PullManifests(ctx context.Context, getResolver SessionResolver)
 		filterLayerBlobs(metadata, &mu),
 		retryhandler.New(limited.FetchHandler(p.ContentStore, fetcher, p.ref), logs.LoggerFromContext(ctx)),
 		childrenHandler,
+		manifestHandler,
 		dslHandler,
 	)
 
@@ -174,11 +188,12 @@ func (p *Puller) PullManifests(ctx context.Context, getResolver SessionResolver)
 	}
 
 	return &PulledManifests{
-		Ref:              p.ref,
-		MainManifestDesc: p.desc,
-		ConfigDesc:       p.configDesc,
-		Nonlayers:        p.nonlayers,
-		Descriptors:      p.layers,
+		Ref:               p.ref,
+		RootManifestDesc:  p.desc,
+		ImageManifestDesc: manifestDesc,
+		ConfigDesc:        p.configDesc,
+		Nonlayers:         p.nonlayers,
+		Descriptors:       p.layers,
 		Provider: func(g session.Group) content.Provider {
 			return &provider{puller: p, resolver: getResolver(g)}
 		},

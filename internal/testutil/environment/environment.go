@@ -221,21 +221,6 @@ func (e *Execution) HasExistingImage(t testing.TB, reference string) bool {
 	return len(imageList.Items) > 0
 }
 
-// IsSELinuxEnforcing returns true if SELinux is enabled and running in enforcing mode.
-// Returns false on non-Linux systems or if SELinux is not available or not enabled.
-func (e *Execution) IsSELinuxEnforcing() bool {
-	if runtime.GOOS != "linux" {
-		return false
-	}
-
-	data, err := os.ReadFile("/sys/fs/selinux/enforce")
-	if err != nil {
-		return false
-	}
-
-	return strings.TrimSpace(string(data)) == "1"
-}
-
 // IsKernelModuleLoadable returns whether the given kernel module is loadable.
 // Returns true when the module is already loaded or built-in into the kernel.
 func (e *Execution) IsKernelModuleLoadable(module string) bool {

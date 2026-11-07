@@ -76,9 +76,17 @@ func NewSecureConnectProvider(configFilePath string) (Provider, error) {
 	if err := validateMetadata(metadata); err != nil {
 		return nil, fmt.Errorf("cert: invalid config in %q: %w", configFilePath, err)
 	}
-	return (&secureConnectSource{
+	source := &secureConnectSource{
 		metadata: metadata,
-	}).getClientCertificate, nil
+	}
+	_, err = source.getClientCertificate(nil)
+	if errors.Is(err, errSourceUnavailable) {
+		return nil, errSourceUnavailable
+	}
+	if err != nil {
+		return nil, err
+	}
+	return source.getClientCertificate, nil
 }
 
 func validateMetadata(metadata secureConnectMetadata) error {
@@ -101,7 +109,10 @@ func (s *secureConnectSource) getClientCertificate(info *tls.CertificateRequestI
 	command := s.metadata.Cmd
 	data, err := exec.Command(command[0], command[1:]...).Output()
 	if err != nil {
-		return nil, err
+		// Return errSourceUnavailable so the probe in NewSecureConnectProvider
+		// can recognize the source as unavailable, and so crypto/tls aborts
+		// the handshake with a clear error if it fails at runtime.
+		return nil, fmt.Errorf("%w: %v", errSourceUnavailable, err)
 	}
 	cert, err := tls.X509KeyPair(data, data)
 	if err != nil {

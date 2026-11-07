@@ -137,6 +137,13 @@ var (
 	heredocCompoundDirectives = map[string]bool{
 		command.Onbuild: true,
 	}
+
+	// Directives that parse key-value pairs but take a list of names
+	// when --unset flag is set
+	unsetCommands = map[string]bool{
+		command.Env:   true,
+		command.Label: true,
+	}
 )
 
 // directives is the structure used during a build run to hold the state of
@@ -234,6 +241,10 @@ func newNodeFromLine(line string, d *directives, comments []string) (*Node, erro
 	if fn == nil {
 		fn = parseIgnore
 	}
+	// --unset form takes a list of names instead of key-value pairs
+	if unsetCommands[strings.ToLower(cmd)] && hasUnsetFlag(flags) {
+		fn = parseNameOrNameVal
+	}
 	next, attrs, err := fn(args, d)
 	if err != nil {
 		return nil, err
@@ -247,6 +258,17 @@ func newNodeFromLine(line string, d *directives, comments []string) (*Node, erro
 		Attributes:  attrs,
 		PrevComment: comments,
 	}, nil
+}
+
+func hasUnsetFlag(flags []string) bool {
+	for _, f := range flags {
+		name, value, _ := strings.Cut(f, "=")
+		if name == "--unset" {
+			// invalid values are reported by the flag parser
+			return !strings.EqualFold(value, "false")
+		}
+	}
+	return false
 }
 
 // Result contains the bundled outputs from parsing a Dockerfile.

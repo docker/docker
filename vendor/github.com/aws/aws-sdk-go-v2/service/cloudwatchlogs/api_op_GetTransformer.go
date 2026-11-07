@@ -94,7 +94,9 @@ func (v *GetTransformerOutput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.LogGroupIdentifier != nil {
 		s.WriteString(schemas.GetTransformerResponse_logGroupIdentifier, *v.LogGroupIdentifier)
 	}
-	serializeProcessors(s, schemas.GetTransformerResponse_transformerConfig, v.TransformerConfig)
+	if v.TransformerConfig != nil {
+		serializeProcessors(s, schemas.GetTransformerResponse_transformerConfig, v.TransformerConfig)
+	}
 }
 func (v *GetTransformerOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.GetTransformerResponse, func(s *smithy.Schema) error {

@@ -17,6 +17,10 @@ var (
 	// This should only realistically be seen on adversarial data trying to exhaust the stack.
 	ErrRecursion error = errRecursion{}
 
+	// ErrLimitExceeded is returned when a set limit is exceeded.
+	// Limits can be set on the Reader to prevent excessive memory usage by adversarial data.
+	ErrLimitExceeded error = errLimitExceeded{}
+
 	// this error is only returned
 	// if we reach code that should
 	// be unreachable
@@ -142,6 +146,11 @@ type errRecursion struct{}
 
 func (e errRecursion) Error() string   { return "msgp: recursion limit reached" }
 func (e errRecursion) Resumable() bool { return false }
+
+type errLimitExceeded struct{}
+
+func (e errLimitExceeded) Error() string   { return "msgp: configured reader limit exceeded" }
+func (e errLimitExceeded) Resumable() bool { return false }
 
 // ArrayError is an error returned
 // when decoding a fix-sized array

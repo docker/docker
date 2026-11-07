@@ -5535,22 +5535,6 @@ func (s *DockerCLIBuildSuite) TestBuildNetNone(c *testing.T) {
 	})
 }
 
-func (s *DockerCLIBuildSuite) TestBuildNetContainer(c *testing.T) {
-	testRequires(c, DaemonIsLinux)
-
-	id := cli.DockerCmd(c, "run", "--hostname", "foobar", "-d", "busybox", "nc", "-ll", "-p", "1234", "-e", "hostname").Stdout()
-
-	const name = "testbuildnetcontainer"
-	cli.BuildCmd(c, name, cli.WithFlags("--network=container:"+strings.TrimSpace(id)),
-		build.WithDockerfile(`
-  FROM busybox
-  RUN nc localhost 1234 > /otherhost
-  `))
-
-	host := cli.DockerCmd(c, "run", "testbuildnetcontainer", "cat", "/otherhost").Combined()
-	assert.Equal(c, strings.TrimSpace(host), "foobar")
-}
-
 func (s *DockerCLIBuildSuite) TestBuildWithExtraHost(c *testing.T) {
 	testRequires(c, DaemonIsLinux)
 

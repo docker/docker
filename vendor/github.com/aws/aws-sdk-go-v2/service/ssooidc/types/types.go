@@ -3,6 +3,8 @@
 package types
 
 import (
+	"github.com/aws/aws-sdk-go-v2/service/ssooidc/schemas"
+	smithy "github.com/aws/smithy-go"
 	smithydocument "github.com/aws/smithy-go/document"
 )
 
@@ -20,6 +22,28 @@ type AwsAdditionalDetails struct {
 	IdentityContext *string
 
 	noSmithyDocumentSerde
+}
+
+func (v *AwsAdditionalDetails) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.AwsAdditionalDetails)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *AwsAdditionalDetails) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.IdentityContext != nil {
+		s.WriteString(schemas.AwsAdditionalDetails_identityContext, *v.IdentityContext)
+	}
+}
+func (v *AwsAdditionalDetails) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.AwsAdditionalDetails, func(s *smithy.Schema) error {
+		switch s {
+		case schemas.AwsAdditionalDetails_identityContext:
+			v.IdentityContext = new(string)
+			return d.ReadString(schemas.AwsAdditionalDetails_identityContext, v.IdentityContext)
+		}
+		return nil
+	})
 }
 
 type noSmithyDocumentSerde = smithydocument.NoSerde

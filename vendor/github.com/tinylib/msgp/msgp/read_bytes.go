@@ -1130,7 +1130,7 @@ func ReadTimeBytes(b []byte) (t time.Time, o []byte, err error) {
 			return
 		}
 	default:
-		err = errExt(int8(b[2]), TimeExtension)
+		err = errExt(typ, TimeExtension)
 		return
 	}
 }
@@ -1155,7 +1155,11 @@ func readMapStrIntfBytesDepth(b []byte, old map[string]interface{}, depth int) (
 	if err != nil {
 		return
 	}
-
+	// Map key, min size is 2 bytes. Value min 1 byte.
+	if int64(len(b)) < int64(sz)*3 {
+		err = ErrShortBytes
+		return
+	}
 	if old != nil {
 		for key := range old {
 			delete(old, key)
@@ -1213,6 +1217,11 @@ func readIntfBytesDepth(b []byte, depth int) (i interface{}, o []byte, err error
 		var sz uint32
 		sz, o, err = ReadArrayHeaderBytes(b)
 		if err != nil {
+			return
+		}
+		// Each element will at least be 1 byte.
+		if uint32(len(o)) < sz {
+			err = ErrShortBytes
 			return
 		}
 		j := make([]interface{}, int(sz))

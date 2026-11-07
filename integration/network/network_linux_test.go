@@ -232,6 +232,121 @@ func TestForbidDuplicateNetworkNames(t *testing.T) {
 	assert.Error(t, err, "Error response from daemon: network with name testnet already exists", "2nd NetworkCreate call should have failed")
 }
 
+// TestNetworkListFilters checks the id, name, type, label and driver filter
+// terms of GET /networks. Expectations that depend on which other networks
+// the daemon has are derived from the unfiltered list.
+func TestNetworkListFilters(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	const (
+		devName      = "test-list-filters-dev"
+		labelledName = "test-list-filters-labelled"
+		labelKey     = "com.example.test-list-filters"
+		labelValue   = "bar"
+	)
+	devID := network.CreateNoError(ctx, t, apiClient, devName)
+	defer network.RemoveNoError(ctx, t, apiClient, devName)
+	network.CreateNoError(ctx, t, apiClient, labelledName, func(o *client.NetworkCreateOptions) {
+		o.Labels = map[string]string{labelKey: labelValue}
+	})
+	defer network.RemoveNoError(ctx, t, apiClient, labelledName)
+
+	list := func(t *testing.T, filters client.Filters) []networktypes.Summary {
+		t.Helper()
+		res, err := apiClient.NetworkList(ctx, client.NetworkListOptions{Filters: filters})
+		assert.NilError(t, err)
+		return res.Items
+	}
+	names := func(nws []networktypes.Summary, match func(networktypes.Summary) bool) []string {
+		out := []string{}
+		for _, nw := range nws {
+			if match(nw) {
+				out = append(out, nw.Name)
+			}
+		}
+		slices.Sort(out)
+		return out
+	}
+	anyNetwork := func(networktypes.Summary) bool { return true }
+
+	all := list(t, nil)
+	assert.Assert(t, is.Contains(names(all, anyNetwork), devName))
+	assert.Assert(t, is.Contains(names(all, anyNetwork), labelledName))
+	predefined := []string{networktypes.NetworkBridge, networktypes.NetworkHost, networktypes.NetworkNone}
+
+	tests := []struct {
+		name     string
+		filters  client.Filters
+		expected []string
+	}{
+		{
+			name:     "id prefix",
+			filters:  make(client.Filters).Add("id", devID[:12]),
+			expected: []string{devName},
+		},
+		{
+			name:     "name substring",
+			filters:  make(client.Filters).Add("name", "list-filters-dev"),
+			expected: []string{devName},
+		},
+		{
+			name:     "type=builtin",
+			filters:  make(client.Filters).Add("type", "builtin"),
+			expected: predefined,
+		},
+		{
+			name:    "type=custom",
+			filters: make(client.Filters).Add("type", "custom"),
+			expected: names(all, func(nw networktypes.Summary) bool {
+				return !slices.Contains(predefined, nw.Name)
+			}),
+		},
+		{
+			name:     "type=builtin and type=custom",
+			filters:  make(client.Filters).Add("type", "builtin", "custom"),
+			expected: names(all, anyNetwork),
+		},
+		{
+			name:     "label key",
+			filters:  make(client.Filters).Add("label", labelKey),
+			expected: []string{labelledName},
+		},
+		{
+			name:     "label key=value",
+			filters:  make(client.Filters).Add("label", labelKey+"="+labelValue),
+			expected: []string{labelledName},
+		},
+		{
+			name:     "label key not set",
+			filters:  make(client.Filters).Add("label", labelKey+".unset"),
+			expected: []string{},
+		},
+		{
+			name:     "driver=null",
+			filters:  make(client.Filters).Add("driver", "null"),
+			expected: []string{networktypes.NetworkNone},
+		},
+		{
+			name:     "driver=host",
+			filters:  make(client.Filters).Add("driver", "host"),
+			expected: []string{networktypes.NetworkHost},
+		},
+		{
+			name:    "driver=bridge",
+			filters: make(client.Filters).Add("driver", "bridge"),
+			expected: names(all, func(nw networktypes.Summary) bool {
+				return nw.Driver == "bridge"
+			}),
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Check(t, is.DeepEqual(names(list(t, tc.filters), anyNetwork), tc.expected))
+		})
+	}
+}
+
 // TestHostGatewayFromDocker0 checks that, when docker0 has IPv6, host-gateway maps to both IPv4 and IPv6.
 func TestHostGatewayFromDocker0(t *testing.T) {
 	ctx := testutil.StartSpan(baseContext, t)

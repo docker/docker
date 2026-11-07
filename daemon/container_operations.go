@@ -744,6 +744,22 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 		}
 	}
 
+	// If the connection fails, restore the container's networks so that the
+	// failed endpoint config isn't used when the container next starts. Restore
+	// rather than delete, because on container start the entry already holds
+	// the user's config for this network. Copy the entries too, because on
+	// container start endpointConfig is the stored entry, and it's modified
+	// below.
+	prevNetworks := maps.Clone(ctr.NetworkSettings.Networks)
+	for name, es := range prevNetworks {
+		prevNetworks[name] = es.Copy()
+	}
+	defer func() {
+		if retErr != nil {
+			ctr.NetworkSettings.Networks = prevNetworks
+		}
+	}()
+
 	if err := daemon.updateNetworkConfig(ctr, n, endpointConfig.EndpointSettings); err != nil {
 		return err
 	}
@@ -772,11 +788,6 @@ func (daemon *Daemon) connectToNetwork(ctx context.Context, cfg *config.Config, 
 
 	delete(ctr.NetworkSettings.Networks, n.ID())
 	ctr.NetworkSettings.Networks[nwName] = endpointConfig
-	defer func() {
-		if retErr != nil {
-			delete(ctr.NetworkSettings.Networks, nwName)
-		}
-	}()
 
 	if nwName == network.DefaultNetwork {
 		// Legacy links must be prepared before the Endpoint.Join, because the network

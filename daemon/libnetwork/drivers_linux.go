@@ -34,7 +34,7 @@ func registerNetworkDrivers(r driverapi.Registerer, cfg *config.Config, store *d
 		{ntype: ipvlan.NetworkType, register: func() error { return ipvlan.Register(r, store) }},
 		{ntype: macvlan.NetworkType, register: func() error { return macvlan.Register(r, store) }},
 		{ntype: null.NetworkType, register: func() error { return null.Register(r) }},
-		{ntype: overlay.NetworkType, register: func() error { return overlay.Register(r) }},
+		{ntype: overlay.NetworkType, register: func() error { return overlay.Register(r, cfg.NetnsDir) }},
 	} {
 		if err := nr.register(); err != nil {
 			return fmt.Errorf("failed to register %q driver: %w", nr.ntype, err)

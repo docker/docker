@@ -65,7 +65,9 @@ func (v *UpdateDeliveryConfigurationInput) SerializeMembers(s smithy.ShapeSerial
 	if v.Id != nil {
 		s.WriteString(schemas.UpdateDeliveryConfigurationRequest_id, *v.Id)
 	}
-	serializeRecordFields(s, schemas.UpdateDeliveryConfigurationRequest_recordFields, v.RecordFields)
+	if v.RecordFields != nil {
+		serializeRecordFields(s, schemas.UpdateDeliveryConfigurationRequest_recordFields, v.RecordFields)
+	}
 	if v.S3DeliveryConfiguration != nil {
 		s.WriteStruct(schemas.UpdateDeliveryConfigurationRequest_s3DeliveryConfiguration)
 		v.S3DeliveryConfiguration.SerializeMembers(s)

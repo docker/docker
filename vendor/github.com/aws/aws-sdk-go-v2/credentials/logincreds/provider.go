@@ -103,7 +103,9 @@ func (p *Provider) Retrieve(ctx context.Context) (aws.Credentials, error) {
 		return aws.Credentials{}, fmt.Errorf("create oauth2 token: %w", err)
 	}
 
-	token.Update(out)
+	if err := token.Update(out); err != nil {
+		return aws.Credentials{}, fmt.Errorf("update token: %w", err)
+	}
 	if err := p.saveToken(token); err != nil {
 		return aws.Credentials{}, fmt.Errorf("save token: %w", err)
 	}

@@ -7,7 +7,8 @@
 package ipv4
 
 import (
-	"unsafe"
+	"encoding/binary"
+	"runtime"
 
 	"golang.org/x/net/internal/iana"
 	"golang.org/x/net/internal/socket"
@@ -66,10 +67,18 @@ func setControlMessage(c *socket.Conn, opt *rawOpt, cf ControlFlags, on bool) er
 
 func marshalTTL(b []byte, cm *ControlMessage) []byte {
 	m := socket.ControlMessage(b)
+	if runtime.GOOS == "linux" {
+		m.MarshalHeader(iana.ProtocolIP, unix.IP_TTL, 4)
+		return m.Next(4)
+	}
 	m.MarshalHeader(iana.ProtocolIP, unix.IP_RECVTTL, 1)
 	return m.Next(1)
 }
 
 func parseTTL(cm *ControlMessage, b []byte) {
-	cm.TTL = int(*(*byte)(unsafe.Pointer(&b[:1][0])))
+	if runtime.GOOS == "linux" {
+		cm.TTL = int(binary.NativeEndian.Uint32(b[:4]))
+		return
+	}
+	cm.TTL = int(b[0])
 }

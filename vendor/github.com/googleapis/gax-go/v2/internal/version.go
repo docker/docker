@@ -17,4 +17,4 @@
 package internal
 
 // Version is the current tagged release of the library.
-const Version = "2.26.2"
+const Version = "2.27.0"

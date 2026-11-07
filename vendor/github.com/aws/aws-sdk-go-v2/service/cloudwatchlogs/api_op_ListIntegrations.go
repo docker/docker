@@ -81,7 +81,9 @@ func (v *ListIntegrationsOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *ListIntegrationsOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeIntegrationSummaries(s, schemas.ListIntegrationsResponse_integrationSummaries, v.IntegrationSummaries)
+	if v.IntegrationSummaries != nil {
+		serializeIntegrationSummaries(s, schemas.ListIntegrationsResponse_integrationSummaries, v.IntegrationSummaries)
+	}
 }
 func (v *ListIntegrationsOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.ListIntegrationsResponse, func(s *smithy.Schema) error {

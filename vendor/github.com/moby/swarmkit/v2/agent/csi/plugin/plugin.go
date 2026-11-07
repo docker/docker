@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -108,9 +109,9 @@ func newNodePlugin(name string, p plugin.AddrPlugin, secrets SecretGetter) *node
 // client from a grpc client. it exists separately so that testing code can
 // substitute in fake clients without a grpc connection
 func (np *nodePlugin) connect(ctx context.Context) error {
-	// even though this is a unix socket, we must set WithInsecure or the
+	// even though this is a unix socket, we must set insecure.NewCredentials or the
 	// connection will not be allowed.
-	cc, err := grpc.DialContext(ctx, np.socket, grpc.WithInsecure())
+	cc, err := grpc.DialContext(ctx, np.socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}

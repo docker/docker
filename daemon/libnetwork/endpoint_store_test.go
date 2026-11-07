@@ -12,7 +12,6 @@ import (
 func TestEndpointStore(t *testing.T) {
 	c, err := New(t.Context())
 	assert.NilError(t, err)
-	defer c.Stop()
 
 	// Insert a first endpoint
 	nw := &Network{id: "testNetwork"}

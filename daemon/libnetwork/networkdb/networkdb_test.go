@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"text/tabwriter"
@@ -89,6 +90,44 @@ func closeNetworkDBInstances(t TestingT, dbs []*NetworkDB) {
 	for _, db := range dbs {
 		db.Close()
 	}
+}
+
+// addrOf is db's gossip address, in the ip:port form a bootstrap list takes.
+func addrOf(db *NetworkDB) string {
+	return net.JoinHostPort(db.config.AdvertiseAddr, strconv.Itoa(db.config.BindPort))
+}
+
+// peerList answers [Config.BootstrapPeers] with something a test can change as
+// it goes, so a node is only told where to rejoin once the test wants it to
+// try. Its zero value answers "no bootstrap nodes known".
+type peerList struct {
+	mu    sync.Mutex
+	addrs []string
+}
+
+// get is the [Config.BootstrapPeers] callback. It is called from the rejoin
+// timer, so it copies rather than handing out the slice set below.
+func (p *peerList) get() []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]string(nil), p.addrs...)
+}
+
+func (p *peerList) set(addrs ...string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.addrs = addrs
+}
+
+// waitFor polls cond until it holds, failing the test if it never does.
+func waitFor(t TestingT, what string, cond func() bool) {
+	t.Helper()
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		if cond() {
+			return poll.Success()
+		}
+		return poll.Continue("waiting for %s", what)
+	}, poll.WithDelay(100*time.Millisecond), poll.WithTimeout(60*time.Second))
 }
 
 func (nDB *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool) {
@@ -210,6 +249,7 @@ func TestNetworkDBSimple(t *testing.T) {
 
 func TestNetworkDBJoinLeaveNetwork(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
@@ -220,11 +260,11 @@ func TestNetworkDBJoinLeaveNetwork(t *testing.T) {
 	assert.NilError(t, err)
 
 	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", false)
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	n := 10
 	for i := 1; i <= n; i++ {
@@ -263,11 +303,11 @@ func TestNetworkDBJoinLeaveNetworks(t *testing.T) {
 		dbs[0].verifyNetworkExistence(t, dbs[1].config.NodeID, fmt.Sprintf("network1%d", i), false)
 	}
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBCRUDTableEntry(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 3, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
@@ -293,7 +333,6 @@ func TestNetworkDBCRUDTableEntry(t *testing.T) {
 
 	dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "", false)
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 // TestCreateEntryOverTombstone checks that a key can be created again while
@@ -377,6 +416,7 @@ func (nDB *NetworkDB) dumpTable(t *testing.T, tname string) {
 
 func TestNetworkDBCRUDTableEntries(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
@@ -450,11 +490,15 @@ func TestNetworkDBCRUDTableEntries(t *testing.T) {
 		dbs[n].dumpTable(t, "test_table")
 	}
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBNodeLeave(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	// Closing is what this test does rather than how it tidies up, so the
+	// teardown tracks what is still running: NetworkDB.Close is not
+	// idempotent, and a second call panics inside memberlist.Leave.
+	live := append([]*NetworkDB(nil), dbs...)
+	defer func() { closeNetworkDBInstances(t, live) }()
 
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
@@ -468,12 +512,15 @@ func TestNetworkDBNodeLeave(t *testing.T) {
 	dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", true)
 
 	dbs[0].Close()
+	live = []*NetworkDB{dbs[1]}
 	dbs[1].verifyEntryExistence(t, "test_table", "network1", "test_key", "test_value", false)
 	dbs[1].Close()
+	live = nil
 }
 
 func TestNetworkDBWatch(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
 
@@ -498,11 +545,11 @@ func TestNetworkDBWatch(t *testing.T) {
 	testWatch(t, ch.C, "test_table", "network1", "test_key", "test_updated_value", "")
 
 	cancel()
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBBulkSync(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	err := dbs[0].JoinNetwork("network1")
 	assert.NilError(t, err)
@@ -529,7 +576,6 @@ func TestNetworkDBBulkSync(t *testing.T) {
 		assert.NilError(t, err)
 	}
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 // TestBulkSyncWithFailedPeer checks that a bulk sync is still sent to a peer
@@ -613,6 +659,7 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 	n := 5
 
 	dbs := createNetworkDBInstances(t, n, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	// Shake out any data races.
 	done := make(chan struct{})
@@ -678,11 +725,11 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 		assert.Check(t, is.Contains(err.Error(), "deleted and pending garbage collection"), err)
 	}
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 2, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	dbChangeWitness := func(nDB *NetworkDB) func(network string, expectNodeCount int) {
 		staleNetworkTime := nDB.networkClock.Time()
@@ -754,7 +801,6 @@ func TestNetworkDBNodeJoinLeaveIteration(t *testing.T) {
 	dbs[1].verifyNetworkExistence(t, dbs[0].config.NodeID, "network1", true)
 	witness1("network1", 2)
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBGarbageCollection(t *testing.T) {
@@ -764,6 +810,7 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	config.StatsPrintPeriod = 15 * time.Second
 
 	dbs := createNetworkDBInstances(t, 3, "node", config)
+	defer closeNetworkDBInstances(t, dbs)
 
 	// 2 Nodes join network
 	err := dbs[0].JoinNetwork("network1")
@@ -818,7 +865,6 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 		dbs[i].Unlock()
 	}
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func checkNodeIsForgotten(t *testing.T, db *NetworkDB, nodeName string, msgAndArgs ...any) {
@@ -920,6 +966,7 @@ func TestNodeReincarnation(t *testing.T) {
 
 func TestParallelCreate(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 1, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	startCh := make(chan int)
 	doneCh := make(chan error)
@@ -944,11 +991,11 @@ func TestParallelCreate(t *testing.T) {
 	// Only 1 write should have succeeded
 	assert.Check(t, is.Equal(uint32(1), success.Load()))
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestParallelDelete(t *testing.T) {
 	dbs := createNetworkDBInstances(t, 1, "node", DefaultConfig())
+	defer closeNetworkDBInstances(t, dbs)
 
 	err := dbs[0].CreateEntry("testTable", "testNetwork", "key", []byte("value"))
 	assert.NilError(t, err)
@@ -976,12 +1023,9 @@ func TestParallelDelete(t *testing.T) {
 	// Only 1 write should have succeeded
 	assert.Check(t, is.Equal(uint32(1), success.Load()))
 
-	closeNetworkDBInstances(t, dbs)
 }
 
 func TestNetworkDBIslands(t *testing.T) {
-	t.Skip("FIXME: flaky test; see https://github.com/moby/moby/issues/42459")
-
 	pollTimeout := func() time.Duration {
 		const defaultTimeout = 120 * time.Second
 		dl, ok := t.Deadline()
@@ -994,23 +1038,36 @@ func TestNetworkDBIslands(t *testing.T) {
 		return defaultTimeout
 	}
 
+	var peers peerList
+
 	_ = log.SetLevel(log.DebugLevel)
 	conf := DefaultConfig()
 	// Shorten durations to speed up test execution.
 	conf.rejoinClusterDuration = conf.rejoinClusterDuration / 10
 	conf.rejoinClusterInterval = conf.rejoinClusterInterval / 10
+	// Answered empty until the bootstrap nodes are gone, so that nothing tries
+	// to rejoin anything while the cluster is still whole.
+	conf.BootstrapPeers = peers.get
 	dbs := createNetworkDBInstances(t, 5, "node", conf)
+	// The first three leave part-way through and are relaunched, so the
+	// teardown tracks what is still running rather than closing the whole
+	// slice: NetworkDB.Close is not idempotent, and a second call panics
+	// inside memberlist.Leave.
+	live := append([]*NetworkDB(nil), dbs...)
+	defer func() { closeNetworkDBInstances(t, live) }()
 
-	// Get the node IP used currently
-	node := dbs[0].nodes[dbs[0].config.NodeID]
-	baseIPStr := node.Addr.String()
+	// Get the node IP used currently. The memberlist event delegate writes
+	// this map from its own goroutines while the cluster gossips, so it is
+	// not ours to read unlocked.
+	dbs[0].RLock()
+	baseIPStr := dbs[0].nodes[dbs[0].config.NodeID].Addr.String()
+	dbs[0].RUnlock()
 	// Node 0,1,2 are going to be the 3 bootstrap nodes
 	members := []string{
 		fmt.Sprintf("%s:%d", baseIPStr, dbs[0].config.BindPort),
 		fmt.Sprintf("%s:%d", baseIPStr, dbs[1].config.BindPort),
 		fmt.Sprintf("%s:%d", baseIPStr, dbs[2].config.BindPort),
 	}
-	// Rejoining will update the list of the bootstrap members
 	for i := 3; i < 5; i++ {
 		t.Logf("Re-joining: %d", i)
 		assert.Check(t, dbs[i].Join(members))
@@ -1025,6 +1082,7 @@ func TestNetworkDBIslands(t *testing.T) {
 		departed[i] = dbs[i].config.NodeID
 		dbs[i].Close()
 	}
+	live = []*NetworkDB{dbs[3], dbs[4]}
 
 	checkDBs := make(map[string]*NetworkDB)
 	for i := 3; i < 5; i++ {
@@ -1056,34 +1114,224 @@ func TestNetworkDBIslands(t *testing.T) {
 	}
 	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(pollTimeout()))
 
+	// Only nodes 3 and 4 are left, and only they know where the bootstrap
+	// nodes live, so naming them now makes those two the only thing which can
+	// bring the cluster back together.
+	peers.set(members...)
+
 	// Spawn again the first 3 nodes with different names but same IP:port
 	for i := range 3 {
 		log.G(t.Context()).Infof("node %d coming back", i)
 		conf := *dbs[i].config
 		conf.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
+		// A returning node is given no bootstrap peers of its own: it does no
+		// join, exactly as the comment below says, so the reconvergence has to
+		// come from the two which stayed.
+		conf.BootstrapPeers = nil
 		dbs[i] = launchNode(t, conf)
+		live = append(live, dbs[i])
 	}
 
-	// Give some time for the reconnect routine to run, it runs every 6s.
+	// Every node has to end up seeing all five of the current nodes as
+	// active, which is what reconverging means and what the relaunched three
+	// have no way to bring about for themselves: they did no join.
+	//
+	// Asserted by identity rather than by counting the node lists. A node
+	// which starts after another has departed can still be told of that
+	// departed incarnation by gossip already in flight, and it sits in
+	// failedNodes until something supersedes it at its address. Which nodes
+	// carry such a straggler is a matter of timing, so counting them tests
+	// the schedule rather than the convergence.
+	current := make([]string, 0, len(dbs))
+	for _, db := range dbs {
+		current = append(current, db.config.NodeID)
+	}
 	check = func(t poll.LogT) poll.Result {
-		// Verify that the cluster is again all connected. Note that the 3 previous node did not do any join.
-		// The two groups converge on the same state now: the survivors have
-		// nothing left to remember the departed incarnations by, so there is
-		// no longer an asymmetry between them and the nodes which came back.
-		for i := range 5 {
-			db := dbs[i]
+		for _, db := range dbs {
 			db.RLock()
-			nNodes, nFailed := len(db.nodes), len(db.failedNodes)
-			db.RUnlock()
-			if nNodes != 5 {
-				return poll.Continue("%s:Waiting to connect to all nodes", dbs[i].config.Hostname)
+			var missing []string
+			for _, id := range current {
+				if _, ok := db.nodes[id]; !ok {
+					missing = append(missing, id)
+				}
 			}
-			if nFailed != 0 {
-				return poll.Continue("%s:Waiting for 0 failedNodes", dbs[i].config.Hostname)
+			db.RUnlock()
+			if len(missing) > 0 {
+				return poll.Continue("%s: waiting to see %v active", db.config.Hostname, missing)
 			}
 		}
 		return poll.Success()
 	}
 	poll.WaitOn(t, check, poll.WithDelay(time.Second), poll.WithTimeout(pollTimeout()))
-	closeNetworkDBInstances(t, dbs)
+}
+
+// TestRejoinClusterBootStrapUsesCurrentPeers checks that a rejoin targets the
+// peers the caller names now, not the ones it named when the node started.
+//
+// The bootstrap list was a snapshot taken once, at agent init, and nothing
+// refreshed it. A swarm which replaces a manager at a new address therefore
+// left every node holding an address which would never answer again, and no
+// address for the manager which replaced it -- so the one path which can still
+// merge a split cluster was aimed where the cluster used to be.
+//
+// Both bootstrap nodes are put beyond reach here and a replacement brought up
+// somewhere the cluster has never seen, so gossip cannot carry the news: naming
+// it in the live list is the only way the survivor can find it.
+func TestRejoinClusterBootStrapUsesCurrentPeers(t *testing.T) {
+	var peers peerList
+
+	conf := DefaultConfig()
+	// Shortened so the test is not sitting through the default minute-long
+	// rejoin interval.
+	conf.rejoinClusterInterval = 2 * time.Second
+	conf.rejoinClusterDuration = 3 * time.Second
+	conf.BootstrapPeers = peers.get
+
+	dbs := createNetworkDBInstances(t, 3, "node", conf)
+	survivor := dbs[2]
+
+	// Closed nodes are not put back here, so the teardown tracks what is still
+	// running rather than closing the whole slice: NetworkDB.Close is not
+	// idempotent, and a second call panics inside memberlist.Leave.
+	live := append([]*NetworkDB(nil), dbs...)
+	defer func() { closeNetworkDBInstances(t, live) }()
+
+	peers.set(addrOf(dbs[0]), addrOf(dbs[1]))
+
+	dbs[0].Close()
+	dbs[1].Close()
+	live = []*NetworkDB{survivor}
+	waitFor(t, "the survivor to be left on its own", func() bool {
+		survivor.RLock()
+		defer survivor.RUnlock()
+		return len(survivor.nodes) == 1
+	})
+
+	// The replacement has no bootstrap list of its own -- no callback, and it
+	// joins nothing -- so it cannot reach out. Only the survivor can close the
+	// gap, and only if it is told where to look.
+	plain := DefaultConfig()
+	plain.rejoinClusterInterval = conf.rejoinClusterInterval
+	plain.rejoinClusterDuration = conf.rejoinClusterDuration
+	plain.Hostname = "replacement"
+	plain.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
+	plain.BindPort = int(dbPort.Add(1))
+	plain.BindAddr = "127.0.0.1"
+	plain.AdvertiseAddr = plain.BindAddr
+	replacement := launchNode(t, *plain)
+	live = append(live, replacement)
+
+	peers.set(addrOf(replacement))
+	waitFor(t, "the survivor to rejoin through the replacement", func() bool {
+		survivor.RLock()
+		defer survivor.RUnlock()
+		_, ok := survivor.nodes[replacement.config.NodeID]
+		return ok
+	})
+}
+
+// TestRejoinClusterBootStrapStragglers checks that a bootstrap node which is
+// already in the cluster does not suppress the rejoin of the ones which are
+// not.
+//
+// rejoinClusterBootStrap used to abandon the whole bootstrap list as soon as
+// any one address in it was found in the cluster, which is the wrong question
+// to ask: being attached to one bootstrap node says nothing about the others.
+// memberlist.Join compounds it, reporting failure only when every address
+// fails, so even an attempted rejoin can leave a node attached to part of its
+// list and satisfying the check from then on.
+//
+// That turns permanent once a partition outlives node reaping: reconnectNode
+// retries the peers it saw fail, reapDeadNode forgets them after
+// nodeReapInterval, and this function is all that is left to merge the halves
+// -- latched, on both sides, on the bootstrap node each can still see. It is
+// also the root cause of the TestNetworkDBIslands flakes, which hit it whenever
+// a rejoin lands between two of that test's three relaunches.
+//
+// Here the two bootstrap nodes are brought back one at a time, with a wait in
+// between for the survivor to reconnect to the first. That wait is what makes
+// the fault deterministic: reaching it means a rejoin has already run and
+// latched, so before the fix the second node could never be picked up.
+func TestRejoinClusterBootStrapStragglers(t *testing.T) {
+	var peers peerList
+
+	conf := DefaultConfig()
+	// Shortened so the test is not sitting through the default minute-long
+	// rejoin interval twice.
+	conf.rejoinClusterInterval = 2 * time.Second
+	conf.rejoinClusterDuration = 3 * time.Second
+	// Left empty while the cluster forms, so no node rejoins anything before
+	// the departures below give it something to do.
+	conf.BootstrapPeers = peers.get
+
+	dbs := createNetworkDBInstances(t, 3, "node", conf)
+	survivor := dbs[2]
+
+	// The two below are closed and only later replaced, so the teardown tracks
+	// what is still running rather than closing the whole slice: NetworkDB.Close
+	// is not idempotent, and a second call panics inside memberlist.Leave --
+	// which would bury the failure that got us here.
+	live := append([]*NetworkDB(nil), dbs...)
+	defer func() { closeNetworkDBInstances(t, live) }()
+
+	// Both of the others are bootstrap nodes, so that a rejoin has something
+	// to be selective about.
+	peers.set(addrOf(dbs[0]), addrOf(dbs[1]))
+
+	sees := func(target *NetworkDB) bool {
+		survivor.RLock()
+		defer survivor.RUnlock()
+		_, ok := survivor.nodes[target.config.NodeID]
+		return ok
+	}
+
+	departed := []string{dbs[0].config.NodeID, dbs[1].config.NodeID}
+	dbs[0].Close()
+	dbs[1].Close()
+	live = []*NetworkDB{survivor}
+	waitFor(t, "the survivor to be left on its own", func() bool {
+		survivor.RLock()
+		defer survivor.RUnlock()
+		return len(survivor.nodes) == 1
+	})
+
+	// Both left cleanly, so nothing will try to reconnect them on the
+	// survivor's behalf. If memberlist had instead declared them failed,
+	// reconnectNode would pull them back and this test would pass whether or
+	// not the bug is present, so assert the precondition rather than assume
+	// it.
+	survivor.RLock()
+	for _, id := range departed {
+		_, failed := survivor.failedNodes[id]
+		assert.Check(t, !failed, "node %s should have left cleanly, not failed", id)
+	}
+	survivor.RUnlock()
+
+	relaunch := func(i int) *NetworkDB {
+		t.Helper()
+		conf := *dbs[i].config
+		conf.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
+		// The returning node is given no way to reach out, so the survivor
+		// is the only thing that can close the gap.
+		conf.BootstrapPeers = nil
+		dbs[i] = launchNode(t, conf)
+		live = append(live, dbs[i])
+		return dbs[i]
+	}
+
+	// First one back, at the address it had before. Only the survivor can
+	// reattach it: the returning node has no bootstrap peers of its own.
+	//
+	// That one-sided arrangement is the point. It leaves the survivor in the
+	// position every node is in once a partition has outlived reapDeadNode --
+	// the peers it lost are forgotten, reconnectNode has nothing left to
+	// retry, and the bootstrap list is the only way back -- without needing a
+	// day of waiting to get there.
+	first := relaunch(0)
+	waitFor(t, "the survivor to rejoin the first bootstrap node", func() bool { return sees(first) })
+
+	// Second one back, now that a rejoin has definitely run with the first
+	// already in the cluster.
+	second := relaunch(1)
+	waitFor(t, "the survivor to rejoin the second bootstrap node", func() bool { return sees(second) })
 }

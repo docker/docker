@@ -14,32 +14,84 @@ import (
 // https://github.com/torvalds/linux/blob/master/include/linux/socket.h
 // AF_UNSPEC is not a creatable domain, AF_MAX is a sentinel, and AF_LOCAL/AF_FILE
 // and AF_ROUTE are aliases of AF_UNIX and AF_NETLINK respectively.
+// A commented-out entry is not allowed: either the kernel no longer implements
+// the domain, and the comment links the upstream commit that removed it, or the
+// domain is deliberately blocked, and the comment says why. Keeping them listed
+// makes this list a complete mirror of the UAPI header.
 var allowedSocketDomains = []uint64{
 	unix.AF_UNIX,
 	unix.AF_INET,
-	unix.AF_AX25,
-	unix.AF_IPX,
-	unix.AF_APPLETALK,
-	unix.AF_NETROM,
+
+	// AF_AX25 was removed in Linux 7.1 together with the rest of the amateur
+	// radio subsystem:
+	// https://git.kernel.org/torvalds/c/dd8d4bc28ad7252610d8e79c1313a2d1e3499a51
+	//
+	// unix.AF_AX25,
+
+	// AF_IPX was removed in Linux 4.18:
+	// https://git.kernel.org/torvalds/c/7a2e838d28cff6718a0bdf66164465402f8e40ed
+	//
+	// unix.AF_IPX,
+
+	// AF_APPLETALK was removed in Linux 7.2:
+	// https://git.kernel.org/torvalds/c/8a398a0c189ead8bbce98f5be70b8ea0e30b21f8
+	//
+	// unix.AF_APPLETALK,
+
+	// AF_NETROM was removed in Linux 7.1 together with AF_AX25:
+	// https://git.kernel.org/torvalds/c/dd8d4bc28ad7252610d8e79c1313a2d1e3499a51
+	//
+	// unix.AF_NETROM,
+
 	unix.AF_BRIDGE,
 	unix.AF_ATMPVC,
 	unix.AF_X25,
 	unix.AF_INET6,
-	unix.AF_ROSE,
-	unix.AF_DECnet,
+
+	// AF_ROSE was removed in Linux 7.1 together with AF_AX25:
+	// https://git.kernel.org/torvalds/c/dd8d4bc28ad7252610d8e79c1313a2d1e3499a51
+	//
+	// unix.AF_ROSE,
+
+	// AF_DECnet was removed in Linux 6.1:
+	// https://git.kernel.org/torvalds/c/1202cdd665315c525b5237e96e0bedc76d7e754f
+	//
+	// unix.AF_DECnet,
+
 	unix.AF_NETBEUI,
 	unix.AF_SECURITY,
 	unix.AF_KEY,
 	unix.AF_NETLINK,
 	unix.AF_PACKET,
 	unix.AF_ASH,
-	unix.AF_ECONET,
-	unix.AF_ATMSVC,
+
+	// AF_ECONET was removed in Linux 3.5:
+	// https://git.kernel.org/torvalds/c/349f29d841dbae854bd7367be7c250401f974f47
+	//
+	// unix.AF_ECONET,
+
+	// AF_ATMSVC was removed in Linux 7.2:
+	// https://git.kernel.org/torvalds/c/aa582dc25ace8951ad595c71fb93d21ed2ec4624
+	//
+	// unix.AF_ATMSVC,
+
 	unix.AF_RDS,
 	unix.AF_SNA,
-	unix.AF_IRDA,
+
+	// AF_IRDA was removed in Linux 4.17:
+	// https://git.kernel.org/torvalds/c/d64c2a76123f0300b08d0557ad56e9d599872a36
+	//
+	// unix.AF_IRDA,
+
 	unix.AF_PPPOX,
-	unix.AF_WANPIPE,
+
+	// AF_WANPIPE has had no implementation since before Linux 2.6.12, the
+	// start of the kernel's git history. The unbuilt leftover was deleted in
+	// Linux 2.6.21:
+	// https://git.kernel.org/torvalds/c/ce0ecd594d78710422599918a608e96dd1ee6024
+	//
+	// unix.AF_WANPIPE,
+
 	unix.AF_LLC,
 	unix.AF_IB,
 	unix.AF_MPLS,
@@ -48,10 +100,20 @@ var allowedSocketDomains = []uint64{
 	unix.AF_BLUETOOTH,
 	unix.AF_IUCV,
 	unix.AF_RXRPC,
-	unix.AF_ISDN,
+
+	// AF_ISDN was removed in Linux 7.1 together with the rest of the ISDN
+	// subsystem:
+	// https://git.kernel.org/torvalds/c/4f10f1dfb235a28bd86cf0b00d86a59696ddbe5b
+	//
+	// unix.AF_ISDN,
+
 	unix.AF_PHONET,
 	unix.AF_IEEE802154,
-	unix.AF_CAIF,
+
+	// AF_CAIF was removed in Linux 7.1:
+	// https://git.kernel.org/torvalds/c/6d5431555de032f5ad9e08a7fb372f37bf493903
+	//
+	// unix.AF_CAIF,
 
 	// AF_ALG gives userspace direct access to the kernel cryptography API. The
 	// vulnerabilities demonstrated by https://copy.fail/ have been fixed, but

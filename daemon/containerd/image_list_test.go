@@ -30,7 +30,7 @@ func imagesFromIndex(index ...*ocispec.Index) []c8dimages.Image {
 	for _, idx := range index {
 		for _, desc := range idx.Manifests {
 			imgs = append(imgs, c8dimages.Image{
-				Name:   desc.Annotations["io.containerd.image.name"],
+				Name:   desc.Annotations[c8dimages.AnnotationImageName],
 				Target: desc,
 			})
 		}

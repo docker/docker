@@ -273,22 +273,6 @@ func isNwPresent(t *testing.T, name string) bool {
 	return false
 }
 
-// assertNwList checks network list retrieved with ls command
-// equals to expected network list
-// note: out should be `network ls [option]` result
-func assertNwList(t *testing.T, out string, expectNws []string) {
-	lines := strings.Split(out, "\n")
-	var nwList []string
-	for _, line := range lines[1 : len(lines)-1] {
-		netFields := strings.Fields(line)
-		// wrap all network name in nwList
-		nwList = append(nwList, netFields[1])
-	}
-
-	// network ls should contains all expected networks
-	assert.DeepEqual(t, nwList, expectNws)
-}
-
 func getNwResource(t *testing.T, name string) *network.Inspect {
 	out := cli.DockerCmd(t, "network", "inspect", name).Stdout()
 	var nr []network.Inspect
@@ -304,63 +288,6 @@ func (s *DockerNetworkSuite) TestDockerNetworkCreateHostBind(c *testing.T) {
 	cli.WaitRun(c, id)
 	out := cli.DockerCmd(c, "ps").Stdout()
 	assert.Assert(c, is.Contains(out, "192.168.10.1:5000->5000/tcp"))
-}
-
-func (s *DockerNetworkSuite) TestDockerNetworkLsFilter(c *testing.T) {
-	testRequires(c, func() bool { return OnlyDefaultNetworks(testutil.GetContext(c)) })
-
-	testNet := "testnet1"
-	testLabel := "foo"
-	testValue := "bar"
-	out := cli.DockerCmd(c, "network", "create", "dev").Stdout()
-	defer func() {
-		cli.DockerCmd(c, "network", "rm", "dev")
-		cli.DockerCmd(c, "network", "rm", testNet)
-	}()
-	networkID := strings.TrimSpace(out)
-
-	// filter with partial ID
-	// only show 'dev' network
-	out = cli.DockerCmd(c, "network", "ls", "-f", "id="+networkID[0:5]).Stdout()
-	assertNwList(c, out, []string{"dev"})
-
-	out = cli.DockerCmd(c, "network", "ls", "-f", "name=dge").Stdout()
-	assertNwList(c, out, []string{"bridge"})
-
-	// only show built-in network (bridge, none, host)
-	out = cli.DockerCmd(c, "network", "ls", "-f", "type=builtin").Stdout()
-	assertNwList(c, out, []string{"bridge", "host", "none"})
-
-	// only show custom networks (dev)
-	out = cli.DockerCmd(c, "network", "ls", "-f", "type=custom").Stdout()
-	assertNwList(c, out, []string{"dev"})
-
-	// show all networks with filter
-	// it should be equivalent of ls without option
-	out = cli.DockerCmd(c, "network", "ls", "-f", "type=custom", "-f", "type=builtin").Stdout()
-	assertNwList(c, out, []string{"bridge", "dev", "host", "none"})
-
-	cli.DockerCmd(c, "network", "create", "--label", testLabel+"="+testValue, testNet)
-	assertNwIsAvailable(c, testNet)
-
-	out = cli.DockerCmd(c, "network", "ls", "-f", "label="+testLabel).Stdout()
-	assertNwList(c, out, []string{testNet})
-
-	out = cli.DockerCmd(c, "network", "ls", "-f", "label="+testLabel+"="+testValue).Stdout()
-	assertNwList(c, out, []string{testNet})
-
-	out = cli.DockerCmd(c, "network", "ls", "-f", "label=nonexistent").Stdout()
-	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	assert.Equal(c, len(outArr), 1, out+"\n")
-
-	out = cli.DockerCmd(c, "network", "ls", "-f", "driver=null").Stdout()
-	assertNwList(c, out, []string{"none"})
-
-	out = cli.DockerCmd(c, "network", "ls", "-f", "driver=host").Stdout()
-	assertNwList(c, out, []string{"host"})
-
-	out = cli.DockerCmd(c, "network", "ls", "-f", "driver=bridge").Stdout()
-	assertNwList(c, out, []string{"bridge", "dev", testNet})
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkCreateDelete(c *testing.T) {

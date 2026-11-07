@@ -361,7 +361,9 @@ func (cli *daemonCLI) start(ctx context.Context) (retErr error) {
 		return err
 	}
 	httpServer.Protocols = &p
-	httpServer.Handler = newHTTPHandler(ctx, gs, extProxy, apiServer.CreateMux(ctx, routers...))
+	handler := newHTTPHandler(ctx, gs, extProxy, apiServer.CreateMux(ctx, routers...))
+	httpServer.Handler = handler
+	d.StartAPISockets(handler)
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
@@ -482,6 +484,7 @@ func initBuildkit(ctx context.Context, d *daemon.Daemon, cdiCache *cdi.Cache, co
 		Dist:                d.DistributionServices(),
 		ImageTagger:         d.ImageService(),
 		NetworkController:   d.NetworkController(),
+		OCIHooks:            d.OCIHooks(),
 		DefaultCgroupParent: newCgroupParent(&cfg),
 		RegistryHosts:       d.RegistryHosts,
 		BuilderConfig:       cfg.Builder,
@@ -1164,6 +1167,40 @@ func nopWaitFunc(time.Duration) error {
 	return nil
 }
 
+// containerdDropInDir is the directory, relative to the directory of the
+// daemon configuration file, with configuration files for embedded containerd.
+const containerdDropInDir = "containerd.d"
+
+// containerdConfigDropInDir returns the absolute path of the directory with
+// configuration files for embedded containerd, or an empty string if the
+// daemon has no configuration file.
+func (cli *daemonCLI) containerdConfigDropInDir() (string, error) {
+	if *cli.configFile == "" {
+		return "", nil
+	}
+	configDir, err := filepath.Abs(filepath.Dir(*cli.configFile))
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(configDir, containerdDropInDir), nil
+}
+
+// warnUnusedContainerdDropIns warns if containerd configuration drop-ins are
+// present while dockerd does not use embedded containerd, so they are ignored.
+func (cli *daemonCLI) warnUnusedContainerdDropIns(ctx context.Context) {
+	dir, err := cli.containerdConfigDropInDir()
+	if err != nil || dir == "" {
+		return
+	}
+	entries, _ := os.ReadDir(dir)
+	if !slices.ContainsFunc(entries, func(entry os.DirEntry) bool {
+		return !entry.IsDir() && strings.HasSuffix(entry.Name(), ".toml")
+	}) {
+		return
+	}
+	log.G(ctx).WithField("dir", dir).Warn("ignoring containerd config drop-ins; they are only supported with embedded containerd")
+}
+
 func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Duration) error, error) {
 	systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
 	if err != nil {
@@ -1172,6 +1209,7 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 	if ok {
 		// Use the externally managed system containerd detected at this address.
 		cli.Config.ContainerdAddr = systemContainerdAddr
+		cli.warnUnusedContainerdDropIns(ctx)
 		return nopWaitFunc, nil
 	}
 
@@ -1189,6 +1227,7 @@ func (cli *daemonCLI) initializeContainerd(ctx context.Context) (func(time.Durat
 		return nil, errors.Wrap(err, "failed to start containerd")
 	}
 	cli.Config.ContainerdAddr = r.Address()
+	cli.warnUnusedContainerdDropIns(ctx)
 
 	// Try to wait for containerd to shutdown
 	return r.WaitTimeout, nil

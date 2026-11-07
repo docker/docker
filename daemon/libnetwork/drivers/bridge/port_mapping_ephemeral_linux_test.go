@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/moby/moby/v2/daemon/libnetwork/drivers/bridge/internal/firewaller"
 	"github.com/moby/moby/v2/daemon/libnetwork/drvregistry"
 	"github.com/moby/moby/v2/daemon/libnetwork/portallocator"
 	"github.com/moby/moby/v2/daemon/libnetwork/portmappers/nat"
@@ -110,6 +111,23 @@ func TestAddEphemeralPortsTracksSeparately(t *testing.T) {
 	assert.Assert(t, is.Len(env.ep.ephemeralPortMapping, 1))
 	assert.Check(t, is.Equal(env.ep.ephemeralPortMapping[0].HostPort, uint16(8080)))
 	assert.Check(t, is.Equal(env.ep.ephemeralPortMapping[0].Proto, types.TCP))
+}
+
+// TestAddEphemeralPortsNoSelfConnect checks that a published port's
+// NoSelfConnect setting reaches the firewaller, which needs it to decide
+// whether packets from the bridge are DNATed or left for the userland proxy.
+func TestAddEphemeralPortsNoSelfConnect(t *testing.T) {
+	defer netnsutils.SetupTestOSContext(t)()
+	env := newEphTestEnv(t, portBindingMode{ipv4: true})
+
+	pp := pubPort(types.TCP, 8080)
+	pp.NoSelfConnect = true
+	err := env.d.AddEphemeralPorts(t.Context(), ephTestNID, ephTestEID, []types.PublishedPort{pp})
+	assert.NilError(t, err)
+
+	fwPorts := env.n.firewallerNetwork.(*firewaller.StubFirewallerNetwork).Ports
+	assert.Assert(t, is.Len(fwPorts, 1))
+	assert.Check(t, fwPorts[0].NoSelfConnect)
 }
 
 // TestAddEphemeralPortsNoActiveMode documents a sharp edge rather than asserting

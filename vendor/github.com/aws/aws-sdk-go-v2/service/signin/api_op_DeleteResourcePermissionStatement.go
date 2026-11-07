@@ -5,6 +5,8 @@ package signin
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/signin/schemas"
+	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 	"github.com/aws/smithy-go/ptr"
 )
@@ -39,6 +41,20 @@ type DeleteResourcePermissionStatementInput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteResourcePermissionStatementInput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DeleteResourcePermissionStatementInput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteResourcePermissionStatementInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.ClientToken != nil {
+		s.WriteString(schemas.DeleteResourcePermissionStatementInput_clientToken, *v.ClientToken)
+	}
+	if v.StatementId != nil {
+		s.WriteString(schemas.DeleteResourcePermissionStatementInput_statementId, *v.StatementId)
+	}
+}
 func (in *DeleteResourcePermissionStatementInput) bindEndpointParams(p *EndpointParameters) {
 
 	p.IsControlPlane = ptr.Bool(true)
@@ -52,13 +68,26 @@ type DeleteResourcePermissionStatementOutput struct {
 	noSmithyDocumentSerde
 }
 
+func (v *DeleteResourcePermissionStatementOutput) Serialize(s smithy.ShapeSerializer) {
+	s.WriteStruct(schemas.DeleteResourcePermissionStatementOutput)
+	v.SerializeMembers(s)
+	s.CloseStruct()
+}
+
+func (v *DeleteResourcePermissionStatementOutput) SerializeMembers(s smithy.ShapeSerializer) {
+}
+func (v *DeleteResourcePermissionStatementOutput) Deserialize(d smithy.ShapeDeserializer) error {
+	return smithy.ReadStruct(d, schemas.DeleteResourcePermissionStatementOutput, func(s *smithy.Schema) error {
+		switch s {
+		}
+		return nil
+	})
+}
 func (c *Client) addOperationDeleteResourcePermissionStatementMiddlewares(stack *middleware.Stack, options Options) (err error) {
-	err = stack.Serialize.Add(&awsRestjson1_serializeOpDeleteResourcePermissionStatement{}, middleware.After)
-	if err != nil {
+	if err := stack.Serialize.Add(&serializeRequestMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteResourcePermissionStatement, schemas.DeleteResourcePermissionStatementInput, schemas.DeleteResourcePermissionStatementOutput)}, middleware.After); err != nil {
 		return err
 	}
-	err = stack.Deserialize.Add(&awsRestjson1_deserializeOpDeleteResourcePermissionStatement{}, middleware.After)
-	if err != nil {
+	if err := stack.Deserialize.Add(&deserializeResponseMiddleware{options: &options, operationSchema: smithy.NewOperationSchema(schemas.DeleteResourcePermissionStatement, schemas.DeleteResourcePermissionStatementInput, schemas.DeleteResourcePermissionStatementOutput), output: &DeleteResourcePermissionStatementOutput{}}, middleware.After); err != nil {
 		return err
 	}
 

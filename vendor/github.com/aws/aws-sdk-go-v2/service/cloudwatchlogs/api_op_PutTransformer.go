@@ -90,7 +90,9 @@ func (v *PutTransformerInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.LogGroupIdentifier != nil {
 		s.WriteString(schemas.PutTransformerRequest_logGroupIdentifier, *v.LogGroupIdentifier)
 	}
-	serializeProcessors(s, schemas.PutTransformerRequest_transformerConfig, v.TransformerConfig)
+	if v.TransformerConfig != nil {
+		serializeProcessors(s, schemas.PutTransformerRequest_transformerConfig, v.TransformerConfig)
+	}
 }
 
 type PutTransformerOutput struct {

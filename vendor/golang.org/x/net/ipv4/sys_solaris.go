@@ -19,7 +19,7 @@ const sockoptReceiveInterface = unix.IP_RECVIF
 
 var (
 	ctlOpts = [ctlMax]ctlOpt{
-		ctlTTL:        {unix.IP_RECVTTL, 4, marshalTTL, parseTTL},
+		ctlTTL:        {unix.IP_RECVTTL, 1, marshalTTL, parseTTL},
 		ctlPacketInfo: {unix.IP_PKTINFO, sizeofInetPktinfo, marshalPacketInfo, parsePacketInfo},
 	}
 

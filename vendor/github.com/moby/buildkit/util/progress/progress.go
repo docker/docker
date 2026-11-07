@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
@@ -217,13 +218,13 @@ func newWriter(pw *progressWriter) *progressWriter {
 }
 
 type progressWriter struct {
-	done   bool
+	done   atomic.Bool // set by Close, may race with writes from other goroutines
 	reader *progressReader
 	meta   map[string]any
 }
 
 func (pw *progressWriter) Write(id string, v any) error {
-	if pw.done {
+	if pw.done.Load() {
 		return errors.Errorf("writing %s to closed progress writer", id)
 	}
 	return pw.writeRawProgress(&Progress{
@@ -251,7 +252,7 @@ func (pw *progressWriter) Close() error {
 	delete(pw.reader.writers, pw)
 	pw.reader.mu.Unlock()
 	pw.reader.cond.Broadcast()
-	pw.done = true
+	pw.done.Store(true)
 	return nil
 }
 

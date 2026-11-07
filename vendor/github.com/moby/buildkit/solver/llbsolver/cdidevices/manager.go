@@ -5,6 +5,7 @@ import (
 	"maps"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/bklog"
@@ -40,9 +41,10 @@ type Device struct {
 }
 
 type Manager struct {
-	cache       *cdi.Cache
-	locker      *locker.Locker
-	autoAllowed map[string]struct{}
+	cache         *cdi.Cache
+	locker        *locker.Locker
+	autoAllowedMu sync.RWMutex
+	autoAllowed   map[string]struct{}
 }
 
 func NewManager(cache *cdi.Cache, autoAllowed []string) *Manager {
@@ -58,6 +60,8 @@ func NewManager(cache *cdi.Cache, autoAllowed []string) *Manager {
 }
 
 func (m *Manager) isAutoAllowed(kind, name string, annotations map[string]string) bool {
+	m.autoAllowedMu.RLock()
+	defer m.autoAllowedMu.RUnlock()
 	if _, ok := m.autoAllowed[name]; ok {
 		return true
 	}
@@ -152,7 +156,25 @@ func (m *Manager) FindDevices(devs ...*pb.CDIDevice) ([]string, error) {
 	return dedupSlice(out), nil
 }
 
+// MatchDevices returns the registered devices that the request resolves to,
+// including matches by class annotation. Unlike FindDevices it does not fail
+// or warn when nothing matches.
+func (m *Manager) MatchDevices(dev *pb.CDIDevice) []string {
+	return m.matchDevice(dev, m.cache.ListDevices())
+}
+
 func (m *Manager) parseDevice(dev *pb.CDIDevice, all []string) ([]string, error) {
+	out := m.matchDevice(dev, all)
+	if len(out) == 0 {
+		if !dev.Optional {
+			return nil, errors.Errorf("required device %q is not registered", dev.Name)
+		}
+		bklog.G(context.TODO()).Warnf("Optional device %q is not registered", dev.Name)
+	}
+	return out, nil
+}
+
+func (m *Manager) matchDevice(dev *pb.CDIDevice, all []string) []string {
 	var out []string
 
 	kind, name, _ := strings.Cut(dev.Name, "=")
@@ -197,13 +219,7 @@ func (m *Manager) parseDevice(dev *pb.CDIDevice, all []string) ([]string, error)
 		}
 	}
 
-	if len(out) == 0 {
-		if !dev.Optional {
-			return nil, errors.Errorf("required device %q is not registered", dev.Name)
-		}
-		bklog.G(context.TODO()).Warnf("Optional device %q is not registered", dev.Name)
-	}
-	return out, nil
+	return out
 }
 
 func (m *Manager) hasDevice(name string) bool {
@@ -249,7 +265,9 @@ func (m *Manager) OnDemandInstaller(name string) (func(context.Context) error, b
 		}
 
 		// TODO: this needs to be set as annotation to survive reboot
+		m.autoAllowedMu.Lock()
 		m.autoAllowed[name] = struct{}{}
+		m.autoAllowedMu.Unlock()
 
 		return nil
 	}, true

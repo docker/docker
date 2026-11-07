@@ -81,8 +81,12 @@ func (v *DescribeFieldIndexesInput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeFieldIndexesInput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeIndexCategories(s, schemas.DescribeFieldIndexesRequest_indexCategories, v.IndexCategories)
-	serializeDescribeFieldIndexesLogGroupIdentifiers(s, schemas.DescribeFieldIndexesRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	if v.IndexCategories != nil {
+		serializeIndexCategories(s, schemas.DescribeFieldIndexesRequest_indexCategories, v.IndexCategories)
+	}
+	if v.LogGroupIdentifiers != nil {
+		serializeDescribeFieldIndexesLogGroupIdentifiers(s, schemas.DescribeFieldIndexesRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeFieldIndexesRequest_nextToken, *v.NextToken)
 	}
@@ -109,7 +113,9 @@ func (v *DescribeFieldIndexesOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeFieldIndexesOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeFieldIndexes(s, schemas.DescribeFieldIndexesResponse_fieldIndexes, v.FieldIndexes)
+	if v.FieldIndexes != nil {
+		serializeFieldIndexes(s, schemas.DescribeFieldIndexesResponse_fieldIndexes, v.FieldIndexes)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeFieldIndexesResponse_nextToken, *v.NextToken)
 	}

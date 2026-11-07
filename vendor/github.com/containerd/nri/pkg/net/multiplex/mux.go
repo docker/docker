@@ -322,6 +322,18 @@ func (m *mux) reader() {
 
 		cid = binary.BigEndian.Uint32(hdr[0:4])
 		cnt = binary.BigEndian.Uint32(hdr[4:8])
+		if cnt > maxPayloadSize {
+			// The write path never produces frames this large, so the
+			// stream is malformed: we cannot skip the frame (the framing
+			// has no resync marker) and we cannot allocate the claimed
+			// size (up to 4 GiB, and int(cnt) overflows on 32-bit
+			// architectures). Tear the mux down, like we do for queue
+			// overflow.
+			err = fmt.Errorf("conn %d: frame payload %d bytes, maximum is %d", cid, cnt, maxPayloadSize)
+			m.setError(err)
+			m.Close()
+			return
+		}
 		buf = make([]byte, int(cnt))
 
 		_, err = io.ReadFull(m.trunk, buf)

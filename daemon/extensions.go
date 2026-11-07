@@ -2,9 +2,13 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/containerd/log"
 	"github.com/moby/extensions"
@@ -20,34 +24,76 @@ import (
 // newExtensionHost builds the daemon's extension host.
 func (daemon *Daemon) newExtensionHost(ctx context.Context) (*host.Host, error) {
 	cfg := daemon.Config()
-	runtimeDir := filepath.Join(cfg.ExecRoot, "extensions")
+	runtimeDir := extensionRuntimeDir(&cfg)
 	if err := os.MkdirAll(runtimeDir, 0o700); err != nil {
 		return nil, fmt.Errorf("create extension runtime directory: %w", err)
 	}
 	if err := os.Chmod(runtimeDir, 0o700); err != nil {
 		return nil, fmt.Errorf("set permissions on extension runtime directory: %w", err)
 	}
+	// A crashed daemon leaves its API socket behind. Opening the socket
+	// replaces it, but a daemon whose extensions never use the API would
+	// otherwise keep the dead socket around.
+	if err := os.Remove(extensionAPISocket(&cfg)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		log.G(ctx).WithError(err).Warn("failed to remove stale extension API socket")
+	}
+	defaults := slices.Concat(builtinExtensions, daemon.daemonExtensions())
+	exts, err := selectBuiltinExtensions(cfg.Extensions, defaults, daemon.optionalExtensions())
+	if err != nil {
+		return nil, err
+	}
 	return host.New(ctx,
 		host.WithRuntimeDir(runtimeDir),
-		host.WithExtensions(builtinExtensions...),
-		host.WithExtensions(daemon.daemonExtensions()...),
+		host.WithExtensions(exts...),
 		host.WithDirs(extensionDirs(&cfg)...),
 		host.WithClientProviders(clientProviders()...),
 		host.WithProviderPolicy(host.PointPolicyFunc(func(extensions.ExtensionIdentity, extensions.PointID) host.PointPolicyResult {
 			return host.Allow()
 		})),
 		host.WithDependencyProviders(dependencyProviders()...),
+		host.WithPointServers(offeredPointServers()...),
 		host.WithExtensionConfig(extensionConfig(&cfg)),
 	)
 }
 
-// extensionConfig converts daemon.json's extension-config entries to host form.
+// extensionRuntimeDir holds the extension sockets.
+// It is private to the daemon user.
+func extensionRuntimeDir(cfg *config.Config) string {
+	return filepath.Join(cfg.ExecRoot, "extensions")
+}
+
+// extensionAPISocket is the path of the API socket for extensions.
+func extensionAPISocket(cfg *config.Config) string {
+	return filepath.Join(extensionRuntimeDir(cfg), "api.sock")
+}
+
+// extensionAPIEndpoint provides the daemon.api point.
+// It opens the API socket for extensions when an extension first asks for the
+// endpoint, so daemons without such extensions expose no extra API endpoint.
+// The socket is separate from the configured hosts, which may be TLS-only TCP
+// or socket-activated and so unusable by extensions.
+func (daemon *Daemon) extensionAPIEndpoint(ctx context.Context) (string, error) {
+	cfg := daemon.Config()
+	path := extensionAPISocket(&cfg)
+	if err := daemon.apiSockets.Open(ctx, path); err != nil {
+		return "", err
+	}
+	return "unix://" + path, nil
+}
+
+// StartAPISockets serves h on the API sockets the daemon creates for its own
+// consumers, such as extensions.
+func (daemon *Daemon) StartAPISockets(h http.Handler) {
+	daemon.apiSockets.Start(h)
+}
+
+// extensionConfig converts daemon.json's extensions.configs entries to host form.
 func extensionConfig(cfg *config.Config) map[extensions.ExtensionID]extensions.Config {
-	if len(cfg.ExtensionConfig) == 0 {
+	if len(cfg.Extensions.Configs) == 0 {
 		return nil
 	}
-	out := make(map[extensions.ExtensionID]extensions.Config, len(cfg.ExtensionConfig))
-	for _, extensionConfig := range cfg.ExtensionConfig {
+	out := make(map[extensions.ExtensionID]extensions.Config, len(cfg.Extensions.Configs))
+	for _, extensionConfig := range cfg.Extensions.Configs {
 		out[extensionConfig.ID] = extensionConfig.Config
 	}
 	return out
@@ -57,8 +103,8 @@ func extensionConfig(cfg *config.Config) map[extensions.ExtensionID]extensions.C
 // binaries: the ones configured with --extension-dir, or the default location
 // when none are configured.
 func extensionDirs(cfg *config.Config) []string {
-	if len(cfg.ExtensionDirs) > 0 {
-		return cfg.ExtensionDirs
+	if len(cfg.Extensions.Dirs) > 0 {
+		return cfg.Extensions.Dirs
 	}
 	dir, err := defaultExtensionDir()
 	if err != nil {
@@ -85,9 +131,10 @@ func defaultExtensionDir() (string, error) {
 	return filepath.Join(libexecDir, "docker", "moby-extensions"), nil
 }
 
-// ExposeExtensionServices publishes services selected through service.grpc on
-// the API socket. In-process services are registered on gs; out-of-process
-// services are proxied by name. Service-name collisions fail startup.
+// ExposeExtensionServices publishes service.grpc services and points offered
+// through service.v0 on the API socket.
+// In-process services are registered on gs; out-of-process services are proxied.
+// Service-name collisions fail startup.
 func (daemon *Daemon) ExposeExtensionServices(gs *grpc.Server) (*grpcproxy.Proxy, error) {
 	if daemon.extensionHost == nil {
 		return nil, nil
@@ -101,6 +148,10 @@ func (daemon *Daemon) ExposeExtensionServices(gs *grpc.Server) (*grpcproxy.Proxy
 	if err != nil {
 		return nil, err
 	}
+	// Include offered points in the service-name collision check.
+	var offered offeredServices
+	daemon.extensionHost.RegisterInProcessServices(&offered)
+	inproc = append(inproc, offered...)
 	for _, svc := range inproc {
 		if _, taken := reserved[svc.Name]; taken {
 			return nil, fmt.Errorf("in-process extension cannot expose gRPC service %q: it is already served", svc.Name)
@@ -125,4 +176,11 @@ func (daemon *Daemon) ExposeExtensionServices(gs *grpc.Server) (*grpcproxy.Proxy
 		return nil, nil
 	}
 	return grpcproxy.New(routes), nil
+}
+
+// offeredServices collects in-process services for validation before registration.
+type offeredServices []servicegrpcv0.Service
+
+func (s *offeredServices) RegisterService(desc *grpc.ServiceDesc, impl any) {
+	*s = append(*s, servicegrpcv0.Service{Name: desc.ServiceName, Desc: desc, Impl: impl})
 }

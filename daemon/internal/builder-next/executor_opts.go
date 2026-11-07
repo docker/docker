@@ -7,6 +7,7 @@ import (
 	"github.com/moby/buildkit/executor/oci"
 	"github.com/moby/buildkit/solver/llbsolver/cdidevices"
 	"github.com/moby/buildkit/util/network"
+	"github.com/moby/moby/v2/daemon/internal/ocihook"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	"github.com/moby/sys/user"
 )
@@ -17,6 +18,7 @@ type executorOpts struct {
 	// common fields
 	root              string
 	networkController *libnetwork.Controller
+	ociHooks          *ocihook.Server
 	dnsConfig         *oci.DNSConfig
 	cdiManager        *cdidevices.Manager
 	proxyProvider     network.ProxyProvider

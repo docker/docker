@@ -83,7 +83,9 @@ func (v *GetIntegrationOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *GetIntegrationOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeIntegrationDetails(s, schemas.GetIntegrationResponse_integrationDetails, v.IntegrationDetails)
+	if v.IntegrationDetails != nil {
+		serializeIntegrationDetails(s, schemas.GetIntegrationResponse_integrationDetails, v.IntegrationDetails)
+	}
 	if v.IntegrationName != nil {
 		s.WriteString(schemas.GetIntegrationResponse_integrationName, *v.IntegrationName)
 	}

@@ -59,7 +59,6 @@ func TestUserChain(t *testing.T) {
 					EnableIP6Tables: tc.iptables,
 				}))
 			assert.NilError(t, err)
-			defer c.Stop()
 			skip.If(t, nftables.Enabled(), "nftables is enabled, skipping iptables test")
 
 			// init. condition

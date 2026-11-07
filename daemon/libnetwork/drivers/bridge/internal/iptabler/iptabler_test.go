@@ -15,6 +15,7 @@ import (
 	"github.com/moby/moby/v2/daemon/libnetwork/types"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 	"gotest.tools/v3/icmd"
 	"gotest.tools/v3/skip"
@@ -100,6 +101,61 @@ func TestCleanupOldIngressChains(t *testing.T) {
 	assert.Check(t, !iptable.Exists(iptables.Filter, "FORWARD", "-j", oldIngressChain))
 	for _, table := range []iptables.Table{iptables.Nat, iptables.Filter} {
 		assert.Check(t, !iptable.ExistChain(oldIngressChain, table), "table:%v", table)
+	}
+}
+
+// TestCleanerPerBridgeRules checks that the cleaner's DelNetwork deletes the
+// per-bridge rules that daemons older than 28.0.1 left in filter-FORWARD, for
+// internal and non-internal networks. Then, that Done removes the filter
+// table's DOCKER chain, which NewCleaner can't remove while filter-FORWARD
+// has per-bridge jumps to it.
+func TestCleanerPerBridgeRules(t *testing.T) {
+	skip.If(t, iptables.UsingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
+
+	defer netnsutils.SetupTestOSContext(t)()
+	versions := []iptables.IPVersion{iptables.IPv4, iptables.IPv6}
+	for _, version := range versions {
+		iptable := iptables.GetIptable(version)
+		for _, args := range [][]string{
+			{"-N", dockerChain},
+			{"-N", isolationChain1},
+			{"-A", "FORWARD", "-j", isolationChain1},
+			{"-A", "FORWARD", "-o", "br-restored", "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"},
+			{"-A", "FORWARD", "-o", "br-restored", "-j", dockerChain},
+			{"-A", "FORWARD", "-i", "br-restored", "!", "-o", "br-restored", "-j", "ACCEPT"},
+			{"-A", "FORWARD", "-i", "br-restored", "-o", "br-restored", "-j", "ACCEPT"},
+			{"-A", "FORWARD", "-i", "br-internal", "-o", "br-internal", "-j", "ACCEPT"},
+		} {
+			out, err := iptable.Raw(args...)
+			assert.NilError(t, err, "version:%s args:%v out:%s", version, args, out)
+		}
+	}
+
+	fc := NewCleaner(t.Context(), firewaller.Config{IPv4: true, IPv6: true})
+	assert.Assert(t, fc != nil)
+	for _, version := range versions {
+		iptable := iptables.GetIptable(version)
+		assert.Check(t, !iptable.ExistChain(isolationChain1, iptables.Filter), "version:%s", version)
+	}
+
+	for _, nc := range []firewaller.NetworkConfig{
+		{IfName: "br-restored", ICC: true, Masquerade: true},
+		{IfName: "br-internal", ICC: true, Internal: true},
+	} {
+		nc.Config4.Prefix = netip.MustParsePrefix("192.0.2.0/24")
+		nc.Config6.Prefix = netip.MustParsePrefix("2001:db8::/64")
+		fc.DelNetwork(t.Context(), nc)
+	}
+	for _, version := range versions {
+		out, err := iptables.GetIptable(version).Raw("-S", "FORWARD")
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(string(out), "-P FORWARD ACCEPT\n"), "version:%s", version)
+	}
+
+	fc.Done(t.Context())
+	for _, version := range versions {
+		iptable := iptables.GetIptable(version)
+		assert.Check(t, !iptable.ExistChain(dockerChain, iptables.Filter), "version:%s", version)
 	}
 }
 
@@ -264,4 +320,64 @@ func testIptabler(t *testing.T, tn string, config firewaller.Config, netConfig f
 	assert.NilError(t, err)
 	checkResults("iptables", rnWSL2Mirrored(fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin)), config.IPv4)
 	checkResults("ip6tables", fmt.Sprintf("%s/cleaned,hairpin=%v", tn, config.Hairpin), config.IPv6)
+}
+
+// TestDNATFromOwnBridge checks when a port binding's DNAT rule leaves packets
+// arriving from the network's own bridge to the userland proxy, and that the
+// rule is deleted with the binding.
+func TestDNATFromOwnBridge(t *testing.T) {
+	skip.If(t, iptables.UsingFirewalld(), "firewalld is running in the host netns, it can't modify rules in the test's netns")
+
+	testcases := []struct {
+		hairpin, icc, noSelfConnect bool
+		expProxySkip                bool
+	}{
+		{hairpin: true, icc: true},
+		{hairpin: true, icc: false, noSelfConnect: true},
+		{icc: true, expProxySkip: true},
+		{icc: true, noSelfConnect: true, expProxySkip: true},
+		{icc: false, expProxySkip: true},
+		{icc: false, noSelfConnect: true},
+	}
+	for _, tc := range testcases {
+		t.Run(fmt.Sprintf("hairpin=%v/icc=%v/noSelfConnect=%v", tc.hairpin, tc.icc, tc.noSelfConnect), func(t *testing.T) {
+			defer netnsutils.SetupTestOSContext(t, netnsutils.WithSetNsHandles(false))()
+
+			fw, err := NewIptabler(t.Context(), firewaller.Config{IPv4: true, Hairpin: tc.hairpin})
+			assert.NilError(t, err)
+			nw, err := fw.NewNetwork(t.Context(), firewaller.NetworkConfig{
+				IfName:     "br-dummy",
+				ICC:        tc.icc,
+				Masquerade: true,
+				Config4:    firewaller.NetworkConfigFam{Prefix: netip.MustParsePrefix("192.168.0.0/24")},
+			})
+			assert.NilError(t, err)
+			pb := types.PortBinding{
+				Proto:         types.TCP,
+				IP:            net.ParseIP("192.168.0.2"),
+				Port:          80,
+				HostIP:        net.IPv4zero,
+				HostPort:      8080,
+				HostPortEnd:   8080,
+				NoSelfConnect: tc.noSelfConnect,
+			}
+
+			dnatRules := func() []string {
+				t.Helper()
+				out, err := iptables.GetIptable(iptables.IPv4).Raw("-t", "nat", "-S", dockerChain)
+				assert.NilError(t, err)
+				return slices.DeleteFunc(strings.Split(string(out), "\n"), func(r string) bool {
+					return !strings.Contains(r, "-j DNAT")
+				})
+			}
+
+			assert.NilError(t, nw.AddPorts(t.Context(), []types.PortBinding{pb}))
+			rules := dnatRules()
+			assert.Assert(t, is.Len(rules, 1))
+			assert.Check(t, strings.Contains(rules[0], "! -i br-dummy") == tc.expProxySkip, "DNAT rule: %s", rules[0])
+
+			assert.NilError(t, nw.DelPorts(t.Context(), []types.PortBinding{pb}))
+			assert.Check(t, is.Len(dnatRules(), 0))
+		})
+	}
 }

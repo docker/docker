@@ -10,9 +10,12 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -132,7 +135,7 @@ func TestHijackCancellationOwnership(t *testing.T) {
 	}
 }
 
-func TestHijackHooks(t *testing.T) {
+func TestHijackHooksAndTracing(t *testing.T) {
 	const (
 		reqHeaderKey    = "X-Test-Request"
 		reqHeaderValue  = "request"
@@ -162,9 +165,11 @@ func TestHijackHooks(t *testing.T) {
 	serverURL, err := url.Parse(ts.URL)
 	assert.NilError(t, err)
 
+	tp := &spanCounter{}
 	var gotResponseHeader string
 	c, err := New(
 		WithHost("tcp://"+serverURL.Host),
+		WithTraceProvider(tp),
 		WithHTTPRequestHook(func(req *http.Request) error {
 			req.Header.Set(reqHeaderKey, reqHeaderValue)
 			return nil
@@ -180,6 +185,38 @@ func TestHijackHooks(t *testing.T) {
 	defer func() { _ = conn.Close() }()
 
 	assert.Equal(t, gotResponseHeader, respHeaderValue)
+	assert.Check(t, is.Equal(tp.started.Load(), int32(1)))
+	assert.Check(t, is.Equal(tp.ended.Load(), int32(1)))
+}
+
+// spanCounter counts the spans started and ended through it.
+type spanCounter struct {
+	noop.TracerProvider
+	started, ended atomic.Int32
+}
+
+func (p *spanCounter) Tracer(string, ...trace.TracerOption) trace.Tracer {
+	return countingTracer{p: p}
+}
+
+type countingTracer struct {
+	noop.Tracer
+	p *spanCounter
+}
+
+func (t countingTracer) Start(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+	t.p.started.Add(1)
+	ctx, span := t.Tracer.Start(ctx, name, opts...)
+	return ctx, countingSpan{Span: span, p: t.p}
+}
+
+type countingSpan struct {
+	trace.Span
+	p *spanCounter
+}
+
+func (s countingSpan) End(...trace.SpanEndOption) {
+	s.p.ended.Add(1)
 }
 
 func TestTLSCloseWriter(t *testing.T) {

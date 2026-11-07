@@ -12,7 +12,6 @@ import (
 func TestNetworkStore(t *testing.T) {
 	c, err := New(t.Context())
 	assert.NilError(t, err)
-	defer c.Stop()
 
 	// Insert a first network
 	nw1 := &Network{id: "testNetwork1", configFrom: "config-network"}

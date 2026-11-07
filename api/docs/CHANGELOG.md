@@ -15,6 +15,16 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.57 API changes
 
+* `GET /events`: `die` events for containers now include a `restarting`
+  attribute, set to `"true"` when the container is going to be restarted,
+  either by its restart policy or by a manual restart in progress. The
+  attribute is omitted when the container is not going to be restarted,
+  including when the daemon is shutting down. It announces the restart but
+  does not guarantee it: the restart can still be cancelled (for example by
+  stopping the container) or fail to start the container again.
+* The API specification now uses OpenAPI 3.2.0 instead of Swagger 2.0.
+  A generated Swagger 2.0 version is still available for existing tooling.
+
 ## v1.56 API changes
 
 * `GET /containers/json` now supports an `annotation` filter to filter

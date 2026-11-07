@@ -623,6 +623,31 @@ func TestPublishedPortAlreadyInUse(t *testing.T) {
 	inspect, err := apiClient.ContainerInspect(ctx, ctr2, client.ContainerInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.Container.State.Status, containertypes.StateCreated))
+
+	_, err = apiClient.ContainerStart(ctx, ctr2, client.ContainerStartOptions{})
+	assert.Assert(t, is.ErrorContains(err, "failed to set up container networking"))
+
+	inspect, err = apiClient.ContainerInspect(ctx, ctr2, client.ContainerInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(inspect.Container.State.Status, containertypes.StateCreated))
+	assert.Assert(t, is.Len(inspect.Container.HostConfig.PortBindings[mappedPort], 1))
+	assert.Check(t, is.Equal(inspect.Container.HostConfig.PortBindings[mappedPort][0].HostPort, "8000"))
+	// The bridge entry must survive the failed start, otherwise the next start
+	// would silently succeed with no networking attached.
+	assert.Assert(t, is.Contains(inspect.Container.NetworkSettings.Networks, "bridge"))
+
+	// The container list must not report the endpoint that was rolled back.
+	res, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
+		All:     true,
+		Filters: make(client.Filters).Add("id", ctr2),
+	})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Items, 1))
+	assert.Assert(t, res.Items[0].NetworkSettings != nil)
+	ep := res.Items[0].NetworkSettings.Networks["bridge"]
+	assert.Assert(t, ep != nil)
+	assert.Check(t, is.Equal(ep.EndpointID, ""))
+	assert.Check(t, !ep.IPAddress.IsValid())
 }
 
 // TestAllPortMappingsAreReturned check that dual-stack ports mapped through
@@ -1100,6 +1125,110 @@ func TestFirewallBackendSwitch(t *testing.T) {
 	assert.Check(t, !nftablesTablesExist(), "nftables tables exist after running with iptables")
 }
 
+// TestFirewallBackendSwitchFrom27 checks that, when the daemon starts with the
+// nftables backend after a 27.x release ran with iptables, it deletes the 27.x
+// release's chains and rules. In that layout, the filter-FORWARD chain has
+// per-bridge rules, including a jump to the DOCKER chain.
+func TestFirewallBackendSwitchFrom27(t *testing.T) {
+	skip.If(t, testEnv.IsRootless, "rootless has its own netns")
+	skip.If(t, networking.FirewalldRunning(), "can't use firewalld in host netns to add rules in L3Segment")
+	_ = setupTest(t)
+
+	// Run in a clean netns.
+	addr4 := netip.MustParseAddr("192.168.126.1")
+	addr6 := netip.MustParseAddr("fd76:c828:41fa::1")
+	l3 := networking.NewL3Segment(t, "test-fwbe27",
+		netip.PrefixFrom(addr4, 24),
+		netip.PrefixFrom(addr6, 64),
+	)
+	defer l3.Destroy(t)
+
+	addr4, addr6 = addr4.Next(), addr6.Next()
+	const hostname = "fwbe27"
+	l3.AddHost(t, hostname, hostname+"-netns", "eth0",
+		netip.PrefixFrom(addr4, 24),
+		netip.PrefixFrom(addr6, 64),
+	)
+	host := l3.Hosts[hostname]
+
+	// Run without OTel because there's no routing from this netns for it.
+	d := daemon.New(t, daemon.WithEnvVars("OTEL_EXPORTER_OTLP_ENDPOINT="))
+
+	// A start with the iptables backend leaves the default bridge network in
+	// the bridge driver's store, so the next start restores it, as it would
+	// after an upgrade from 27.x.
+	host.Do(t, func() {
+		d.Start(t, "--firewall-backend=iptables")
+		d.Stop(t)
+	})
+
+	// Replace the rules with those a 27.x release created for the default
+	// bridge network, from the first generated copy of
+	// iptablesdoc/generated/new-daemon.md. A rule with cmd set is only for
+	// that command. The default bridge network had no IPv6, so ip6tables has
+	// no per-bridge rules.
+	rules27 := []struct {
+		cmd   string
+		table string
+		args  []string
+	}{
+		{table: "filter", args: []string{"-N", "DOCKER"}},
+		{table: "filter", args: []string{"-N", "DOCKER-ISOLATION-STAGE-1"}},
+		{table: "filter", args: []string{"-N", "DOCKER-ISOLATION-STAGE-2"}},
+		{table: "filter", args: []string{"-N", "DOCKER-USER"}},
+		{table: "filter", args: []string{"-A", "FORWARD", "-j", "DOCKER-USER"}},
+		{table: "filter", args: []string{"-A", "FORWARD", "-j", "DOCKER-ISOLATION-STAGE-1"}},
+		{cmd: "iptables", table: "filter", args: []string{"-A", "FORWARD", "-o", "docker0", "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}},
+		{cmd: "iptables", table: "filter", args: []string{"-A", "FORWARD", "-o", "docker0", "-j", "DOCKER"}},
+		{cmd: "iptables", table: "filter", args: []string{"-A", "FORWARD", "-i", "docker0", "!", "-o", "docker0", "-j", "ACCEPT"}},
+		{cmd: "iptables", table: "filter", args: []string{"-A", "FORWARD", "-i", "docker0", "-o", "docker0", "-j", "ACCEPT"}},
+		{cmd: "iptables", table: "filter", args: []string{"-A", "DOCKER-ISOLATION-STAGE-1", "-i", "docker0", "!", "-o", "docker0", "-j", "DOCKER-ISOLATION-STAGE-2"}},
+		{table: "filter", args: []string{"-A", "DOCKER-ISOLATION-STAGE-1", "-j", "RETURN"}},
+		{cmd: "iptables", table: "filter", args: []string{"-A", "DOCKER-ISOLATION-STAGE-2", "-o", "docker0", "-j", "DROP"}},
+		{table: "filter", args: []string{"-A", "DOCKER-ISOLATION-STAGE-2", "-j", "RETURN"}},
+		{table: "filter", args: []string{"-A", "DOCKER-USER", "-j", "RETURN"}},
+		{table: "nat", args: []string{"-N", "DOCKER"}},
+		{table: "nat", args: []string{"-A", "PREROUTING", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER"}},
+		{cmd: "iptables", table: "nat", args: []string{"-A", "OUTPUT", "!", "-d", "127.0.0.0/8", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER"}},
+		{cmd: "ip6tables", table: "nat", args: []string{"-A", "OUTPUT", "!", "-d", "::1/128", "-m", "addrtype", "--dst-type", "LOCAL", "-j", "DOCKER"}},
+		{cmd: "iptables", table: "nat", args: []string{"-A", "POSTROUTING", "-s", "172.17.0.0/16", "!", "-o", "docker0", "-j", "MASQUERADE"}},
+		{cmd: "iptables", table: "nat", args: []string{"-A", "DOCKER", "-i", "docker0", "-j", "RETURN"}},
+	}
+	for _, cmd := range []string{"iptables", "ip6tables"} {
+		for _, table := range []string{"filter", "nat"} {
+			host.MustRun(t, cmd, "-t", table, "-F")
+			host.MustRun(t, cmd, "-t", table, "-X")
+		}
+		for _, r := range rules27 {
+			if r.cmd != "" && r.cmd != cmd {
+				continue
+			}
+			host.MustRun(t, cmd, append([]string{"-t", r.table}, r.args...)...)
+		}
+	}
+
+	host.Do(t, func() {
+		d.Start(t, "--firewall-backend=nftables")
+		d.Stop(t)
+	})
+
+	// The daemon doesn't delete DOCKER-USER, or the jump to it. Everything
+	// else in the 27.x rules is Docker's, and must be gone.
+	for _, cmd := range []string{"iptables-save", "ip6tables-save"} {
+		dump := host.MustRun(t, cmd)
+		var remaining []string
+		for line := range strings.SplitSeq(dump, "\n") {
+			if strings.Contains(line, "DOCKER-USER") {
+				continue
+			}
+			if strings.HasPrefix(line, ":DOCKER") || strings.HasPrefix(line, "-A ") {
+				remaining = append(remaining, line)
+			}
+		}
+		assert.Check(t, is.Len(remaining, 0), "%s:\n%s", cmd, dump)
+	}
+}
+
 func TestEmptyPortBindingsBC(t *testing.T) {
 	ctx := setupTest(t)
 	d := daemon.New(t)
@@ -1458,6 +1587,55 @@ func TestJoinError(t *testing.T) {
 	assert.Check(t, is.Equal(res.ExitCode, 0), "container should have an eth0")
 	res = ctr.ExecT(ctx, t, c, cid, []string{"ip", "link", "show", "eth1"})
 	assert.Check(t, is.Equal(res.ExitCode, 0), "container should have an eth1")
+}
+
+// TestEndpointCreateErrorRollback checks that if connecting a running container
+// to a network fails while creating the endpoint (here, because the requested
+// static IPv4 address is already in use), the failed network is not left in the
+// container's network settings. Otherwise, the container could not be restarted.
+func TestEndpointCreateErrorRollback(t *testing.T) {
+	ctx := setupTest(t)
+	c := testEnv.APIClient()
+
+	const netName = "testnetrollback"
+	const gwAddr = "192.168.126.1"
+	const staticIP = "192.168.126.10"
+	network.CreateNoError(ctx, t, c, netName,
+		network.WithIPAM("192.168.126.0/24", gwAddr),
+	)
+	defer network.RemoveNoError(ctx, t, c, netName)
+
+	// Hold the static address, so that connecting another container to it fails.
+	holderID := ctr.Run(ctx, t, c,
+		ctr.WithNetworkMode(netName),
+		ctr.WithIPv4(netName, staticIP),
+	)
+	defer c.ContainerRemove(ctx, holderID, client.ContainerRemoveOptions{Force: true})
+
+	cid := ctr.Run(ctx, t, c)
+	defer c.ContainerRemove(ctx, cid, client.ContainerRemoveOptions{Force: true})
+
+	_, err := c.NetworkConnect(ctx, netName, client.NetworkConnectOptions{
+		Container: cid,
+		EndpointConfig: &networktypes.EndpointSettings{
+			IPAMConfig: &networktypes.EndpointIPAMConfig{
+				IPv4Address: netip.MustParseAddr(staticIP),
+			},
+		},
+	})
+	assert.Check(t, is.ErrorContains(err, "Address already in use"))
+
+	// Only the default bridge network should show up in container inspect.
+	ctrInsp := ctr.Inspect(ctx, t, c, cid)
+	assert.Check(t, is.Len(ctrInsp.NetworkSettings.Networks, 1))
+	assert.Check(t, is.Contains(ctrInsp.NetworkSettings.Networks, "bridge"))
+
+	// Restarting would fail if the failed network config had been kept.
+	_, err = c.ContainerRestart(ctx, cid, client.ContainerRestartOptions{})
+	assert.NilError(t, err)
+	ctrInsp = ctr.Inspect(ctx, t, c, cid)
+	assert.Check(t, is.Equal(ctrInsp.State.Running, true))
+	assert.Check(t, is.Len(ctrInsp.NetworkSettings.Networks, 1))
 }
 
 func TestPreferredSubnetRestore(t *testing.T) {

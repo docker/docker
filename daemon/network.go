@@ -22,6 +22,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/multierror"
 	"github.com/moby/moby/v2/daemon/internal/netipstringer"
 	"github.com/moby/moby/v2/daemon/internal/netiputil"
+	"github.com/moby/moby/v2/daemon/internal/ocihook"
 	"github.com/moby/moby/v2/daemon/internal/otelutil"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 	lncluster "github.com/moby/moby/v2/daemon/libnetwork/cluster"
@@ -54,6 +55,12 @@ func (pnr PredefinedNetworkError) Forbidden() {}
 // NetworkController returns the network controller created by the daemon.
 func (daemon *Daemon) NetworkController() *libnetwork.Controller {
 	return daemon.netController
+}
+
+// OCIHooks returns the server for OCI hooks the daemon installs in
+// containers it does not start itself. It is nil on Windows.
+func (daemon *Daemon) OCIHooks() *ocihook.Server {
+	return daemon.ociHooks
 }
 
 // FindNetwork returns a network based on:
@@ -100,37 +107,6 @@ func (daemon *Daemon) GetNetworkByID(id string) (*libnetwork.Network, error) {
 		return nil, fmt.Errorf("netcontroller is nil: %w", libnetwork.ErrNoSuchNetwork(id))
 	}
 	return c.NetworkByID(id)
-}
-
-// GetNetworkByName function returns a network for a given network name.
-// If no network name is given, the default network is returned.
-func (daemon *Daemon) GetNetworkByName(name string) (*libnetwork.Network, error) {
-	c := daemon.netController
-	if c == nil {
-		return nil, libnetwork.ErrNoSuchNetwork(name)
-	}
-	if name == "" {
-		name = c.Config().DefaultNetwork
-	}
-	return c.NetworkByName(name)
-}
-
-// GetNetworksByIDPrefix returns a list of networks whose ID partially matches zero or more networks
-func (daemon *Daemon) GetNetworksByIDPrefix(partialID string) []*libnetwork.Network {
-	c := daemon.netController
-	if c == nil {
-		return nil
-	}
-	list := []*libnetwork.Network{}
-	l := func(nw *libnetwork.Network) bool {
-		if strings.HasPrefix(nw.ID(), partialID) {
-			list = append(list, nw)
-		}
-		return false
-	}
-	c.WalkNetworks(l)
-
-	return list
 }
 
 // getAllNetworks returns a list containing all networks

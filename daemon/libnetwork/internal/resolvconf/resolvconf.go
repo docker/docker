@@ -44,6 +44,10 @@ var (
 		netip.MustParseAddr("2001:4860:4860::8888"),
 		netip.MustParseAddr("2001:4860:4860::8844"),
 	}
+	defaultLoopbackNSs = []netip.Addr{
+		netip.MustParseAddr("127.0.0.1"),
+		netip.MustParseAddr("::1"),
+	}
 )
 
 // ResolvConf represents a resolv.conf file. It can be constructed by
@@ -286,7 +290,13 @@ func (rc *ResolvConf) TransformForIntNS(
 
 	rc.md.Transform = "internal resolver"
 	if len(rc.md.ExtNameServers) == 0 {
-		rc.md.Warnings = append(rc.md.Warnings, "NO EXTERNAL NAMESERVERS DEFINED")
+		for _, addr := range defaultLoopbackNSs {
+			rc.md.ExtNameServers = append(rc.md.ExtNameServers, ExtDNSEntry{
+				Addr:         addr,
+				HostLoopback: true,
+			})
+		}
+		rc.md.Warnings = append(rc.md.Warnings, "Used default nameservers.")
 	}
 	return slices.Clone(rc.md.ExtNameServers), nil
 }

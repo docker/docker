@@ -30,6 +30,7 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter"
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter/mobyexporter"
 	"github.com/moby/moby/v2/daemon/internal/builder-next/exporter/overrides"
+	"github.com/moby/moby/v2/daemon/internal/ocihook"
 	"github.com/moby/moby/v2/daemon/internal/streamformatter"
 	"github.com/moby/moby/v2/daemon/internal/timestamp"
 	"github.com/moby/moby/v2/daemon/libnetwork"
@@ -89,6 +90,7 @@ type Opt struct {
 	Dist                images.DistributionServices
 	ImageTagger         mobyexporter.ImageTagger
 	NetworkController   *libnetwork.Controller
+	OCIHooks            *ocihook.Server
 	DefaultCgroupParent string
 	RegistryHosts       docker.RegistryHosts
 	BuilderConfig       config.BuilderConfig

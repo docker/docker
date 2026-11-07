@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/cpuguy83/tar2go"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/go-archive/compression"
@@ -201,11 +202,11 @@ func TestSaveOCI(t *testing.T) {
 			})
 
 			t.Run("Containerd image name", func(t *testing.T) {
-				assert.Check(t, is.Equal(index.Manifests[0].Annotations["io.containerd.image.name"], tc.expectedContainerdRef))
+				assert.Check(t, is.Equal(index.Manifests[0].Annotations[c8dimages.AnnotationImageName], tc.expectedContainerdRef))
 			})
 
 			t.Run("OCI reference tag", func(t *testing.T) {
-				assert.Check(t, is.Equal(index.Manifests[0].Annotations["org.opencontainers.image.ref.name"], tc.expectedOCIRef))
+				assert.Check(t, is.Equal(index.Manifests[0].Annotations[ocispec.AnnotationRefName], tc.expectedOCIRef))
 			})
 		})
 	}

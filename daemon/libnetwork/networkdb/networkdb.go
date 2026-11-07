@@ -107,10 +107,6 @@ type NetworkDB struct {
 	// Reference to the memberlist's keyring to add & remove keys
 	keyring *memberlist.Keyring
 
-	// bootStrapIP is the list of IPs that can be used to bootstrap
-	// the gossip.
-	bootStrapIP []string
-
 	// lastStatsTimestamp is the last timestamp when the stats got printed
 	lastStatsTimestamp time.Time
 
@@ -214,7 +210,9 @@ type Config struct {
 	AdvertiseAddr string
 
 	// BindPort is the local node's port to which we bind to for
-	// cluster communication.
+	// cluster communication. Zero leaves the choice to memberlist, so it is
+	// not the port this node ends up gossiping on: for that, ask memberlist
+	// what it advertises.
 	BindPort int
 
 	// Keys to be added to the Keyring of the memberlist. Key at index
@@ -283,6 +281,21 @@ type Config struct {
 	//
 	// Only set by tests.
 	rngSeed *[32]byte
+
+	// BootstrapPeers reports the addresses this node should try to rejoin the
+	// cluster through, or nil if none are known. It is consulted every time a
+	// rejoin is considered, so a caller which can name the current peers keeps
+	// this node from bootstrapping off addresses which have since gone away.
+	//
+	// It is called from the rejoin timer with no NetworkDB lock held, so it
+	// must be safe for concurrent use, and it must not block for long.
+	//
+	// When nil this node never bootstraps its way back. Join still gets it
+	// into the cluster, and reconnectNode goes on retrying the peers it saw
+	// fail, so a node which falls out can still return by itself -- but once
+	// reapDeadNode has forgotten those peers there is nothing left to rejoin
+	// through.
+	BootstrapPeers func() []string
 
 	// StatsPrintPeriod the period to use to print queue stats
 	// Default is 5min
@@ -383,10 +396,6 @@ func newNetworkDB(c *Config) *NetworkDB {
 // Join joins this NetworkDB instance with a list of peer NetworkDB
 // instances passed by the caller in the form of addr:port
 func (nDB *NetworkDB) Join(members []string) error {
-	nDB.Lock()
-	nDB.bootStrapIP = append([]string(nil), members...)
-	log.G(context.TODO()).Infof("The new bootstrap node list is:%v", nDB.bootStrapIP)
-	nDB.Unlock()
 	return nDB.clusterJoin(members)
 }
 

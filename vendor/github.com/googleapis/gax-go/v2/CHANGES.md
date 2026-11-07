@@ -1,5 +1,12 @@
 # Changes
 
+## [2.27.0](https://github.com/googleapis/gax-go/compare/v2.26.2...v2.27.0) (2026-10-21)
+
+
+### Features
+
+* add a path expression helper ([#568](https://github.com/googleapis/gax-go/issues/568)) ([7d7373f](https://github.com/googleapis/gax-go/commit/7d7373f69b2a10796449f9ef1971ebea643c0c3a))
+
 ## [2.26.2](https://github.com/googleapis/gax-go/compare/v2.26.1...v2.26.2) (2026-09-26)
 
 

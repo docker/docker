@@ -148,7 +148,9 @@ func TestContainerInspectWithRaw(t *testing.T) {
 	ctx := setupTest(t)
 	apiClient := request.NewAPIClient(t)
 
-	ctrID := container.Create(ctx, t, apiClient)
+	ctrID := container.Create(ctx, t, apiClient, container.WithCmd("true"), func(c *container.TestContainerConfig) {
+		c.HostConfig.VolumeDriver = "local"
+	})
 	defer apiClient.ContainerRemove(ctx, ctrID, client.ContainerRemoveOptions{Force: true})
 
 	tests := []struct {
@@ -205,4 +207,37 @@ func TestContainerInspectWithRaw(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("API 1.24 compatibility", func(t *testing.T) {
+		// Older API versions include GraphDriver even when using a snapshotter.
+		oldClient := request.NewAPIClient(t, client.WithAPIVersion("1.24"))
+		inspect, err := oldClient.ContainerInspect(ctx, ctrID, client.ContainerInspectOptions{})
+		assert.NilError(t, err)
+
+		var rawInspect map[string]any
+
+		err = json.Unmarshal(inspect.Raw, &rawInspect)
+		assert.NilError(t, err)
+
+		for _, key := range []string{
+			"Id", "State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings",
+			"ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver",
+			"MountLabel", "ProcessLabel", "GraphDriver", "Mounts",
+		} {
+			_, ok := rawInspect[key]
+			assert.Check(t, ok, "%s does not exist in response", key)
+		}
+
+		// Issue #6830: type not properly converted to JSON/back
+		assert.Check(t, is.Equal(rawInspect["Path"], "true"), "Path should be the string \"true\", not a boolean")
+
+		config, ok := rawInspect["Config"].(map[string]any)
+		assert.Assert(t, ok, "Unable to find 'Config' object")
+		_, ok = config["VolumeDriver"]
+		assert.Check(t, !ok, "Expected to not include VolumeDriver in 'Config'")
+
+		hostConfig, ok := rawInspect["HostConfig"].(map[string]any)
+		assert.Assert(t, ok, "Unable to find 'HostConfig' object")
+		assert.Check(t, is.Equal(hostConfig["VolumeDriver"], "local"), "Expected to include VolumeDriver in 'HostConfig'")
+	})
 }

@@ -185,7 +185,9 @@ func (v *GetLogEventsOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *GetLogEventsOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeOutputLogEvents(s, schemas.GetLogEventsResponse_events, v.Events)
+	if v.Events != nil {
+		serializeOutputLogEvents(s, schemas.GetLogEventsResponse_events, v.Events)
+	}
 	if v.NextBackwardToken != nil {
 		s.WriteString(schemas.GetLogEventsResponse_nextBackwardToken, *v.NextBackwardToken)
 	}

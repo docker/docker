@@ -7,12 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 
+	srvconfig "github.com/containerd/containerd/v2/cmd/containerd/server/config"
 	"github.com/containerd/containerd/v2/defaults"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
 	"github.com/containerd/containerd/v2/pkg/sys"
@@ -40,6 +44,10 @@ type serverConfig struct {
 	ttrpcAddress       string
 	maxRecvMessageSize int
 	maxSendMessageSize int
+
+	// containerd is the configuration loaded from drop-in files.
+	// Only its plugins, disabled_plugins, and required_plugins settings apply.
+	containerd srvconfig.Config
 }
 
 type containerdServer struct {
@@ -57,7 +65,7 @@ type containerdServer struct {
 // Command-owned behavior such as process mutation, proxy plugins, TCP/TLS, and
 // Prometheus registration is intentionally not part of the embedded server.
 func newServer(ctx context.Context, cfg *serverConfig) (*containerdServer, error) {
-	registrations := registry.Graph(nil)
+	registrations := registry.Graph(srvconfig.V2DisabledFilter(cfg.containerd.DisabledPlugins))
 	return newServerWithRegistrations(ctx, cfg, registrations)
 }
 
@@ -100,6 +108,10 @@ func newServerWithRegistrations(ctx context.Context, cfg *serverConfig, registra
 	}()
 
 	initialized := plugin.NewPluginSet()
+	required := make(map[string]struct{}, len(cfg.containerd.RequiredPlugins))
+	for _, id := range cfg.containerd.RequiredPlugins {
+		required[id] = struct{}{}
+	}
 
 	var grpcServices []grpcService
 	var ttrpcServices []ttrpcService
@@ -113,6 +125,14 @@ func newServerWithRegistrations(ctx context.Context, cfg *serverConfig, registra
 			plugins.PropertyGRPCAddress:  cfg.grpcAddress,
 			plugins.PropertyTTRPCAddress: cfg.ttrpcAddress,
 		})
+
+		if registration.Config != nil {
+			pluginConfig, err := cfg.containerd.Decode(ctx, id, registration.Config)
+			if err != nil {
+				return nil, fmt.Errorf("decoding config for plugin %q: %w", id, err)
+			}
+			registration.Config = pluginConfig
+		}
 
 		// Disable cgroups Prometheus metrics for the embedded server to
 		// avoid exposing them through dockerd's process-global Prometheus
@@ -137,6 +157,9 @@ func newServerWithRegistrations(ctx context.Context, cfg *serverConfig, registra
 			if mustSucceed.Load() {
 				return nil, fmt.Errorf("plugin %q failed after registering readiness: %w", id, err)
 			}
+			if _, ok := required[id]; ok {
+				return nil, fmt.Errorf("loading required plugin %q: %w", id, err)
+			}
 			fields := log.Fields{"error": err, "id": id, "type": registration.Type}
 			if plugin.IsSkipPlugin(err) {
 				log.G(ctx).WithFields(fields).Info("skip loading plugin")
@@ -145,6 +168,7 @@ func newServerWithRegistrations(ctx context.Context, cfg *serverConfig, registra
 			}
 			continue
 		}
+		delete(required, id)
 
 		if service, ok := instance.(grpcService); ok {
 			grpcServices = append(grpcServices, service)
@@ -153,6 +177,9 @@ func newServerWithRegistrations(ctx context.Context, cfg *serverConfig, registra
 			ttrpcServices = append(ttrpcServices, service)
 		}
 		srv.plugins = append(srv.plugins, result)
+	}
+	if len(required) != 0 {
+		return nil, fmt.Errorf("required plugins not loaded: %s", strings.Join(slices.Sorted(maps.Keys(required)), ", "))
 	}
 
 	for _, service := range grpcServices {

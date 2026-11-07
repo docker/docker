@@ -13,7 +13,9 @@ import (
 )
 
 type iptablesCleaner struct {
-	config firewaller.Config
+	config   firewaller.Config
+	cleaned4 bool
+	cleaned6 bool
 }
 
 // NewCleaner checks for iptables rules left behind by an old daemon that was using
@@ -27,7 +29,8 @@ type iptablesCleaner struct {
 // this stage, interface names, addresses, etc. are unknown. So, also return
 // FirewallCleaner that the new Firewaller can use to delete those rules while
 // it's setting up those networks/ports (probably on replay from persistent
-// storage).
+// storage). A chain that one of those rules jumps to can't be removed until
+// the rule is deleted, so the FirewallCleaner's Done removes the chains again.
 //
 // If there are no old rules to clean up, return nil.
 func NewCleaner(ctx context.Context, config firewaller.Config) firewaller.FirewallCleaner {
@@ -60,24 +63,25 @@ func NewCleaner(ctx context.Context, config firewaller.Config) firewaller.Firewa
 	if !cleaned4 && !cleaned6 {
 		return nil
 	}
-	return &iptablesCleaner{config: config}
+	return &iptablesCleaner{config: config, cleaned4: cleaned4, cleaned6: cleaned6}
 }
 
 func (ic iptablesCleaner) DelNetwork(ctx context.Context, nc firewaller.NetworkConfig) {
-	if nc.Internal {
-		return
-	}
 	n := network{
 		config: nc,
 		ipt:    &Iptabler{config: ic.config},
 	}
 	if ic.config.IPv4 && nc.Config4.Prefix.IsValid() {
 		_ = deleteLegacyFilterRules(iptables.IPv4, nc.IfName)
-		_ = n.setupNonInternalNetworkRules(ctx, iptables.IPv4, nc.Config4, false)
+		if !nc.Internal {
+			_ = n.setupNonInternalNetworkRules(ctx, iptables.IPv4, nc.Config4, false)
+		}
 	}
 	if ic.config.IPv6 && nc.Config6.Prefix.IsValid() {
 		_ = deleteLegacyFilterRules(iptables.IPv6, nc.IfName)
-		_ = n.setupNonInternalNetworkRules(ctx, iptables.IPv6, nc.Config6, false)
+		if !nc.Internal {
+			_ = n.setupNonInternalNetworkRules(ctx, iptables.IPv6, nc.Config6, false)
+		}
 	}
 }
 
@@ -100,4 +104,17 @@ func (ic iptablesCleaner) DelPorts(ctx context.Context, nc firewaller.NetworkCon
 		ipt:    &Iptabler{config: ic.config},
 	}
 	_ = n.DelPorts(ctx, pbs)
+}
+
+// Done removes the chains that NewCleaner couldn't remove. Daemons older than
+// 28.0.0 jumped from filter-FORWARD to DOCKER for each bridge ("-o <bridge> -j
+// DOCKER"), and iptables can't remove a chain that a rule jumps to. DelNetwork
+// deletes those jumps for restored networks.
+func (ic iptablesCleaner) Done(ctx context.Context) {
+	if ic.cleaned4 {
+		removeIPChains(ctx, iptables.IPv4)
+	}
+	if ic.cleaned6 {
+		removeIPChains(ctx, iptables.IPv6)
+	}
 }

@@ -233,12 +233,7 @@ func (c *Controller) agentSetup(clusterProvider cluster.Provider) error {
 	bindAddr := clusterProvider.GetLocalAddress()
 	advAddr := clusterProvider.GetAdvertiseAddress()
 	dataAddr := clusterProvider.GetDataPathAddress()
-	remoteList := clusterProvider.GetRemoteAddressList()
-	remoteAddrList := make([]string, 0, len(remoteList))
-	for _, remote := range remoteList {
-		addr, _, _ := net.SplitHostPort(remote)
-		remoteAddrList = append(remoteAddrList, addr)
-	}
+	remoteAddrList := remoteAddrs(clusterProvider)
 
 	listen := clusterProvider.GetListenAddress()
 	listenAddr, _, _ := net.SplitHostPort(listen)
@@ -330,6 +325,10 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	netDBConf.BindAddr = listenAddr
 	netDBConf.AdvertiseAddr = advertiseAddr
 	netDBConf.Keys = keys
+	// Answered afresh every time a rejoin is considered, so that a node which
+	// has to bootstrap its way back into the gossip cluster aims at the
+	// managers the cluster has now rather than the ones it had at startup.
+	netDBConf.BootstrapPeers = c.remoteAddrList
 	if c.Config().NetworkControlPlaneMTU != 0 {
 		// Consider the MTU remove the IP hdr (IPv4 or IPv6) and the TCP/UDP hdr.
 		// To be on the safe side let's cut 100 bytes
@@ -381,6 +380,43 @@ func (c *Controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	c.WalkNetworks(joinCluster)
 
 	return nil
+}
+
+// remoteAddrList is [remoteAddrs] for whichever cluster provider is current,
+// so that a NetworkDB holding on to it as a callback asks the cluster the node
+// is in now rather than the one it was in when the agent came up.
+//
+// It reports nil once the node has left the cluster and the provider has gone,
+// which NetworkDB reads as "no bootstrap nodes known" and skips its rejoin.
+func (c *Controller) remoteAddrList() []string {
+	c.mu.Lock()
+	cp := c.cfg.ClusterProvider
+	c.mu.Unlock()
+	if cp == nil {
+		return nil
+	}
+	// Deliberately outside the lock above: this calls out into the cluster,
+	// which takes locks of its own.
+	return remoteAddrs(cp)
+}
+
+// remoteAddrs is the addresses cp reports for the cluster's other managers, as
+// NetworkDB wants them: bare IPs, with the port the cluster provider reports
+// dropped, because a peer is assumed to gossip on the same port we do.
+func remoteAddrs(cp cluster.Provider) []string {
+	remoteList := cp.GetRemoteAddressList()
+	remoteAddrList := make([]string, 0, len(remoteList))
+	for _, remote := range remoteList {
+		addr, _, err := net.SplitHostPort(remote)
+		if err != nil {
+			// Nothing to drop: the provider named an address without a port.
+			// Pass it through rather than the empty string SplitHostPort
+			// leaves behind, which is not an address at all.
+			addr = remote
+		}
+		remoteAddrList = append(remoteAddrList, addr)
+	}
+	return remoteAddrList
 }
 
 func (c *Controller) agentJoin(remoteAddrList []string) error {
@@ -485,7 +521,7 @@ func (n *Network) Services() map[string]ServiceInfo {
 
 	// Walk through libnetworkEPTable and fetch the driver agnostic endpoint info
 	eps := make(map[string]epRecord)
-	c := n.getController()
+	c := n.controller
 	for eid, value := range agent.networkDB.GetTableByNetwork(libnetworkEPTable, nwID) {
 		var epRec EndpointRecord
 		if err := proto.Unmarshal(value.Value, &epRec); err != nil {
@@ -557,7 +593,7 @@ func (n *Network) clusterAgent() (agent *nwAgent, ok bool) {
 	if n.scope != scope.Swarm || !n.driverIsMultihost() {
 		return nil, false
 	}
-	a := n.getController().getAgent()
+	a := n.controller.getAgent()
 	return a, a != nil
 }
 
@@ -656,12 +692,12 @@ func (ep *Endpoint) addServiceInfoToCluster(sb *Sandbox) error {
 		if n.ingress {
 			ingressPorts = ep.ingressPorts
 		}
-		if err := n.getController().addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), primaryDNSName, ep.virtualIP, ingressPorts, ep.svcAliases, dnsAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
+		if err := n.controller.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), primaryDNSName, ep.virtualIP, ingressPorts, ep.svcAliases, dnsAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
 			return err
 		}
 	} else {
 		// This is a container simply attached to an attachable network
-		if err := n.getController().addContainerNameResolution(n.ID(), ep.ID(), primaryDNSName, dnsAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
+		if err := n.controller.addContainerNameResolution(n.ID(), ep.ID(), primaryDNSName, dnsAliases, ep.Iface().Address().IP, "addServiceInfoToCluster"); err != nil {
 			return err
 		}
 	}
@@ -734,12 +770,12 @@ func (ep *Endpoint) deleteServiceInfoFromCluster(sb *Sandbox, fullRemove bool, m
 			if n.ingress {
 				ingressPorts = ep.ingressPorts
 			}
-			if err := n.getController().rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), primaryDNSName, ep.virtualIP, ingressPorts, ep.svcAliases, dnsAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster", true, fullRemove); err != nil {
+			if err := n.controller.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), primaryDNSName, ep.virtualIP, ingressPorts, ep.svcAliases, dnsAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster", true, fullRemove); err != nil {
 				return err
 			}
 		} else {
 			// This is a container simply attached to an attachable network
-			if err := n.getController().delContainerNameResolution(n.ID(), ep.ID(), primaryDNSName, dnsAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster"); err != nil {
+			if err := n.controller.delContainerNameResolution(n.ID(), ep.ID(), primaryDNSName, dnsAliases, ep.Iface().Address().IP, "deleteServiceInfoFromCluster"); err != nil {
 				return err
 			}
 		}
@@ -788,7 +824,7 @@ func (n *Network) addDriverWatches() {
 		return
 	}
 
-	c := n.getController()
+	c := n.controller
 	for _, table := range n.driverTables {
 		ch, cancel := agent.networkDB.Watch(table.name, n.ID())
 		agent.mu.Lock()

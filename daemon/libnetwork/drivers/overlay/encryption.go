@@ -10,8 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"syscall"
 
@@ -366,6 +368,62 @@ func (d *driver) programOverlayEncryptionFirewall(ctx context.Context, vni uint3
 		return errors.Join(err, d.programMangle(vni, false))
 	}
 	return errors.Join(mangleErr, err)
+}
+
+// restoreOverlayEncryptionFirewall restores the iptables rules for encryption,
+// which a firewalld reload may have deleted.
+func (d *driver) restoreOverlayEncryptionFirewall(ctx context.Context) {
+	if nftables.Enabled() {
+		return
+	}
+
+	d.encrMu.Lock()
+	if len(d.secMap) > 0 {
+		if err := d.programMangleMarkSpoofProtection(true); err != nil {
+			log.G(ctx).WithError(err).Error("Failed to restore iptables local-spoof-protection rule on firewalld reload")
+		}
+	}
+	d.encrMu.Unlock()
+
+	d.mu.Lock()
+	nids := slices.Collect(maps.Keys(d.networks))
+	d.mu.Unlock()
+
+	for _, nid := range nids {
+		d.restoreNetworkEncryptionFirewall(ctx, nid)
+	}
+}
+
+func (d *driver) restoreNetworkEncryptionFirewall(ctx context.Context, nid string) {
+	n, unlock, err := d.lockNetwork(nid)
+	if err != nil {
+		// Network deleted since the reload started, not an error.
+		return
+	}
+	defer unlock()
+
+	if !n.secure {
+		return
+	}
+
+	for _, s := range n.subnets {
+		if !s.initDone {
+			continue
+		}
+		// Unlike programOverlayEncryptionFirewall, do not roll back the
+		// mangle rule if the input rule cannot be restored. The network
+		// is still in use, and encrypting outgoing traffic is better
+		// than sending it in cleartext.
+		mangleErr := d.programMangle(s.vni, true)
+		inputErr := d.programInput(s.vni, true)
+		if err := errors.Join(mangleErr, inputErr); err != nil {
+			log.G(ctx).WithFields(log.Fields{
+				"network_id": n.id,
+				"vni":        s.vni,
+				"error":      err,
+			}).Error("Failed to restore iptables rules for encrypted overlay network on firewalld reload")
+		}
+	}
 }
 
 func programSA(localIP, remoteIP net.IP, spi spi, k *key, dir int, add bool) (fSA *netlink.XfrmState, rSA *netlink.XfrmState, lastErr error) {
@@ -754,7 +812,13 @@ func (n *network) maxMTU() int {
 	if n.mtu != 0 {
 		mtu = n.mtu
 	}
-	mtu -= vxlanEncap
+	// Assume an IPv6 transport if the transport family is not known, as
+	// its larger overhead gives an MTU that fits either family.
+	if v6, err := n.driver.isIPv6Transport(); err == nil && !v6 {
+		mtu -= vxlanEncap
+	} else {
+		mtu -= vxlan6Encap
+	}
 	if n.secure {
 		// In case of encryption account for the
 		// esp packet expansion and padding

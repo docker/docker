@@ -111,11 +111,15 @@ func (v *PutQueryDefinitionInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.ClientToken != nil {
 		s.WriteString(schemas.PutQueryDefinitionRequest_clientToken, *v.ClientToken)
 	}
-	serializeLogGroupNames(s, schemas.PutQueryDefinitionRequest_logGroupNames, v.LogGroupNames)
+	if v.LogGroupNames != nil {
+		serializeLogGroupNames(s, schemas.PutQueryDefinitionRequest_logGroupNames, v.LogGroupNames)
+	}
 	if v.Name != nil {
 		s.WriteString(schemas.PutQueryDefinitionRequest_name, *v.Name)
 	}
-	serializeQueryParameterList(s, schemas.PutQueryDefinitionRequest_parameters, v.Parameters)
+	if v.Parameters != nil {
+		serializeQueryParameterList(s, schemas.PutQueryDefinitionRequest_parameters, v.Parameters)
+	}
 	if v.QueryDefinitionId != nil {
 		s.WriteString(schemas.PutQueryDefinitionRequest_queryDefinitionId, *v.QueryDefinitionId)
 	}

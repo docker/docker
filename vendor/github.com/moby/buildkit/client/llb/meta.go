@@ -61,6 +61,21 @@ func addEnvf(key, value string, replace bool, v ...any) StateOption {
 	}
 }
 
+// DelEnv returns a [StateOption] which removes an environment variable from the state.
+// This is the equivalent of [State.DelEnv]
+func DelEnv(key string) StateOption {
+	return func(s State) State {
+		return s.withValue(keyEnv, func(ctx context.Context, c *Constraints) (any, error) {
+			env, err := getEnv(s)(ctx, c)
+			if err != nil {
+				return nil, err
+			}
+			deleted := env.Delete(key)
+			return &deleted, nil
+		})
+	}
+}
+
 // Dir returns a [StateOption] sets the working directory for the state which will be used to resolve
 // relative paths as well as the working directory for [State.Run].
 // See [State.With] for where to use this.

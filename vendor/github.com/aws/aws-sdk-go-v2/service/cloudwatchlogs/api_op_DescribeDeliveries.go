@@ -40,6 +40,10 @@ func (c *Client) DescribeDeliveries(ctx context.Context, params *DescribeDeliver
 
 type DescribeDeliveriesInput struct {
 
+	// An array of delivery source names that filters the results to deliveries
+	// associated with any specified delivery source.
+	DeliverySourceNames []string
+
 	// Optionally specify the maximum number of deliveries to return in the response.
 	Limit *int32
 
@@ -56,6 +60,9 @@ func (v *DescribeDeliveriesInput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeDeliveriesInput) SerializeMembers(s smithy.ShapeSerializer) {
+	if v.DeliverySourceNames != nil {
+		serializeDeliverySourceNames(s, schemas.DescribeDeliveriesRequest_deliverySourceNames, v.DeliverySourceNames)
+	}
 	if v.Limit != nil {
 		s.WriteInt32(schemas.DescribeDeliveriesRequest_limit, *v.Limit)
 	}
@@ -86,7 +93,9 @@ func (v *DescribeDeliveriesOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *DescribeDeliveriesOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeDeliveries(s, schemas.DescribeDeliveriesResponse_deliveries, v.Deliveries)
+	if v.Deliveries != nil {
+		serializeDeliveries(s, schemas.DescribeDeliveriesResponse_deliveries, v.Deliveries)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.DescribeDeliveriesResponse_nextToken, *v.NextToken)
 	}

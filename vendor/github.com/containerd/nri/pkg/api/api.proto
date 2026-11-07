@@ -183,6 +183,40 @@ message ConfigureResponse {
   // Events to subscribe the plugin for. Each bit set corresponds to an
   // enumerated Event.
   int32 events = 2;
+  // How the runtime handles a failure of the plugin to receive and respond
+  // to a request within a timeout period. If unset, all fields have their
+  // default value. The defaults match the behavior of NRI before this field
+  // existed.
+  FailurePolicy failure_policy = 3;
+}
+
+// FailurePolicy tells the runtime what to do when a plugin fails to receive
+// and respond to a request within a timeout period.
+// Failure types covered by the FailurePolicy include request timeout, lost
+// connection, and protocol error. Non-transport/timeout errors, such as a
+// plugin returning a rejection to the request, are not covered by the
+// FailurePolicy.
+//
+// The runtime takes two independent decisions for each failure: one about
+// the request and one about the plugin. Each field controls one decision.
+// The default of each field is the behavior of NRI before this field
+// existed. A plugin that does not set a policy is treated as before: the
+// runtime disconnects it and the request proceeds without it.
+message FailurePolicy {
+  // When fail_request is set to true, fail the request is the policy. The
+  // error names the plugin and the request, like an error returned by the
+  // plugin. The remaining plugins do not receive the request. The
+  // fail_request policy defaults to false when unset. False results in the
+  // request proceeding on to the remaining plugins, as if the plugin were
+  // not subscribed to it.
+  bool fail_request = 1;
+  // Keep the plugin registered when it exceeds the request timeout. The
+  // plugin continues receiving requests. A plugin that stays unresponsive
+  // delays each request it receives by the full timeout. Default: the
+  // runtime disconnects and unregisters the plugin. This field only applies
+  // to timeouts. A plugin that loses its connection or causes a protocol
+  // error is always disconnected.
+  bool keep_connected = 2;
 }
 
 message SynchronizeRequest {

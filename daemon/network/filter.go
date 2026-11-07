@@ -1,6 +1,7 @@
 package network
 
 import (
+	"slices"
 	"time"
 
 	"github.com/moby/moby/v2/daemon/internal/filters"
@@ -176,13 +177,8 @@ func matchesUse(danglingOnly bool, nw FilterNetwork) bool {
 }
 
 func matchesType(netTypes []string, nw FilterNetwork) bool {
-	for _, netType := range netTypes {
-		switch netType {
-		case "builtin":
-			return IsPredefined(nw.Name())
-		case "custom":
-			return !IsPredefined(nw.Name())
-		}
+	if IsPredefined(nw.Name()) {
+		return slices.Contains(netTypes, "builtin")
 	}
-	return false
+	return slices.Contains(netTypes, "custom")
 }

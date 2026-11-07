@@ -564,3 +564,139 @@ func testContainerRestartWithCancelledRequest(ctx context.Context, t *testing.T,
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(inspect.Container.State.Status, container.StateRunning))
 }
+
+// TestContainerDieEventRestartingAttribute verifies that "die" events tell
+// event consumers whether the container is going to be restarted, either by
+// its restart policy or by a manual restart, so that they don't have to
+// inspect the container to find out.
+func TestContainerDieEventRestartingAttribute(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "test requires a Linux shell")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	// newContainer creates a container, and returns a function to wait for
+	// its events. Events are subscribed to before the container is started,
+	// so none of them can be missed.
+	newContainer := func(ctx context.Context, t *testing.T, ops ...func(*testContainer.TestContainerConfig)) (string, *containerEvents) {
+		t.Helper()
+		cID := testContainer.Create(ctx, t, apiClient, ops...)
+		t.Cleanup(func() {
+			apiClient.ContainerRemove(context.WithoutCancel(ctx), cID, client.ContainerRemoveOptions{Force: true})
+		})
+		evs := listenContainerEvents(ctx, t, apiClient, cID)
+		_, err := apiClient.ContainerStart(ctx, cID, client.ContainerStartOptions{})
+		assert.NilError(t, err)
+		return cID, evs
+	}
+	exitWithFailure := testContainer.WithCmd("sh", "-c", "exit 1")
+	stopTimeout := 1
+
+	t.Run("restart-policy", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		_, evs := newContainer(ctx, t, exitWithFailure, testContainer.WithRestartPolicy(container.RestartPolicyAlways))
+
+		die := evs.next(t, events.ActionDie)
+		assert.Check(t, is.Equal(die.Actor.Attributes["restarting"], "true"))
+		evs.next(t, events.ActionStart)
+	})
+
+	t.Run("restart-policy-max-retries-reached", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		_, evs := newContainer(ctx, t, exitWithFailure, func(c *testContainer.TestContainerConfig) {
+			c.HostConfig.RestartPolicy = container.RestartPolicy{
+				Name:              container.RestartPolicyOnFailure,
+				MaximumRetryCount: 1,
+			}
+		})
+
+		// The first exit is followed by the one allowed retry.
+		die := evs.next(t, events.ActionDie)
+		assert.Check(t, is.Equal(die.Actor.Attributes["restarting"], "true"))
+		evs.next(t, events.ActionStart)
+
+		// The second one isn't: no more retries.
+		die = evs.next(t, events.ActionDie)
+		assert.Check(t, is.Equal(die.Actor.Attributes["restarting"], ""))
+	})
+
+	t.Run("no-restart-policy", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		_, evs := newContainer(ctx, t, exitWithFailure)
+
+		die := evs.next(t, events.ActionDie)
+		assert.Check(t, is.Equal(die.Actor.Attributes["restarting"], ""))
+	})
+
+	t.Run("stopped-with-restart-policy", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		cID, evs := newContainer(ctx, t, testContainer.WithRestartPolicy(container.RestartPolicyAlways))
+		poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, cID, container.StateRunning), poll.WithTimeout(30*time.Second))
+
+		_, err := apiClient.ContainerStop(ctx, cID, client.ContainerStopOptions{Timeout: &stopTimeout})
+		assert.NilError(t, err)
+
+		die := evs.next(t, events.ActionDie)
+		assert.Check(t, is.Equal(die.Actor.Attributes["restarting"], ""))
+	})
+
+	t.Run("manual-restart", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		cID, evs := newContainer(ctx, t)
+		poll.WaitOn(t, testContainer.IsInState(ctx, apiClient, cID, container.StateRunning), poll.WithTimeout(30*time.Second))
+
+		_, err := apiClient.ContainerRestart(ctx, cID, client.ContainerRestartOptions{Timeout: &stopTimeout})
+		assert.NilError(t, err)
+
+		die := evs.next(t, events.ActionDie)
+		assert.Check(t, is.Equal(die.Actor.Attributes["restarting"], "true"))
+		evs.next(t, events.ActionStart)
+		evs.next(t, events.ActionRestart)
+
+		// The container isn't flagged as restarting once it was restarted.
+		_, err = apiClient.ContainerStop(ctx, cID, client.ContainerStopOptions{Timeout: &stopTimeout})
+		assert.NilError(t, err)
+		die = evs.next(t, events.ActionDie)
+		assert.Check(t, is.Equal(die.Actor.Attributes["restarting"], ""))
+	})
+}
+
+// containerEvents delivers the events of a single container.
+type containerEvents struct {
+	messages <-chan events.Message
+	errs     <-chan error
+}
+
+// listenContainerEvents starts listening for the events of a container, until
+// the test completes.
+func listenContainerEvents(ctx context.Context, t *testing.T, apiClient client.APIClient, cID string) *containerEvents {
+	t.Helper()
+	ctx, cancel := context.WithCancel(ctx)
+	t.Cleanup(cancel)
+
+	// Events are replayed from now (the container is yet to be started), so
+	// that a container exiting right away doesn't beat the subscription.
+	result := apiClient.Events(ctx, client.EventsListOptions{
+		Since:   strconv.FormatInt(time.Now().Unix(), 10),
+		Filters: make(client.Filters).Add("container", cID),
+	})
+	return &containerEvents{messages: result.Messages, errs: result.Err}
+}
+
+// next waits for the next event with the given action, skipping any other one.
+func (e *containerEvents) next(t *testing.T, action events.Action) events.Message {
+	t.Helper()
+	timeout := time.After(30 * time.Second)
+	for {
+		select {
+		case m := <-e.messages:
+			if m.Action == action {
+				return m
+			}
+		case err := <-e.errs:
+			t.Fatalf("error while waiting for %q event: %v", action, err)
+		case <-timeout:
+			t.Fatalf("timeout waiting for %q event", action)
+		}
+	}
+}

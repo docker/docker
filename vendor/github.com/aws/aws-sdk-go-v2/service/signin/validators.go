@@ -50,6 +50,26 @@ func (m *validateOpCreateOAuth2TokenWithIAM) HandleInitialize(ctx context.Contex
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpCreateOAuth2TokenWithTokenExchange struct {
+}
+
+func (*validateOpCreateOAuth2TokenWithTokenExchange) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpCreateOAuth2TokenWithTokenExchange) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*CreateOAuth2TokenWithTokenExchangeInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpCreateOAuth2TokenWithTokenExchangeInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpDeleteResourcePermissionStatement struct {
 }
 
@@ -118,6 +138,10 @@ func addOpCreateOAuth2TokenWithIAMValidationMiddleware(stack *middleware.Stack) 
 	return stack.Initialize.Add(&validateOpCreateOAuth2TokenWithIAM{}, middleware.After)
 }
 
+func addOpCreateOAuth2TokenWithTokenExchangeValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpCreateOAuth2TokenWithTokenExchange{}, middleware.After)
+}
+
 func addOpDeleteResourcePermissionStatementValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpDeleteResourcePermissionStatement{}, middleware.After)
 }
@@ -177,6 +201,21 @@ func validateOpCreateOAuth2TokenWithIAMInput(v *CreateOAuth2TokenWithIAMInput) e
 	}
 	if v.Resource == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("Resource"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpCreateOAuth2TokenWithTokenExchangeInput(v *CreateOAuth2TokenWithTokenExchangeInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "CreateOAuth2TokenWithTokenExchangeInput"}
+	if v.GrantType == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("GrantType"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams

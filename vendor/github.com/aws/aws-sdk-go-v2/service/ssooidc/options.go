@@ -119,6 +119,8 @@ type Options struct {
 	// Currently does not support per operation call overrides, may in the future.
 	resolvedDefaultsMode aws.DefaultsMode
 
+	Protocol smithyhttp.ClientProtocol
+
 	// The HTTP client to invoke API calls with. Defaults to client's default HTTP
 	// implementation if nil.
 	HTTPClient HTTPClient

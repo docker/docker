@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.26.10
+ARG GO_VERSION=1.27.3
 ARG BASE_DEBIAN_DISTRO=trixie
 ARG GOLANG_IMAGE="golang:${GO_VERSION}-${BASE_DEBIAN_DISTRO}"
 
@@ -10,7 +10,7 @@ ARG XX_VERSION=1.10.0
 
 # DOCKERCLI_VERSION is the version of the CLI to install in the dev-container.
 # renovate: datasource=github-tags depName=docker/cli versioning=semver
-ARG DOCKERCLI_VERSION=v29.9.2
+ARG DOCKERCLI_VERSION=v29.9.3
 ARG DOCKERCLI_REPOSITORY="https://github.com/docker/cli.git"
 
 # cli version used for integration-cli tests
@@ -18,10 +18,10 @@ ARG DOCKERCLI_INTEGRATION_REPOSITORY="https://github.com/docker/cli.git"
 ARG DOCKERCLI_INTEGRATION_VERSION=v25.0.5
 
 # BUILDX_VERSION is the version of buildx to install in the dev container.
-ARG BUILDX_VERSION=0.38.1
+ARG BUILDX_VERSION=0.38.2
 
 # COMPOSE_VERSION is the version of compose to install in the dev container.
-ARG COMPOSE_VERSION=v5.6.1
+ARG COMPOSE_VERSION=v5.7.0
 
 ARG SYSTEMD="false"
 ARG FIREWALLD="false"
@@ -170,16 +170,49 @@ RUN --mount=from=containerd-src,src=/usr/src/containerd,rw \
 
   set -x
   xx-go --wrap
-  CC="$(xx-info)-gcc" CGO_ENABLED=$cgo_enabled make $make_flags BUILDTAGS=grpcnotrace binaries
-  xx-verify $verify_flags bin/containerd
-  xx-verify $verify_flags bin/containerd-shim-runc-v2
-  xx-verify $verify_flags bin/ctr
+  binaries="bin/containerd bin/ctr"
+  exe_suffix=
+  if [ "$(xx-info os)" = "windows" ]; then
+      exe_suffix=.exe
+  else
+      binaries="$binaries bin/containerd-shim-runc-v2"
+  fi
+  CC="$(xx-info)-gcc" CGO_ENABLED=$cgo_enabled make $make_flags BUILDTAGS=grpcnotrace $binaries
   mkdir /build
-  mv bin/containerd bin/containerd-shim-runc-v2 bin/ctr /build
+  for binary in $binaries; do
+      xx-verify $verify_flags "$binary"
+      mv "$binary" "/build/${binary##*/}$exe_suffix"
+  done
+EOT
+
+FROM base AS runhcs-src
+WORKDIR /usr/src/hcsshim
+# Override the shim version tested with the selected containerd release.
+ARG RUNHCS_REF
+RUN --mount=from=containerd-src,src=/usr/src/containerd,target=/usr/src/containerd <<EOT
+  set -ex
+  if [ -z "$RUNHCS_REF" ]; then
+      RUNHCS_REF=$(cat /usr/src/containerd/script/setup/runhcs-version)
+  fi
+  git init .
+  git remote add origin https://github.com/Microsoft/hcsshim.git
+  git fetch --depth=1 origin "$RUNHCS_REF"
+  git checkout -q FETCH_HEAD
+EOT
+
+FROM base AS runhcs-build
+WORKDIR /usr/src/hcsshim
+ARG TARGETPLATFORM
+RUN --mount=from=runhcs-src,src=/usr/src/hcsshim,rw \
+    --mount=type=cache,target=/root/.cache/go-build,id=runhcs-build-$TARGETPLATFORM <<EOT
+  set -ex
+  CGO_ENABLED=0 xx-go build -mod=vendor -o /build/containerd-shim-runhcs-v1.exe ./cmd/containerd-shim-runhcs-v1
+  xx-verify --static /build/containerd-shim-runhcs-v1.exe
 EOT
 
 FROM containerd-build AS containerd-linux
-FROM binary-dummy AS containerd-windows
+FROM containerd-build AS containerd-windows
+COPY --from=runhcs-build /build/ /build/
 FROM containerd-${TARGETOS} AS containerd
 
 FROM base AS golangci_lint
@@ -249,6 +282,7 @@ WORKDIR /usr/src/runc
 # This version should usually match the version that is used by the containerd version
 # that is used. If you need to update runc, open a pull request in the containerd
 # project first, and update both after that is merged.
+# renovate: datasource=github-tags depName=opencontainers/runc
 ARG RUNC_VERSION=v1.5.2
 ADD https://github.com/opencontainers/runc.git?ref=${RUNC_VERSION}&keep-git-dir=1 .
 
@@ -368,7 +402,8 @@ FROM rootlesskit-${TARGETOS} AS rootlesskit
 
 FROM base AS crun
 # CRUN_VERSION is the version of crun to install in the dev-container.
-ARG CRUN_VERSION=1.29.1
+# renovate: datasource=github-tags depName=containers/crun
+ARG CRUN_VERSION=1.30.1
 RUN --mount=type=cache,sharing=locked,id=moby-crun-aptlib,target=/var/lib/apt \
     --mount=type=cache,sharing=locked,id=moby-crun-aptcache,target=/var/cache/apt \
         apt-get update && apt-get install -y --no-install-recommends \

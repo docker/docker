@@ -25,6 +25,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/google/s2a-go/internal/tokenmanager"
 	"github.com/google/s2a-go/internal/v2/certverifier"
@@ -42,8 +43,18 @@ const (
 	h2 = "h2"
 )
 
+// nextProtosOrDefault returns the ALPN protocols to offer during the handshake.
+func nextProtosOrDefault(nextProtos []string) []string {
+	if len(nextProtos) == 0 {
+		return []string{h2}
+	}
+	return slices.Clone(nextProtos)
+}
+
 // GetTLSConfigurationForClient returns a tls.Config instance for use by a client application.
-func GetTLSConfigurationForClient(serverHostname string, s2AStream stream.S2AStream, tokenManager tokenmanager.AccessTokenManager, localIdentity *commonpb.Identity, verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode, serverAuthorizationPolicy []byte) (*tls.Config, error) {
+// nextProtos sets the ALPN protocols offered during the handshake; if it is
+// empty, the returned config offers HTTP/2 only.
+func GetTLSConfigurationForClient(serverHostname string, s2AStream stream.S2AStream, tokenManager tokenmanager.AccessTokenManager, localIdentity *commonpb.Identity, verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode, serverAuthorizationPolicy []byte, nextProtos []string) (*tls.Config, error) {
 	authMechanisms := getAuthMechanisms(tokenManager, []*commonpb.Identity{localIdentity})
 
 	if grpclog.V(1) {
@@ -116,7 +127,7 @@ func GetTLSConfigurationForClient(serverHostname string, s2AStream stream.S2AStr
 		SessionTicketsDisabled: true,
 		MinVersion:             minVersion,
 		MaxVersion:             maxVersion,
-		NextProtos:             []string{h2},
+		NextProtos:             nextProtosOrDefault(nextProtos),
 	}
 	if len(tlsConfig.CertificateChain) > 0 {
 		config.Certificates = []tls.Certificate{cert}

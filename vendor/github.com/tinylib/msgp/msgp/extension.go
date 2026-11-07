@@ -383,6 +383,9 @@ func (m *Reader) ReadExtension(e Extension) error {
 	if expectedType := e.ExtensionType(); extType != expectedType {
 		return errExt(extType, expectedType)
 	}
+	if uint32(length) > m.GetMaxElements() {
+		return ErrLimitExceeded
+	}
 
 	p, err := m.R.Peek(offset + length)
 	if err != nil {
@@ -403,6 +406,9 @@ func (m *Reader) ReadExtensionRaw() (int8, []byte, error) {
 	offset, length, extType, err := m.peekExtensionHeader()
 	if err != nil {
 		return 0, nil, err
+	}
+	if uint32(length) > m.GetMaxElements() {
+		return 0, nil, ErrLimitExceeded
 	}
 
 	payload, err := m.R.Next(offset + length)

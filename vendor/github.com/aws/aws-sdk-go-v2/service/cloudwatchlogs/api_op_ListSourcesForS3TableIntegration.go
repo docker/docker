@@ -89,7 +89,9 @@ func (v *ListSourcesForS3TableIntegrationOutput) SerializeMembers(s smithy.Shape
 	if v.NextToken != nil {
 		s.WriteString(schemas.ListSourcesForS3TableIntegrationResponse_nextToken, *v.NextToken)
 	}
-	serializeS3TableIntegrationSources(s, schemas.ListSourcesForS3TableIntegrationResponse_sources, v.Sources)
+	if v.Sources != nil {
+		serializeS3TableIntegrationSources(s, schemas.ListSourcesForS3TableIntegrationResponse_sources, v.Sources)
+	}
 }
 func (v *ListSourcesForS3TableIntegrationOutput) Deserialize(d smithy.ShapeDeserializer) error {
 	return smithy.ReadStruct(d, schemas.ListSourcesForS3TableIntegrationResponse, func(s *smithy.Schema) error {

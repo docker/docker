@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
+	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/platforms"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
@@ -87,7 +88,7 @@ func multiPlatformImage(dir string, ref reference.Named, target ocispec.Index) (
 
 	if ref != nil {
 		targetDesc.Annotations = map[string]string{
-			"io.containerd.image.name": ref.String(),
+			c8dimages.AnnotationImageName: ref.String(),
 		}
 
 		if tagged, ok := ref.(reference.Tagged); ok {

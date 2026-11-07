@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/moby/moby/v2/daemon/libnetwork/internal/resolvconf"
+	"github.com/moby/moby/v2/internal/testutil/libnetworkutils"
 	"github.com/moby/moby/v2/internal/testutil/netnsutils"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
@@ -27,10 +28,17 @@ func getResolvConfOptions(t *testing.T, rcPath string) []string {
 }
 
 func TestDNSOptions(t *testing.T) {
-	c, err := New(t.Context())
+	c, err := New(t.Context(), libnetworkutils.OptionTempNetnsDir(t))
 	assert.NilError(t, err)
 
-	sb, err := c.NewSandbox(t.Context(), "cnt1", OptionWriteResolvConf(filepath.Join(t.TempDir(), "resolv.conf")))
+	hostResolvConfPath := filepath.Join(t.TempDir(), "host-resolv.conf")
+	err = os.WriteFile(hostResolvConfPath, []byte("nameserver 192.0.2.53\n"), filePerm)
+	assert.NilError(t, err)
+
+	sb, err := c.NewSandbox(t.Context(), "cnt1",
+		OptionWriteResolvConf(filepath.Join(t.TempDir(), "resolv.conf")),
+		OptionOriginResolvConfPath(hostResolvConfPath),
+	)
 	assert.NilError(t, err)
 
 	cleanup := func(s *Sandbox) {
@@ -63,7 +71,10 @@ func TestDNSOptions(t *testing.T) {
 	assert.Check(t, is.Len(dnsOptionsList, 1))
 	assert.Check(t, is.Equal("ndots:5", dnsOptionsList[0]))
 
-	sb2, err := c.NewSandbox(t.Context(), "cnt2", OptionWriteResolvConf(filepath.Join(t.TempDir(), "resolv.conf")))
+	sb2, err := c.NewSandbox(t.Context(), "cnt2",
+		OptionWriteResolvConf(filepath.Join(t.TempDir(), "resolv.conf")),
+		OptionOriginResolvConfPath(hostResolvConfPath),
+	)
 	assert.NilError(t, err)
 	defer cleanup(sb2)
 	sb2.startResolver(false)
@@ -155,7 +166,7 @@ func dirNames(t *testing.T, dir string) []string {
 func TestDNSRebuildAfterUpgradeWithStaleHash(t *testing.T) {
 	ctx := t.Context()
 	tmpDir := t.TempDir()
-	c, err := New(ctx)
+	c, err := New(ctx, libnetworkutils.OptionTempNetnsDir(t))
 	assert.NilError(t, err)
 
 	hostResolvConfPath := filepath.Join(tmpDir, "host-resolv.conf")

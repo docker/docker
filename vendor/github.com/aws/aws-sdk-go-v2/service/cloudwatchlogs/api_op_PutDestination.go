@@ -84,7 +84,9 @@ func (v *PutDestinationInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.RoleArn != nil {
 		s.WriteString(schemas.PutDestinationRequest_roleArn, *v.RoleArn)
 	}
-	serializeTags(s, schemas.PutDestinationRequest_tags, v.Tags)
+	if v.Tags != nil {
+		serializeTags(s, schemas.PutDestinationRequest_tags, v.Tags)
+	}
 	if v.TargetArn != nil {
 		s.WriteString(schemas.PutDestinationRequest_targetArn, *v.TargetArn)
 	}

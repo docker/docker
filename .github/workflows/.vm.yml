@@ -19,7 +19,7 @@ on:
         default: ""
 
 env:
-  GO_VERSION: "1.26.10"
+  GO_VERSION: "1.27.3"
   TESTSTAT_VERSION: v0.1.25
   TEMPLATE_NAME: ${{ inputs.template }}
 

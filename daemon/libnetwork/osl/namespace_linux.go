@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -16,6 +15,7 @@ import (
 	"github.com/containerd/log"
 	"github.com/moby/moby/v2/daemon/internal/rootless"
 	"github.com/moby/moby/v2/daemon/internal/unshare"
+	"github.com/moby/moby/v2/daemon/libnetwork/internal/nftables"
 	"github.com/moby/moby/v2/daemon/libnetwork/nlwrap"
 	"github.com/moby/moby/v2/daemon/libnetwork/ns"
 	"github.com/moby/moby/v2/daemon/libnetwork/osl/kernel"
@@ -25,8 +25,6 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 )
-
-const defaultPrefix = "/var/run/docker"
 
 func init() {
 	// Lock main() to the initial thread to exclude the goroutines spawned
@@ -38,80 +36,15 @@ func init() {
 	runtime.LockOSThread()
 }
 
-var (
-	once          sync.Once
-	netnsBasePath = filepath.Join(defaultPrefix, "netns")
-)
-
-// SetBasePath sets the base url prefix for the ns path
-func SetBasePath(path string) {
-	netnsBasePath = filepath.Join(path, "netns")
-}
-
-func basePath() string {
-	return netnsBasePath
-}
-
-func createBasePath() {
-	err := os.MkdirAll(basePath(), 0o755)
-	if err != nil {
-		panic("Could not create net namespace path directory")
-	}
-}
-
-// GenerateKey generates a sandbox key based on the passed
-// container id.
-func GenerateKey(containerID string) string {
-	maxLen := 12
-	// Read sandbox key from host for overlay
-	if strings.HasPrefix(containerID, "-") {
-		var (
-			index    int
-			indexStr string
-			tmpkey   string
-		)
-		dir, err := os.ReadDir(basePath())
-		if err != nil {
-			return ""
-		}
-
-		for _, v := range dir {
-			id := v.Name()
-			if before, ok := strings.CutSuffix(id, containerID[:maxLen-1]); ok {
-				indexStr = before
-				tmpindex, err := strconv.Atoi(indexStr)
-				if err != nil {
-					return ""
-				}
-				if tmpindex > index {
-					index = tmpindex
-					tmpkey = id
-				}
-			}
-		}
-		containerID = tmpkey
-		if containerID == "" {
-			return ""
-		}
-	}
-
-	if len(containerID) < maxLen {
-		maxLen = len(containerID)
-	}
-
-	return basePath() + "/" + containerID[:maxLen]
-}
-
 // NewSandbox provides a new Namespace instance created in an os specific way
-// provided a key which uniquely identifies the sandbox.
+// provided a key which uniquely identifies the sandbox. The key is the path
+// of the network namespace, and its directory must exist.
 func NewSandbox(key string, osCreate, isRestore bool) (*Namespace, error) {
 	if !isRestore {
 		err := createNetworkNamespace(key, osCreate)
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		once.Do(createBasePath)
 	}
 
 	n := &Namespace{path: key, isDefault: !osCreate}
@@ -218,8 +151,6 @@ func unmountNamespaceFile(path string) {
 }
 
 func createNamespaceFile(path string) error {
-	once.Do(createBasePath)
-
 	// If the path is there unmount it first
 	unmountNamespaceFile(path)
 
@@ -249,6 +180,20 @@ type Namespace struct {
 	ipv6LoEnabledCached bool
 	nlHandle            nlwrap.Handle // nlHandle is the netlink handle for the network namespace. It is safe to access it concurrently.
 	mu                  sync.Mutex
+
+	nftMu    sync.Mutex
+	nftables map[nftKey]*nftable
+}
+
+// nftKey identifies one of the namespace's nftables tables.
+type nftKey struct {
+	family nftables.Family
+	name   string
+}
+
+type nftable struct {
+	InitMu sync.Mutex
+	Table  *nftables.Table
 }
 
 // Interfaces returns the collection of Interface previously added with the AddInterface
@@ -398,6 +343,15 @@ func (n *Namespace) Key() string {
 // Destroy destroys the sandbox.
 func (n *Namespace) Destroy() error {
 	n.nlHandle.Handle.Close()
+
+	n.nftMu.Lock()
+	tables := n.nftables
+	n.nftables = nil
+	n.nftMu.Unlock()
+	for _, table := range tables {
+		_ = table.Table.Close()
+	}
+
 	// Assuming no running process is executing in this network namespace,
 	// unmounting is sufficient to destroy it.
 	if err := syscall.Unmount(n.path, syscall.MNT_DETACH); err != nil {
@@ -570,6 +524,16 @@ func (n *Namespace) ApplyOSTweaks(types []SandboxType) {
 	for _, t := range types {
 		switch t {
 		case SandboxTypeLoadBalancer, SandboxTypeIngress:
+			if nftables.Enabled() {
+				kernel.ApplyOSTweaks(map[string]*kernel.OSValue{
+					// The nftables load balancer DNATs in prerouting and routes the
+					// result to a backend, so it needs IPv4 forwarding. A new network
+					// namespace copies ip_forward from the initial network namespace,
+					// not from the daemon's, so it can't be assumed to be enabled.
+					"net.ipv4.ip_forward": {Value: "1", CheckFn: nil},
+				})
+				continue
+			}
 			kernel.ApplyOSTweaks(map[string]*kernel.OSValue{
 				// disables any special handling on port reuse of existing IPVS connection table entries
 				// more info: https://github.com/torvalds/linux/blame/v5.15/Documentation/networking/ipvs-sysctl.rst#L32
@@ -662,4 +626,56 @@ func setIPv6(nspath, iface string, enable bool) error {
 		}
 	}()
 	return <-errCh
+}
+
+// ApplyNFTable applies changes to the specified nftables table in the namespace,
+// creating and initializing the table if it does not already exist.
+// The table is initialized by calling the initialize function and applying the
+// resulting modifier to the table before changes.
+//
+// This function is safe for concurrent use.
+func (n *Namespace) ApplyNFTable(ctx context.Context, family nftables.Family, name string, initialize func(*nftables.Modifier) error, changes ...nftables.Changes) (retErr error) {
+	n.nftMu.Lock()
+	if n.nftables == nil {
+		n.nftables = map[nftKey]*nftable{}
+	}
+	key := nftKey{family: family, name: name}
+	table, ok := n.nftables[key]
+	if !ok {
+		table = &nftable{}
+		n.nftables[key] = table
+	}
+	n.nftMu.Unlock()
+
+	var tbl *nftables.Table
+	table.InitMu.Lock()
+	if table.Table.IsValid() {
+		tbl = table.Table
+		table.InitMu.Unlock()
+	} else {
+		defer table.InitMu.Unlock()
+		var initTM nftables.Modifier
+		if err := initialize(&initTM); err != nil {
+			return err
+		}
+		var err error
+		tbl, err = nftables.NewTable(family, name)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if retErr == nil {
+				table.Table = tbl
+			} else {
+				_ = tbl.Close()
+			}
+		}()
+		changes = append([]nftables.Changes{initTM}, changes...)
+	}
+
+	var err error
+	invokeErr := n.InvokeFunc(func() {
+		err = tbl.Apply(ctx, changes...)
+	})
+	return errors.Join(invokeErr, err)
 }

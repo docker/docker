@@ -6,11 +6,8 @@ package containernamegeneratorv0
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	"github.com/moby/extensions"
-	"github.com/moby/moby/v2/extpoints/internal/namesgenerator"
 )
 
 // ContainerNameGenerator generates a default container name.
@@ -37,25 +34,3 @@ type GenerateContainerNameReply struct {
 
 // Point is the single-provider container name-generator point.
 var Point = extensions.DefineSinglePoint[ContainerNameGenerator]("org.mobyproject.extension.containernamegenerator.v0")
-
-// GenerateContainerName calls the effective container name provider.
-func GenerateContainerName(ctx context.Context, resolver extensions.Resolver, req *GenerateContainerNameRequest) (*GenerateContainerNameReply, error) {
-	name, err := namesgenerator.Generate(ctx, resolver, Point.ID(), func(ctx context.Context, impl any) (string, error) {
-		generator, ok := impl.(ContainerNameGenerator)
-		if !ok {
-			return "", fmt.Errorf("provider has type %T, not ContainerNameGenerator", impl)
-		}
-		reply, err := generator.GenerateContainerName(ctx, req)
-		if err != nil {
-			return "", err
-		}
-		if reply == nil {
-			return "", errors.New("provider returned a nil reply")
-		}
-		return reply.Name, nil
-	})
-	if name == "" {
-		return nil, err
-	}
-	return &GenerateContainerNameReply{Name: name}, err
-}

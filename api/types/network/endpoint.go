@@ -52,6 +52,7 @@ func (es *EndpointSettings) Copy() *EndpointSettings {
 	epCopy.Aliases = slices.Clone(es.Aliases)
 	epCopy.DNSNames = slices.Clone(es.DNSNames)
 	epCopy.DriverOpts = maps.Clone(es.DriverOpts)
+	epCopy.MacAddress = slices.Clone(es.MacAddress)
 
 	return &epCopy
 }

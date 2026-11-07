@@ -105,8 +105,12 @@ func (v *ListAggregateLogGroupSummariesInput) Serialize(s smithy.ShapeSerializer
 }
 
 func (v *ListAggregateLogGroupSummariesInput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeAccountIds(s, schemas.ListAggregateLogGroupSummariesRequest_accountIdentifiers, v.AccountIdentifiers)
-	serializeDataSourceFilters(s, schemas.ListAggregateLogGroupSummariesRequest_dataSources, v.DataSources)
+	if v.AccountIdentifiers != nil {
+		serializeAccountIds(s, schemas.ListAggregateLogGroupSummariesRequest_accountIdentifiers, v.AccountIdentifiers)
+	}
+	if v.DataSources != nil {
+		serializeDataSourceFilters(s, schemas.ListAggregateLogGroupSummariesRequest_dataSources, v.DataSources)
+	}
 	if v.GroupBy != "" {
 		s.WriteString(schemas.ListAggregateLogGroupSummariesRequest_groupBy, string(v.GroupBy))
 	}
@@ -149,7 +153,9 @@ func (v *ListAggregateLogGroupSummariesOutput) Serialize(s smithy.ShapeSerialize
 }
 
 func (v *ListAggregateLogGroupSummariesOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeAggregateLogGroupSummaries(s, schemas.ListAggregateLogGroupSummariesResponse_aggregateLogGroupSummaries, v.AggregateLogGroupSummaries)
+	if v.AggregateLogGroupSummaries != nil {
+		serializeAggregateLogGroupSummaries(s, schemas.ListAggregateLogGroupSummariesResponse_aggregateLogGroupSummaries, v.AggregateLogGroupSummaries)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.ListAggregateLogGroupSummariesResponse_nextToken, *v.NextToken)
 	}

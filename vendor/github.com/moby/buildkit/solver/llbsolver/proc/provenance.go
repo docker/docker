@@ -2,7 +2,6 @@ package proc
 
 import (
 	"context"
-	"encoding/json"
 	"strconv"
 
 	"github.com/moby/buildkit/executor/resources"
@@ -65,14 +64,8 @@ func ProvenanceProcessor(slsaVersion provenancetypes.ProvenanceSLSA, attrs map[s
 				InToto: result.InTotoAttestation{
 					PredicateType: pc.PredicateType(),
 				},
-				Path: filename,
-				ContentFunc: func(ctx context.Context) ([]byte, error) {
-					pr, err := pc.Predicate(ctx)
-					if err != nil {
-						return nil, err
-					}
-					return json.MarshalIndent(pr, "", "  ")
-				},
+				Path:        filename,
+				ContentFunc: pc.PredicateJSON,
 			})
 		}
 

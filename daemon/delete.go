@@ -125,7 +125,7 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 
 	// Mark container dead. We don't want anybody to be restarting it.
 	ctr.Lock()
-	ctr.State.Dead = true
+	ctr.State.SetDead()
 
 	// Copy RWLayer for releasing and clear the reference while holding the container lock.
 	rwLayer := ctr.RWLayer

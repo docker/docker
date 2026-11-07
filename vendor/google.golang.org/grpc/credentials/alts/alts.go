@@ -266,10 +266,11 @@ func (g *altsTC) Clone() credentials.TransportCredentials {
 		copy(accounts, g.accounts)
 	}
 	return &altsTC{
-		info:      &info,
-		side:      g.side,
-		hsAddress: g.hsAddress,
-		accounts:  accounts,
+		info:             &info,
+		side:             g.side,
+		hsAddress:        g.hsAddress,
+		accounts:         accounts,
+		boundAccessToken: g.boundAccessToken,
 	}
 }
 

@@ -25,7 +25,6 @@ func TestNoPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating new controller: %v", err)
 	}
-	defer testController.Stop()
 	nw, err := testController.NewNetwork(t.Context(), "host", "host", "", NetworkOptionPersist(false))
 	if err != nil {
 		t.Fatalf(`Error creating default "host" network: %v`, err)
@@ -34,7 +33,6 @@ func TestNoPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating endpoint: %v", err)
 	}
-	testController.Stop()
 	kv.Close()
 
 	// Create a new controller using the same database-file. The network
@@ -48,7 +46,6 @@ func TestNoPersist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating new controller: %v", err)
 	}
-	defer testController.Stop()
 
 	nwKVObject := &Network{id: nw.ID()}
 	err = testController.store.GetObject(nwKVObject)

@@ -65,6 +65,12 @@ func slicePacket(b []byte) (h, p []byte, err error) {
 		return nil, nil, errHeaderTooShort
 	}
 	hdrlen := int(b[0]&0x0f) << 2
+	if hdrlen < HeaderLen {
+		return nil, nil, errHeaderTooShort
+	}
+	if len(b) < hdrlen {
+		return nil, nil, errExtHeaderTooShort
+	}
 	return b[:hdrlen], b[hdrlen:], nil
 }
 

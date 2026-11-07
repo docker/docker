@@ -17,6 +17,7 @@ import (
 	"github.com/containerd/containerd/v2/core/content"
 	"github.com/containerd/containerd/v2/core/images"
 	contentlocal "github.com/containerd/containerd/v2/plugins/content/local"
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/gofrs/flock"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/llb"
@@ -425,9 +426,13 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 		if err = json.Unmarshal([]byte(manifestDescJSON), &manifestDesc); err != nil {
 			return nil, err
 		}
-		for storePath, tag := range cacheOpt.storesToUpdate {
+		for storePath, store := range cacheOpt.storesToUpdate {
 			idx := ociindex.NewStoreIndex(storePath)
-			if err := idx.Put(manifestDesc, ociindex.Tag(tag)); err != nil {
+			if err := idx.Put(manifestDesc, ociindex.Tag(store.tag)); err != nil {
+				if store.ignoreError {
+					bklog.G(callerCtx).WithError(err).WithField("cache_store_path", storePath).Warn("failed to update cache index, ignoring")
+					continue
+				}
 				return nil, err
 			}
 		}
@@ -605,11 +610,16 @@ type cacheStoreRef struct {
 	store content.Store
 }
 
+type cacheStoreUpdate struct {
+	tag         string
+	ignoreError bool
+}
+
 type cacheOptions struct {
 	options        controlapi.CacheOptions
 	contentStores  map[string]content.Store // key: ID of content store ("local:" + csDir)
-	storesToUpdate map[string]string        // key: path to content store, value: tag
-	storesToReset  []cacheStoreRef          // cache stores with reset=true
+	storesToUpdate map[string]cacheStoreUpdate
+	storesToReset  []cacheStoreRef // cache stores with reset=true
 	frontendAttrs  map[string]string
 }
 
@@ -620,7 +630,7 @@ func parseCacheOptions(ctx context.Context, isGateway bool, opt SolveOpt) (*cach
 	)
 	var storesToReset []cacheStoreRef
 	contentStores := make(map[string]content.Store)
-	storesToUpdate := make(map[string]string)
+	storesToUpdate := make(map[string]cacheStoreUpdate)
 	frontendAttrs := make(map[string]string)
 	for _, ex := range opt.CacheExports {
 		if ex.Type == "local" {
@@ -631,7 +641,7 @@ func parseCacheOptions(ctx context.Context, isGateway bool, opt SolveOpt) (*cach
 			if err := os.MkdirAll(csDir, 0755); err != nil {
 				return nil, err
 			}
-			cs, err := contentlocal.NewStore(csDir)
+			cs, err := newLocalCacheStore(csDir)
 			if err != nil {
 				return nil, err
 			}
@@ -641,8 +651,14 @@ func parseCacheOptions(ctx context.Context, isGateway bool, opt SolveOpt) (*cach
 			if t, ok := ex.Attrs["tag"]; ok {
 				tag = t
 			}
+			update := cacheStoreUpdate{tag: tag}
+			if v, ok := ex.Attrs["ignore-error"]; ok {
+				if b, err := strconv.ParseBool(v); err == nil {
+					update.ignoreError = b
+				}
+			}
 			// TODO(AkihiroSuda): support custom index JSON path and tag
-			storesToUpdate[csDir] = tag
+			storesToUpdate[csDir] = update
 
 			if v, ok := ex.Attrs["reset"]; ok {
 				b, err := strconv.ParseBool(v)
@@ -671,7 +687,7 @@ func parseCacheOptions(ctx context.Context, isGateway bool, opt SolveOpt) (*cach
 			if csDir == "" {
 				return nil, errors.New("local cache importer requires src")
 			}
-			cs, err := contentlocal.NewStore(csDir)
+			cs, err := newLocalCacheStore(csDir)
 			if err != nil {
 				bklog.G(ctx).Warning("local cache import at " + csDir + " not found due to err: " + err.Error())
 				continue
@@ -736,4 +752,93 @@ func parseCacheOptions(ctx context.Context, isGateway bool, opt SolveOpt) (*cach
 		frontendAttrs:  frontendAttrs,
 	}
 	return &res, nil
+}
+
+// localCacheStore coordinates ingests across clients sharing a cache directory.
+// The underlying local store only locks references within one store instance.
+type localCacheStore struct {
+	content.Store
+	dir string
+}
+
+func newLocalCacheStore(dir string) (content.Store, error) {
+	store, err := contentlocal.NewStore(dir)
+	if err != nil {
+		return nil, err
+	}
+	return &localCacheStore{Store: store, dir: dir}, nil
+}
+
+func (s *localCacheStore) lock(ref string) (*flock.Flock, error) {
+	dir := filepath.Join(s.dir, "ingest-locks")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, err
+	}
+	// Keep lock files after unlocking: deleting one could let another client
+	// lock a different inode while an existing waiter still uses the old one.
+	// This retains one empty file per ref, even after cache reset. The reset
+	// lock cannot protect their removal: not all users of this store hold it.
+	lock := flock.New(filepath.Join(dir, digest.FromString(ref).Encoded()))
+	locked, err := lock.TryLock()
+	if err != nil {
+		return nil, err
+	}
+	if !locked {
+		return nil, errors.Wrapf(cerrdefs.ErrUnavailable, "ingest ref %q is locked", ref)
+	}
+	return lock, nil
+}
+
+func (s *localCacheStore) Writer(ctx context.Context, opts ...content.WriterOpt) (content.Writer, error) {
+	var wo content.WriterOpts
+	for _, opt := range opts {
+		if err := opt(&wo); err != nil {
+			return nil, err
+		}
+	}
+	if wo.Ref == "" {
+		return nil, errors.Wrap(cerrdefs.ErrInvalidArgument, "ref must not be empty")
+	}
+	lock, err := s.lock(wo.Ref)
+	if err != nil {
+		return nil, err
+	}
+	w, err := s.Store.Writer(ctx, content.WithRef(wo.Ref), content.WithDescriptor(wo.Desc))
+	if err != nil {
+		lock.Close()
+		return nil, err
+	}
+	return &localCacheWriter{Writer: w, lock: lock}, nil
+}
+
+func (s *localCacheStore) Abort(ctx context.Context, ref string) error {
+	lock, err := s.lock(ref)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+	return s.Store.Abort(ctx, ref)
+}
+
+type localCacheWriter struct {
+	content.Writer
+	lock *flock.Flock
+}
+
+func (w *localCacheWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
+	err := w.Writer.Commit(ctx, size, expected, opts...)
+	closeErr := w.Close()
+	if err != nil {
+		return err
+	}
+	return closeErr
+}
+
+func (w *localCacheWriter) Close() error {
+	err := w.Writer.Close()
+	lockErr := w.lock.Close()
+	if err != nil {
+		return err
+	}
+	return lockErr
 }

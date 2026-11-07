@@ -14,12 +14,14 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/util/network"
 	"github.com/moby/moby/v2/daemon/config"
+	"github.com/moby/moby/v2/daemon/internal/ocihook"
 	"github.com/moby/moby/v2/daemon/libnetwork"
 )
 
 type bridgeProvider struct {
 	*libnetwork.Controller
-	Root string
+	Hooks *ocihook.Server
+	Root  string
 }
 
 type lnInterface struct {
@@ -29,15 +31,22 @@ type lnInterface struct {
 	err      error
 	ready    chan struct{}
 	provider *bridgeProvider
+
+	// ctx is the context of the container run the namespace was created
+	// for. It is the parent context of the hook which sets the sandbox key,
+	// so it must not be done before the container has started: the hook
+	// fails if it is.
+	ctx            context.Context
+	unregisterHook func()
 }
 
-func (p *bridgeProvider) New(_ context.Context, _ string, _ network.NamespaceOptions) (network.Namespace, error) {
+func (p *bridgeProvider) New(ctx context.Context, _ string, _ network.NamespaceOptions) (network.Namespace, error) {
 	n, err := p.NetworkByName(networkName)
 	if err != nil {
 		return nil, err
 	}
 
-	iface := &lnInterface{ready: make(chan struct{}), provider: p}
+	iface := &lnInterface{ready: make(chan struct{}), provider: p, ctx: ctx}
 	iface.Once.Do(func() {
 		go iface.init(p.Controller, n)
 	})
@@ -87,6 +96,9 @@ func (iface *lnInterface) Sample() (*resourcestypes.NetworkSample, error) {
 
 func (iface *lnInterface) Close() error {
 	<-iface.ready
+	if iface.unregisterHook != nil {
+		iface.unregisterHook()
+	}
 	if iface.sbx != nil {
 		go func() {
 			if err := iface.sbx.Delete(context.TODO()); err != nil {

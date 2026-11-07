@@ -1,11 +1,5 @@
 package osl
 
-// GenerateKey generates a sandbox key based on the passed
-// container id.
-func GenerateKey(containerID string) string {
-	return containerID
-}
-
 type Namespace struct{}
 
 func (n *Namespace) Destroy() error { return nil }

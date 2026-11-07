@@ -19,7 +19,7 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: "1.26.10"
+  GO_VERSION: "1.27.3"
   GIT_PAGER: "cat"
   PAGER: "cat"
   SETUP_BUILDX_VERSION: edge
@@ -80,6 +80,9 @@ jobs:
           path: /tmp/dev-image-${{ matrix.arch }}.tar
 
   test:
+    permissions:
+      contents: read
+      id-token: write # needed for CodeCov; https://github.com/codecov/codecov-action/blob/v7.1.1/README.md#using-oidc
     name: test (${{ matrix.arch }}, ${{ matrix.storage }})
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
@@ -108,10 +111,11 @@ jobs:
       storage: ${{ matrix.storage }}
       runnerSuffix: ${{ matrix.runnerSuffix }}
       extraModes: ${{ matrix.extraModes }}
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   test-unit:
+    permissions:
+      contents: read
+      id-token: write # needed for CodeCov; https://github.com/codecov/codecov-action/blob/v7.1.1/README.md#using-oidc
     if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'ci/validate-only') }}
     needs:
       - build-dev
@@ -128,8 +132,6 @@ jobs:
     with:
       arch: ${{ matrix.arch }}
       runnerSuffix: ${{ matrix.runnerSuffix }}
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   validate-prepare:
     runs-on: ubuntu-26.04

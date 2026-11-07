@@ -16,7 +16,6 @@ func testLocalBackend(t *testing.T, path string) {
 	if err != nil {
 		t.Fatalf("Error new controller: %v", err)
 	}
-	defer testController.Stop()
 	nw, err := testController.NewNetwork(t.Context(), "host", "host", "")
 	if err != nil {
 		t.Fatalf(`Error creating default "host" network: %v`, err)
@@ -43,7 +42,6 @@ func testLocalBackend(t *testing.T, path string) {
 	if !epKVObject.Exists() {
 		t.Errorf("Endpoint key should have been created.")
 	}
-	testController.Stop()
 	kv.Close()
 
 	// test restore of local store
@@ -56,7 +54,6 @@ func testLocalBackend(t *testing.T, path string) {
 	if err != nil {
 		t.Fatalf("Error creating controller: %v", err)
 	}
-	defer testController.Stop()
 	if _, err = testController.NetworkByID(nw.ID()); err != nil {
 		t.Errorf("Error getting network %v", err)
 	}

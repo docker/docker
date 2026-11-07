@@ -113,9 +113,15 @@ func (v *ListLogGroupsInput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *ListLogGroupsInput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeAccountIds(s, schemas.ListLogGroupsRequest_accountIdentifiers, v.AccountIdentifiers)
-	serializeDataSourceFilters(s, schemas.ListLogGroupsRequest_dataSources, v.DataSources)
-	serializeFieldIndexNames(s, schemas.ListLogGroupsRequest_fieldIndexNames, v.FieldIndexNames)
+	if v.AccountIdentifiers != nil {
+		serializeAccountIds(s, schemas.ListLogGroupsRequest_accountIdentifiers, v.AccountIdentifiers)
+	}
+	if v.DataSources != nil {
+		serializeDataSourceFilters(s, schemas.ListLogGroupsRequest_dataSources, v.DataSources)
+	}
+	if v.FieldIndexNames != nil {
+		serializeFieldIndexNames(s, schemas.ListLogGroupsRequest_fieldIndexNames, v.FieldIndexNames)
+	}
 	if v.IncludeLinkedAccounts != nil {
 		s.WriteBool(schemas.ListLogGroupsRequest_includeLinkedAccounts, *v.IncludeLinkedAccounts)
 	}
@@ -128,7 +134,9 @@ func (v *ListLogGroupsInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.LogGroupNamePattern != nil {
 		s.WriteString(schemas.ListLogGroupsRequest_logGroupNamePattern, *v.LogGroupNamePattern)
 	}
-	serializeTagFilters(s, schemas.ListLogGroupsRequest_logGroupTags, v.LogGroupTags)
+	if v.LogGroupTags != nil {
+		serializeTagFilters(s, schemas.ListLogGroupsRequest_logGroupTags, v.LogGroupTags)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.ListLogGroupsRequest_nextToken, *v.NextToken)
 	}
@@ -156,7 +164,9 @@ func (v *ListLogGroupsOutput) Serialize(s smithy.ShapeSerializer) {
 }
 
 func (v *ListLogGroupsOutput) SerializeMembers(s smithy.ShapeSerializer) {
-	serializeLogGroupSummaries(s, schemas.ListLogGroupsResponse_logGroups, v.LogGroups)
+	if v.LogGroups != nil {
+		serializeLogGroupSummaries(s, schemas.ListLogGroupsResponse_logGroups, v.LogGroups)
+	}
 	if v.NextToken != nil {
 		s.WriteString(schemas.ListLogGroupsResponse_nextToken, *v.NextToken)
 	}

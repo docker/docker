@@ -143,9 +143,15 @@ func (v *StartLiveTailInput) SerializeMembers(s smithy.ShapeSerializer) {
 	if v.LogEventFilterPattern != nil {
 		s.WriteString(schemas.StartLiveTailRequest_logEventFilterPattern, *v.LogEventFilterPattern)
 	}
-	serializeStartLiveTailLogGroupIdentifiers(s, schemas.StartLiveTailRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
-	serializeInputLogStreamNames(s, schemas.StartLiveTailRequest_logStreamNamePrefixes, v.LogStreamNamePrefixes)
-	serializeInputLogStreamNames(s, schemas.StartLiveTailRequest_logStreamNames, v.LogStreamNames)
+	if v.LogGroupIdentifiers != nil {
+		serializeStartLiveTailLogGroupIdentifiers(s, schemas.StartLiveTailRequest_logGroupIdentifiers, v.LogGroupIdentifiers)
+	}
+	if v.LogStreamNamePrefixes != nil {
+		serializeInputLogStreamNames(s, schemas.StartLiveTailRequest_logStreamNamePrefixes, v.LogStreamNamePrefixes)
+	}
+	if v.LogStreamNames != nil {
+		serializeInputLogStreamNames(s, schemas.StartLiveTailRequest_logStreamNames, v.LogStreamNames)
+	}
 }
 
 type StartLiveTailOutput struct {

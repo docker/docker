@@ -22,7 +22,11 @@ Note that:
  - The published port is set up as an ordinary port mapping on the ingress
    load-balancer sandbox's `docker_gwbridge` gateway endpoint (`172.18.0.2`),
    using the same rules as any other published container port:
-   - a DNAT rule in the nat `DOCKER` chain, and
+   - a DNAT rule in the nat `DOCKER` chain. Unlike a container's port mapping
+     when the userland proxy is running, it doesn't skip packets arriving on
+     `docker_gwbridge`. The load-balancer never connects to its own published
+     port, so a task that reaches the port via its node's address is DNATed
+     like any other client, and doesn't go through docker-proxy, and
    - ACCEPT rules in the filter `DOCKER` chain. There are two, because
      `docker_gwbridge` has inter-container communication disabled: one for
      packets from outside the network, and one for packets from the network

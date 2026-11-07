@@ -130,13 +130,13 @@ func (cm *ControlMessage) Parse(b []byte) error {
 			continue
 		}
 		switch {
-		case typ == ctlOpts[ctlTrafficClass].name && l >= ctlOpts[ctlTrafficClass].length:
+		case ctlOpts[ctlTrafficClass].name > 0 && typ == ctlOpts[ctlTrafficClass].name && l >= ctlOpts[ctlTrafficClass].length:
 			ctlOpts[ctlTrafficClass].parse(cm, m.Data(l))
-		case typ == ctlOpts[ctlHopLimit].name && l >= ctlOpts[ctlHopLimit].length:
+		case ctlOpts[ctlHopLimit].name > 0 && typ == ctlOpts[ctlHopLimit].name && l >= ctlOpts[ctlHopLimit].length:
 			ctlOpts[ctlHopLimit].parse(cm, m.Data(l))
-		case typ == ctlOpts[ctlPacketInfo].name && l >= ctlOpts[ctlPacketInfo].length:
+		case ctlOpts[ctlPacketInfo].name > 0 && typ == ctlOpts[ctlPacketInfo].name && l >= ctlOpts[ctlPacketInfo].length:
 			ctlOpts[ctlPacketInfo].parse(cm, m.Data(l))
-		case typ == ctlOpts[ctlPathMTU].name && l >= ctlOpts[ctlPathMTU].length:
+		case ctlOpts[ctlPathMTU].name > 0 && typ == ctlOpts[ctlPathMTU].name && l >= ctlOpts[ctlPathMTU].length:
 			ctlOpts[ctlPathMTU].parse(cm, m.Data(l))
 		}
 	}

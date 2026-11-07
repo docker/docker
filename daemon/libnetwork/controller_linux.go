@@ -97,8 +97,10 @@ func (c *Controller) setupOSLSandbox(sb *Sandbox) error {
 		if err != nil {
 			log.G(context.TODO()).Errorf("Failed to apply performance tuning sysctls to the sandbox: %v", err)
 		}
-		// Keep this just so performance is not changed
-		sb.osSbox.ApplyOSTweaks(sb.oslTypes)
+		if !nftables.Enabled() {
+			// Keep this just so performance is not changed
+			sb.osSbox.ApplyOSTweaks(sb.oslTypes)
+		}
 	}
 	return nil
 }

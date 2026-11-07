@@ -1,3 +1,11 @@
+# v1.13.23 (2026-10-27)
+
+* **Dependency Update**: Update to smithy-go v1.28.7.
+
+# v1.13.22 (2026-10-22)
+
+* **Bug Fix**: Update smithy-go to v1.28.6
+
 # v1.13.21 (2026-10-09.2)
 
 * **Dependency Update**: Update to smithy-go v1.28.5.

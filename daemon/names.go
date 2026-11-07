@@ -97,14 +97,10 @@ func (daemon *Daemon) GenerateServiceName(ctx context.Context, retry int, image 
 		return "", errors.New("name generator extension host is not configured")
 	}
 
-	reply, err := servicenamegeneratorv0.GenerateServiceName(ctx, daemon.extensionHost, &servicenamegeneratorv0.GenerateServiceNameRequest{
+	name, err := resolveServiceName(ctx, daemon.extensionHost, &servicenamegeneratorv0.GenerateServiceNameRequest{
 		Retry: int64(retry),
 		Image: image,
 	})
-	var name string
-	if reply != nil {
-		name = reply.Name
-	}
 	return generatedName(ctx, name, err)
 }
 
@@ -113,11 +109,7 @@ func (daemon *Daemon) generateContainerName(ctx context.Context, req *containern
 		return "", errors.New("name generator extension host is not configured")
 	}
 
-	reply, err := containernamegeneratorv0.GenerateContainerName(ctx, daemon.extensionHost, req)
-	var name string
-	if reply != nil {
-		name = reply.Name
-	}
+	name, err := resolveContainerName(ctx, daemon.extensionHost, req)
 	return generatedName(ctx, name, err)
 }
 

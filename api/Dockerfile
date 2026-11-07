@@ -1,9 +1,17 @@
 # syntax=docker/dockerfile:1
 
-ARG GO_VERSION=1.26.10
+ARG GO_VERSION=1.27.3
 
 FROM golang:${GO_VERSION}-alpine AS base
-RUN apk add --no-cache bash libfyaml make yamllint
+RUN apk add --no-cache bash libfyaml make yamllint py3-pip
+# OpenAPI validation, including its YAML parser.
+ARG OPENAPI_SPEC_VALIDATOR_VERSION=0.9.0
+ARG PYYAML_VERSION=6.0.2
+RUN python3 -m venv /opt/openapi && \
+    /opt/openapi/bin/pip install --no-cache-dir \
+        "openapi-spec-validator==${OPENAPI_SPEC_VALIDATOR_VERSION}" \
+        "PyYAML==${PYYAML_VERSION}"
+ENV PATH="/opt/openapi/bin:${PATH}"
 CMD ["/bin/bash"]
 
 # go-swagger
@@ -23,3 +31,5 @@ RUN --mount=type=cache,target=/root/.cache/go-build,id=swagger-build-$TARGETPLAT
 FROM base AS dev
 COPY --from=swagger /go/bin/swagger /usr/local/bin/swagger
 WORKDIR /go/src/github.com/moby/moby/api
+COPY scripts/swagger-spec/go.mod scripts/swagger-spec/go.sum ./scripts/swagger-spec/
+RUN cd scripts/swagger-spec && go mod download

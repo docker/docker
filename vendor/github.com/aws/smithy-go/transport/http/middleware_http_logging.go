@@ -41,6 +41,7 @@ func (r *RequestResponseLogger) HandleDeserialize(
 		rc := smithyRequest.Build(ctx)
 		reqBytes, err := httputil.DumpRequestOut(rc, r.LogRequestWithBody)
 		if err != nil {
+			logger.Logf(logging.Warn, "failed to dump request for logging: %v", err)
 			return out, metadata, err
 		}
 
@@ -65,6 +66,7 @@ func (r *RequestResponseLogger) HandleDeserialize(
 
 		respBytes, err := httputil.DumpResponse(smithyResponse.Response, r.LogResponseWithBody)
 		if err != nil {
+			logger.Logf(logging.Warn, "failed to dump response for logging: %v", err)
 			return out, metadata, fmt.Errorf("failed to dump response %w", err)
 		}
 
