@@ -166,7 +166,14 @@ When the proxy is asked to create an endpoint, the remote process shall receive 
 
 The `NetworkID` is the generated identifier for the network to which the endpoint belongs; the `EndpointID` is a generated identifier for the endpoint.
 
-`Options` is an arbitrary map as supplied to the proxy.
+`Options` is an arbitrary map as supplied to the proxy. LibNetwork adds `com.docker.network.endpoint.name` to it, holding the endpoint (container) name — the same value it already supplies to IPAM drivers in their allocation options. The key is absent for an endpoint created without a name.
+
+The name is offered for drivers that want to key per-endpoint state on something more durable than the `EndpointID`, which is regenerated whenever an endpoint is recreated. It is **not** a stable identity, and LibNetwork guarantees nothing about it:
+
+* it is **reusable** — a container may be removed and an unrelated container created afterwards under the same name, and the driver will be handed the same value;
+* it is **mutable** — `docker rename` changes it, so a container that is renamed and later recreated presents a different value than it did before.
+
+A driver that derives a MAC address, a lease, or any other persistent resource from this value must tolerate both cases: the first hands one container's resource to another, the second silently loses it. Drivers needing a guaranteed-stable address or MAC address should take it from the container creation request instead.
 
 The `Interface` value is of the form given. The fields in the `Interface` may be empty; and the `Interface` itself may be empty. If supplied, `Address` is an IPv4 address and subnet in CIDR notation; e.g., `"192.168.34.12/16"`. If supplied, `AddressIPv6` is an IPv6 address and subnet in CIDR notation. `MacAddress` is a MAC address as a string; e.g., `"6e:75:32:60:44:c9"`.
 

@@ -1149,7 +1149,22 @@ func (n *Network) addEndpoint(ctx context.Context, ep *Endpoint) error {
 		return fmt.Errorf("failed to add endpoint: %v", err)
 	}
 
-	err = d.CreateEndpoint(ctx, n.id, ep.id, ep.Iface(), ep.generic)
+	// Forward the endpoint (container) name to the network driver — the
+	// same stable identity IPAM drivers already receive via ipamOptions
+	// (#50586). Network drivers that key per-endpoint state on a
+	// recreate-stable identity (e.g. a DHCP plugin issuing a deterministic
+	// MAC) have no other reliable source at CreateEndpoint: the EndpointID
+	// is regenerated per recreate and the container is not yet resolvable
+	// via NetworkInspect mid-creation. Injected at the call boundary so it
+	// is not persisted into ep.generic.
+	epOptions := ep.generic
+	if name := ep.Name(); name != "" {
+		epOptions = make(map[string]any, len(ep.generic)+1)
+		maps.Copy(epOptions, ep.generic)
+		epOptions[netlabel.EndpointName] = name
+	}
+
+	err = d.CreateEndpoint(ctx, n.id, ep.id, ep.Iface(), epOptions)
 	if err != nil {
 		return types.InternalErrorf("failed to create endpoint %s on network %s: %v",
 			ep.Name(), n.Name(), err)

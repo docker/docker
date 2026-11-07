@@ -389,6 +389,69 @@ func TestEndpointNameLabel(t *testing.T) {
 	defer ep.Delete(t.Context(), false) //nolint:errcheck
 }
 
+// capturingDriver is a minimal network driver that records the options
+// map passed to CreateEndpoint, so a test can assert what the engine
+// forwards to network drivers at endpoint-creation time.
+type capturingDriver struct {
+	createEndpointOptions map[string]any
+}
+
+func capturingDriverRegister(reg driverapi.Registerer, d *capturingDriver) error {
+	return reg.RegisterDriver(capturingDriverName, d, driverapi.Capability{DataScope: scope.Local})
+}
+
+const capturingDriverName = "capturing network driver"
+
+func (d *capturingDriver) CreateNetwork(_ context.Context, _ string, _ map[string]any, _ driverapi.NetworkInfo, _, _ []driverapi.IPAMData) error {
+	return nil
+}
+func (d *capturingDriver) DeleteNetwork(_ string) error { return nil }
+func (d *capturingDriver) CreateEndpoint(_ context.Context, _, _ string, _ driverapi.InterfaceInfo, options map[string]any) error {
+	d.createEndpointOptions = options
+	return nil
+}
+func (d *capturingDriver) DeleteEndpoint(_, _ string) error                     { return nil }
+func (d *capturingDriver) EndpointOperInfo(_, _ string) (map[string]any, error) { return nil, nil }
+func (d *capturingDriver) Join(_ context.Context, _, _ string, _ string, _ driverapi.JoinInfo, _, _ map[string]any) error {
+	return nil
+}
+func (d *capturingDriver) Leave(_, _ string) error { return nil }
+func (d *capturingDriver) IsBuiltIn() bool         { return false }
+
+// TestEndpointNameNetworkDriver verifies that the endpoint (container)
+// name reaches a network driver's CreateEndpoint via its options map —
+// the network-driver counterpart of the IPAM-side guarantee checked by
+// TestEndpointNameLabel. Drivers that key per-endpoint state on a
+// recreate-stable identity (e.g. a DHCP plugin deriving a deterministic
+// MAC) have no other reliable source for it at endpoint-creation time.
+func TestEndpointNameNetworkDriver(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "test causes sync issue with Windows HNS")
+	defer netnsutils.SetupTestOSContext(t)()
+
+	c, err := New(t.Context())
+	assert.NilError(t, err)
+	defer c.Stop()
+
+	cd := &capturingDriver{}
+	err = capturingDriverRegister(&c.drvRegistry, cd)
+	assert.NilError(t, err)
+
+	ipamOpt := NetworkOptionIpam(defaultipam.DriverName, "", []*IpamConf{{PreferredPool: "10.36.0.0/16", Gateway: "10.36.255.253"}}, nil, nil)
+	nw, err := c.NewNetwork(t.Context(), capturingDriverName, "epname-netdriver", "",
+		NetworkOptionEnableIPv4(true),
+		ipamOpt,
+	)
+	assert.NilError(t, err)
+	defer func() { assert.NilError(t, nw.Delete()) }()
+
+	ep, err := nw.CreateEndpoint(t.Context(), "ep1")
+	assert.NilError(t, err)
+	defer ep.Delete(t.Context(), false) //nolint:errcheck
+
+	got, _ := cd.createEndpointOptions[netlabel.EndpointName].(string)
+	assert.Check(t, is.Equal(got, "ep1"), "network driver CreateEndpoint should receive the endpoint name; got: %q", got)
+}
+
 func TestUpdateSvcRecord(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "bridge driver and IPv6, only works on linux")
 
