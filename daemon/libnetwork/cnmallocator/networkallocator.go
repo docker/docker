@@ -971,6 +971,7 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[netip.Prefix]s
 		)
 		if gws, ok := alloc.Meta[netlabel.Gateway]; ok {
 			if ip, gwIP, err = net.ParseCIDR(gws); err != nil {
+				releasePools(ipam, ipamConfigs[:i], pools)
 				return nil, fmt.Errorf("failed to parse gateway address (%v) returned by ipam driver: %v", gws, err)
 			}
 			gwIP.IP = ip

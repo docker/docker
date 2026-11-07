@@ -8,6 +8,7 @@ import (
 
 	"github.com/moby/moby/v2/daemon/libnetwork/driverapi"
 	"github.com/moby/moby/v2/daemon/libnetwork/ipamapi"
+	"github.com/moby/moby/v2/daemon/libnetwork/netlabel"
 	"github.com/moby/swarmkit/v2/api"
 	"github.com/moby/swarmkit/v2/manager/allocator/networkallocator"
 	"gotest.tools/v3/assert"
@@ -1026,4 +1027,34 @@ func TestAllocateRestoreNodeLocal(t *testing.T) {
 	assert.Check(t, is.Len(na.pendingNetworks, 0))
 	assert.Check(t, is.Len(na.networks[n.ID].pools, 0))
 	assert.NilError(t, na.Allocate(newOverlayNetwork("reuse", subnet)))
+}
+
+// badGatewayIpam returns a gateway which does not parse, and records
+// the pools it holds.
+type badGatewayIpam struct {
+	mockIpam
+	pools map[string]struct{}
+}
+
+func (a *badGatewayIpam) RequestPool(req ipamapi.PoolRequest) (ipamapi.AllocatedPool, error) {
+	alloc, err := a.mockIpam.RequestPool(req)
+	alloc.Meta = map[string]string{netlabel.Gateway: "bogus"}
+	a.pools[alloc.PoolID] = struct{}{}
+	return alloc, err
+}
+
+func (a *badGatewayIpam) ReleasePool(poolID string) error {
+	delete(a.pools, poolID)
+	return nil
+}
+
+func TestAllocateBadGatewayReleasesPools(t *testing.T) {
+	na := newNetworkAllocator(t).(*cnmNetworkAllocator)
+	ipam := &badGatewayIpam{pools: make(map[string]struct{})}
+	assert.NilError(t, na.ipamRegistry.RegisterIpamDriver("badgateway", ipam))
+
+	n := newOverlayNetwork("badgateway", "192.168.1.0/24")
+	n.Spec.IPAM.Driver = &api.Driver{Name: "badgateway"}
+	assert.Check(t, is.ErrorContains(na.Allocate(n), "failed to parse gateway address"))
+	assert.Check(t, is.Len(ipam.pools, 0))
 }
