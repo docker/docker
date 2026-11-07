@@ -68,6 +68,7 @@ func (d *driver) Join(ctx context.Context, nid, eid string, sboxKey string, jinf
 	if err := n.joinSandbox(s, true); err != nil {
 		return fmt.Errorf("network sandbox join failed: %v", err)
 	}
+	ep.joined = true
 
 	overlayIfName, containerIfName, err := createVethPair()
 	if err != nil {
@@ -247,11 +248,17 @@ func (d *driver) Leave(nid, eid string) error {
 		return types.InternalMaskableErrorf("could not find endpoint with id %s", eid)
 	}
 
-	if err := n.peerDelete(eid, ep.addr, ep.mac, netip.Addr{}); err != nil {
+	// libnetwork also calls Leave to roll back a failed join: once if Join
+	// failed, and twice if a later step of the join failed.
+	if !ep.joined {
+		return nil
+	}
+	ep.joined = false
+
+	err = n.peerDelete(eid, ep.addr, ep.mac, netip.Addr{})
+	n.leaveSandbox()
+	if err != nil {
 		return fmt.Errorf("overlay: failed to delete local endpoint eid:%s from network peer db: %w", eid, err)
 	}
-
-	n.leaveSandbox()
-
 	return nil
 }

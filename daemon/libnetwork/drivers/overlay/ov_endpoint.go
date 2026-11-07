@@ -24,6 +24,7 @@ type endpoint struct {
 	ifName string
 	mac    hashable.MACAddr
 	addr   netip.Prefix
+	joined bool
 }
 
 func (d *driver) CreateEndpoint(_ context.Context, nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]any) error {
