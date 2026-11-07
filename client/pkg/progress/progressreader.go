@@ -16,6 +16,7 @@ type Reader struct {
 	lastUpdate  int64
 	id          string
 	action      string
+	start       int64
 	rateLimiter *rate.Limiter
 }
 
