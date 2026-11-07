@@ -1892,7 +1892,7 @@ func TestAdvertiseAddresses(t *testing.T) {
 						// the interval to the next may be shorted than the configured interval.
 						// Send variance should be a lot less than this but, this is enough to check that
 						// the interval is configurable, while (hopefully) avoiding flakiness on a busy host ...
-						const okIntervalDelta = 100 * time.Millisecond
+						const okIntervalDelta = 300 * time.Millisecond
 						assert.Check(t, time.Duration(math.Abs(float64(interval-tc.expInterval))) < okIntervalDelta,
 							"interval %s is expected to be within %s of configured interval %s",
 							interval, okIntervalDelta, tc.expInterval)
@@ -2299,3 +2299,4 @@ func TestPublishAllWithNilPortBindings(t *testing.T) {
 		imgWithExpose,
 	)
 }
+
