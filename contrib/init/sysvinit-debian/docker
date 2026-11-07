@@ -58,8 +58,13 @@ case "$1" in
 		touch "$DOCKER_LOGFILE"
 		chgrp docker "$DOCKER_LOGFILE"
 
-		# Only set the hard limit (soft limit should remain as the system default of 1024):
-		ulimit -Hn 524288
+		# Only set the hard limit if the current hard limit below desired and soft limit is also below desired.
+		desired_hard_limit=524288
+		current_hard_limit=$(ulimit -Hn)
+		current_soft_limit=$(ulimit -Sn)
+		if [ "$current_hard_limit" -lt "$desired_hard_limit" ] && [ "$current_soft_limit" -lt "$desired_hard_limit" ]; then
+			ulimit -Hn $desired_hard_limit
+		fi
 
 		# Having non-zero limits causes performance problems due to accounting overhead
 		# in the kernel. We recommend using cgroups to do container-local accounting.
