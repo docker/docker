@@ -931,6 +931,19 @@ func TestDeallocatePendingNetwork(t *testing.T) {
 	}
 }
 
+func TestDeallocateUnallocatedNetwork(t *testing.T) {
+	for _, tc := range driverFailures {
+		t.Run(tc.name, func(t *testing.T) {
+			na := newNetworkAllocator(t).(*cnmNetworkAllocator)
+			tc.setup(t, na)
+
+			n := newFakeDriverNetwork("new")
+			assert.Check(t, is.ErrorContains(na.Allocate(n), ""))
+			assert.NilError(t, na.Deallocate(n))
+		})
+	}
+}
+
 func TestAllocateRestoreReportsDriverError(t *testing.T) {
 	na := newNetworkAllocator(t).(*cnmNetworkAllocator)
 	n := recordedNetwork(t, "recorded")

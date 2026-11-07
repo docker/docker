@@ -219,7 +219,8 @@ func (na *cnmNetworkAllocator) Deallocate(n *api.Network) error {
 
 	localNet := na.getNetwork(n.ID)
 	if localNet == nil {
-		return fmt.Errorf("could not get networker state for network %s", n.ID)
+		// The network was not allocated, so it holds no resources.
+		return nil
 	}
 
 	// No swarm-level resource deallocation needed for node-local networks
