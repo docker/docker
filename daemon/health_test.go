@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -166,4 +167,60 @@ func TestHealthcheckEmptyCommand(t *testing.T) {
 	p := &cmdProbe{}
 	_, err := p.run(t.Context(), nil, c)
 	assert.ErrorContains(t, err, "has no command")
+}
+
+func TestWaitForExecStart(t *testing.T) {
+	t.Run("exec already finished", func(t *testing.T) {
+		// ContainerExecStart closes Started before returning, so a fast
+		// probe leaves both ready and either case can win the select.
+		// Both outcomes must leave the caller able to proceed: finished
+		// true, or the result still waiting in execErr. Consuming the
+		// result without reporting it deadlocks the probe: the next wait
+		// blocks on a value that will never arrive again.
+		for range 50 {
+			started := make(chan struct{})
+			close(started)
+			execErr := make(chan error, 1)
+			execErr <- nil
+
+			finished, err := waitForExecStart(started, execErr, 2*time.Second)
+			assert.NilError(t, err)
+			if finished {
+				continue
+			}
+			select {
+			case err := <-execErr:
+				assert.NilError(t, err)
+			case <-time.After(2 * time.Second):
+				t.Fatal("exec result consumed but not reported as finished")
+			}
+		}
+	})
+
+	t.Run("exec started", func(t *testing.T) {
+		started := make(chan struct{})
+		close(started)
+		execErr := make(chan error, 1)
+
+		finished, err := waitForExecStart(started, execErr, time.Second)
+		assert.NilError(t, err)
+		assert.Assert(t, !finished)
+	})
+
+	t.Run("exec failed to start", func(t *testing.T) {
+		started := make(chan struct{})
+		execErr := make(chan error, 1)
+		execErr <- errors.New("exec failed")
+
+		_, err := waitForExecStart(started, execErr, time.Second)
+		assert.ErrorContains(t, err, "exec failed")
+	})
+
+	t.Run("start timed out", func(t *testing.T) {
+		started := make(chan struct{})
+		execErr := make(chan error, 1)
+
+		_, err := waitForExecStart(started, execErr, 50*time.Millisecond)
+		assert.Assert(t, errors.Is(err, errExecStartTimeout))
+	})
 }

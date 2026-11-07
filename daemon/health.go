@@ -3,6 +3,7 @@ package daemon
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -113,46 +114,43 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	// start the exec is time that the probe process is not running, and so
 	// should not count towards the health check's timeout. Apply a separate
 	// timeout to abort if the exec request is wedged.
-	tm := time.NewTimer(30 * time.Second)
-	defer tm.Stop()
-	select {
-	case <-tm.C:
-		return nil, fmt.Errorf("timed out starting health check for container %s", cntr.ID)
-	case err := <-execErr:
-		if err != nil {
-			return nil, err
+	finished, err := waitForExecStart(execConfig.Started, execErr, 30*time.Second)
+	if err != nil {
+		if errors.Is(err, errExecStartTimeout) {
+			return nil, fmt.Errorf("timed out starting health check for container %s", cntr.ID)
 		}
-	case <-execConfig.Started:
+		return nil, err
+	}
+
+	if !finished {
 		metrics.HealthCheckStartDuration.UpdateSince(startTime)
-	}
 
-	if !tm.Stop() {
-		<-tm.C
-	}
-	probeTimeout := timeoutWithDefault(cntr.Config.Healthcheck.Timeout, defaultProbeTimeout)
-	tm.Reset(probeTimeout)
-	select {
-	case <-tm.C:
-		cancelProbe()
-		log.G(ctx).WithContext(ctx).Debugf("Health check for container %s taking too long", cntr.ID)
-		// Wait for probe to exit (it might take some time to call containerd to kill
-		// the process and we don't want dying probes to pile up).
-		<-execErr
+		probeTimeout := timeoutWithDefault(cntr.Config.Healthcheck.Timeout, defaultProbeTimeout)
+		tm := time.NewTimer(probeTimeout)
+		defer tm.Stop()
+		select {
+		case <-tm.C:
+			cancelProbe()
+			log.G(ctx).WithContext(ctx).Debugf("Health check for container %s taking too long", cntr.ID)
+			// Wait for probe to exit (it might take some time to call containerd to kill
+			// the process and we don't want dying probes to pile up).
+			<-execErr
 
-		var msg string
-		if out := output.String(); out != "" {
-			msg = fmt.Sprintf("Health check exceeded timeout (%v): %s", probeTimeout, out)
-		} else {
-			msg = fmt.Sprintf("Health check exceeded timeout (%v)", probeTimeout)
-		}
-		return &containertypes.HealthcheckResult{
-			ExitCode: -1,
-			Output:   msg,
-			End:      time.Now(),
-		}, nil
-	case err := <-execErr:
-		if err != nil {
-			return nil, err
+			var msg string
+			if out := output.String(); out != "" {
+				msg = fmt.Sprintf("Health check exceeded timeout (%v): %s", probeTimeout, out)
+			} else {
+				msg = fmt.Sprintf("Health check exceeded timeout (%v)", probeTimeout)
+			}
+			return &containertypes.HealthcheckResult{
+				ExitCode: -1,
+				Output:   msg,
+				End:      time.Now(),
+			}, nil
+		case err := <-execErr:
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -178,6 +176,26 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 		ExitCode: exitCode,
 		Output:   out,
 	}, nil
+}
+
+var errExecStartTimeout = errors.New("timed out starting health check")
+
+// waitForExecStart waits until the probe's exec has started or has finished.
+// The exec can finish before its start is observed: ContainerExecStart
+// closes Started before it returns, so both may be ready at once. If the
+// exec's result is received first, finished is true and the caller must not
+// wait for the result again.
+func waitForExecStart(started <-chan struct{}, execErr <-chan error, timeout time.Duration) (finished bool, err error) {
+	tm := time.NewTimer(timeout)
+	defer tm.Stop()
+	select {
+	case <-tm.C:
+		return false, errExecStartTimeout
+	case err := <-execErr:
+		return err == nil, err
+	case <-started:
+		return false, nil
+	}
 }
 
 // Update the container's Status.Health struct based on the latest probe's result.
