@@ -8185,6 +8185,14 @@ paths:
             - `since`=(`<container id>` or `<container name>`)
             - `status=`(`created`|`restarting`|`running`|`removing`|`paused`|`exited`|`dead`)
             - `volume`=(`<volume name>` or `<mount point destination>`)
+
+            The `id`, `name`, `status`, and `health` filters can be negated by
+            appending `!` to the name of the filter. A negated filter accepts
+            the same values, and excludes the containers matching any of them.
+            For example, `{"status!": ["exited", "dead"]}` returns containers
+            that are neither exited nor dead, and
+            `{"status": ["running"], "health!": ["healthy"]}` returns running
+            containers that are not healthy.
           type: "string"
       produces:
         - "application/json"

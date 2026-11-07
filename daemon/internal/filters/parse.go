@@ -157,9 +157,17 @@ func (args Args) Match(field, source string) bool {
 	if args.ExactMatch(field, source) {
 		return true
 	}
+	return matchAny(args.fields[field], source)
+}
 
-	fieldValues := args.fields[field]
-	for name2match := range fieldValues {
+// matchAny returns true if source equals one of the values, or matches one
+// of them as a regular expression. Values that are not a valid regular
+// expression can only match literally.
+func matchAny(values map[string]bool, source string) bool {
+	if values[source] {
+		return true
+	}
+	for name2match := range values {
 		match, err := regexp.MatchString(name2match, source)
 		if err != nil {
 			continue
@@ -169,6 +177,20 @@ func (args Args) Match(field, source string) bool {
 		}
 	}
 	return false
+}
+
+// ExcludeMatch returns true if the source matches any of the values of the
+// exclusion filter for field ("<field>!"), using the same matching rules as
+// [Args.Match]. Unlike [Args.Match], it returns false if the filter is not set.
+func (args Args) ExcludeMatch(field, source string) bool {
+	return matchAny(args.fields[field+"!"], source)
+}
+
+// ExcludeExactMatch returns true if the source is exactly one of the values
+// of the exclusion filter for field ("<field>!"). Unlike [Args.ExactMatch],
+// it returns false if the filter is not set.
+func (args Args) ExcludeExactMatch(field, source string) bool {
+	return args.fields[field+"!"][source]
 }
 
 // GetBoolOrDefault returns a boolean value of the key if the key is present

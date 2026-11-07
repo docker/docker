@@ -40,6 +40,11 @@ var acceptedPsFilterTags = map[string]bool{
 	"is-task":    true,
 	"publish":    true,
 	"expose":     true,
+
+	"id!":     true,
+	"name!":   true,
+	"status!": true,
+	"health!": true,
 }
 
 // iterationAction represents possible outcomes happening during the container iteration.
@@ -285,15 +290,19 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 		return nil, err
 	}
 
-	err = psFilters.WalkValues("status", func(value string) error {
-		if err := containertypes.ValidateContainerState(containertypes.ContainerState(value)); err != nil {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid filter 'status=%s': %w", value, err))
+	// Filtering on status, whether selecting or excluding, is only meaningful
+	// across all containers, not just the running ones.
+	for _, name := range []string{"status", "status!"} {
+		err = psFilters.WalkValues(name, func(value string) error {
+			if err := containertypes.ValidateContainerState(containertypes.ContainerState(value)); err != nil {
+				return errdefs.InvalidParameter(fmt.Errorf("invalid filter '%s=%s': %w", name, value, err))
+			}
+			config.All = true
+			return nil
+		})
+		if err != nil {
+			return nil, err
 		}
-		config.All = true
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	taskFilter := psFilters.Contains("is-task")
@@ -302,14 +311,16 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view *container.View, conf
 		return nil, err
 	}
 
-	err = psFilters.WalkValues("health", func(value string) error {
-		if err := containertypes.ValidateHealthStatus(containertypes.HealthStatus(value)); err != nil {
-			return errdefs.InvalidParameter(fmt.Errorf("invalid filter 'health=%s': %w", value, err))
+	for _, name := range []string{"health", "health!"} {
+		err = psFilters.WalkValues(name, func(value string) error {
+			if err := containertypes.ValidateHealthStatus(containertypes.HealthStatus(value)); err != nil {
+				return errdefs.InvalidParameter(fmt.Errorf("invalid filter '%s=%s': %w", name, value, err))
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 
 	var beforeContFilter, sinceContFilter *container.Snapshot
@@ -450,8 +461,14 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 		return excludeContainer
 	}
 
+	// Do not include container if either form of the name, with or without
+	// slash-prefix, is excluded.
+	if filter.filters.ExcludeMatch("name", container.Name) || filter.filters.ExcludeMatch("name", strings.TrimPrefix(container.Name, "/")) {
+		return excludeContainer
+	}
+
 	// Do not include container if the id doesn't match
-	if !filter.filters.Match("id", container.ID) {
+	if !filter.filters.Match("id", container.ID) || filter.filters.ExcludeMatch("id", container.ID) {
 		return excludeContainer
 	}
 
@@ -496,12 +513,12 @@ func includeContainerInList(container *container.Snapshot, filter *listContext) 
 	}
 
 	// Do not include container if its status doesn't match the filter
-	if !filter.filters.Match("status", string(container.State)) {
+	if !filter.filters.Match("status", string(container.State)) || filter.filters.ExcludeMatch("status", string(container.State)) {
 		return excludeContainer
 	}
 
 	// Do not include container if its health doesn't match the filter
-	if !filter.filters.ExactMatch("health", string(container.Health)) {
+	if !filter.filters.ExactMatch("health", string(container.Health)) || filter.filters.ExcludeExactMatch("health", string(container.Health)) {
 		return excludeContainer
 	}
 

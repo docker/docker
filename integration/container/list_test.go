@@ -2,9 +2,11 @@ package container
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/client/pkg/versions"
@@ -168,6 +170,79 @@ func TestContainerList_Filter(t *testing.T) {
 		})
 		assert.NilError(t, err)
 		assert.Check(t, is.Contains(containerIDs(list.Items), prev))
+	})
+}
+
+func TestContainerList_ExcludeFilters(t *testing.T) {
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	created := container.Create(ctx, t, apiClient)
+	running := container.Run(ctx, t, apiClient)
+	defer func() {
+		container.Remove(ctx, t, apiClient, created, client.ContainerRemoveOptions{Force: true})
+		container.Remove(ctx, t, apiClient, running, client.ContainerRemoveOptions{Force: true})
+	}()
+
+	tests := []struct {
+		doc         string
+		filters     client.Filters
+		expected    []string
+		notExpected []string
+	}{
+		{
+			doc:         "status! includes stopped containers",
+			filters:     make(client.Filters).Add("status!", "running"),
+			expected:    []string{created},
+			notExpected: []string{running},
+		},
+		{
+			doc:         "status and status! are combined",
+			filters:     make(client.Filters).Add("status", "running", "created").Add("status!", "created"),
+			expected:    []string{running},
+			notExpected: []string{created},
+		},
+		{
+			doc:         "id!",
+			filters:     make(client.Filters).Add("id!", running),
+			notExpected: []string{running},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			ctx := testutil.StartSpan(ctx, t)
+			list, err := apiClient.ContainerList(ctx, client.ContainerListOptions{Filters: tc.filters})
+			assert.NilError(t, err)
+
+			var ids []string
+			for _, c := range list.Items {
+				ids = append(ids, c.ID)
+			}
+			for _, id := range tc.expected {
+				assert.Check(t, is.Contains(ids, id))
+			}
+			for _, id := range tc.notExpected {
+				assert.Check(t, !slices.Contains(ids, id), "unexpected container %s", id)
+			}
+		})
+	}
+
+	t.Run("invalid value", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		_, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
+			Filters: make(client.Filters).Add("status!", "bogus"),
+		})
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+		assert.Check(t, is.ErrorContains(err, "invalid filter 'status!=bogus'"))
+	})
+
+	t.Run("unsupported filter", func(t *testing.T) {
+		ctx := testutil.StartSpan(ctx, t)
+		_, err := apiClient.ContainerList(ctx, client.ContainerListOptions{
+			Filters: make(client.Filters).Add("ancestor!", "busybox"),
+		})
+		assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+		assert.Check(t, is.ErrorContains(err, "invalid filter 'ancestor!'"))
 	})
 }
 

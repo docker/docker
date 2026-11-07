@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/google/uuid"
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/v2/daemon/container"
@@ -245,6 +246,198 @@ func TestContainerList_AnnotationFilter(t *testing.T) {
 				assert.Assert(t, containerListContainsName(containerList, name))
 			}
 			assert.Assert(t, !containerListContainsName(containerList, three.Name))
+		})
+	}
+}
+
+func TestContainerList_ExcludeFilters(t *testing.T) {
+	db, err := container.NewViewDB()
+	assert.NilError(t, err)
+	d := &Daemon{
+		containersReplica: db,
+	}
+
+	// Containers are listed newest first; space the timestamps so that the
+	// order is deterministic: created, exited, unhealthy, healthy.
+	now := time.Now()
+
+	healthy := setupContainerWithName(t, "healthy", d)
+	healthy.Created = now
+	healthy.State.Health = &container.Health{Health: containertypes.Health{Status: containertypes.Healthy}}
+	assert.NilError(t, db.Save(healthy))
+
+	unhealthy := setupContainerWithName(t, "unhealthy", d)
+	unhealthy.Created = now.Add(time.Second)
+	unhealthy.State.Health = &container.Health{Health: containertypes.Health{Status: containertypes.Unhealthy}}
+	assert.NilError(t, db.Save(unhealthy))
+
+	exited := setupContainerWithName(t, "exited", d)
+	exited.Created = now.Add(2 * time.Second)
+	exited.State.Running = false
+	exited.State.StartedAt = now
+	assert.NilError(t, db.Save(exited))
+
+	created := setupContainerWithName(t, "created", d)
+	created.Created = now.Add(3 * time.Second)
+	created.State.Running = false
+	assert.NilError(t, db.Save(created))
+
+	tests := []struct {
+		doc      string
+		all      bool
+		limit    int
+		filters  []filters.KeyValuePair
+		expected []string
+	}{
+		{
+			doc:      "status! includes stopped containers",
+			filters:  []filters.KeyValuePair{filters.Arg("status!", "exited")},
+			expected: []string{created.Name, unhealthy.Name, healthy.Name},
+		},
+		{
+			doc:      "status! running",
+			filters:  []filters.KeyValuePair{filters.Arg("status!", "running")},
+			expected: []string{created.Name, exited.Name},
+		},
+		{
+			doc: "status and status! are combined",
+			filters: []filters.KeyValuePair{
+				filters.Arg("status", "running"),
+				filters.Arg("status!", "exited"),
+			},
+			expected: []string{unhealthy.Name, healthy.Name},
+		},
+		{
+			doc: "contradicting status and status!",
+			filters: []filters.KeyValuePair{
+				filters.Arg("status", "running"),
+				filters.Arg("status!", "running"),
+			},
+			expected: []string{},
+		},
+		{
+			doc: "multiple status! values",
+			filters: []filters.KeyValuePair{
+				filters.Arg("status!", "running"),
+				filters.Arg("status!", "exited"),
+			},
+			expected: []string{created.Name},
+		},
+		{
+			doc:      "status! with limit",
+			limit:    1,
+			filters:  []filters.KeyValuePair{filters.Arg("status!", "created")},
+			expected: []string{exited.Name},
+		},
+		{
+			doc:      "health! does not include stopped containers",
+			filters:  []filters.KeyValuePair{filters.Arg("health!", "healthy")},
+			expected: []string{unhealthy.Name},
+		},
+		{
+			doc:      "health! with all",
+			all:      true,
+			filters:  []filters.KeyValuePair{filters.Arg("health!", "healthy")},
+			expected: []string{created.Name, exited.Name, unhealthy.Name},
+		},
+		{
+			doc:      "name! without slash",
+			all:      true,
+			filters:  []filters.KeyValuePair{filters.Arg("name!", "healthy")},
+			expected: []string{created.Name, exited.Name},
+		},
+		{
+			doc:      "name! with slash",
+			all:      true,
+			filters:  []filters.KeyValuePair{filters.Arg("name!", "/exited")},
+			expected: []string{created.Name, unhealthy.Name, healthy.Name},
+		},
+		{
+			doc:      "name! anchored without slash",
+			all:      true,
+			filters:  []filters.KeyValuePair{filters.Arg("name!", "^exited$")},
+			expected: []string{created.Name, unhealthy.Name, healthy.Name},
+		},
+		{
+			doc:      "name! anchored with slash",
+			all:      true,
+			filters:  []filters.KeyValuePair{filters.Arg("name!", "^/exited$")},
+			expected: []string{created.Name, unhealthy.Name, healthy.Name},
+		},
+		{
+			doc: "name and name! are combined",
+			all: true,
+			filters: []filters.KeyValuePair{
+				filters.Arg("name", "healthy"),
+				filters.Arg("name!", "^unhealthy$"),
+			},
+			expected: []string{healthy.Name},
+		},
+		{
+			doc:      "name! with invalid regular expression",
+			all:      true,
+			filters:  []filters.KeyValuePair{filters.Arg("name!", "[")},
+			expected: []string{created.Name, exited.Name, unhealthy.Name, healthy.Name},
+		},
+		{
+			doc:      "id!",
+			all:      true,
+			filters:  []filters.KeyValuePair{filters.Arg("id!", exited.ID)},
+			expected: []string{created.Name, unhealthy.Name, healthy.Name},
+		},
+		{
+			doc: "contradicting id and id!",
+			all: true,
+			filters: []filters.KeyValuePair{
+				filters.Arg("id", exited.ID),
+				filters.Arg("id!", exited.ID),
+			},
+			expected: []string{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.doc, func(t *testing.T) {
+			containerList, err := d.Containers(t.Context(), &backend.ContainerListOptions{
+				All:     tc.all,
+				Limit:   tc.limit,
+				Filters: filters.NewArgs(tc.filters...),
+			})
+			assert.NilError(t, err)
+
+			names := make([]string, 0, len(containerList))
+			for _, ctr := range containerList {
+				names = append(names, ctr.Names...)
+			}
+			assert.Check(t, is.DeepEqual(names, tc.expected))
+		})
+	}
+}
+
+func TestContainerList_ExcludeFilters_Invalid(t *testing.T) {
+	db, err := container.NewViewDB()
+	assert.NilError(t, err)
+	d := &Daemon{
+		containersReplica: db,
+	}
+
+	tests := []struct {
+		filter   filters.KeyValuePair
+		expected string
+	}{
+		{filter: filters.Arg("status!", "bogus"), expected: "invalid filter 'status!=bogus'"},
+		{filter: filters.Arg("health!", "bogus"), expected: "invalid filter 'health!=bogus'"},
+		{filter: filters.Arg("label!", "foo"), expected: "invalid filter 'label!'"},
+		{filter: filters.Arg("ancestor!", "foo"), expected: "invalid filter 'ancestor!'"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.filter.Key, func(t *testing.T) {
+			_, err := d.Containers(t.Context(), &backend.ContainerListOptions{
+				Filters: filters.NewArgs(tc.filter),
+			})
+			assert.Check(t, is.ErrorType(err, cerrdefs.IsInvalidArgument))
+			assert.Check(t, is.ErrorContains(err, tc.expected))
 		})
 	}
 }

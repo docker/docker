@@ -514,3 +514,37 @@ func TestGetBoolOrDefault(t *testing.T) {
 		})
 	}
 }
+
+func TestExcludeMatch(t *testing.T) {
+	f := NewArgs()
+	assert.Check(t, !f.ExcludeMatch("status", "running"), "nothing is excluded when there are no filters")
+
+	f.Add("status", "running")
+	assert.Check(t, !f.ExcludeMatch("status", "running"), "positive filters do not exclude")
+
+	f.Add("status!", "exited")
+	f.Add("status!", "^pa")
+	f.Add("status!", "[")
+
+	assert.Check(t, f.ExcludeMatch("status", "exited"), "exact match is excluded")
+	assert.Check(t, f.ExcludeMatch("status", "paused"), "regular expression match is excluded")
+	assert.Check(t, !f.ExcludeMatch("status", "running"), "non-matching value is not excluded")
+	assert.Check(t, !f.ExcludeMatch("status", "created"), "invalid regular expression does not match")
+	assert.Check(t, f.ExcludeMatch("status", "["), "invalid regular expression still matches literally")
+	assert.Check(t, !f.ExcludeMatch("other", "exited"), "other fields are not affected")
+}
+
+func TestExcludeExactMatch(t *testing.T) {
+	f := NewArgs()
+	assert.Check(t, !f.ExcludeExactMatch("health", "healthy"), "nothing is excluded when there are no filters")
+
+	f.Add("health", "healthy")
+	assert.Check(t, !f.ExcludeExactMatch("health", "healthy"), "positive filters do not exclude")
+
+	f.Add("health!", "healthy")
+	f.Add("health!", "start.*")
+
+	assert.Check(t, f.ExcludeExactMatch("health", "healthy"), "exact match is excluded")
+	assert.Check(t, !f.ExcludeExactMatch("health", "starting"), "regular expressions are not evaluated")
+	assert.Check(t, !f.ExcludeExactMatch("health", "unhealthy"), "non-matching value is not excluded")
+}
