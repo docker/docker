@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/containerd/log"
@@ -313,8 +314,14 @@ func (sb *Sandbox) rebuildDNS() error {
 		return errors.New("no listen-address for internal resolver")
 	}
 
-	// Work out whether ndots has been set from host config or overrides.
-	_, sb.ndotsSet = rc.Option("ndots")
+	// Work out whether ndots has been set and is greater than 0 from host config or overrides.
+	if ndotsStr, isSet := rc.Option("ndots"); isSet {
+		ndots, err := strconv.Atoi(ndotsStr)
+		sb.ndotsSetAndNotZero = err == nil && ndots > 0
+	} else {
+		sb.ndotsSetAndNotZero = false
+	}
+
 	// Swap nameservers for the internal one, and make sure the required options are set.
 	var extNameServers []resolvconf.ExtDNSEntry
 	extNameServers, err = rc.TransformForIntNS(intNS, sb.resolver.ResolverOptions())

@@ -37,23 +37,23 @@ func (sb *Sandbox) processOptions(options ...SandboxOption) {
 // Sandbox provides the control over the network container entity.
 // It is a one to one mapping with the container.
 type Sandbox struct {
-	id              string
-	containerID     string
-	config          containerConfig
-	extDNS          []extDNSEntry
-	osSbox          *osl.Namespace
-	controller      *Controller
-	resolver        *Resolver
-	resolverOnce    sync.Once
-	dbIndex         uint64
-	dbExists        bool
-	isStub          bool
-	inDelete        bool
-	ingress         bool
-	ndotsSet        bool
-	oslTypes        []osl.SandboxType // slice of properties of this sandbox
-	loadBalancerNID string            // NID that this SB is a load balancer for
-	mu              sync.Mutex
+	id                 string
+	containerID        string
+	config             containerConfig
+	extDNS             []extDNSEntry
+	osSbox             *osl.Namespace
+	controller         *Controller
+	resolver           *Resolver
+	resolverOnce       sync.Once
+	dbIndex            uint64
+	dbExists           bool
+	isStub             bool
+	inDelete           bool
+	ingress            bool
+	ndotsSetAndNotZero bool
+	oslTypes           []osl.SandboxType // slice of properties of this sandbox
+	loadBalancerNID    string            // NID that this SB is a load balancer for
+	mu                 sync.Mutex
 
 	// joinLeaveMu is required as well as mu to modify the following fields,
 	// acquire joinLeaveMu first, and keep it at-least until gateway changes
@@ -668,6 +668,6 @@ func (ep *Endpoint) Less(epj *Endpoint) bool {
 	return ep.network.Name() < epj.network.Name()
 }
 
-func (sb *Sandbox) NdotsSet() bool {
-	return sb.ndotsSet
+func (sb *Sandbox) NdotsSetAndNotZero() bool {
+	return sb.ndotsSetAndNotZero
 }

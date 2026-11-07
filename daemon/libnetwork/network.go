@@ -2052,7 +2052,7 @@ func (n *Network) ResolveService(ctx context.Context, name string) ([]*net.SRV, 
 	return srv, ip
 }
 
-func (n *Network) NdotsSet() bool {
+func (n *Network) NdotsSetAndNotZero() bool {
 	return false
 }
 
