@@ -85,16 +85,16 @@ func DeleteConntrackEntriesByPort(nlh nlwrap.Handle, proto types.Protocol, ports
 				"error":  err,
 				"hostIP": port.HostIP.String(),
 				"proto":  port.Proto.String(),
-				"port":   port.Port,
+				"port":   port.HostPort,
 			}).Warn("Failed to delete conntrack state for port")
 			continue
 		}
-		if err := filter.AddPort(netlink.ConntrackOrigDstPort, port.Port); err != nil {
+		if err := filter.AddPort(netlink.ConntrackOrigDstPort, port.HostPort); err != nil {
 			log.G(context.TODO()).WithFields(log.Fields{
 				"error":  err,
 				"hostIP": port.HostIP.String(),
 				"proto":  port.Proto.String(),
-				"port":   port.Port,
+				"port":   port.HostPort,
 			}).Warn("Failed to delete conntrack state for port")
 			continue
 		}
@@ -108,7 +108,7 @@ func DeleteConntrackEntriesByPort(nlh nlwrap.Handle, proto types.Protocol, ports
 					"error":  err,
 					"hostIP": port.HostIP.String(),
 					"proto":  port.Proto.String(),
-					"port":   port.Port,
+					"port":   port.HostPort,
 				}).Warn("Failed to delete conntrack state for port")
 				continue
 			}
@@ -120,7 +120,7 @@ func DeleteConntrackEntriesByPort(nlh nlwrap.Handle, proto types.Protocol, ports
 				"error":  err,
 				"hostIP": port.HostIP.String(),
 				"proto":  port.Proto.String(),
-				"port":   port.Port,
+				"port":   port.HostPort,
 			}).Warn("Failed to delete conntrack state for IPv4 port")
 		}
 		totalIPv4FlowPurged += v4FlowPurged
@@ -131,7 +131,7 @@ func DeleteConntrackEntriesByPort(nlh nlwrap.Handle, proto types.Protocol, ports
 				"error":  err,
 				"hostIP": port.HostIP.String(),
 				"proto":  port.Proto.String(),
-				"port":   port.Port,
+				"port":   port.HostPort,
 			}).Warn("Failed to delete conntrack state for IPv6 port")
 		}
 		totalIPv6FlowPurged += v6FlowPurged
