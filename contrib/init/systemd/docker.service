@@ -35,4 +35,4 @@ KillMode=process
 OOMScoreAdjust=-500
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=nss-user-lookup.target
