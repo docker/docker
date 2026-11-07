@@ -555,6 +555,113 @@ func TestPublishBatchAlreadyAccepted(t *testing.T) {
 	assert.Equal(t, events[0].inputLogEvent, argument.LogEvents[0])
 }
 
+func TestPublishBatchStreamNotFound(t *testing.T) {
+	mockClient := &mockClient{}
+	stream := &logStream{
+		client:          mockClient,
+		logGroupName:    groupName,
+		logStreamName:   streamName,
+		logCreateStream: true,
+		sequenceToken:   aws.String(sequenceToken),
+	}
+	createLogStreamCalls := 0
+	mockClient.createLogStreamFunc = func(ctx context.Context, input *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+		createLogStreamCalls++
+		return &cloudwatchlogs.CreateLogStreamOutput{}, nil
+	}
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		if createLogStreamCalls == 0 {
+			return nil, &types.ResourceNotFoundException{}
+		}
+		return &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		}, nil
+	}
+
+	events := []wrappedEvent{
+		{
+			inputLogEvent: types.InputLogEvent{
+				Message: aws.String(logline),
+			},
+		},
+	}
+
+	stream.publishBatch(testEventBatch(events))
+	assert.Equal(t, 1, createLogStreamCalls)
+	assert.Assert(t, is.Len(calls, 2))
+	assert.Equal(t, sequenceToken, aws.ToString(calls[0].SequenceToken))
+	// A newly created log stream does not have a sequence token yet.
+	assert.Assert(t, calls[1].SequenceToken == nil)
+	assert.Assert(t, is.Len(calls[1].LogEvents, 1))
+	assert.Equal(t, events[0].inputLogEvent, calls[1].LogEvents[0])
+	assert.Equal(t, nextSequenceToken, aws.ToString(stream.sequenceToken))
+}
+
+func TestPublishBatchStreamNotFoundCreateStreamDisabled(t *testing.T) {
+	mockClient := &mockClient{}
+	stream := &logStream{
+		client:          mockClient,
+		logGroupName:    groupName,
+		logStreamName:   streamName,
+		logCreateStream: false,
+		sequenceToken:   aws.String(sequenceToken),
+	}
+	mockClient.createLogStreamFunc = func(ctx context.Context, input *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+		t.Error("CreateLogStream should not be called")
+		return nil, errors.New("should not be called")
+	}
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		return nil, &types.ResourceNotFoundException{}
+	}
+
+	events := []wrappedEvent{
+		{
+			inputLogEvent: types.InputLogEvent{
+				Message: aws.String(logline),
+			},
+		},
+	}
+
+	stream.publishBatch(testEventBatch(events))
+	assert.Assert(t, is.Len(calls, 1))
+	assert.Equal(t, sequenceToken, aws.ToString(stream.sequenceToken))
+}
+
+func TestPublishBatchStreamNotFoundCreateError(t *testing.T) {
+	mockClient := &mockClient{}
+	stream := &logStream{
+		client:          mockClient,
+		logGroupName:    groupName,
+		logStreamName:   streamName,
+		logCreateStream: true,
+		sequenceToken:   aws.String(sequenceToken),
+	}
+	mockClient.createLogStreamFunc = func(ctx context.Context, input *cloudwatchlogs.CreateLogStreamInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.CreateLogStreamOutput, error) {
+		return nil, errors.New("error")
+	}
+	calls := make([]*cloudwatchlogs.PutLogEventsInput, 0)
+	mockClient.putLogEventsFunc = func(ctx context.Context, input *cloudwatchlogs.PutLogEventsInput, opts ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.PutLogEventsOutput, error) {
+		calls = append(calls, input)
+		return nil, &types.ResourceNotFoundException{}
+	}
+
+	events := []wrappedEvent{
+		{
+			inputLogEvent: types.InputLogEvent{
+				Message: aws.String(logline),
+			},
+		},
+	}
+
+	stream.publishBatch(testEventBatch(events))
+	assert.Assert(t, is.Len(calls, 1))
+	assert.Equal(t, sequenceToken, aws.ToString(stream.sequenceToken))
+}
+
 func TestCollectBatchSimple(t *testing.T) {
 	mockClient := &mockClient{}
 	stream := &logStream{

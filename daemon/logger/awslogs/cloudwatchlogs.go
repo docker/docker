@@ -820,6 +820,20 @@ func (l *logStream) publishBatch(batch *eventBatch) {
 			err = nil
 		} else if apiErr := (*types.InvalidSequenceTokenException)(nil); errors.As(err, &apiErr) {
 			nextSequenceToken, err = l.putLogEvents(cwEvents, apiErr.ExpectedSequenceToken)
+		} else if apiErr := (*types.ResourceNotFoundException)(nil); errors.As(err, &apiErr) && l.logCreateStream {
+			// The log stream (or the log group holding it) was deleted after
+			// the logger was initialized. Recreate it and resubmit the batch,
+			// otherwise the container would stop logging until it is restarted.
+			log.G(context.TODO()).WithFields(log.Fields{
+				"errorCode":     apiErr.ErrorCode(),
+				"message":       apiErr.ErrorMessage(),
+				"logGroupName":  l.logGroupName,
+				"logStreamName": l.logStreamName,
+			}).Info("Log stream not found, recreating it")
+			if err = l.create(); err == nil {
+				// A freshly created log stream has no sequence token yet.
+				nextSequenceToken, err = l.putLogEvents(cwEvents, nil)
+			}
 		}
 	}
 	if err != nil {
