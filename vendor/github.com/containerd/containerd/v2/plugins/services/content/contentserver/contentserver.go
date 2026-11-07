@@ -265,16 +265,23 @@ func (s *service) Write(session api.Content_WriteServer) (err error) {
 	defer func(msg *api.WriteContentResponse) {
 		// pump through the last message if no error was encountered
 		if err != nil {
-			if s, ok := status.FromError(err); ok && s.Code() != codes.AlreadyExists {
-				// TODO(stevvooe): Really need a log line here to track which
-				// errors are actually causing failure on the server side. May want
-				// to configure the service with an interceptor to make this work
-				// identically across all GRPC methods.
-				//
-				// This is pretty noisy, so we can remove it but leave it for now.
-				log.G(ctx).WithError(err).Error("(*service).Write failed")
+			if s, ok := status.FromError(err); ok {
+				switch s.Code() {
+				case codes.AlreadyExists:
+					// Do nothing, expected if another service already pushed the same content
+				case codes.Unavailable:
+					// This happens when multiple services pull the same image at once (e.g., in docker compose)
+					log.G(ctx).WithError(err).Debug("(*service).Write skipped: content locked by another service")
+					// Do not treat this as an error — safe to ignore
+				default:
+					// TODO(stevvooe): This log was noisy; now reduced to log only unexpected gRPC errors.
+					// Consider using an interceptor for consistent gRPC error reporting across all methods.
+					log.G(ctx).WithError(err).Error("(*service).Write failed")
+				}
+			} else {
+				// Not a gRPC error — log it
+				log.G(ctx).WithError(err).Error("(*service).Write failed (non-gRPC error)")
 			}
-
 			return
 		}
 
