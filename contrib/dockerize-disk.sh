@@ -44,9 +44,37 @@ trap cleanup EXIT
 
 # Mount disk image
 modprobe nbd max_part=63
-qemu-nbd -rc ${block_device} -P 1 "$disk_image_file"
+# qemu-nbd -P was removed in QEMU 5.0.
+# Mount the first kernel partition instead.
+qemu-nbd -rc $block_device "$disk_image_file"
+partition_device=${block_device}p1
+if command -v partprobe &> /dev/null; then
+	partprobe $block_device || true
+fi
+if command -v blockdev &> /dev/null; then
+	blockdev --rereadpt $block_device || true
+fi
+# Some environments expose the partition in sysfs before devtmpfs creates it.
+for _ in $(seq 1 30); do
+	if [ -b "$partition_device" ]; then
+		break
+	fi
+	partition_devno="/sys/class/block/${partition_device##*/}/dev"
+	if [ -r "$partition_devno" ]; then
+		IFS=: read -r major minor < "$partition_devno"
+		mknod "$partition_device" b "$major" "$minor" 2> /dev/null || true
+		if [ -b "$partition_device" ]; then
+			break
+		fi
+	fi
+	sleep 0.1
+done
+if [ ! -b "$partition_device" ]; then
+	echo >&2 "error: partition device $partition_device was not created"
+	exit 1
+fi
 mkdir "$builddir/disk_image"
-mount -o ro ${block_device} "$builddir/disk_image"
+mount -o ro $partition_device "$builddir/disk_image"
 
 mkdir "$builddir/workdir"
 mkdir "$builddir/diff"
