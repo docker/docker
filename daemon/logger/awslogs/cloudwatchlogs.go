@@ -73,7 +73,7 @@ const (
 	// Unicode replacement character (U+FFFD), which is a 3-byte sequence in UTF-8.  To compensate for that and to avoid
 	// splitting valid UTF-8 characters into invalid byte sequences, we calculate the length of each event assuming that
 	// this replacement happens.
-	maximumBytesPerEvent = 262144 - perEventBytes
+	maximumBytesPerEvent = 1048576 - perEventBytes
 
 	credentialsEndpoint = "http://169.254.170.2" // #nosec G101 -- Potential hardcoded credentials
 
