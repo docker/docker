@@ -124,6 +124,71 @@ func doesSupportNativeDiff(d string) error {
 	return nil
 }
 
+// Forked from https://github.com/containers/storage/blob/4d1ae4a7983ded01f2dbb97792884642c8363e36/drivers/overlay/check.go#L187
+//
+// doesSupportVolatile checks if the filesystem supports the "volatile" mount option
+func doesSupportVolatile(d string) (bool, error) {
+	userxattr := false
+	if userns.RunningInUserNS() {
+		needed, err := overlayutils.NeedsUserXAttr(d)
+		if err != nil {
+			return false, err
+		}
+		if needed {
+			userxattr = true
+		}
+	}
+
+	td, err := os.MkdirTemp(d, "volatile-check")
+	if err != nil {
+		return false, err
+	}
+	defer func() {
+		if err := os.RemoveAll(td); err != nil {
+			logger.WithError(err).Warnf("failed to remove check directory %v", td)
+		}
+	}()
+
+	lower, upper, work, merged := filepath.Join(td, "lower"), filepath.Join(td, "upper"), filepath.Join(td, "work"), filepath.Join(td, "merged")
+	for _, dir := range []string{lower, upper, work, merged} {
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			return false, err
+		}
+	}
+
+	opts := []string{fmt.Sprintf("volatile,lowerdir=%s,upperdir=%s,workdir=%s", lower, upper, work)}
+	if userxattr {
+		opts = append(opts, "userxattr")
+	}
+
+	m := mount.Mount{
+		Type:    "overlay",
+		Source:  "overlay",
+		Options: opts,
+	}
+
+	if err := m.Mount(merged); err != nil {
+		return false, errors.Wrap(err, "failed to mount overlay for volatile check")
+	}
+
+	defer func() {
+		if err := mount.UnmountAll(merged, 0); err != nil {
+			logger.WithError(err).Warnf("failed to unmount check directory %v", merged)
+		}
+	}()
+
+	// Check if the work directory contains the expected volatile directory
+	workIncompatVolatile := filepath.Join(work, "work", "incompat", "volatile")
+	if _, err := os.Stat(workIncompatVolatile); err != nil {
+		if os.IsNotExist(err) {
+			return false, errors.Errorf("overlayfs does not support volatile mount option: missing %s", workIncompatVolatile)
+		}
+		return false, errors.Wrapf(err, "failed to stat %s directory", workIncompatVolatile)
+	}
+
+	return true, nil
+}
+
 // Forked from https://github.com/containers/storage/blob/05c69f1b2a5871d170c07dc8d2eec69c681e143b/drivers/overlay/check.go
 //
 // usingMetacopy checks if overlayfs's metacopy feature is active. When active,

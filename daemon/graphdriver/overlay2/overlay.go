@@ -86,21 +86,23 @@ const (
 )
 
 type overlayOptions struct {
-	quota quota.Quota
+	quota    quota.Quota
+	volatile bool
 }
 
 // Driver contains information about the home directory and the list of active
 // mounts that are created using this driver.
 type Driver struct {
-	home          string
-	idMap         user.IdentityMapping
-	ctr           *mountref.Counter
-	quotaCtl      *quota.Control
-	options       overlayOptions
-	naiveDiff     graphdriver.DiffDriver
-	supportsDType bool
-	usingMetacopy bool
-	locker        *locker.Locker
+	home             string
+	idMap            user.IdentityMapping
+	ctr              *mountref.Counter
+	quotaCtl         *quota.Control
+	options          overlayOptions
+	naiveDiff        graphdriver.DiffDriver
+	supportsDType    bool
+	supportsVolatile bool
+	usingMetacopy    bool
+	locker           *locker.Locker
 }
 
 var (
@@ -112,6 +114,7 @@ var (
 	useNaiveDiffOnly bool
 
 	indexOff  string
+	volatile  string
 	userxattr string
 )
 
@@ -160,6 +163,12 @@ func Init(home string, options []string, idMap user.IdentityMapping) (graphdrive
 		return nil, overlayutils.ErrDTypeNotSupported("overlay2", backingFs)
 	}
 
+	supportsVolatile, err := doesSupportVolatile(testdir)
+	if err != nil {
+		logger.Debugf("Encountered an error checking for overlay volatile support: %s", err)
+		supportsVolatile = false
+	}
+
 	usingMetacopy, err := usingMetacopy(testdir)
 	if err != nil {
 		return nil, err
@@ -175,13 +184,14 @@ func Init(home string, options []string, idMap user.IdentityMapping) (graphdrive
 	}
 
 	d := &Driver{
-		home:          home,
-		idMap:         idMap,
-		ctr:           mountref.NewCounter(isMounted),
-		supportsDType: supportsDType,
-		usingMetacopy: usingMetacopy,
-		locker:        locker.New(),
-		options:       *opts,
+		home:             home,
+		idMap:            idMap,
+		ctr:              mountref.NewCounter(isMounted),
+		supportsDType:    supportsDType,
+		supportsVolatile: supportsVolatile,
+		usingMetacopy:    usingMetacopy,
+		locker:           locker.New(),
+		options:          *opts,
 	}
 
 	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, idMap)
@@ -209,6 +219,14 @@ func Init(home string, options []string, idMap user.IdentityMapping) (graphdrive
 		logger.Warnf("Unable to detect whether overlay kernel module supports index parameter: %s", err)
 	}
 
+	if opts.volatile {
+		if d.supportsVolatile {
+			volatile = "volatile,"
+		} else {
+			return nil, fmt.Errorf("Storage option overlay2.volatile is not supported by the kernel")
+		}
+	}
+
 	needsUserXattr, err := overlayutils.NeedsUserXAttr(home)
 	if err != nil {
 		logger.Warnf("Unable to detect whether overlay kernel module needs \"userxattr\" parameter: %s", err)
@@ -217,8 +235,8 @@ func Init(home string, options []string, idMap user.IdentityMapping) (graphdrive
 		userxattr = "userxattr,"
 	}
 
-	logger.Debugf("backingFs=%s, projectQuotaSupported=%v, usingMetacopy=%v, indexOff=%q, userxattr=%q",
-		backingFs, projectQuotaSupported, usingMetacopy, indexOff, userxattr)
+	logger.Debugf("backingFs=%s, projectQuotaSupported=%v, usingMetacopy=%v, indexOff=%q, supportsVolatile=%t, userxattr=%q",
+		backingFs, projectQuotaSupported, usingMetacopy, indexOff, supportsVolatile, userxattr)
 
 	return d, nil
 }
@@ -244,6 +262,12 @@ func parseOptions(options []string) (*overlayOptions, error) {
 				return nil, err
 			}
 			o.quota.Size = uint64(size)
+		case "overlay2.volatile":
+			boolVal, err := strconv.ParseBool(val)
+			if err != nil {
+				return nil, err
+			}
+			o.volatile = boolVal
 		default:
 			return nil, fmt.Errorf("overlay2: unknown option %s", key)
 		}
@@ -271,7 +295,9 @@ func (d *Driver) Status() [][2]string {
 	return [][2]string{
 		{"Backing Filesystem", backingFs},
 		{"Supports d_type", strconv.FormatBool(d.supportsDType)},
+		{"Supports volatile", strconv.FormatBool(d.supportsVolatile)},
 		{"Using metacopy", strconv.FormatBool(d.usingMetacopy)},
+		{"Using volatile", strconv.FormatBool(volatile != "")},
 		{"Native Overlay Diff", strconv.FormatBool(!useNaiveDiff(d.home))},
 		{"userxattr", strconv.FormatBool(userxattr != "")},
 	}
@@ -563,9 +589,9 @@ func (d *Driver) Get(id, mountLabel string) (_ string, retErr error) {
 
 	var opts string
 	if readonly {
-		opts = indexOff + userxattr + "lowerdir=" + diffDir + ":" + strings.Join(absLowers, ":")
+		opts = indexOff + volatile + userxattr + "lowerdir=" + diffDir + ":" + strings.Join(absLowers, ":")
 	} else {
-		opts = indexOff + userxattr + "lowerdir=" + strings.Join(absLowers, ":") + ",upperdir=" + diffDir + ",workdir=" + workDir
+		opts = indexOff + volatile + userxattr + "lowerdir=" + strings.Join(absLowers, ":") + ",upperdir=" + diffDir + ",workdir=" + workDir
 	}
 
 	mountData := label.FormatMountLabel(opts, mountLabel)
@@ -585,9 +611,9 @@ func (d *Driver) Get(id, mountLabel string) (_ string, retErr error) {
 	// smaller at the expense of requiring a fork exec to chroot.
 	if len(mountData) > pageSize-1 {
 		if readonly {
-			opts = indexOff + userxattr + "lowerdir=" + path.Join(id, diffDirName) + ":" + string(lowers)
+			opts = indexOff + volatile + userxattr + "lowerdir=" + path.Join(id, diffDirName) + ":" + string(lowers)
 		} else {
-			opts = indexOff + userxattr + "lowerdir=" + string(lowers) + ",upperdir=" + path.Join(id, diffDirName) + ",workdir=" + path.Join(id, workDirName)
+			opts = indexOff + volatile + userxattr + "lowerdir=" + string(lowers) + ",upperdir=" + path.Join(id, diffDirName) + ",workdir=" + path.Join(id, workDirName)
 		}
 		mountData = label.FormatMountLabel(opts, mountLabel)
 		if len(mountData) > pageSize-1 {
@@ -598,6 +624,14 @@ func (d *Driver) Get(id, mountLabel string) (_ string, retErr error) {
 			return mountFrom(d.home, source, target, mType, flags, label)
 		}
 		mountTarget = path.Join(id, mergedDirName)
+	}
+
+	if volatile != "" {
+		// overlay has a check in place to prevent mounting "volatile" system twice
+		volatileIncompatFile := path.Join(workDir, "work", "incompat", "volatile")
+		if err := os.RemoveAll(volatileIncompatFile); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("error removing volatile incompat file %s: %v", volatileIncompatFile, err)
+		}
 	}
 
 	if err := mount("overlay", mountTarget, "overlay", 0, mountData); err != nil {
