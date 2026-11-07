@@ -140,36 +140,38 @@ func fetchArgs(remoteURL string, ref string) []string {
 // Check if a given git URL supports a shallow git clone,
 // i.e. it is a non-HTTP server or a smart HTTP server.
 func supportsShallowClone(remoteURL string) bool {
-	if scheme := getScheme(remoteURL); scheme == "http" || scheme == "https" {
-		// Check if the HTTP server is smart
-
-		// Smart servers must correctly respond to a query for the git-upload-pack service
-		serviceURL := remoteURL + "/info/refs?service=git-upload-pack"
-
-		// Try a HEAD request and fallback to a Get request on error
-		res, err := http.Head(serviceURL) // #nosec G107
-		if res != nil && res.Body != nil {
-			defer res.Body.Close()
-		}
-		if err != nil || res.StatusCode != http.StatusOK {
-			res, err = http.Get(serviceURL) // #nosec G107
-			if err == nil {
-				res.Body.Close()
-			}
-			if err != nil || res.StatusCode != http.StatusOK {
-				// request failed
-				return false
-			}
-		}
-
-		if res.Header.Get("Content-Type") != "application/x-git-upload-pack-advertisement" {
-			// Fallback, not a smart server
-			return false
-		}
+	if scheme := getScheme(remoteURL); scheme != "http" && scheme != "https" {
+		// Non-HTTP protocols always support shallow clones
 		return true
 	}
-	// Non-HTTP protocols always support shallow clones
-	return true
+
+	// Check if the HTTP server is smart
+	// Smart servers must correctly respond to a query for the git-upload-pack service
+	serviceURL := remoteURL + "/info/refs?service=git-upload-pack"
+
+	// Try a HEAD request and fallback to a Get request on error
+	res, err := tryHeadThenGet(serviceURL)
+	if err != nil {
+		return false
+	}
+	defer res.Body.Close()
+
+	return res.StatusCode == http.StatusOK &&
+		res.Header.Get("Content-Type") == "application/x-git-upload-pack-advertisement"
+}
+
+func tryHeadThenGet(url string) (*http.Response, error) {
+	res, err := http.Head(url) // #nosec G107
+	if err == nil && res.StatusCode == http.StatusOK {
+		return res, nil
+	}
+
+	if err == nil {
+		res.Body.Close()
+	}
+
+	// HEAD request failed
+	return http.Get(url) // #nosec G107
 }
 
 func (repo gitRepo) checkout(root string) (string, error) {
