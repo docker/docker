@@ -402,9 +402,13 @@ func (p *windowsParser) parseMountSpec(cfg mount.Mount, convertTargetToBackslash
 	default:
 		// TODO(thaJeztah): make switch exhaustive: anything to do for mount.TypeTmpfs, mount.TypeCluster, mount.TypeImage ?
 	}
-	// cleanup trailing `\` except for paths like `c:\`
+	// cleanup trailing `\` except for root drives like `c:\` or UNC root drives like `\\?\c:\`
 	if len(mp.Source) > 3 && mp.Source[len(mp.Source)-1] == '\\' {
-		mp.Source = mp.Source[:len(mp.Source)-1]
+		// Verify this is not a UNC root drive (e.g. \\?\c:\) which requires the trailing slash
+		isUNCRoot := len(mp.Source) == 7 && strings.HasPrefix(mp.Source, `\\?\`) && mp.Source[5] == ':'
+		if !isUNCRoot {
+			mp.Source = mp.Source[:len(mp.Source)-1]
+		}
 	}
 	if len(mp.Destination) > 3 && mp.Destination[len(mp.Destination)-1] == '\\' {
 		mp.Destination = mp.Destination[:len(mp.Destination)-1]
