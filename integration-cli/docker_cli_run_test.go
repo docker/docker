@@ -800,7 +800,7 @@ func (s *DockerCLIRunSuite) TestRunUserNotFound(c *testing.T) {
 }
 
 func (s *DockerCLIRunSuite) TestRunTwoConcurrentContainers(c *testing.T) {
-	sleepTime := "2"
+	const sleepTime = "2"
 	group := sync.WaitGroup{}
 	group.Add(2)
 
@@ -808,8 +808,11 @@ func (s *DockerCLIRunSuite) TestRunTwoConcurrentContainers(c *testing.T) {
 	for range 2 {
 		go func() {
 			defer group.Done()
-			_, _, err := dockerCmdWithError("run", "busybox", "sleep", sleepTime)
-			errChan <- err
+			// Concurrent docker CLI processes dialing the Windows named pipe can
+			// intermittently fail with a connect-time EOF under CI load
+			// (https://github.com/moby/moby/issues/53343). Retry only that
+			// transient transport error so the test still exercises concurrency.
+			errChan <- runBusyboxSleepRetryConnectEOF(sleepTime)
 		}()
 	}
 
@@ -819,6 +822,32 @@ func (s *DockerCLIRunSuite) TestRunTwoConcurrentContainers(c *testing.T) {
 	for err := range errChan {
 		assert.NilError(c, err)
 	}
+}
+
+// runBusyboxSleepRetryConnectEOF starts a short-lived busybox container, retrying
+// only docker CLI "error during connect ... EOF" failures (Windows npipe flake).
+func runBusyboxSleepRetryConnectEOF(sleepTime string) error {
+	const maxAttempts = 3
+	var err error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		_, _, err = dockerCmdWithError("run", "busybox", "sleep", sleepTime)
+		if err == nil || !isTransientDockerConnectEOF(err) {
+			return err
+		}
+		time.Sleep(time.Duration(attempt) * 200 * time.Millisecond)
+	}
+	return err
+}
+
+// isTransientDockerConnectEOF reports the Windows named-pipe connect EOF pattern:
+//
+//	docker: error during connect: Post "http://.../pipe/docker_engine/...": EOF
+func isTransientDockerConnectEOF(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "error during connect") && strings.Contains(msg, "EOF")
 }
 
 func (s *DockerCLIRunSuite) TestRunEnvironment(c *testing.T) {
