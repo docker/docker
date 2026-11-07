@@ -134,6 +134,7 @@ func newSnapshotterController(ctx context.Context, rt http.RoundTripper, opt Opt
 		Selinux:         false,
 		CDIManager:      cdiManager,
 	}
+	workerOpts.NetworkOpt.CNI.Root = opt.Root
 
 	ctdOpts := []ctd.Opt{ctd.WithTimeout(60 * time.Second)}
 	if opt.ContainerdDialer != nil {
