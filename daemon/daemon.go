@@ -63,6 +63,7 @@ import (
 	"github.com/moby/moby/v2/daemon/events"
 	_ "github.com/moby/moby/v2/daemon/graphdriver/register" // register graph drivers
 	"github.com/moby/moby/v2/daemon/images"
+	"github.com/moby/moby/v2/daemon/internal/containerfs"
 	"github.com/moby/moby/v2/daemon/internal/distribution"
 	dmetadata "github.com/moby/moby/v2/daemon/internal/distribution/metadata"
 	"github.com/moby/moby/v2/daemon/internal/idtools"
@@ -325,6 +326,7 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 	restartContainers := make(map[*container.Container]chan struct{})
 	activeSandboxes := make(map[string]any)
 
+	// Phase 1: load RWLayers in parallel.
 	for _, c := range containers {
 		group.Go(func() {
 			_ = sem.Acquire(context.WithoutCancel(ctx), 1)
@@ -344,24 +346,67 @@ func (daemon *Daemon) restore(ctx context.Context, cfg *configStore, containers 
 				"running": c.State.IsRunning(),
 				"paused":  c.State.IsPaused(),
 			}).Debug("loaded container")
-
-			if err := daemon.registerName(c); err != nil {
-				logger.WithError(err).Errorf("failed to register container name: %s", c.Name)
-				mapLock.Lock()
-				delete(containers, c.ID)
-				mapLock.Unlock()
-				return
-			}
-			if err := daemon.register(ctx, c); err != nil {
-				logger.WithError(err).Error("failed to register container")
-				mapLock.Lock()
-				delete(containers, c.ID)
-				mapLock.Unlock()
-				return
-			}
 		})
 	}
 	group.Wait()
+
+	// Phase 2: deterministic registration. Containers with a valid RWLayer are
+	// registered first, so a healthy replacement is preferred over a broken
+	// residue with Dead:false that survived an interrupted removal (see #53481).
+	// This makes the "first wins" name race deterministic and allows us to
+	// clean up the residue that would otherwise shadow the replacement on every
+	// restart.
+	sorted := make([]*container.Container, 0, len(containers))
+	for _, c := range containers {
+		sorted = append(sorted, c)
+	}
+	slices.SortFunc(sorted, func(a, b *container.Container) int {
+		aValid := a.RWLayer != nil
+		bValid := b.RWLayer != nil
+		if aValid != bValid {
+			if aValid {
+				return -1
+			}
+			return 1
+		}
+		if a.ID < b.ID {
+			return -1
+		}
+		if a.ID > b.ID {
+			return 1
+		}
+		return 0
+	})
+	for _, c := range sorted {
+		logger := log.G(ctx).WithField("container", c.ID)
+		if err := daemon.registerName(c); err != nil {
+			logger.WithError(err).Errorf("failed to register container name: %s", c.Name)
+			// If a broken container (missing RWLayer) loses the name race to a
+			// healthy one, it is unambiguously a leftover from an interrupted
+			// removal. Remove its directory instead of silently dropping it from
+			// the in-memory map and leaving it on disk to re-race on every boot.
+			if c.RWLayer == nil {
+				if existingID, getErr := daemon.containersReplica.Snapshot().GetID(c.Name); getErr == nil {
+					if existingCtr, ok := containers[existingID]; ok && existingCtr.RWLayer != nil {
+						logger.Warnf("removing residue container %s with missing layer that conflicts on name %s with healthy container %s", c.ID, c.Name, existingID)
+						if rmErr := containerfs.EnsureRemoveAll(c.Root); rmErr != nil {
+							logger.WithError(rmErr).Errorf("failed to remove residue container directory %s", c.Root)
+						} else {
+							logger.Infof("removed residue container directory %s", c.Root)
+						}
+					}
+				}
+			}
+			delete(containers, c.ID)
+			continue
+		}
+		if err := daemon.register(ctx, c); err != nil {
+			logger.WithError(err).Error("failed to register container")
+			daemon.releaseName(c.Name)
+			delete(containers, c.ID)
+			continue
+		}
+	}
 
 	for _, c := range containers {
 		group.Go(func() {

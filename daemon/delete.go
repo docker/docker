@@ -135,7 +135,17 @@ func (daemon *Daemon) cleanupContainer(ctr *container.Container, config backend.
 	// container meta file got removed from disk, then a restart of
 	// docker should not make a dead container alive.
 	if err := ctr.CheckpointTo(context.WithoutCancel(context.TODO()), daemon.containersReplica); err != nil && !os.IsNotExist(err) {
+		// Restore in-memory state before returning; the on-disk config still
+		// has Dead:false so a daemon restart will not consider this container
+		// dead. Proceeding to ReleaseLayer with Dead:false on disk would leave
+		// a Dead:false residue if the daemon crashes between layer removal and
+		// filesystem cleanup (see https://github.com/moby/moby/issues/53481).
+		ctr.State.Dead = false
+		ctr.RWLayer = rwLayer
+		ctr.Unlock()
 		log.G(context.TODO()).Errorf("Error saving dying container to disk: %v", err)
+		ctr.State.SetRemovalError(err)
+		return err
 	}
 	ctr.Unlock()
 
