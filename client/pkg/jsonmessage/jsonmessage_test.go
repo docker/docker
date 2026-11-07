@@ -112,6 +112,14 @@ func TestRenderTUIProgress(t *testing.T) {
 	}
 }
 
+func TestRenderTUIProgress_negativeCurrent(t *testing.T) {
+	// Current can be negative on a decoded stream; the "=" repeat count must
+	// stay non-negative or strings.Repeat panics (companion to gh#7136, which
+	// clamped the trailing spaces but not the "=" run). A panic fails the test.
+	out := RenderTUIProgress(jsonstream.Progress{Current: -100, Total: 100}, 200)
+	assert.Assert(t, !strings.Contains(out, "="), "negative progress should clamp the bar; got %q", out)
+}
+
 func TestDisplay(t *testing.T) {
 	messages := map[jsonstream.Message][]string{
 		// Empty

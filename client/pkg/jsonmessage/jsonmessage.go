@@ -69,7 +69,8 @@ func RenderTUIProgress(p jsonstream.Progress, width uint16) string {
 		}
 	}
 
-	percentage := min(int(float64(p.Current)/float64(p.Total)*100)/2, 50)
+	// percentage can't be negative gh#7136
+	percentage := min(max(int(float64(p.Current)/float64(p.Total)*100)/2, 0), 50)
 	if width > 110 {
 		// this number can't be negative gh#7136
 		numSpaces := max(50-percentage, 0)
