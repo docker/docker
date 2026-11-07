@@ -84,7 +84,11 @@ func buildSandboxOptions(cfg *config.Config, ctr *container.Container) ([]libnet
 		// config variable
 		if ip == opts.HostGatewayName {
 			if len(cfg.HostGatewayIPs) == 0 {
-				return nil, errors.New("unable to derive the IP value for host-gateway")
+				log.G(context.TODO()).WithFields(log.Fields{
+					"extra_host": extraHost,
+					"container":  ctr.ID,
+				}).Warn("buildSandboxOptions: host-gateway IPs not configured, skipping host-gateway resolution")
+				continue
 			}
 			for _, gip := range cfg.HostGatewayIPs {
 				sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(host, gip.Unmap()))
