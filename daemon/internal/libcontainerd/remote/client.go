@@ -19,6 +19,7 @@ import (
 	runcoptions "github.com/containerd/containerd/api/types/runc/options"
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/content"
+	c8devents "github.com/containerd/containerd/v2/core/events"
 	c8dimages "github.com/containerd/containerd/v2/core/images"
 	"github.com/containerd/containerd/v2/pkg/archive"
 	"github.com/containerd/containerd/v2/pkg/cio"
@@ -593,6 +594,37 @@ func (c *client) waitServe(ctx context.Context) bool {
 }
 
 func (c *client) processEventStream(ctx context.Context, ns string) {
+	c.processEventStreamWithRestart(ctx, ns, eventStreamRestartDelay, func(ctx context.Context, filter string) (<-chan *c8devents.Envelope, <-chan error) {
+		return c.client.EventService().Subscribe(ctx, filter)
+	}, c.waitServe)
+}
+
+const eventStreamRestartDelay = 100 * time.Millisecond
+
+type eventStreamSubscribeFunc func(context.Context, string) (<-chan *c8devents.Envelope, <-chan error)
+type eventStreamReadyFunc func(context.Context) bool
+
+func (c *client) processEventStreamWithRestart(ctx context.Context, ns string, delay time.Duration, subscribe eventStreamSubscribeFunc, waitReady eventStreamReadyFunc) {
+	for c.processEventStreamOnce(ctx, ns, subscribe, waitReady) {
+		if !waitEventStreamRestart(ctx, delay) {
+			return
+		}
+	}
+}
+
+func waitEventStreamRestart(ctx context.Context, delay time.Duration) bool {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
+func (c *client) processEventStreamOnce(ctx context.Context, ns string, subscribe eventStreamSubscribeFunc, waitReady eventStreamReadyFunc) bool {
 	// Create a new context specifically for this subscription.
 	// The context must be cancelled to cancel the subscription.
 	// In cases where we have to restart event stream processing,
@@ -602,7 +634,7 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 
 	// Filter on both namespace *and* topic. To create an "and" filter,
 	// this must be a single, comma-separated string
-	eventStream, errC := c.client.EventService().Subscribe(subCtx, "namespace=="+ns+",topic~=|^/tasks/|")
+	eventStream, errC := subscribe(subCtx, "namespace=="+ns+",topic~=|^/tasks/|")
 
 	c.logger.Debug("processing event stream")
 
@@ -611,20 +643,20 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 		case err := <-errC:
 			if errors.Is(err, context.Canceled) {
 				c.logger.WithError(err).Info("stopping event stream following graceful shutdown")
-				return
+				return false
 			}
 			if ctx.Err() != nil {
 				c.logger.WithError(ctx.Err()).Info("stopping event stream following graceful shutdown")
-				return
+				return false
 			}
 			if err != nil {
 				c.logger.WithError(err).Error("Failed to get event")
 				c.logger.Info("Waiting for containerd to be ready to restart event processing")
-				if c.waitServe(ctx) {
-					go c.processEventStream(ctx, ns)
+				if waitReady(ctx) {
+					return true
 				}
 			}
-			return
+			return false
 		case ev := <-eventStream:
 			if ev.Event == nil {
 				c.logger.WithField("event", ev).Warn("invalid event")
