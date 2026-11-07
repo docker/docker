@@ -150,6 +150,29 @@ func TestGetRepositoryMountCandidates(t *testing.T) {
 	}
 }
 
+func TestMediaTypeForMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		metadata metadata.V2Metadata
+		expected string
+	}{
+		{
+			name:     "known media type",
+			metadata: metadata.V2Metadata{MediaType: "application/vnd.oci.image.layer.v1.tar+zstd"},
+			expected: "application/vnd.oci.image.layer.v1.tar+zstd",
+		},
+		{
+			name:     "legacy metadata",
+			metadata: metadata.V2Metadata{},
+			expected: c8dimages.MediaTypeDockerSchema2LayerGzip,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, mediaTypeForMetadata(tc.metadata), tc.expected)
+		})
+	}
+}
+
 func TestLayerAlreadyExists(t *testing.T) {
 	for _, tc := range []struct {
 		name                   string
@@ -228,6 +251,25 @@ func TestLayerAlreadyExists(t *testing.T) {
 			expectedDescriptor: distribution.Descriptor{Digest: digest.Digest("apple"), MediaType: c8dimages.MediaTypeDockerSchema2LayerGzip},
 			expectedExists:     true,
 			expectedRequests:   []string{"apple"},
+		},
+		{
+			name:       "preserve source media type",
+			targetRepo: "busybox",
+			metadata: []metadata.V2Metadata{{
+				Digest:           digest.Digest("apple"),
+				SourceRepository: "docker.io/library/busybox",
+				MediaType:        "application/vnd.oci.image.layer.v1.tar+zstd",
+			}},
+			maxExistenceChecks: 1,
+			remoteBlobs: map[digest.Digest]distribution.Descriptor{
+				digest.Digest("apple"): {Digest: digest.Digest("apple")},
+			},
+			expectedDescriptor: distribution.Descriptor{
+				Digest:    digest.Digest("apple"),
+				MediaType: "application/vnd.oci.image.layer.v1.tar+zstd",
+			},
+			expectedExists:   true,
+			expectedRequests: []string{"apple"},
 		},
 		{
 			name:               "find existing blob with different hmac",
@@ -471,6 +513,89 @@ type mockReferenceStore struct {
 
 func (s *mockReferenceStore) ReferencesByName(ref reference.Named) []refstore.Association {
 	return []refstore.Association{}
+}
+
+func TestUploadPreservesMediaTypeWhenBlobIsMounted(t *testing.T) {
+	targetRepo, err := reference.ParseNormalizedNamed("registry.example/target")
+	assert.NilError(t, err)
+	sourceRepo, err := reference.ParseNormalizedNamed("registry.example/source")
+	assert.NilError(t, err)
+
+	blobDigest := digest.FromBytes([]byte("zstd blob"))
+	sourceRef, err := reference.WithDigest(reference.TrimNamed(sourceRepo), blobDigest)
+	assert.NilError(t, err)
+
+	const zstdMediaType = "application/vnd.oci.image.layer.v1.tar+zstd"
+	mounted := distribution.ErrBlobMounted{
+		From: sourceRef,
+		Descriptor: distribution.Descriptor{
+			Digest: blobDigest,
+			Size:   10,
+		},
+	}
+	repo := &mockRepoWithMount{
+		mockRepo: mockRepo{
+			t:        t,
+			blobs:    map[digest.Digest]distribution.Descriptor{},
+			requests: []string{},
+		},
+		createErr: mounted,
+	}
+	ms := &mockMetadataServiceWithEntries{
+		entries: []metadata.V2Metadata{{
+			Digest:           blobDigest,
+			SourceRepository: sourceRepo.Name(),
+			MediaType:        zstdMediaType,
+		}},
+	}
+	pd := &pushDescriptor{
+		layer:           &storeLayer{Layer: layer.EmptyLayer},
+		metadataService: ms,
+		hmacKey:         nil,
+		repoName:        targetRepo,
+		ref:             targetRepo,
+		repo:            repo,
+		pushState:       &pushState{remoteLayers: make(map[layer.DiffID]distribution.Descriptor)},
+		checkedDigests:  make(map[digest.Digest]struct{}),
+	}
+
+	desc, err := pd.Upload(t.Context(), &progressSink{t})
+	assert.NilError(t, err)
+	assert.Equal(t, desc.Digest, blobDigest)
+	assert.Equal(t, desc.MediaType, zstdMediaType)
+	assert.Equal(t, pd.pushState.remoteLayers[layer.EmptyLayer.DiffID()].MediaType, zstdMediaType)
+	assert.Equal(t, len(ms.added), 1)
+	assert.Equal(t, ms.added[0].MediaType, zstdMediaType)
+}
+
+type mockMetadataServiceWithEntries struct {
+	mockV2MetadataService
+	entries []metadata.V2Metadata
+}
+
+func (m *mockMetadataServiceWithEntries) GetMetadata(layer.DiffID) ([]metadata.V2Metadata, error) {
+	return m.entries, nil
+}
+
+type mockRepoWithMount struct {
+	mockRepo
+	createErr error
+}
+
+func (m *mockRepoWithMount) Blobs(context.Context) distribution.BlobStore {
+	return &mockBlobStoreWithMount{
+		mockBlobStore: mockBlobStore{repo: &m.mockRepo},
+		createErr:     m.createErr,
+	}
+}
+
+type mockBlobStoreWithMount struct {
+	mockBlobStore
+	createErr error
+}
+
+func (m *mockBlobStoreWithMount) Create(context.Context, ...distribution.BlobCreateOption) (distribution.BlobWriter, error) {
+	return nil, m.createErr
 }
 
 func TestWhenEmptyAuthConfig(t *testing.T) {

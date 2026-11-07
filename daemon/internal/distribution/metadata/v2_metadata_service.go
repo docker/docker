@@ -29,10 +29,11 @@ type v2MetadataService struct {
 
 var _ V2MetadataService = &v2MetadataService{}
 
-// V2Metadata contains the digest and source repository information for a layer.
+// V2Metadata contains information about a compressed layer blob.
 type V2Metadata struct {
 	Digest           digest.Digest
 	SourceRepository string
+	MediaType        string `json:",omitempty"`
 	// HMAC hashes above attributes with recent authconfig digest used as a key in order to determine matching
 	// metadata entries accompanied by the same credentials without actually exposing them.
 	HMAC string
@@ -46,6 +47,10 @@ func CheckV2MetadataHMAC(meta *V2Metadata, key []byte) bool {
 	mac := hmac.New(sha256.New, key)
 	mac.Write([]byte(meta.Digest))
 	mac.Write([]byte(meta.SourceRepository))
+	if meta.MediaType != "" {
+		mac.Write([]byte{0})
+		mac.Write([]byte(meta.MediaType))
+	}
 	expectedMac := mac.Sum(nil)
 
 	storedMac, err := hex.DecodeString(meta.HMAC)
@@ -64,6 +69,10 @@ func ComputeV2MetadataHMAC(key []byte, meta *V2Metadata) string {
 	mac := hmac.New(sha256.New, key)
 	mac.Write([]byte(meta.Digest))
 	mac.Write([]byte(meta.SourceRepository))
+	if meta.MediaType != "" {
+		mac.Write([]byte{0})
+		mac.Write([]byte(meta.MediaType))
+	}
 	return hex.EncodeToString(mac.Sum(nil))
 }
 

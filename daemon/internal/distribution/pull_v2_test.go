@@ -10,14 +10,41 @@ import (
 	"testing"
 
 	"github.com/distribution/reference"
+	dockerdistribution "github.com/docker/distribution"
 	registrytypes "github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/v2/daemon/internal/distribution/metadata"
 	"github.com/moby/moby/v2/daemon/internal/image"
+	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/moby/moby/v2/daemon/pkg/registry"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
+
+func TestLayerDescriptorRegisteredStoresMediaType(t *testing.T) {
+	repoName, err := reference.ParseNormalizedNamed("registry.example/repo")
+	assert.NilError(t, err)
+
+	const zstdMediaType = "application/vnd.oci.image.layer.v1.tar+zstd"
+	blobDigest := digest.FromBytes([]byte("zstd blob"))
+	ms := &mockV2MetadataService{}
+	ld := &layerDescriptor{
+		digest:          blobDigest,
+		repoName:        repoName,
+		metadataService: ms,
+		src:             dockerdistribution.Descriptor{MediaType: zstdMediaType},
+	}
+
+	diffID := layer.DiffID("sha256:diff")
+	ld.Registered(diffID)
+
+	assert.DeepEqual(t, ms.added, []metadata.V2Metadata{{
+		Digest:           blobDigest,
+		SourceRepository: repoName.Name(),
+		MediaType:        zstdMediaType,
+	}})
+}
 
 func TestNoMatchesErr(t *testing.T) {
 	err := noMatchesErr{}

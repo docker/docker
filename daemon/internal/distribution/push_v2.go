@@ -254,6 +254,15 @@ type pushDescriptor struct {
 	checkedDigests map[digest.Digest]struct{}
 }
 
+func mediaTypeForMetadata(meta metadata.V2Metadata) string {
+	if meta.MediaType != "" {
+		return meta.MediaType
+	}
+	// Metadata created before media types were stored is assumed to refer to a
+	// gzip-compressed layer, as in previous versions.
+	return c8dimages.MediaTypeDockerSchema2LayerGzip
+}
+
 func (pd *pushDescriptor) Key() string {
 	return "v2push:" + pd.ref.Name() + " " + pd.layer.DiffID().String()
 }
@@ -338,7 +347,7 @@ func (pd *pushDescriptor) Upload(ctx context.Context, progressOutput progress.Ou
 		case distribution.ErrBlobMounted:
 			progress.Updatef(progressOutput, pd.ID(), "Mounted from %s", err.From.Name())
 
-			err.Descriptor.MediaType = c8dimages.MediaTypeDockerSchema2LayerGzip
+			err.Descriptor.MediaType = mediaTypeForMetadata(mountCandidate)
 
 			pd.pushState.Lock()
 			pd.pushState.remoteLayers[diffID] = err.Descriptor
@@ -348,6 +357,7 @@ func (pd *pushDescriptor) Upload(ctx context.Context, progressOutput progress.Ou
 			if err := pd.metadataService.TagAndAdd(diffID, pd.hmacKey, metadata.V2Metadata{
 				Digest:           err.Descriptor.Digest,
 				SourceRepository: pd.repoName.Name(),
+				MediaType:        err.Descriptor.MediaType,
 			}); err != nil {
 				return distribution.Descriptor{}, xfer.DoNotRetry{Err: err}
 			}
@@ -467,6 +477,7 @@ func (pd *pushDescriptor) uploadUsingSession(
 	if err := pd.metadataService.TagAndAdd(diffID, pd.hmacKey, metadata.V2Metadata{
 		Digest:           pushDigest,
 		SourceRepository: pd.repoName.Name(),
+		MediaType:        c8dimages.MediaTypeDockerSchema2LayerGzip,
 	}); err != nil {
 		return distribution.Descriptor{}, xfer.DoNotRetry{Err: err}
 	}
@@ -543,11 +554,12 @@ attempts:
 				if err := pd.metadataService.TagAndAdd(diffID, pd.hmacKey, metadata.V2Metadata{
 					Digest:           desc.Digest,
 					SourceRepository: pd.repoName.Name(),
+					MediaType:        meta.MediaType,
 				}); err != nil {
 					return distribution.Descriptor{}, false, xfer.DoNotRetry{Err: err}
 				}
 			}
-			desc.MediaType = c8dimages.MediaTypeDockerSchema2LayerGzip
+			desc.MediaType = mediaTypeForMetadata(*meta)
 			exists = true
 			break attempts
 		case errors.Is(err, distribution.ErrBlobUnknown):

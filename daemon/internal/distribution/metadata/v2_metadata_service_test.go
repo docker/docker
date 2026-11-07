@@ -1,6 +1,8 @@
 package metadata
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/hex"
 	"math/rand"
 	"reflect"
@@ -9,6 +11,33 @@ import (
 	"github.com/moby/moby/v2/daemon/internal/layer"
 	"github.com/opencontainers/go-digest"
 )
+
+func TestV2MetadataHMAC(t *testing.T) {
+	key := []byte("auth-config")
+	meta := V2Metadata{
+		Digest:           digest.Digest("sha256:layer"),
+		SourceRepository: "registry.example/repo",
+	}
+
+	// Metadata persisted before MediaType was added must remain valid.
+	legacyMAC := hmac.New(sha256.New, key)
+	legacyMAC.Write([]byte(meta.Digest))
+	legacyMAC.Write([]byte(meta.SourceRepository))
+	meta.HMAC = hex.EncodeToString(legacyMAC.Sum(nil))
+	if !CheckV2MetadataHMAC(&meta, key) {
+		t.Fatal("legacy metadata HMAC was rejected")
+	}
+
+	meta.MediaType = "application/vnd.oci.image.layer.v1.tar+zstd"
+	meta.HMAC = ComputeV2MetadataHMAC(key, &meta)
+	if !CheckV2MetadataHMAC(&meta, key) {
+		t.Fatal("metadata HMAC with media type was rejected")
+	}
+	meta.MediaType = "application/vnd.oci.image.layer.v1.tar+gzip"
+	if CheckV2MetadataHMAC(&meta, key) {
+		t.Fatal("metadata HMAC accepted a changed media type")
+	}
+}
 
 func TestV2MetadataService(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -31,7 +60,10 @@ func TestV2MetadataService(t *testing.T) {
 		{
 			diffID: layer.DiffID("sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"),
 			metadata: []V2Metadata{
-				{Digest: digest.Digest("sha256:f0cd5ca10b07f35512fc2f1cbf9a6cefbdb5cba70ac6b0c9e5988f4497f71937")},
+				{
+					Digest:    digest.Digest("sha256:f0cd5ca10b07f35512fc2f1cbf9a6cefbdb5cba70ac6b0c9e5988f4497f71937"),
+					MediaType: "application/vnd.oci.image.layer.v1.tar+zstd",
+				},
 			},
 		},
 		{
