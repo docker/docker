@@ -16,6 +16,7 @@ type Reader struct {
 	lastUpdate  int64
 	id          string
 	action      string
+	start       int64 // Unix timestamp (in seconds) at which reading started
 	rateLimiter *rate.Limiter
 }
 
@@ -27,6 +28,7 @@ func NewProgressReader(in io.ReadCloser, out Output, size int64, id, action stri
 		size:        size,
 		id:          id,
 		action:      action,
+		start:       time.Now().Unix(),
 		rateLimiter: rate.NewLimiter(rate.Every(100*time.Millisecond), 1),
 	}
 }
@@ -61,6 +63,6 @@ func (p *Reader) Close() error {
 
 func (p *Reader) updateProgress(last bool) {
 	if last || p.current == p.size || p.rateLimiter.Allow() {
-		p.out.WriteProgress(Progress{ID: p.id, Action: p.action, Current: p.current, Total: p.size, LastUpdate: last})
+		p.out.WriteProgress(Progress{ID: p.id, Action: p.action, Current: p.current, Total: p.size, Start: p.start, LastUpdate: last})
 	}
 }

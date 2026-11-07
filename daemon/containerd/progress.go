@@ -148,11 +148,19 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 			if info.Offset == 0 {
 				continue
 			}
+			// Use the per-layer download start (when known) so the estimated
+			// time remaining stays accurate even when layers begin downloading
+			// at different times due to concurrency limits.
+			var layerStart int64
+			if !info.StartedAt.IsZero() {
+				layerStart = info.StartedAt.Unix()
+			}
 			out.WriteProgress(progress.Progress{
 				ID:      stringid.TruncateID(j.Digest.Encoded()),
 				Action:  "Downloading",
 				Current: info.Offset,
 				Total:   info.Total,
+				Start:   layerStart,
 			})
 			continue
 		}
@@ -212,6 +220,7 @@ func (p *pullProgress) UpdateProgress(ctx context.Context, ongoing *jobs, out pr
 					// Start from 1s, because without Total, 0 won't be shown at all.
 					Current: 1 + seconds,
 					Units:   "s",
+					Start:   start.Unix(),
 				})
 		case snapshots.KindCommitted:
 			out.WriteProgress(progress.Progress{

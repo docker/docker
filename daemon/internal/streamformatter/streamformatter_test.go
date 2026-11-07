@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/moby/moby/api/types/jsonstream"
+	"github.com/moby/moby/v2/daemon/internal/progress"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -88,6 +89,20 @@ func TestJsonProgressFormatterFormatStatus(t *testing.T) {
 	sf := jsonProgressFormatter{}
 	res := sf.formatStatus("ID", "%s%d", "a", 1)
 	assert.Check(t, is.Equal(`{"status":"a1","id":"ID"}`+streamNewline, string(res)))
+}
+
+func TestJSONProgressOutputPassesStart(t *testing.T) {
+	var buf bytes.Buffer
+	err := NewJSONProgressOutput(&buf, false).WriteProgress(progress.Progress{
+		ID:      "id",
+		Action:  "Downloading",
+		Current: 15,
+		Total:   30,
+		Start:   12345,
+	})
+	assert.NilError(t, err)
+	expected := `{"status":"Downloading","progressDetail":{"current":15,"total":30,"start":12345},"id":"id"}` + streamNewline
+	assert.Check(t, is.Equal(expected, buf.String()))
 }
 
 func TestNewJSONProgressOutput(t *testing.T) {

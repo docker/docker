@@ -113,6 +113,7 @@ func (out *progressOutput) WriteProgress(prog progress.Progress) error {
 		jsonProgress := jsonstream.Progress{
 			Current:    prog.Current,
 			Total:      prog.Total,
+			Start:      prog.Start,
 			HideCounts: prog.HideCounts,
 			Units:      prog.Units,
 		}

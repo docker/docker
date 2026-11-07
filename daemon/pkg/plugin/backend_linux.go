@@ -416,7 +416,11 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 			}
 
 			for _, s := range statuses {
-				out.WriteProgress(progress.Progress{ID: s.Ref, Current: s.Offset, Total: s.Total, Action: s.Status, LastUpdate: s.Offset == s.Total})
+				var start int64
+				if !s.StartedAt.IsZero() {
+					start = s.StartedAt.Unix()
+				}
+				out.WriteProgress(progress.Progress{ID: s.Ref, Current: s.Offset, Total: s.Total, Start: start, Action: s.Status, LastUpdate: s.Offset == s.Total})
 			}
 		}
 	}()

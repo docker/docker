@@ -16,6 +16,11 @@ type Progress struct {
 	Current int64
 	Total   int64
 
+	// Start is the Unix timestamp (in seconds) at which the operation began.
+	// When set, renderers use it to estimate the remaining time. It is left
+	// as zero when no meaningful start time is available.
+	Start int64
+
 	// If true, don't show xB/yB
 	HideCounts bool
 	// If not empty, use units instead of bytes for counts

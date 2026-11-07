@@ -32,6 +32,7 @@ func (sf *jsonProgressFormatter) format(prog progress.Progress) []byte {
 	jsonProgress := jsonstream.Progress{
 		Current:    prog.Current,
 		Total:      prog.Total,
+		Start:      prog.Start,
 		HideCounts: prog.HideCounts,
 		Units:      prog.Units,
 	}
@@ -94,6 +95,7 @@ func (sf *rawProgressFormatter) format(prog progress.Progress) []byte {
 	return sf.formatProgress(prog.Action, &jsonstream.Progress{
 		Current:    prog.Current,
 		Total:      prog.Total,
+		Start:      prog.Start,
 		HideCounts: prog.HideCounts,
 		Units:      prog.Units,
 	})
@@ -143,7 +145,6 @@ func rawProgressString(p *jsonstream.Progress) string {
 		}
 	}
 
-	// FIXME(thaJeztah): p.Start is never set, because progress.Progress doesn't have this field
 	var timeLeftBox string
 	if p.Current > 0 && p.Start > 0 && percentage < 50 {
 		fromStart := time.Since(time.Unix(p.Start, 0))

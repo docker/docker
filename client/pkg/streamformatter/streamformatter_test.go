@@ -59,6 +59,20 @@ func TestJSONProgressFormatterFormatProgress(t *testing.T) {
 	assert.Equal(t, buf.String(), expected)
 }
 
+func TestJSONProgressFormatterPassesStart(t *testing.T) {
+	var buf bytes.Buffer
+	err := streamformatter.NewJSONProgressOutput(&buf, false).WriteProgress(progress.Progress{
+		ID:      "id",
+		Action:  "Downloading",
+		Current: 15,
+		Total:   30,
+		Start:   12345,
+	})
+	assert.NilError(t, err)
+	expected := `{"status":"Downloading","progressDetail":{"current":15,"total":30,"start":12345},"id":"id"}` + streamNewline
+	assert.Equal(t, buf.String(), expected)
+}
+
 func TestJSONProgressFormatterFormatStatus(t *testing.T) {
 	var buf bytes.Buffer
 	err := streamformatter.NewJSONProgressOutput(&buf, false).WriteProgress(progress.Progress{
