@@ -34,6 +34,15 @@ func (d *Driver) setupQuota(dir string, size uint64) error {
 	return d.quotaCtl.SetQuota(dir, quota.Quota{Size: size})
 }
 
+func (d *Driver) removeQuota(dir string) {
+	if d.quotaCtl == nil {
+		return
+	}
+	if err := d.quotaCtl.RemoveQuota(dir); err != nil {
+		log.G(context.TODO()).Warnf("Failed to remove quota for %v: %v", dir, err)
+	}
+}
+
 func (d *Driver) quotaSupported() bool {
 	return d.quotaCtl != nil
 }

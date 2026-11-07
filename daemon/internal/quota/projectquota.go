@@ -68,7 +68,9 @@ import (
 
 type pquotaState struct {
 	sync.Mutex
-	nextProjectID uint32
+	nextProjectID   uint32
+	freeProjectIDs  []uint32
+	projectIDsInUse map[uint32]bool
 }
 
 var (
@@ -80,7 +82,9 @@ var (
 func getPquotaState() *pquotaState {
 	pquotaStateOnce.Do(func() {
 		pquotaStateInst = &pquotaState{
-			nextProjectID: 1,
+			nextProjectID:   1,
+			freeProjectIDs:  []uint32{},
+			projectIDsInUse: make(map[uint32]bool),
 		}
 	})
 	return pquotaStateInst
@@ -196,18 +200,30 @@ func (q *Control) SetQuota(targetPath string, quota Quota) error {
 	if !ok {
 		state := getPquotaState()
 		state.Lock()
-		projectID = state.nextProjectID
+
+		// Reuse a freed project ID if available, otherwise allocate a new one
+		if n := len(state.freeProjectIDs); n > 0 {
+			projectID = state.freeProjectIDs[n-1]
+			state.freeProjectIDs = state.freeProjectIDs[:n-1]
+		} else {
+			projectID = state.nextProjectID
+		}
 
 		//
 		// assign project id to new container directory
 		//
 		err := setProjectID(targetPath, projectID)
 		if err != nil {
+			// Return the project ID to the free list on failure
+			state.freeProjectIDs = append(state.freeProjectIDs, projectID)
 			state.Unlock()
 			return err
 		}
 
-		state.nextProjectID++
+		state.projectIDsInUse[projectID] = true
+		if projectID == state.nextProjectID {
+			state.nextProjectID++
+		}
 		state.Unlock()
 
 		q.Lock()
@@ -220,6 +236,39 @@ func (q *Control) SetQuota(targetPath string, quota Quota) error {
 	//
 	log.G(context.TODO()).Debugf("SetQuota(%s, %d): projectID=%d", targetPath, quota.Size, projectID)
 	return setProjectQuota(q.backingFsBlockDev, projectID, quota)
+}
+
+// RemoveQuota - clear the XFS quota limit, remove the path from in-memory
+// tracking, and return the project ID to the free list for reuse by future
+// SetQuota calls.
+//
+// The caller must have already deleted the target directory from the
+// filesystem (e.g. via EnsureRemoveAll). Only the XFS block device quota
+// needs clearing — the directory xattr is gone with the directory.
+func (q *Control) RemoveQuota(targetPath string) error {
+	q.Lock()
+	defer q.Unlock()
+
+	projectID, ok := q.quotas[targetPath]
+	if !ok {
+		return nil
+	}
+
+	log.G(context.TODO()).Debugf("RemoveQuota(%s): projectID=%d", targetPath, projectID)
+
+	if err := setProjectQuota(q.backingFsBlockDev, projectID, Quota{Size: 0}); err != nil {
+		return err
+	}
+
+	delete(q.quotas, targetPath)
+
+	state := getPquotaState()
+	state.Lock()
+	delete(state.projectIDsInUse, projectID)
+	state.freeProjectIDs = append(state.freeProjectIDs, projectID)
+	state.Unlock()
+
+	return nil
 }
 
 // setProjectQuota - set the quota for project id on xfs block device
@@ -320,7 +369,9 @@ func setProjectID(targetPath string, projectID uint32) error {
 }
 
 // findNextProjectID - find the next project id to be used for containers
-// by scanning driver home directory to find used project ids
+// by scanning driver home directory to find used project ids. After scanning,
+// project IDs in (baseID, nextProjectID) that are not referenced by any
+// existing directory are added to the free list for reuse.
 func (q *Control) findNextProjectID(home string, baseID uint32) error {
 	state := getPquotaState()
 	state.Lock()
@@ -333,6 +384,7 @@ func (q *Control) findNextProjectID(home string, baseID uint32) error {
 		}
 		if projid > 0 {
 			q.quotas[path] = projid
+			state.projectIDsInUse[projid] = true
 		}
 		if state.nextProjectID <= projid {
 			state.nextProjectID = projid + 1
@@ -342,6 +394,9 @@ func (q *Control) findNextProjectID(home string, baseID uint32) error {
 
 	files, err := os.ReadDir(home)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return errors.Errorf("read directory failed: %s", home)
 	}
 	for _, file := range files {
@@ -358,6 +413,9 @@ func (q *Control) findNextProjectID(home string, baseID uint32) error {
 		}
 		subfiles, err := os.ReadDir(path)
 		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
 			return errors.Errorf("read directory failed: %s", path)
 		}
 		for _, subfile := range subfiles {
@@ -369,6 +427,15 @@ func (q *Control) findNextProjectID(home string, baseID uint32) error {
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	// Collect project IDs that were allocated but whose directories no
+	// longer exist (e.g. removed while the daemon was down). These are
+	// gaps in (baseID, nextProjectID) not present in the global in-use map.
+	for projid := baseID + 1; projid < state.nextProjectID; projid++ {
+		if !state.projectIDsInUse[projid] {
+			state.freeProjectIDs = append(state.freeProjectIDs, projid)
 		}
 	}
 

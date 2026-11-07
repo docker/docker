@@ -202,7 +202,12 @@ func (d *Driver) dir(id string) string {
 
 // Remove deletes the content from the directory for a given id.
 func (d *Driver) Remove(id string) error {
-	return containerfs.EnsureRemoveAll(d.dir(id))
+	dir := d.dir(id)
+	if err := containerfs.EnsureRemoveAll(dir); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	d.removeQuota(dir)
+	return nil
 }
 
 // Get returns the directory for the given id.

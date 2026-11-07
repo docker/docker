@@ -508,6 +508,12 @@ func (d *Driver) Remove(id string) error {
 	if err := containerfs.EnsureRemoveAll(dir); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+
+	if d.quotaCtl != nil {
+		if err := d.quotaCtl.RemoveQuota(dir); err != nil {
+			logger.Warnf("Failed to remove quota for layer %v: %v", id, err)
+		}
+	}
 	return nil
 }
 

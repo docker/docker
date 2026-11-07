@@ -22,6 +22,8 @@ func (d *Driver) setupQuota(dir string, size uint64) error {
 	return quota.ErrQuotaNotSupported
 }
 
+func (d *Driver) removeQuota(dir string) {}
+
 func (d *Driver) quotaSupported() bool {
 	return false
 }

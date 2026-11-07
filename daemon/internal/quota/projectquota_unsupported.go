@@ -16,3 +16,8 @@ func (q *Control) SetQuota(targetPath string, quota Quota) error {
 func (q *Control) GetQuota(targetPath string, quota *Quota) error {
 	return ErrQuotaNotSupported
 }
+
+// RemoveQuota - clear the quota limit for the given path
+func (q *Control) RemoveQuota(targetPath string) error {
+	return ErrQuotaNotSupported
+}
