@@ -135,7 +135,7 @@ func (i *ImageService) pushRef(ctx context.Context, targetRef reference.Named, p
 		finishProgress()
 		if retErr == nil {
 			if tagged, ok := targetRef.(reference.Tagged); ok {
-				progress.Messagef(out, "", "%s: digest: %s size: %d", tagged.Tag(), target.Digest, target.Size)
+				progress.Messagef(out, "", "%s: digest: %s size: %d bytes", tagged.Tag(), target.Digest, target.Size)
 			}
 		}
 	}()
